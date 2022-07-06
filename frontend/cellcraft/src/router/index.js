@@ -1,16 +1,30 @@
 import Vue from 'vue'
 import Router from 'vue-router'
-// import CellcraftSidebar from '@/components/CellcraftSidebar'
-// import CellcraftSidebar from './components/CellcraftSidebar'
-import CellcraftHeader from '../components/CellcraftHeader'
+
 Vue.use(Router)
 
 export default new Router({
+  mode: 'history',
   routes: [
     {
       path: '/',
-      name: 'CellcraftHeader',
-      component: CellcraftHeader
+      redirect: '/main'
+    },
+    {
+      path: '/main',
+      component: () => import('@/views/MainPage.vue')
+    },
+    {
+      path: '/login',
+      component: () => import('@/views/LoginPage.vue')
+    },
+    {
+      path: '/signup',
+      component: () => import('@/views/SignupPage.vue')
+    },
+    {
+      path: '*',
+      component: () => import('@/views/NotFoundPage.vue')
     }
   ]
 })

@@ -3,40 +3,21 @@
     <div class="form signup">
       <div class="form-content">
           <header>Sign Up</header>
-          <form action="#">
-            <div class="field input-field">
-              <input type="email" placeholder="이메일을 입력해주세요" class="input">
-            </div>
-
-            <div class="field input-field">
-              <input type="name" placeholder="이름을 입력해주세요" class="input">
-            </div>
-
-            <div class="field input-field">
-              <input type="password" placeholder="비밀번호를 입력해주세요" class="password">
-            </div>
-
-            <div class="form-link">
-              <p> 비밀번호 8자리 이상으로 설정해주세요</p>
-            </div>
-
-            <div class="field input-field">
-              <input type="password" placeholder="비밀번호를 다시 입력해주세요" class="pwCheck">
-            </div>
-
-            <div class="field button-field">
-              <button onclick="checkForm()">가입하기</button>
-            </div>
-          </form>
-
       </div>
+
+      <SignupForm></SignupForm>
+
     </div>
   </section>
 </template>
 
 <script>
-export default {
+import SignupForm from '@/components/SignupForm.vue'
 
+export default {
+  components: {
+    SignupForm
+  }
 }
 </script>
 

@@ -1,12 +1,14 @@
 <template>
   <div id="app">
-    <CellcraftSidebar></CellcraftSidebar>
     <CellcraftHeader></CellcraftHeader>
+    <div class="app-contents">
+      <router-view></router-view>
+    </div>
   </div>
 </template>
 
 <script>
-import CellcraftHeader from './components/CellcraftHeader.vue'
+import CellcraftHeader from '@/components/CellcraftHeader.vue'
 
 export default {
   components: {

@@ -3,26 +3,11 @@
     <div class="form login">
       <div class="form-content">
           <header>Login</header>
-          <form action="#">
-            <div class="field input-field">
-              <input type="email" placeholder="Email" class="input">
-            </div>
 
-            <div class="field input-field">
-              <input type="password" placeholder="Password" class="password">
-            </div>
-
-            <div class="form-link">
-              <a href="#" class="forgot-pass">Forgot password?</a>
-            </div>
-
-            <div class="field button-field">
-              <button>Login</button>
-            </div>
-          </form>
+          <LoginForm></LoginForm>
 
           <div class="form-link">
-            <span>Don't have an account? <a href="signUp.html" class="link signup-link">Signup</a></span>
+            <span>Don't have an account? <router-link to="/signup" class="link signup-link">Signup</router-link> </span>
           </div>
       </div>
     </div>
@@ -30,9 +15,14 @@
 </template>
 
 <script>
-export default {
+import LoginForm from '@/components/LoginForm.vue'
 
+export default {
+  components: {
+    LoginForm
+  }
 }
+
 </script>
 
 <style>

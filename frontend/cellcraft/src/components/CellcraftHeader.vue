@@ -1,9 +1,12 @@
 <template>
   <div>
     <section class = "sidebar" id="sidebar" v-bind:class="{open: S_isActive}">
+
       <div class="logo-details" style="display: flex;align-items: center; justify-content: space-between;">
-        <div class="logo_name" style="margin-left: 1.5vw;">LOGO</div>
-          <i class="fa-solid fa-bars" style="margin-right: .5vw;" id="btn" @click="openSidebar"></i>
+        <div class="logo_name" style="margin-left: 1.5vw;">
+          LOGO
+        </div>
+        <i class="fa-solid fa-bars" style="margin-right: .5vw;" id="btn" @click="openSidebar"></i>
       </div>
 
       <ul class="nav-list">
@@ -55,6 +58,7 @@
           <div id = "logo">LOGO</div>
         </button>
       </section>
+
       <section class="section2" style="display: flex;">
 
         <li class="menu">
@@ -68,6 +72,7 @@
             <li><i class="fa-solid fa-heart"></i><a href="">Content3</a></li>
           </ul>
         </li>
+
         <li class="menu">
           <a href="">
             <i class="fa fa-user"></i>
@@ -79,6 +84,7 @@
             <li><i class="fa-solid fa-heart"></i><a href="">Content3</a></li>
           </ul>
         </li>
+
         <li class="menu">
           <a href="">
             <i class="fa fa-envelope-open"></i>
@@ -90,11 +96,12 @@
             <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
           </ul>
         </li>
+
         <li class="menu">
-          <a href="login.html">
-            <span class="links_name">Login</span>
-          </a>
+          <!-- <span class="links_name">Login</span> -->
+          <router-link to="/login" class="links_name">Login</router-link>
         </li>
+
       </section>
     </section>
   </div>
