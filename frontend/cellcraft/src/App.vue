@@ -7,12 +7,10 @@
 
 <script>
 import CellcraftHeader from './components/CellcraftHeader.vue'
-import CellcraftSidebar from './components/CellcraftSidebar.vue'
 
 export default {
   components: {
-    'CellcraftHeader': CellcraftHeader,
-    'CellcraftSidebar': CellcraftSidebar
+    'CellcraftHeader': CellcraftHeader
   }
 }
 </script>

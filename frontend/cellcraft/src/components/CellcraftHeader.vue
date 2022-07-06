@@ -1,7 +1,53 @@
 <template>
-   <section class="home-section" id="title">
+  <div>
+    <section class = "sidebar" id="sidebar" v-bind:class="{open: S_isActive}">
+      <div class="logo-details" style="display: flex;align-items: center; justify-content: space-between;">
+        <div class="logo_name" style="margin-left: 1.5vw;">LOGO</div>
+          <i class="fa-solid fa-bars" style="margin-right: .5vw;" id="btn" @click="openSidebar"></i>
+      </div>
+
+      <ul class="nav-list">
+        <li>
+          <div class="mainMenu" @click="openMenu1">
+            <i class="fa fa-home"></i>
+            <span class="links_name">Home</span>
+          </div>
+          <ul class="sub-menu" v-bind:class="{open: M1_isActive}">
+            <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
+            <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
+            <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
+          </ul>
+        </li>
+
+        <li>
+          <div class="mainMenu" @click="openMenu2">
+            <i class="fa fa-user"></i>
+            <span class="links_name">Content</span>
+          </div>
+          <ul class="sub-menu" v-bind:class="{open: M2_isActive}">
+            <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
+            <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
+            <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
+          </ul>
+        </li>
+
+        <li>
+          <div class="mainMenu" @click="openMenu3">
+            <i class="fa fa-envelope-open icon"></i>
+            <span class="links_name">Contact</span>
+          </div>
+          <ul class="sub-menu" v-bind:class="{open: M3_isActive}">
+            <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
+            <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
+            <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
+          </ul>
+        </li>
+
+      </ul>
+    </section>
+    <section class="home-section" id="title">
       <section class="section1" style="margin-left: 1vw;">
-        <button onclick="sidebar_open()">
+        <button @click="openSidebar">
           <i class="fa fa-solid fa-bars" id="btn"></i>
         </button>
 
@@ -16,7 +62,7 @@
             <i class="fa fa-home"></i>
             <span class="links_name">Home</span>
           </a>
-          <ul class="sub-menu">
+          <ul class="sub-menu" >
             <li><i class="fa-solid fa-heart"></i><a href="">Content1</a></li>
             <li><i class="fa-solid fa-face-grin"></i><a href="">Content2</a></li>
             <li><i class="fa-solid fa-heart"></i><a href="">Content3</a></li>
@@ -51,15 +97,42 @@
         </li>
       </section>
     </section>
+  </div>
 </template>
 
 <script>
 export default {
+  data () {
+    return {
+      S_isActive: false, // sidebar
+      M1_isActive: false, // subMenu
+      M2_isActive: false,
+      M3_isActive: false
+    }
+  },
+  methods: {
+    openSidebar () {
+      this.S_isActive = !this.S_isActive
+      this.M1_isActive = false
+      this.M2_isActive = false
+      this.M3_isActive = false
+    },
+    openMenu1 () {
+      this.M1_isActive = !this.M1_isActive
+    },
+    openMenu2 () {
+      this.M2_isActive = !this.M2_isActive
+    },
+    openMenu3 () {
+      this.M3_isActive = !this.M3_isActive
+    }
+  }
 
 }
 </script>
 
 <style>
+  @import '../../css/style.css';
   #title {
     background-color: skyblue;
     display: flex;
@@ -75,6 +148,138 @@ export default {
     border: 0;
     background-color: transparent;
   }
+
+  .sidebar {
+    position: fixed;
+    height: 100%;
+    background: white;
+    z-index: 99;
+    transition: all 0.5s ease;
+    /* display: none; */
+    width: 0;
+    box-sizing: border-box;
+  }
+
+  .sidebar .nav-list {
+    display: none;
+    height: 6vh;
+    list-style: none;
+  }
+  .sidebar.open .nav-list {
+    display: block;
+  }
+
+  .sidebar.open{
+    transition: all 0.5s ease;
+    width: 15vw;
+    box-sizing: border-box;
+  }
+
+  .sidebar .logo-details{
+    height: 6vh;
+    position: relative;
+    background-color: rgb(123, 123, 123);
+    color: white;
+  }
+  .sidebar .logo-details .logo_name{
+    color: white;
+    font-size: 1.5vw;
+    font-weight: 600;
+    opacity: 0;
+    transition: all 0.5s ease;
+    display: none;
+  }
+  .sidebar.open .logo-details .logo_name{
+    display: block;
+    opacity: 1;
+  }
+  .sidebar .logo-details #btn{
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    transition: all 0.4s ease;
+    font-size: 1.3vw;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.5s ease;
+  }
+  .sidebar.open .logo-details #btn{
+    text-align: right;
+  }
+
+  .sidebar li{
+    position: relative;
+    display: list-item;
+  }
+
+  .sidebar li div{
+    height: 100%;
+    width: 90%;
+    align-items: center;
+    text-decoration: none;
+    transition: all 0.4s ease;
+    padding: 1.5vh 0;
+    padding-left: 1vw;
+    padding-right: .5vw;
+    /* border-bottom: rgb(206, 206, 206) .1vw solid; */
+    border-top: rgb(206, 206, 206) .1vw solid;
+  }
+  .sidebar li div:hover{
+    background-color: rgb(206, 206, 206);
+    color: black;
+  }
+
+  .sidebar li ul {
+    position: relative;
+    display: none;
+    /* margin-top: 2vh; */
+  }
+
+  .sidebar.open .sub-menu.open{
+    display: block;
+  }
+
+  .sidebar.open .sub-menu.open li{
+    padding: 1vw;
+    /* padding-left: 2vw; */
+    margin-left: 1vw;
+    width: 70%;
+  }
+
+  .sidebar.open .sub-menu.open li a{
+    text-decoration: none;
+    color: black;
+    padding-left: 1vw;
+  }
+
+  .sidebar.open .sub-menu.open li:hover{
+    background-color: rgb(206, 206, 206);
+    color: black;
+  }
+
+  .sidebar li a .links_name, .sidebar li a .fa{
+    color: black;
+    font-size: 1.2vw;
+    font-weight: 400;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.4s;
+    margin-bottom: 1vh;
+  }
+
+  .sidebar.open li a .links_name, .sidebar li a .fa{
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebar li a:hover .links_name,
+  .sidebar li a:hover i{
+    transition: all 0.5s ease;
+    color: #473cbf;
+  }
+
   .home-section{
     position: relative;
     background: #E4E9F7;
@@ -89,7 +294,6 @@ export default {
   .section2 .menu > a{
     text-decoration-line: none;
     color: white;
-
   }
   .section2 a{
     text-decoration-line: none;
@@ -123,6 +327,7 @@ export default {
     background-color: white;
     border-radius: .6vw;
     padding: 1vw;
+    list-style: none;
   }
 
   .section2 li ul li {
