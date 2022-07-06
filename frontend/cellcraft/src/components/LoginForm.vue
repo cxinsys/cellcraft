@@ -39,6 +39,7 @@ export default {
         }
         const response = await loginUser(userData)
         console.log(response)
+        this.$store.commit('setToken', response.data.access_token)
         this.$router.push('/main')
       } catch (error) {
         console.error(error.response.data.detail)

@@ -1,19 +1,26 @@
 import axios from 'axios'
+import { setInterceptors } from '@/api/common/interceptors'
 
-axios.defaults.baseURL = 'http://127.0.0.1:8000' // 서버주소
-
+// axios.defaults.baseURL = 'http://127.0.0.1:8000' // 서버주소
 // axios.defaults.headers.post['Content-Type'] = 'application/json;charset=utf-8'
-
 // axios.defaults.headers.post['Access-Control-Allow-Origin'] = 'http://127.0.0.1:8000'
-
 // axios.defaults.withCredentials = true
 
+function createInstance () {
+  const instance = axios.create({
+    baseURL: 'http://127.0.0.1:8000'
+  })
+  return setInterceptors(instance)
+}
+
+const instance = createInstance()
+
 function registerUser (userData) {
-  return axios.post('/routes/auth/register', userData)
+  return instance.post('/routes/auth/register', userData)
 }
 
 function loginUser (userData) {
-  return axios.post('/routes/auth/login/access-token', userData,
+  return instance.post('/routes/auth/login/access-token', userData,
     {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -22,4 +29,8 @@ function loginUser (userData) {
   )
 }
 
-export { registerUser, loginUser }
+function getUser () {
+  return instance.get('/routes/auth/me')
+}
+
+export { registerUser, loginUser, getUser }

@@ -97,10 +97,20 @@
           </ul>
         </li>
 
-        <li class="menu">
-          <!-- <span class="links_name">Login</span> -->
-          <router-link to="/login" class="links_name">Login</router-link>
-        </li>
+        <template v-if="isUserLogin">
+          <li class="menu">
+            <a href="#" @click="logoutUser" class="links_name">logout</a>
+          </li>
+          <li class="menu">
+            <a href="#" @click="getCurrentUser" class="links_name">UserInfo</a>
+          </li>
+        </template>
+
+        <template v-else>
+          <li class="menu">
+            <router-link to="/login" class="links_name">Login</router-link>
+          </li>
+        </template>
 
       </section>
     </section>
@@ -108,6 +118,8 @@
 </template>
 
 <script>
+import { getUser } from '@/api/index'
+
 export default {
   data () {
     return {
@@ -117,7 +129,22 @@ export default {
       M3_isActive: false
     }
   },
+  computed: {
+    isUserLogin () {
+      return this.$store.getters.isLogin
+    }
+  },
   methods: {
+    logoutUser () {
+      this.$store.commit('clearToken')
+      this.$router.push('/login')
+    },
+    async getCurrentUser () {
+      const userInfo = await getUser()
+      this.$store.commit('setUserInfo', userInfo.data)
+      console.log(userInfo.data)
+      return userInfo.data
+    },
     openSidebar () {
       this.S_isActive = !this.S_isActive
       this.M1_isActive = false
