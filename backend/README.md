@@ -1,6 +1,9 @@
 # cellcraft
 > bio web Backend
 
+## Build Setup
+
+``` bash
 # install dependencies
 pip install -r requirements.txt
 
