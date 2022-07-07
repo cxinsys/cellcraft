@@ -11,4 +11,4 @@ python -m venv .venv
 source venv/bin/activate
 
 # uvicorn server with reload at 127.0.0.1:8000
-uvicorn app.main:app —reload
+uvicorn app.main:app --reload
