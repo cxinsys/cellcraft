@@ -21,8 +21,6 @@
 </template>
 
 <script>
-import { loginUser } from '@/api/index'
-
 export default {
   data () {
     return {
@@ -37,9 +35,7 @@ export default {
           username: this.email,
           password: this.password
         }
-        const response = await loginUser(userData)
-        console.log(response)
-        this.$store.commit('setToken', response.data.access_token)
+        await this.$store.dispatch('LOGIN', userData)
         this.$router.push('/main')
       } catch (error) {
         console.error(error.response.data.detail)

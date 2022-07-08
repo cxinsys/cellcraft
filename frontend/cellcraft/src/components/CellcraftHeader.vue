@@ -4,7 +4,7 @@
 
       <div class="logo-details" style="display: flex;align-items: center; justify-content: space-between;">
         <div class="logo_name" style="margin-left: 1.5vw;">
-          LOGO
+          <a href="" @click="redirect">LOGO</a>
         </div>
         <i class="fa-solid fa-bars" style="margin-right: .5vw;" id="btn" @click="openSidebar"></i>
       </div>
@@ -55,7 +55,9 @@
         </button>
 
         <button>
-          <div id = "logo">LOGO</div>
+          <div id = "logo">
+            <a href="" @click="redirect">LOGO</a>
+          </div>
         </button>
       </section>
 
@@ -135,6 +137,9 @@ export default {
     }
   },
   methods: {
+    redirect () {
+      this.$router.redirect('/')
+    },
     logoutUser () {
       this.$store.commit('clearToken')
       this.$router.push('/login')
