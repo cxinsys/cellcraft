@@ -121,6 +121,7 @@
 
 <script>
 import { getUser } from '@/api/index'
+import { deleteCookie } from '@/utils/cookies'
 
 export default {
   data () {
@@ -138,11 +139,12 @@ export default {
   },
   methods: {
     redirect () {
-      this.$router.redirect('/')
+      this.$router.push('/')
     },
     logoutUser () {
       this.$store.commit('clearToken')
-      this.$router.push('/login')
+      deleteCookie()
+      this.$router.push('/')
     },
     async getCurrentUser () {
       const userInfo = await getUser()
