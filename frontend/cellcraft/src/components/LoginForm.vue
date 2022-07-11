@@ -36,7 +36,7 @@ export default {
           password: this.password
         }
         await this.$store.dispatch('LOGIN', userData)
-        this.$router.push('/main')
+        this.$router.push('/workflow')
       } catch (error) {
         console.error(error.response.data.detail)
       } finally {

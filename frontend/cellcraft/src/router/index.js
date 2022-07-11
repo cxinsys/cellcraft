@@ -23,6 +23,10 @@ export default new Router({
       component: () => import('@/views/SignupPage.vue')
     },
     {
+      path: '/workflow',
+      component: () => import('@/views/WorkFlowPage.vue')
+    },
+    {
       path: '*',
       component: () => import('@/views/NotFoundPage.vue')
     }
