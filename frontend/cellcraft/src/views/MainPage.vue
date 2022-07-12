@@ -46,7 +46,7 @@
     justify-content: center;
     flex-wrap: wrap;
   }
-  .menu__blocks__item{
+  .menu__item{
     background: white;
     border: 0.1vw solid #C2C2C2;
     margin: 2vh 1.6vw;
@@ -60,12 +60,12 @@
     align-items: center;
     word-break:keep-all;
   }
-  .menu__blocks__item img{
+  .menu__item img{
     max-width: 3vw;
     max-height: 100%;
     margin-right: .5vw;
   }
-  .menu__blocks__item__title{
+  .menu__title{
     color: #269ABC;
     font-size: .9vw;
     font-weight: bold;
@@ -117,75 +117,75 @@
       </div>
     </section>
     <section class="menu">
-      <div class="menu__txt">
+      <div class="i-menu__txt">
         Find answers to your questions. Stay up to date on the latest topics. Ask questions and help others.
       </div>
-      <ul class="menu__blocks">
-        <li class="menu__blocks__item">
+      <ul class="i-menu__blocks">
+        <li class="menu__item">
           <img src="@/assets/work-started.png" alt="">
           <div>
-            <div class="menu__blocks__item__title">
+            <div class="menu__title">
               Getting Started
             </div>
-            <div class="menu__blocks__item__info">
+            <div class="menu__info">
               Best practices, tutorials, and other info to get you started
             </div>
           </div>
         </li>
-        <li class="menu__blocks__item">
+        <li class="menu__item">
           <img src="@/assets/documents-search.png" alt="">
           <div>
-            <div class="menu__blocks__item__title">
+            <div class="menu__title">
               Technical Documentation
             </div>
-            <div class="menu__blocks__item__info">
+            <div class="menu__info">
               Algorithms, glossary, and other detailed resources
             </div>
           </div>
         </li>
-        <li class="menu__blocks__item">
+        <li class="menu__item">
           <img src="@/assets/loudspeaker.png" alt="">
           <div>
-            <div class="menu__blocks__item__title">
+            <div class="menu__title">
               Announcements
             </div>
-            <div class="menu__blocks__item__info">
+            <div class="menu__info">
               Blog and events
             </div>
           </div>
         </li>
       </ul>
-      <ul class="menu__blocks">
-        <li class="menu__blocks__item">
+      <ul class="i-menu__blocks">
+        <li class="menu__item">
           <img src="@/assets/repair-fix-repairing.png" alt="">
           <div>
-            <div class="menu__blocks__item__title">
+            <div class="menu__title">
               Tool Index
             </div>
-            <div class="menu__blocks__item__info">
+            <div class="menu__info">
               Purpose, usage and options for each tool
             </div>
           </div>
         </li>
-        <li class="menu__blocks__item">
+        <li class="menu__item">
           <img src="@/assets/faqs.png" alt="">
           <div>
-            <div class="menu__blocks__item__title">
+            <div class="menu__title">
               Forum
             </div>
-            <div class="menu__blocks__item__info">
+            <div class="menu__info">
               Ask our team for help and report issues
             </div>
           </div>
         </li>
-        <li class="menu__blocks__item">
+        <li class="menu__item">
           <!-- <img src="../assets/stars.png" alt=""> -->
           <img src="@/assets/stars.png" alt="">
           <div>
-            <div class="menu__blocks__item__title">
+            <div class="menu__title">
               Showcase
             </div>
-            <div class="menu__blocks__item__info">
+            <div class="menu__info">
               Check out these fully configured workspaces
             </div>
           </div>
