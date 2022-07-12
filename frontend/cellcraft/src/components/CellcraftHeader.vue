@@ -13,7 +13,7 @@
         <li>
           <div class="mainMenu" @click="openMenu1">
             <i class="fa fa-home"></i>
-            <span class="links_name">Home</span>
+            <span class="links_name">Workflows</span>
           </div>
           <ul class="sub-menu" v-bind:class="{open: M1_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
@@ -25,7 +25,7 @@
         <li>
           <div class="mainMenu" @click="openMenu2">
             <i class="fa fa-user"></i>
-            <span class="links_name">Content</span>
+            <span class="links_name">Files</span>
           </div>
           <ul class="sub-menu" v-bind:class="{open: M2_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
@@ -37,7 +37,19 @@
         <li>
           <div class="mainMenu" @click="openMenu3">
             <i class="fa fa-envelope-open icon"></i>
-            <span class="links_name">Contact</span>
+            <span class="links_name">Data Sets</span>
+          </div>
+          <ul class="sub-menu" v-bind:class="{open: M3_isActive}">
+            <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
+            <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
+            <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
+          </ul>
+        </li>
+
+        <li>
+          <div class="mainMenu" @click="openMenu3">
+            <i class="fa fa-envelope-open icon"></i>
+            <span class="links_name">Plots</span>
           </div>
           <ul class="sub-menu" v-bind:class="{open: M3_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
@@ -48,6 +60,7 @@
 
       </ul>
     </section>
+
     <section class="home-section" id="title">
       <section class="section1" style="margin-left: 1vw;">
         <button @click="openSidebar">
@@ -63,7 +76,7 @@
 
       <section class="section2" style="display: flex;">
 
-        <li class="menu">
+        <!-- <li class="menu">
           <a href="">
             <i class="fa fa-home"></i>
             <span class="links_name">Home</span>
@@ -97,7 +110,7 @@
             <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
             <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
           </ul>
-        </li>
+        </li> -->
 
         <template v-if="isUserLogin">
           <li class="menu">
