@@ -1,129 +1,88 @@
 <template>
   <div>
-    <section class = "sidebar" id="sidebar" v-bind:class="{open: S_isActive}">
+    <section class = "sidebar" v-bind:class="{open: S_isActive}">
 
-      <div class="logo-details" style="display: flex;align-items: center; justify-content: space-between;">
-        <div class="logo_name" style="margin-left: 1.5vw;">
+      <div class="sidebar__logo">
+        <div class="sidebar__logo__name">
           <a href="" @click="redirect">LOGO</a>
         </div>
-        <i class="fa-solid fa-bars" style="margin-right: .5vw;" id="btn" @click="openSidebar"></i>
+        <i class="fa-solid fa-bars" @click="openSidebar"></i>
       </div>
 
-      <ul class="nav-list">
-        <li>
-          <div class="mainMenu" @click="openMenu1">
+      <ul class="sidebar__navList">
+        <li class="i-sidebar__navList">
+          <div class="sidebar__mainMenu" @click="openMenu1">
             <i class="fa fa-home"></i>
-            <span class="links_name">Workflows</span>
+            <span class="sidebar__linksName">Workflows</span>
           </div>
-          <ul class="sub-menu" v-bind:class="{open: M1_isActive}">
+          <ul class="sidebar__subMenu" v-bind:class="{open: M1_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
             <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
             <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
           </ul>
         </li>
 
-        <li>
-          <div class="mainMenu" @click="openMenu2">
+        <li class="i-sidebar__navList">
+          <div class="sidebar__mainMenu" @click="openMenu2">
             <i class="fa fa-user"></i>
-            <span class="links_name">Files</span>
+            <span class="sidebar__linksName">Files</span>
           </div>
-          <ul class="sub-menu" v-bind:class="{open: M2_isActive}">
+          <ul class="sidebar__subMenu" v-bind:class="{open: M2_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
             <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
             <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
           </ul>
         </li>
 
-        <li>
-          <div class="mainMenu" @click="openMenu3">
+        <li class="i-sidebar__navList">
+          <div class="sidebar__mainMenu" @click="openMenu3">
             <i class="fa fa-envelope-open icon"></i>
-            <span class="links_name">Data Sets</span>
+            <span class="sidebar__linksName">Data Sets</span>
           </div>
-          <ul class="sub-menu" v-bind:class="{open: M3_isActive}">
+          <ul class="sidebar__subMenu" v-bind:class="{open: M3_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
             <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
             <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
           </ul>
         </li>
 
-        <li>
-          <div class="mainMenu" @click="openMenu3">
+        <li class="i-sidebar__navList">
+          <div class="sidebar__mainMenu">
             <i class="fa fa-envelope-open icon"></i>
-            <span class="links_name">Plots</span>
+            <span class="sidebar__linksName">Plots</span>
           </div>
-          <ul class="sub-menu" v-bind:class="{open: M3_isActive}">
-            <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
-            <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
-            <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
-          </ul>
-        </li>
 
+        </li>
       </ul>
     </section>
 
-    <section class="home-section" id="title">
-      <section class="section1" style="margin-left: 1vw;">
+    <section class="home homeMain">
+      <section class="home__section1">
         <button @click="openSidebar">
-          <i class="fa fa-solid fa-bars" id="btn"></i>
+          <i class="fa fa-solid fa-bars"></i>
         </button>
 
         <button>
-          <div id = "logo">
+          <div class = "home__logo">
             <a href="" @click="redirect">LOGO</a>
           </div>
         </button>
       </section>
 
-      <section class="section2" style="display: flex;">
-
-        <!-- <li class="menu">
-          <a href="">
-            <i class="fa fa-home"></i>
-            <span class="links_name">Home</span>
-          </a>
-          <ul class="sub-menu" >
-            <li><i class="fa-solid fa-heart"></i><a href="">Content1</a></li>
-            <li><i class="fa-solid fa-face-grin"></i><a href="">Content2</a></li>
-            <li><i class="fa-solid fa-heart"></i><a href="">Content3</a></li>
-          </ul>
-        </li>
-
-        <li class="menu">
-          <a href="">
-            <i class="fa fa-user"></i>
-            <span class="links_name">Content</span>
-          </a>
-          <ul class="sub-menu">
-            <li><i class="fa-solid fa-heart"></i><a href="">Content1</a></li>
-            <li><i class="fa-solid fa-face-grin"></i><a href="">Content2</a></li>
-            <li><i class="fa-solid fa-heart"></i><a href="">Content3</a></li>
-          </ul>
-        </li>
-
-        <li class="menu">
-          <a href="">
-            <i class="fa fa-envelope-open"></i>
-            <span class="links_name">Contact</span>
-          </a>
-          <ul class="sub-menu">
-            <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
-            <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
-            <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
-          </ul>
-        </li> -->
+      <section class="home__section2" style="display: flex;">
 
         <template v-if="isUserLogin">
-          <li class="menu">
-            <a href="#" @click="logoutUser" class="links_name">logout</a>
+          <li class="home__menu">
+            <a href="#" @click="logoutUser" class="home__linksName">logout</a>
           </li>
-          <li class="menu">
-            <a href="#" @click="getCurrentUser" class="links_name">UserInfo</a>
+          <li class="home__menu">
+            <a href="#" @click="getCurrentUser" class="home__linksName">UserInfo</a>
           </li>
         </template>
 
         <template v-else>
-          <li class="menu">
-            <router-link to="/login" class="links_name">Login</router-link>
+          <li class="home__menu">
+            <router-link to="/login" class="home__linksName">Login</router-link>
           </li>
         </template>
 
@@ -187,17 +146,7 @@ export default {
 
 <style>
   @import '../../css/style.css';
-  #title {
-    background-color: skyblue;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 6vh;
-  }
-  #logo {
-    width: 2vw;
-    height: auto;
-  }
+
   button {
     border: 0;
     background-color: transparent;
@@ -214,40 +163,44 @@ export default {
     box-sizing: border-box;
   }
 
-  .sidebar .nav-list {
-    display: none;
-    height: 6vh;
-    list-style: none;
-  }
-  .sidebar.open .nav-list {
-    display: block;
-  }
-
   .sidebar.open{
     transition: all 0.5s ease;
     width: 15vw;
     box-sizing: border-box;
   }
 
-  .sidebar .logo-details{
+  .sidebar__navList{
+    display: none;
+    height: 6vh;
+    list-style: none;
+  }
+  .sidebar.open .sidebar__navList{
+    display: block;
+  }
+
+  .sidebar__logo{
     height: 6vh;
     position: relative;
     background-color: rgb(123, 123, 123);
     color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
-  .sidebar .logo-details .logo_name{
+  .sidebar__logo__name{
     color: white;
     font-size: 1.5vw;
     font-weight: 600;
     opacity: 0;
     transition: all 0.5s ease;
     display: none;
+    margin-left: 1.5vw;
   }
-  .sidebar.open .logo-details .logo_name{
+  .sidebar.open .sidebar__logo__name{
     display: block;
     opacity: 1;
   }
-  .sidebar .logo-details #btn{
+  .sidebar .fa-bars{
     position: absolute;
     top: 50%;
     right: 0;
@@ -257,17 +210,18 @@ export default {
     text-align: center;
     cursor: pointer;
     transition: all 0.5s ease;
+    margin-right: .5vw;
   }
-  .sidebar.open .logo-details #btn{
+  .sidebar.open .fa-bars{
     text-align: right;
   }
 
-  .sidebar li{
+  .i-sidebar__navList{
     position: relative;
     display: list-item;
   }
 
-  .sidebar li div{
+  .sidebar__mainMenu{
     height: 100%;
     width: 90%;
     align-items: center;
@@ -279,40 +233,40 @@ export default {
     /* border-bottom: rgb(206, 206, 206) .1vw solid; */
     border-top: rgb(206, 206, 206) .1vw solid;
   }
-  .sidebar li div:hover{
+  .sidebar__mainMenu:hover{
     background-color: rgb(206, 206, 206);
     color: black;
   }
 
-  .sidebar li ul {
+  .sidebar__subMenu {
     position: relative;
     display: none;
     /* margin-top: 2vh; */
   }
 
-  .sidebar.open .sub-menu.open{
+  .sidebar.open .sidebar__subMenu.open{
     display: block;
   }
 
-  .sidebar.open .sub-menu.open li{
+  .sidebar.open .sidebar__subMenu.open li{
     padding: 1vw;
     /* padding-left: 2vw; */
     margin-left: 1vw;
     width: 70%;
   }
 
-  .sidebar.open .sub-menu.open li a{
+  .sidebar.open .sidebar__subMenu.open li a{
     text-decoration: none;
     color: black;
     padding-left: 1vw;
   }
 
-  .sidebar.open .sub-menu.open li:hover{
+  .sidebar.open .sidebar__subMenu.open li:hover{
     background-color: rgb(206, 206, 206);
     color: black;
   }
 
-  .sidebar li a .links_name, .sidebar li a .fa{
+  /* .sidebar li a .links_name, .sidebar li a .fa{
     color: black;
     font-size: 1.2vw;
     font-weight: 400;
@@ -321,58 +275,77 @@ export default {
     pointer-events: none;
     transition: 0.4s;
     margin-bottom: 1vh;
-  }
+  } */
 
-  .sidebar.open li a .links_name, .sidebar li a .fa{
+  /* .sidebar.open li a .links_name, .sidebar li a .fa{
     opacity: 1;
     pointer-events: auto;
-  }
-
+  } */
+/*
   .sidebar li a:hover .links_name,
   .sidebar li a:hover i{
     transition: all 0.5s ease;
     color: #473cbf;
-  }
+  } */
 
-  .home-section{
+  .home{
     position: relative;
     background: #E4E9F7;
     transition: all 0.5s ease;
-    z-index: 2;
+    /* z-index: 2; */
+    background-color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 6vh;
   }
 
-  .sidebar.open ~ .home-section .section1{
+  /* .homeMain{
+    z-index: 2;
+    background-color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 6vh;
+  } */
+
+  .home__section1{
+    margin-left: 1vw;
+  }
+
+  .sidebar.open ~ .home__section1{
     opacity: 0;
   }
 
-  .section2 .menu > a{
-    text-decoration-line: none;
-    color: white;
-  }
-  .section2 a{
-    text-decoration-line: none;
-    color: white;
-  }
-
-  .section2 .menu{
+  .home__menu{
     list-style: none;
     position: relative;
-    margin-bottom: -18vh;
+    margin-right: 2vw;
   }
 
-  .section2 .links_name {
-    margin-right: 1vw;
+  .home__menu > a{
+    text-decoration-line: none;
+    color: black;
+    border: .2vw black solid;
+    padding: 0.5vh 1vw;
   }
 
-  .section2 .menu>a:hover {
-    text-decoration: underline;
-    text-underline-offset: .3vw;
+  .home__menu>a:hover {
+    /* text-decoration: underline;
+    text-underline-offset: .3vw; */
+    font-weight: bold;
   }
 
-  .section2 .menu:hover ul{
+  .home__logo > a{
+    text-decoration-line: none;
+    color: black;
+
+  }
+
+  /* .section2 .menu:hover ul{
     opacity: 1;
-  }
-
+  } */
+/*
   .section2 li ul{
     position: relative;
     opacity: 0;
@@ -382,9 +355,9 @@ export default {
     border-radius: .6vw;
     padding: 1vw;
     list-style: none;
-  }
+  } */
 
-  .section2 li ul li {
+  /* .section2 li ul li {
     margin-bottom: 2vh;
 
   }
@@ -396,6 +369,6 @@ export default {
 
   .section2 li ul li i {
     margin-right: .5vw;
-  }
+  } */
 
 </style>
