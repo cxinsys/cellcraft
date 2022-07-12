@@ -37,11 +37,11 @@
     padding: 4vh 0;
 
   }
-  .menu__txt{
+  .i-menu__txt{
     font-size: 1vw;
     text-align: center;
   }
-  .menu__blocks{
+  .i-menu__blocks{
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
