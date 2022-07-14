@@ -1,8 +1,8 @@
 <template>
   <div>
     <nodeHeader v-bind:title="title" />
-    <div>
-        <input type="number" />
+    <div class="inputBox">
+        <input class="inputBox__input" type="number" />
     </div>
   </div>
 </template>
@@ -26,5 +26,7 @@ export default {
 </script>
 
 <style>
-
+.inputBox__input{
+  width: 100px;
+}
 </style>

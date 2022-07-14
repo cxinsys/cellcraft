@@ -1,13 +1,8 @@
 <template>
   <div>
     <nodeHeader v-bind:title="title" />
-    <select df-select_type>
-      <option value="">Select</option>
-      <option value="1">GET</option>
-      <option value="2">POST</option>
-    </select>
-    <div v-if="select_type">
-      <p>Select type: {{ select_type }}</p>
+    <div>
+        <button class="resultButton">Result</button>
     </div>
   </div>
 </template>
@@ -21,11 +16,8 @@ export default {
   },
   data () {
     return {
-      title: 'Select Type'
+      title: 'Result'
     }
-  },
-  props: {
-    select_type: String
   },
   methods: {
 
@@ -34,5 +26,8 @@ export default {
 </script>
 
 <style>
-
+.resultButton{
+    width: 80px;
+    height: 20px;
+}
 </style>
