@@ -2,7 +2,7 @@
   <div>
     <nodeHeader v-bind:title="title" />
     <div class="inputBox">
-        <input class="inputBox__input" type="number" />
+        <input df-input_num class="inputBox__input" type="number" value="0" />
     </div>
   </div>
 </template>

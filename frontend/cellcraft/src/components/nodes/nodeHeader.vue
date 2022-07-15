@@ -11,10 +11,10 @@ export default {
 <style>
 .header{
   background: #95eaff;
+  padding: 10px 15px;
   margin-top: -15px;
   margin-left: -15px;
   margin-right: -15px;
-  padding: 10px 15px;
   margin-bottom: 15px;
 }
 </style>

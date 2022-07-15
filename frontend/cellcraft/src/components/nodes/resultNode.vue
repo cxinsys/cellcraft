@@ -1,8 +1,8 @@
 <template>
   <div>
     <nodeHeader v-bind:title="title" />
-    <div>
-        <button class="resultButton">Result</button>
+    <div class="resultBox">
+        <button class="resultBox__Button">Result</button>
     </div>
   </div>
 </template>
@@ -26,8 +26,22 @@ export default {
 </script>
 
 <style>
-.resultButton{
-    width: 80px;
-    height: 20px;
+.resultBox{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.resultBox__Button{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 50px;
+  border-radius: 8px;
+  border: 2px solid #494949;
+  line-height:40px;
+  padding: 10px;
+  margin: 10px 0px;
+  cursor: pointer;
 }
 </style>

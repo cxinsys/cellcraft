@@ -69,54 +69,59 @@ export default {
     this.$df.registerNode('inputNum', inputNum, {}, {})
     this.$df.registerNode('operator', operator, {}, {})
     this.$df.registerNode('result', result, {}, {})
+    this.$df.on('nodeDataChanged', (ev) => {
+      //nodeData 바뀌게 되면 Connection Update
+      // console.log(ev)
+      const node = this.$df.getNodeFromId(ev)
+      console.log(node);
+      this.$df.updateConnectionNodes(ev)
+    })
+    this.$df.on('connectionCreated', (ev) => {
+      //ev 값에 따라 기능 구분
+      console.log(ev);
+    })
   },
   methods: {
     exportdf () {
       this.exportValue = this.$df.export()
-      console.log(this.exportValue)
+      console.log(typeof (this.exportValue), this.exportValue)
     },
     importdf () {
       this.$df.import(this.exportValue)
     },
     drag (event) {
-    event.dataTransfer.setData('node', event.target.getAttribute('data-node'))
+      event.dataTransfer.setData('node', event.target.getAttribute('data-node'))
     // console.log(event.dataTransfer, event.target);
-      // if (event.type === 'touchstart') {
-      //   mobile_item_selec = event.target.closest('right-sidebar__drag-drawflow').getAttribute('data-node')
-      // } else {
-      //   event.dataTransfer.setData('node', event.target.getAttribute('data-node'))
-      // }
+    // 모바일
+    // if (event.type === 'touchstart') {
+    //   mobile_item_selec = event.target.closest('right-sidebar__drag-drawflow').getAttribute('data-node')
+    // }
     },
     drop (event) {
-      console.log(event);
-      event.preventDefault()
-      const data = event.dataTransfer.getData('node')
-      this.addNodeToDrawFlow(data, event.clientX, event.clientY)
-      console.log(data);
-      // this.$df.addNode(data, event.clientX, event.clientY)
-      
+      // 모바일
       // if (event.type === 'touchend') {
       //   var parentdrawflow = document.elementFromPoint(mobile_last_move.touches[0].clientX, mobile_last_move.touches[0].clientY).closest('#drawflow')
       //   if (parentdrawflow != null) {
       //     addNodeToDrawFlow(mobile_item_selec, mobile_last_move.touches[0].clientX, mobile_last_move.touches[0].clientY)
       //   }
       //   mobile_item_selec = ''
-      // } else {
-      //   event.preventDefault()
-      //   var data = event.dataTransfer.getData('node')
-      //   this.$df.addNode(data, event.clientX, event.clientY)
       // }
+      // console.log(event);
+      event.preventDefault()
+      const data = event.dataTransfer.getData('node')
+      this.addNodeToDrawFlow(data, event.clientX, event.clientY)
+      // console.log(data);
     },
     allowDrop (event) {
       event.preventDefault()
     },
-    addNodeToDrawFlow(name, pos_x, pos_y) {
-      pos_x = pos_x * ( this.$df.precanvas.clientWidth / (this.$df.precanvas.clientWidth * this.$df.zoom)) - (this.$df.precanvas.getBoundingClientRect().x * ( this.$df.precanvas.clientWidth / (this.$df.precanvas.clientWidth * this.$df.zoom)));
-      pos_y = pos_y * ( this.$df.precanvas.clientHeight / (this.$df.precanvas.clientHeight * this.$df.zoom)) - (this.$df.precanvas.getBoundingClientRect().y * ( this.$df.precanvas.clientHeight / (this.$df.precanvas.clientHeight * this.$df.zoom)));
-    
-      const nodeSelected = this.listNodes.find(ele => ele.name === name);
-      console.log(nodeSelected);
-      this.$df.addNode(name, nodeSelected.input,  nodeSelected.output, pos_x, pos_y, name, {}, name, 'vue');
+    addNodeToDrawFlow (name, pos_x, pos_y) {
+      pos_x = pos_x * (this.$df.precanvas.clientWidth / (this.$df.precanvas.clientWidth * this.$df.zoom)) - (this.$df.precanvas.getBoundingClientRect().x * (this.$df.precanvas.clientWidth / (this.$df.precanvas.clientWidth * this.$df.zoom)))
+      pos_y = pos_y * (this.$df.precanvas.clientHeight / (this.$df.precanvas.clientHeight * this.$df.zoom)) - (this.$df.precanvas.getBoundingClientRect().y * (this.$df.precanvas.clientHeight / (this.$df.precanvas.clientHeight * this.$df.zoom)))
+
+      const nodeSelected = this.listNodes.find(ele => ele.name === name)
+      console.log(nodeSelected)
+      this.$df.addNode(name, nodeSelected.input, nodeSelected.output, pos_x, pos_y, name, {}, name, 'vue')
     }
   }
 }
@@ -165,9 +170,12 @@ export default {
   cursor: pointer;
 }
 .right-sidebar__node{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   border-radius: 8px;
   border: 2px solid #494949;
-  display: block;
   height: 60px;
   line-height:40px;
   padding: 10px;
