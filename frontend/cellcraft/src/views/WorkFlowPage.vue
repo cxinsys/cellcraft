@@ -26,6 +26,9 @@ import selectReqest from '@/components/nodes/selectNode.vue'
 import inputNum from '@/components/nodes/inputNumNode.vue'
 import operator from '@/components/nodes/operatorNode.vue'
 import result from '@/components/nodes/resultNode.vue'
+import fileUpload from '@/components/nodes/fileUploadNode.vue'
+import dataTable from '@/components/nodes/dataTableNode.vue'
+
 
 export default {
   data () {
@@ -40,22 +43,22 @@ export default {
           output: 1
         },
         {
-          name: 'inputNum',
-          color: 'white',
-          input: 0,
-          output: 1
-        },
-        {
           name: 'operator',
           color: 'white',
           input: 2,
           output: 1
         },
         {
-          name: 'result',
+          name: 'fileUpload',
+          color: 'white',
+          input: 0,
+          output: 1
+        },
+        {
+          name: 'dataTable',
           color: 'white',
           input: 1,
-          output: 0
+          output: 1
         }
       ]
     }
@@ -69,6 +72,8 @@ export default {
     this.$df.registerNode('inputNum', inputNum, {}, {})
     this.$df.registerNode('operator', operator, {}, {})
     this.$df.registerNode('result', result, {}, {})
+    this.$df.registerNode('fileUpload', fileUpload, {}, {})
+    this.$df.registerNode('dataTable', dataTable, {}, {})
     this.$df.on('nodeDataChanged', (ev) => {
       //nodeData 바뀌게 되면 Connection Update
       // console.log(ev)
