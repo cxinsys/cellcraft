@@ -33,4 +33,8 @@ function getUser () {
   return instance.get('/routes/auth/me')
 }
 
-export { registerUser, loginUser, getUser }
+function exportData (data) {
+  return instance.post('/routes/workflow/export', data)
+}
+
+export { registerUser, loginUser, getUser, exportData }
