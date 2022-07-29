@@ -11,3 +11,7 @@
 pyvenv.cfg
 .venv
 pip-selfcheck.json
+.snakemake*
+.vscode
+*.pyc
+__pycache__/
