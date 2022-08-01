@@ -27,6 +27,14 @@ export default new Router({
       component: () => import('@/views/WorkFlowPage.vue')
     },
     {
+      path: '/files',
+      component: () => import('@/views/FilesPage.vue')
+    },
+    {
+      path: '/profile',
+      component: () => import('@/views/profile.vue')
+    },
+    {
       path: '*',
       component: () => import('@/views/NotFoundPage.vue')
     }

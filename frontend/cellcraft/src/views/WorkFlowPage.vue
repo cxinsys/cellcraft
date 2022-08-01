@@ -3,8 +3,7 @@
   <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
   <section class="right-sidebar">
     <div class="right-sidebar__row">
-      <button class="right-sidebar__button" @click="exportdf">Export</button>
-      <button class="right-sidebar__button" @click="importdf">Import</button>
+      <button class="right-sidebar__button" @click="exportdf">complie</button>
     </div>
     <div class="right-sidebar__row">
       <ul>
@@ -141,6 +140,224 @@ export default {
   background-size: 30px 30px;
   background-image: radial-gradient(rgba(111, 109, 109, 0.6) 1px, transparent 1px);
 }
+:root {
+  --dfBackgroundColor: rgba(255, 255, 255, 1);
+  --dfBackgroundSize: 16px;
+  --dfBackgroundImage: radial-gradient(rgba(0, 29, 110, 1) 1px, transparent 1px);
+
+  --dfNodeType: flex;
+  --dfNodeTypeFloat: none;
+  --dfNodeBackgroundColor: rgba(219, 223, 253, 1);
+  --dfNodeTextColor: #000000;
+  --dfNodeBorderSize: 2px;
+  --dfNodeBorderColor: rgba(0, 0, 0, 1);
+  --dfNodeBorderRadius: 50px;
+  --dfNodeMinHeight: 50px;
+  --dfNodeMinWidth: 50px;
+  --dfNodePaddingTop: 15px;
+  --dfNodePaddingBottom: 15px;
+  --dfNodeBoxShadowHL: 0px;
+  --dfNodeBoxShadowVL: 0px;
+  --dfNodeBoxShadowBR: 0px;
+  --dfNodeBoxShadowS: 0px;
+  --dfNodeBoxShadowColor: rgba(0, 0, 0, 1);
+
+  --dfNodeHoverBackgroundColor: rgba(36, 47, 155, 1);
+  --dfNodeHoverTextColor: rgba(255, 255, 255, 1);
+  --dfNodeHoverBorderSize: 2px;
+  --dfNodeHoverBorderColor: #000000;
+  --dfNodeHoverBorderRadius: 50px;
+
+  --dfNodeHoverBoxShadowHL: 2px;
+  --dfNodeHoverBoxShadowVL: 3px;
+  --dfNodeHoverBoxShadowBR: 15px;
+  --dfNodeHoverBoxShadowS: 2px;
+  --dfNodeHoverBoxShadowColor: rgba(100, 111, 212, 1);
+
+  --dfNodeSelectedBackgroundColor: rgba(36, 47, 155, 1);
+  --dfNodeSelectedTextColor: #ffffff;
+  --dfNodeSelectedBorderSize: 2px;
+  --dfNodeSelectedBorderColor: #000000;
+  --dfNodeSelectedBorderRadius: 50px;
+
+  --dfNodeSelectedBoxShadowHL: 2px;
+  --dfNodeSelectedBoxShadowVL: 2px;
+  --dfNodeSelectedBoxShadowBR: 15px;
+  --dfNodeSelectedBoxShadowS: 2px;
+  --dfNodeSelectedBoxShadowColor: rgba(100, 111, 212, 1);
+
+  --dfInputBackgroundColor: #ffffff;
+  --dfInputBorderSize: 2px;
+  --dfInputBorderColor: #000000;
+  --dfInputBorderRadius: 50px;
+  --dfInputLeft: -23px;
+  --dfInputHeight: 10px;
+  --dfInputWidth: 10px;
+
+  --dfInputHoverBackgroundColor: rgba(0, 0, 0, 1);
+  --dfInputHoverBorderSize: 2px;
+  --dfInputHoverBorderColor: rgba(0, 0, 0, 1);
+  --dfInputHoverBorderRadius: 50px;
+
+  --dfOutputBackgroundColor: #ffffff;
+  --dfOutputBorderSize: 2px;
+  --dfOutputBorderColor: #000000;
+  --dfOutputBorderRadius: 50px;
+  --dfOutputRight: -8px;
+  --dfOutputHeight: 10px;
+  --dfOutputWidth: 10px;
+
+  --dfOutputHoverBackgroundColor: rgba(0, 0, 0, 1);
+  --dfOutputHoverBorderSize: 2px;
+  --dfOutputHoverBorderColor: rgba(0, 0, 0, 1);
+  --dfOutputHoverBorderRadius: 50px;
+
+  --dfLineWidth: 4px;
+  --dfLineColor: rgba(100, 111, 212, 1);
+  --dfLineHoverColor: rgba(88, 0, 255, 1);
+  --dfLineSelectedColor: rgba(88, 0, 255, 1);
+
+  --dfRerouteBorderWidth: 2px;
+  --dfRerouteBorderColor: #000000;
+  --dfRerouteBackgroundColor: #ffffff;
+
+  --dfRerouteHoverBorderWidth: 2px;
+  --dfRerouteHoverBorderColor: #000000;
+  --dfRerouteHoverBackgroundColor: #ffffff;
+
+  --dfDeleteDisplay: block;
+  --dfDeleteColor: #ffffff;
+  --dfDeleteBackgroundColor: #000000;
+  --dfDeleteBorderSize: 2px;
+  --dfDeleteBorderColor: #ffffff;
+  --dfDeleteBorderRadius: 50px;
+  --dfDeleteTop: -15px;
+
+  --dfDeleteHoverColor: #000000;
+  --dfDeleteHoverBackgroundColor: #ffffff;
+  --dfDeleteHoverBorderSize: 2px;
+  --dfDeleteHoverBorderColor: #000000;
+  --dfDeleteHoverBorderRadius: 50px;
+
+}
+
+#drawflow {
+  background: var(--dfBackgroundColor);
+  background-size: var(--dfBackgroundSize) var(--dfBackgroundSize);
+  background-image: var(--dfBackgroundImage);
+}
+
+.drawflow .drawflow-node {
+  display: var(--dfNodeType);
+  background: var(--dfNodeBackgroundColor);
+  color: var(--dfNodeTextColor);
+  border: var(--dfNodeBorderSize)  solid var(--dfNodeBorderColor);
+  border-radius: var(--dfNodeBorderRadius);
+  min-height: var(--dfNodeMinHeight);
+  width: auto;
+  min-width: var(--dfNodeMinWidth);
+  padding-top: var(--dfNodePaddingTop);
+  padding-bottom: var(--dfNodePaddingBottom);
+  -webkit-box-shadow: var(--dfNodeBoxShadowHL) var(--dfNodeBoxShadowVL) var(--dfNodeBoxShadowBR) var(--dfNodeBoxShadowS) var(--dfNodeBoxShadowColor);
+  box-shadow:  var(--dfNodeBoxShadowHL) var(--dfNodeBoxShadowVL) var(--dfNodeBoxShadowBR) var(--dfNodeBoxShadowS) var(--dfNodeBoxShadowColor);
+}
+
+.drawflow .drawflow-node:hover {
+  background: var(--dfNodeHoverBackgroundColor);
+  color: var(--dfNodeHoverTextColor);
+  border: var(--dfNodeHoverBorderSize)  solid var(--dfNodeHoverBorderColor);
+  border-radius: var(--dfNodeHoverBorderRadius);
+  -webkit-box-shadow: var(--dfNodeHoverBoxShadowHL) var(--dfNodeHoverBoxShadowVL) var(--dfNodeHoverBoxShadowBR) var(--dfNodeHoverBoxShadowS) var(--dfNodeHoverBoxShadowColor);
+  box-shadow:  var(--dfNodeHoverBoxShadowHL) var(--dfNodeHoverBoxShadowVL) var(--dfNodeHoverBoxShadowBR) var(--dfNodeHoverBoxShadowS) var(--dfNodeHoverBoxShadowColor);
+}
+
+.drawflow .drawflow-node.selected {
+  background: var(--dfNodeSelectedBackgroundColor);
+  color: var(--dfNodeSelectedTextColor);
+  border: var(--dfNodeSelectedBorderSize)  solid var(--dfNodeSelectedBorderColor);
+  border-radius: var(--dfNodeSelectedBorderRadius);
+  -webkit-box-shadow: var(--dfNodeSelectedBoxShadowHL) var(--dfNodeSelectedBoxShadowVL) var(--dfNodeSelectedBoxShadowBR) var(--dfNodeSelectedBoxShadowS) var(--dfNodeSelectedBoxShadowColor);
+  box-shadow:  var(--dfNodeSelectedBoxShadowHL) var(--dfNodeSelectedBoxShadowVL) var(--dfNodeSelectedBoxShadowBR) var(--dfNodeSelectedBoxShadowS) var(--dfNodeSelectedBoxShadowColor);
+}
+
+.drawflow .drawflow-node .input {
+  left: var(--dfInputLeft);
+  background: var(--dfInputBackgroundColor);
+  border: var(--dfInputBorderSize)  solid var(--dfInputBorderColor);
+  border-radius: var(--dfInputBorderRadius);
+  height: var(--dfInputHeight);
+  width: var(--dfInputWidth);
+}
+
+.drawflow .drawflow-node .input:hover {
+  background: var(--dfInputHoverBackgroundColor);
+  border: var(--dfInputHoverBorderSize)  solid var(--dfInputHoverBorderColor);
+  border-radius: var(--dfInputHoverBorderRadius);
+}
+
+.drawflow .drawflow-node .outputs {
+  float: var(--dfNodeTypeFloat);
+}
+
+.drawflow .drawflow-node .output {
+  right: var(--dfOutputRight);
+  background: var(--dfOutputBackgroundColor);
+  border: var(--dfOutputBorderSize)  solid var(--dfOutputBorderColor);
+  border-radius: var(--dfOutputBorderRadius);
+  height: var(--dfOutputHeight);
+  width: var(--dfOutputWidth);
+}
+
+.drawflow .drawflow-node .output:hover {
+  background: var(--dfOutputHoverBackgroundColor);
+  border: var(--dfOutputHoverBorderSize)  solid var(--dfOutputHoverBorderColor);
+  border-radius: var(--dfOutputHoverBorderRadius);
+}
+
+.drawflow .connection .main-path {
+  stroke-width: var(--dfLineWidth);
+  stroke: var(--dfLineColor);
+}
+
+.drawflow .connection .main-path:hover {
+  stroke: var(--dfLineHoverColor);
+}
+
+.drawflow .connection .main-path.selected {
+  stroke: var(--dfLineSelectedColor);
+}
+
+.drawflow .connection .point {
+  stroke: var(--dfRerouteBorderColor);
+  stroke-width: var(--dfRerouteBorderWidth);
+  fill: var(--dfRerouteBackgroundColor);
+}
+
+.drawflow .connection .point:hover {
+  stroke: var(--dfRerouteHoverBorderColor);
+  stroke-width: var(--dfRerouteHoverBorderWidth);
+  fill: var(--dfRerouteHoverBackgroundColor);
+}
+
+.drawflow-delete {
+  display: var(--dfDeleteDisplay);
+  color: var(--dfDeleteColor);
+  background: var(--dfDeleteBackgroundColor);
+  border: var(--dfDeleteBorderSize) solid var(--dfDeleteBorderColor);
+  border-radius: var(--dfDeleteBorderRadius);
+}
+
+.parent-node .drawflow-delete {
+  top: var(--dfDeleteTop);
+}
+
+.drawflow-delete:hover {
+  color: var(--dfDeleteHoverColor);
+  background: var(--dfDeleteHoverBackgroundColor);
+  border: var(--dfDeleteHoverBorderSize) solid var(--dfDeleteHoverBorderColor);
+  border-radius: var(--dfDeleteHoverBorderRadius);
+}
+
 .right-sidebar{
   width: 15vw;
   height: 100vh;

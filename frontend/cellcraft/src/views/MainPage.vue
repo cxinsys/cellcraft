@@ -6,7 +6,7 @@
     align-content: center;
     justify-content: center;
     align-items: center;
-    background-color: rgb(26, 116, 149);
+    background-color: #646FD4;
     color: white;
     padding-top: 4vh;
     flex-direction: column;
@@ -27,7 +27,7 @@
     height: auto;
   }
   .infoTxt{
-    background-color: black;
+    background-color: #242F9B;
     color: white;
     text-align: center;
     padding: 2vh;
@@ -71,6 +71,12 @@
     font-weight: bold;
     margin-bottom: 1vh;
   }
+  footer{
+    background-color: #F8F9FA;
+  }
+  .copyright{
+    padding: 2vh 0vh 1vw 1vw;
+  }
   /* .tab{
     margin-top: 5vh;
   }
@@ -97,7 +103,7 @@
   <!-- <div>
       <h1>Main</h1>
   </div> -->
-  <section>
+  <section class="mainPage">
     <section class="info">
       <div class="info__name">
         Single Cell Analysis
@@ -214,6 +220,11 @@
         </div>
       </div>
     </section> -->
+    <footer>
+      <div class="copyright">
+       Copyright 2022. Cellcraft Co. all rights reserved
+      </div>
+    </footer>
   </section>
 </template>
 
@@ -221,3 +232,7 @@
 export default {
 }
 </script>
+
+<style>
+
+</style>
