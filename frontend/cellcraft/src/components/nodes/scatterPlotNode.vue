@@ -1,8 +1,8 @@
 <template>
   <div>
     <nodeHeader v-bind:title="title" />
-    <div class="resultBox">
-        <button class="resultBox__Button">Result</button>
+    <div class="plotBox">
+        <button class="plotBox__Button">Scatter Plot</button>
     </div>
   </div>
 </template>
@@ -26,12 +26,12 @@ export default {
 </script>
 
 <style>
-.resultBox{
+.plotBox{
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.resultBox__Button{
+.plotBox__Button{
   display: flex;
   align-items: center;
   justify-content: center;

@@ -21,12 +21,11 @@ import Vue from 'vue'
 /* eslint-disable */
 // import Drawflow from 'drawflow'
 // import styleDrawflow from 'drawflow/dist/drawflow.min.css' // eslint-disable-line no-use-before-define
-import selectReqest from '@/components/nodes/selectNode.vue'
-import inputNum from '@/components/nodes/inputNumNode.vue'
-import operator from '@/components/nodes/operatorNode.vue'
-import result from '@/components/nodes/resultNode.vue'
+import scatterPlot from '@/components/nodes/scatterPlotNode.vue'
 import fileUpload from '@/components/nodes/fileUploadNode.vue'
 import dataTable from '@/components/nodes/dataTableNode.vue'
+
+import { exportData } from '@/api/index'
 
 
 export default {
@@ -35,18 +34,6 @@ export default {
       editor: null,
       exportValue: null,
       listNodes: [
-        {
-          name: 'selectReqest',
-          color: 'white',
-          input: 0,
-          output: 1
-        },
-        {
-          name: 'operator',
-          color: 'white',
-          input: 2,
-          output: 1
-        },
         {
           name: 'fileUpload',
           color: 'white',
@@ -58,6 +45,12 @@ export default {
           color: 'white',
           input: 1,
           output: 1
+        },
+        {
+          name: 'scatterPlot',
+          color: 'white',
+          input: 1,
+          output: 0
         }
       ]
     }
@@ -67,10 +60,7 @@ export default {
     Vue.prototype.$df = new Drawflow(id, Vue, this)
     this.$df.start()
 
-    this.$df.registerNode('selectReqest', selectReqest, {}, {})
-    this.$df.registerNode('inputNum', inputNum, {}, {})
-    this.$df.registerNode('operator', operator, {}, {})
-    this.$df.registerNode('result', result, {}, {})
+    this.$df.registerNode('scatterPlot', scatterPlot, {}, {})
     this.$df.registerNode('fileUpload', fileUpload, {}, {})
     this.$df.registerNode('dataTable', dataTable, {}, {})
     this.$df.on('nodeDataChanged', (ev) => {
@@ -86,9 +76,15 @@ export default {
     })
   },
   methods: {
-    exportdf () {
-      this.exportValue = this.$df.export()
-      console.log(typeof (this.exportValue), this.exportValue)
+    async exportdf () {
+      try {
+       this.exportValue = this.$df.export()
+        const JsonData = await exportData(JSON.stringify(this.exportValue.drawflow.Home.data))
+        // console.log(JSON.stringify(this.exportValue.drawflow.Home.data))
+        console.log(typeof (JsonData), JsonData) 
+      } catch (error) {
+        console.error(error)
+      }
     },
     importdf () {
       this.$df.import(this.exportValue)
