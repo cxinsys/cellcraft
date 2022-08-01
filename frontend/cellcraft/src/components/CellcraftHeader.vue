@@ -292,6 +292,7 @@
     margin-top: 10px;
     margin-right: 2vw;
     opacity: 0;
+    z-index: 3;
   }
   .profile__setting.open {
     opacity: 1;
