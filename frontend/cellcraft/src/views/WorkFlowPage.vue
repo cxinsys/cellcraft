@@ -370,7 +370,7 @@ export default {
 }
 
 .right-sidebar{
-  margin-top: 6vh;
+  margin-top: 50px;
   position: fixed;
   right: 0;
   top: 0;
