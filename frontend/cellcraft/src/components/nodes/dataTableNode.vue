@@ -1,19 +1,19 @@
 <template>
   <div>
-    <nodeHeader v-bind:title="title" />
+    <!-- <nodeHeader v-bind:title="title" /> -->
     <div class="buttonBox">
-        <button class="buttonBox__button">Data Table</button>
+        Data Table
     </div>
   </div>
 </template>
 
 <script>
-import nodeHeader from '@/components/nodes/nodeHeader.vue'
+// import nodeHeader from '@/components/nodes/nodeHeader.vue'
 
 export default {
-  components: {
-    nodeHeader
-  },
+  // components: {
+  //   nodeHeader
+  // },
   data () {
     return {
       title: 'Data Table'
@@ -27,21 +27,13 @@ export default {
 
 <style>
 .buttonBox{
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.buttonBox__button{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100px;
-  height: 50px;
-  border-radius: 8px;
-  border: 2px solid #494949;
-  line-height:40px;
-  padding: 10px;
-  margin: 10px 0px;
-  cursor: pointer;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: bold;
 }
 </style>

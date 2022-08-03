@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile, File
 from fastapi.encoders import jsonable_encoder
+from typing import List
+import os
 
 from json import JSONDecodeError
 
@@ -15,3 +17,13 @@ async def exportData(request: Request):
         payload_as_json = None
         message = "Received data is not a valid JSON"
     return {"message": message, "recived_data": payload_as_json}
+
+#workflow file-upload
+@router.post("/upload")
+async def fileUpload(files: List[UploadFile] = File()):
+    UPLOAD_DIRECTORY = './'
+    for file in files:
+        contents = await file.read()
+        with open(os.path.join(UPLOAD_DIRECTORY, file.filename), "wb") as f:
+            f.write(contents)
+    return {"filename" : [file.filename for file in files]}

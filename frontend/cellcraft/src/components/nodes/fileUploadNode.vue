@@ -1,19 +1,13 @@
 <template>
   <div>
-    <nodeHeader v-bind:title="title" />
     <div class="inputBox">
-        <input df-file class="inputBox__input" type="file" />
+        file
     </div>
   </div>
 </template>
 
 <script>
-import nodeHeader from '@/components/nodes/nodeHeader.vue'
-
 export default {
-  components: {
-    nodeHeader
-  },
   data () {
     return {
       title: 'File Upload'
@@ -26,6 +20,17 @@ export default {
 </script>
 
 <style>
+.inputBox{
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: bold;
+
+}
 .inputBox__input{
   width: 100px;
 }

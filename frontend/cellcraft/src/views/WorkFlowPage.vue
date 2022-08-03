@@ -1,9 +1,19 @@
 <template>
 <div>
+  <div class="modal" v-if="is_show">
+    <div class="modal__wrapper">
+      <div class="modal__container">
+        <button @click="handle_toggle" type="button"> X </button>
+        <dataTableModal v-if="show_modal === 'DataTable'"></dataTableModal>
+        <fileuploadModal v-if="show_modal === 'file'"></fileuploadModal>
+        <scatterPlotModal v-if="show_modal === 'ScatterPlot'"></scatterPlotModal>
+      </div>
+    </div>
+  </div>
   <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
   <section class="right-sidebar">
     <div class="right-sidebar__row">
-      <button class="right-sidebar__button" @click="exportdf">complie</button>
+      <button class="right-sidebar__button" @click="exportdf">compile</button>
     </div>
     <div class="right-sidebar__row">
       <ul>
@@ -24,11 +34,19 @@ import Vue from 'vue'
 import scatterPlot from '@/components/nodes/scatterPlotNode.vue'
 import fileUpload from '@/components/nodes/fileUploadNode.vue'
 import dataTable from '@/components/nodes/dataTableNode.vue'
+import dataTableModal from '@/components/modals/datatable.vue'
+import fileuploadModal from '@/components/modals/fileupload.vue'
+import scatterPlotModal from '@/components/modals/scatterPlot.vue'
 
 import { exportData } from '@/api/index'
 
 
 export default {
+  components: {
+    dataTableModal,
+    fileuploadModal,
+    scatterPlotModal
+  },
   data () {
     return {
       editor: null,
@@ -52,7 +70,9 @@ export default {
           input: 1,
           output: 0
         }
-      ]
+      ],
+      is_show: false,
+      show_modal: null
     }
   },
   mounted () {
@@ -70,12 +90,26 @@ export default {
       console.log(node);
       this.$df.updateConnectionNodes(ev)
     })
-    this.$df.on('connectionCreated', (ev) => {
+    this.$df.on('nodeSelected', (ev) => {
       //ev 값에 따라 기능 구분
       console.log(ev);
     })
+    this.$df.on('clickEnd', (ev) => {
+      //ev 값에 따라 기능 구분
+      // console.log(ev);
+      if (ev.detail === 2 && this.$df.node_selected){
+        console.dir(this.$df.node_selected.innerText.replace(/(\s*)/g, ""))
+        this.is_show = true
+        this.show_modal = this.$df.node_selected.innerText.replace(/(\s*)/g, "")
+      }
+    })
   },
   methods: {
+    handle_toggle(){
+      this.is_show = !this.is_show
+      const df = document.querySelector('#drawflow')
+      df.dispatchEvent(new Event('mouseup'))
+    },
     async exportdf () {
       try {
        this.exportValue = this.$df.export()
@@ -128,6 +162,34 @@ export default {
 </script>
 
 <style>
+.modal{
+  position: fixed;
+  z-index: 9998;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: table;
+  transition: opacity 0.3s ease;
+}
+
+.modal__wrapper{
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.modal__container{
+  width: 400px;
+  height: 500px;
+  margin: 0px auto;
+  padding: 20px 30px;
+  background-color: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
+  transition: all 0.3s ease;
+  font-family: Helvetica, Arial, sans-serif;
+}
 #drawflow {
   width: 90vw;
   height: 95vh;
