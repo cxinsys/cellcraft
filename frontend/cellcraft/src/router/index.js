@@ -32,7 +32,7 @@ export default new Router({
     },
     {
       path: '/profile',
-      component: () => import('@/views/profile.vue')
+      component: () => import('@/components/profile.vue')
     },
     {
       path: '*',
