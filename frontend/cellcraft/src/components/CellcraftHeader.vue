@@ -1,4 +1,8 @@
 <style scoped>
+  a{
+    text-decoration: none;
+    color: black;
+  }
 
   button {
     border: 0;
@@ -10,7 +14,7 @@
     height: 100%;
     background: white;
     z-index: 5;
-    transition: all 0.5s ease;
+    transition: all 0.2s ease;
     /* display: none; */
     width: 0;
     box-sizing: border-box;
@@ -18,8 +22,8 @@
   }
 
   .sidebar.open{
-    transition: all 0.5s ease;
-    width: 13vw;
+    transition: all 0.2s ease;
+    width: 12vw;
     box-sizing: border-box;
   }
 
@@ -53,7 +57,7 @@
   .sidebar__logoImg{
     height: auto;
     width: 10vw;
-    margin-left: -1vw;
+    margin-left: -24px;
     margin-top: .7vh;
   }
   .sidebar.open .sidebar__logo__name{
@@ -73,7 +77,8 @@
     margin-right: .5vw;
   }
   .sidebar.open .fa-bars{
-    text-align: right;
+    /* text-align: right; */
+    font-size: .8vw;
   }
 
   .i-sidebar__navList{
@@ -83,23 +88,29 @@
 
   .sidebar__mainMenu{
     height: 2vh;
-    width: 92%;
+    width: 12vw;
     align-items: center;
     text-decoration: none;
-    transition: all 0.4s ease;
-    padding: 2.5vh 0vh 2.5vh 1vw;
+    padding: 2.5vh 0vh 2.5vh 0vw;
     border-top: rgb(206, 206, 206) .1vw solid;
     display: flex;
+    text-decoration: none;
+  }
+
+  .sidebar__mainMenu > *{
+    transition: all 0.5s ease;
   }
 
   .mainMenu__icon{
     width: 1.5vw;
     height: auto;
     margin-right: 1vw;
+    margin-left: 1vw;
   }
 
   .sidebar__linksName{
     font-weight: bold;
+    text-decoration: none;
   }
 
   .sidebar__mainMenu:hover{
@@ -223,7 +234,6 @@
     display: flex;
     flex-direction: column-reverse;
     align-items: flex-end;
-    margin-top: 2px;
   }
 
   .home__profile{
@@ -297,7 +307,7 @@
   }
 
   .sidebar.open ~ .app-contents{
-    width: calc(100% - 13vw);
+    width: calc(100% - 12vw);
   }
   /* .section2 .menu:hover ul{
     opacity: 1;
@@ -379,35 +389,42 @@
     <section class = "sidebar" v-bind:class="{open: S_isActive}">
       <div class="sidebar__logo">
         <div class="sidebar__logo__name">
-          <a href="" @click="redirect"><img class="sidebar__logoImg" src="@/assets/logo_light.png" alt=""></a>
+          <router-link to="/main">
+            <img class="sidebar__logoImg" src="@/assets/logo_light.png" alt="">
+          </router-link>
         </div>
         <i class="fa-solid fa-bars" @click="openSidebar"></i>
       </div>
 
       <ul class="sidebar__navList">
         <li class="i-sidebar__navList">
-          <div class="sidebar__mainMenu" @click="openMenu1">
+          <router-link to="/workflow">
+            <div class="sidebar__mainMenu" @click="openMenu1">
             <!-- <i class="fa fa-home"></i> -->
-            <img class ="mainMenu__icon" src="@/assets/workflow.png" alt="">
-            <span class="sidebar__linksName">Workflows</span>
-          </div>
-          <ul class="sidebar__subMenu" v-bind:class="{open: M1_isActive}">
+              <img class ="mainMenu__icon" src="@/assets/workflow.png" alt="">
+              <span class="sidebar__linksName">Workflows</span>
+            </div>
+          </router-link>
+
+          <!-- <ul class="sidebar__subMenu" v-bind:class="{open: M1_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
             <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
             <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
-          </ul>
+          </ul> -->
         </li>
 
         <li class="i-sidebar__navList">
-          <div class="sidebar__mainMenu" @click="openMenu2">
-            <img class="mainMenu__icon" src="@/assets/files.png" alt="">
-            <span class="sidebar__linksName">Files</span>
-          </div>
-          <ul class="sidebar__subMenu" v-bind:class="{open: M2_isActive}">
+          <router-link to="/files">
+            <div class="sidebar__mainMenu" @click="openMenu2">
+              <img class="mainMenu__icon" src="@/assets/files.png" alt="">
+              <span class="sidebar__linksName">Files</span>
+            </div>
+          </router-link>
+          <!-- <ul class="sidebar__subMenu" v-bind:class="{open: M2_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
             <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
             <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
-          </ul>
+          </ul> -->
         </li>
 
         <li class="i-sidebar__navList">
@@ -416,11 +433,11 @@
             <img class="mainMenu__icon" src="@/assets/database-file.png" alt="">
             <span class="sidebar__linksName">Data Sets</span>
           </div>
-          <ul class="sidebar__subMenu" v-bind:class="{open: M3_isActive}">
+          <!-- <ul class="sidebar__subMenu" v-bind:class="{open: M3_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
             <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
             <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
-          </ul>
+          </ul> -->
         </li>
       </ul>
     </section>
@@ -434,7 +451,9 @@
         </template>
         <button>
           <div class = "home__logo">
-            <a href="" @click="redirect"><img class="home__logoImg" src="@/assets/logo_dark.png" alt=""></a>
+            <router-link to="/main">
+              <img class="home__logoImg" src="@/assets/logo_dark.png" alt="">
+            </router-link>
           </div>
         </button>
 
@@ -463,7 +482,12 @@
             </li>
             <li class="profile__func" style="border-top: 1px rgb(222,222,222) solid ">
               <img class="profile__func__img" src="@/assets/logout.png" alt="" style="padding-left:.2vw">
-              <div class="profile__func__txt" @click="logoutUser"> logout </div>
+              <!-- <div class="profile__func__txt" @click="logoutUser"> logout </div> -->
+              <router-link to="/main">
+                <div class="profile__func__txt" @click="logoutUser">
+                  Logout
+                </div>
+              </router-link>
             </li>
           </ul>
 
@@ -575,4 +599,14 @@ export default {
 
 <style>
   @import '../../css/style.css';
+
+  footer{
+    height: 50px;
+    background-color: white;
+  }
+
+  .copyright{
+    text-align: center;
+    line-height : 50px;
+  }
 </style>

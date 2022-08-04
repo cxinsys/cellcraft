@@ -399,10 +399,6 @@ export default {
   width: 9vw;
 }
 
-.right-sidebar__main.open {
-  width: 9vw;
-}
-
 .right-sidebar__row{
   width: 100%;
   height: 50%;
