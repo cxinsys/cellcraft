@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile, File
 from fastapi.encoders import jsonable_encoder
-from typing import List
+from typing import List, Union
 import os
 
 from json import JSONDecodeError
@@ -22,8 +22,8 @@ async def exportData(request: Request):
 @router.post("/upload")
 async def fileUpload(files: List[UploadFile] = File()):
     UPLOAD_DIRECTORY = './'
-    for file in files:
-        contents = await file.read()
-        with open(os.path.join(UPLOAD_DIRECTORY, file.filename), "wb") as f:
+    for item_file in files:
+        contents = await item_file.read()
+        with open(os.path.join(UPLOAD_DIRECTORY, item_file.filename), "wb") as f:
             f.write(contents)
-    return {"filename" : [file.filename for file in files]}
+    return {"filename" : [item_file.filename for item_file in files]}

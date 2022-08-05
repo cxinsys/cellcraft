@@ -33,9 +33,8 @@ export default {
     },
     async uploadFile () {
       if (this.selectFile) {
-        console.log(this.selectFile)
         this.is_upload = true
-        let form = new FormData()
+        const form = new FormData()
         form.append('flie', this.selectFile)
         const response = await uploadForm(form)
         console.log(response)
