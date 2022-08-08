@@ -37,4 +37,18 @@ function exportData (data) {
   return instance.post('/routes/workflow/export', data)
 }
 
-export { registerUser, loginUser, getUser, exportData }
+function uploadForm (formData) {
+  // FormData의 value 확인
+  // for (let value of formData.values()) {
+  //   console.log(value)
+  // }
+  return instance.post('/routes/workflow/upload', formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+  )
+}
+
+export { registerUser, loginUser, getUser, exportData, uploadForm }
