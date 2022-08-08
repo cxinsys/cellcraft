@@ -1,6 +1,6 @@
 <template>
 <div>
-  <div class="modal" v-if="is_show">
+  <div class="modal" v-if="is_show_modal">
     <div class="modal__wrapper">
       <div class="modal__container">
         <button @click="handle_toggle" type="button"> X </button>
@@ -10,8 +10,22 @@
       </div>
     </div>
   </div>
-  <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
+
+  <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)">
+    <div class="node-info" v-if="is_show_info">
+      <div class="l-column">
+        <h1 class="node-info__title">{{ node_info.name }}</h1>
+        <h1 class="node-info__desc">{{ node_info.desc }}</h1>
+      </div>
+      <div class="l-column">
+        <h2 class="node-info__connection">{{ node_info.input }}{{ node_info.output }}</h2>
+        <h2 class="node-info__content">{{ node_info.content }}</h2>
+      </div>
+    </div>
+  </div>
+
   <section class="right-sidebar">
+
     <section class="right-sidebar__main" v-bind:class="{open: rightSidebar_isActive}">
       <div class="right-sidebar__row">
         <ul>
@@ -26,9 +40,11 @@
         <button class="right-sidebar__button" @click="exportdf">complie</button>
       </div>
     </section>
+
     <div class="popBtn" @click="openRightsidebar">
       <div class="popBtn__txt">></div>
     </div>
+
   </section>
 
 </div>
@@ -81,8 +97,16 @@ export default {
           output: 0
         }
       ],
-      is_show: false,
-      show_modal: null
+      is_show_modal: false,
+      is_show_info: false,
+      show_modal: null,
+      node_info: {
+        name: null,
+        desc: null,
+        input: null,
+        output: null,
+        content: null,
+      },
     }
   },
   mounted () {
@@ -97,26 +121,43 @@ export default {
       //nodeData 바뀌게 되면 Connection Update
       // console.log(ev)
       const node = this.$df.getNodeFromId(ev)
-      console.log(node);
+      console.log(node)
       this.$df.updateConnectionNodes(ev)
     })
     this.$df.on('nodeSelected', (ev) => {
       //ev 값에 따라 기능 구분
-      console.log(ev);
+      this.is_show_info = true
+      const node = this.$df.getNodeFromId(ev)
+      console.log(node.inputs, node.outputs);
+      if (node.name === 'fileUpload'){
+        this.node_info.name = 'file'
+        this.node_info.desc = 'Read data from an input file'
+      }
+      else if (node.name === 'dataTable'){
+        this.node_info.name = 'Data Table'
+        this.node_info.desc = 'View the dataset in a spreadsheet'
+      }
+      else if (node.name === 'scatterPlot'){
+        this.node_info.name = 'Scatter Plot'
+        this.node_info.desc = 'Interactive scatter plot visualization'
+      }
+    })
+    this.$df.on('nodeUnselected', (ev) => {
+      this.is_show_info = false
     })
     this.$df.on('clickEnd', (ev) => {
       //ev 값에 따라 기능 구분
       // console.log(ev);
       if (ev.detail === 2 && this.$df.node_selected){
         console.dir(this.$df.node_selected.innerText.replace(/(\s*)/g, ""))
-        this.is_show = true
+        this.is_show_modal = true
         this.show_modal = this.$df.node_selected.innerText.replace(/(\s*)/g, "")
       }
     })
   },
   methods: {
     handle_toggle(){
-      this.is_show = !this.is_show
+      this.is_show_modal = !this.is_show_modal
       const df = document.querySelector('#drawflow')
       df.dispatchEvent(new Event('mouseup'))
     },
@@ -176,6 +217,35 @@ export default {
 </script>
 
 <style>
+.node-info{
+  position: absolute;
+  z-index: 9997;
+  bottom: 10%;
+  left: 29%;
+
+  width: 40vw;
+  height: 10vh;
+  border-radius: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: white;
+
+  animation: infoAnimation 1.5s ease-in-out forwards;
+}
+
+@keyframes infoAnimation {
+  0%{
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  50%{
+    opacity: 1;
+  }
+  100%{
+    transform: none;
+    opacity: 1;
+  }
+}
+
 .modal{
   position: fixed;
   z-index: 9998;
@@ -207,6 +277,8 @@ export default {
 #drawflow {
   width: 100vw;
   height: 94vh;
+
+  position: relative;
 
   background: rgba(0, 0, 0, 1);
   background-size: 30px 30px;

@@ -2,7 +2,7 @@
   <div>
     <form class="fileUpload-form" @submit.prevent="uploadFile">
         <label class="fileUpload-form__title">Select CSV to upload</label>
-        <input df-file class="fileUpload-form__input" type="file" ref="selectFile" @change.prevent="previewFile" accept="text/csv" />
+        <input class="fileUpload-form__input" type="file" ref="selectFile" @change.prevent="previewFile" accept="text/csv" />
         <ul class="fileUpload-form__info" v-if="selectFile">
           <li>name : {{ selectFile.name }}</li>
           <li>size : {{ selectFile.size | formatBytes}}</li>

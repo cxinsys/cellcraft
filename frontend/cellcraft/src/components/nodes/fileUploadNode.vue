@@ -29,9 +29,11 @@ export default {
   text-align: center;
   font-size: 1rem;
   font-weight: bold;
-
 }
 .inputBox__input{
   width: 100px;
+}
+.file{
+  display: none;
 }
 </style>
