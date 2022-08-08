@@ -34,7 +34,7 @@
   }
   .menu{
     background-color: rgb(240,240,240);
-    padding: 4vh 0;
+    padding-top: 4vh;
 
   }
   .i-menu__txt{
@@ -70,12 +70,6 @@
     font-size: .9vw;
     font-weight: bold;
     margin-bottom: 1vh;
-  }
-  footer{
-    background-color: #F8F9FA;
-  }
-  .copyright{
-    padding: 2vh 0vh 1vw 1vw;
   }
   /* .tab{
     margin-top: 5vh;
@@ -220,11 +214,6 @@
         </div>
       </div>
     </section> -->
-    <footer>
-      <div class="copyright">
-       Copyright 2022. Cellcraft Co. all rights reserved
-      </div>
-    </footer>
   </section>
 </template>
 

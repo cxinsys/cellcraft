@@ -12,17 +12,25 @@
   </div>
   <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
   <section class="right-sidebar">
-    <div class="right-sidebar__row">
-      <button class="right-sidebar__button" @click="exportdf">compile</button>
-    </div>
-    <div class="right-sidebar__row">
-      <ul>
-        <li class="right-sidebar__drag-drawflow" v-for="(node, idx) in listNodes" :key="idx" draggable="true" :data-node="node.name" @dragstart="drag($event)">
-          <div class="right-sidebar__node" :style="`background: ${node.color}`" >{{ node.name }}</div>
-        </li>
-      </ul>
+    <section class="right-sidebar__main" v-bind:class="{open: rightSidebar_isActive}">
+      <div class="right-sidebar__row">
+        <ul>
+          <li class="right-sidebar__drag-drawflow"  v-for="(node, idx) in listNodes" :key="idx" draggable="true" :data-node="node.name" @dragstart="drag($event)">
+            <div class="right-sidebar__node">{{ node.name }}
+              <img :src="node.img" alt="" class="right-sidebar__img">
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div class="right-sidebar__row">
+        <button class="right-sidebar__button" @click="exportdf">complie</button>
+      </div>
+    </section>
+    <div class="popBtn" @click="openRightsidebar">
+      <div class="popBtn__txt">></div>
     </div>
   </section>
+
 </div>
 </template>
 
@@ -39,6 +47,7 @@ import fileuploadModal from '@/components/modals/fileupload.vue'
 import scatterPlotModal from '@/components/modals/scatterPlot.vue'
 
 import { exportData } from '@/api/index'
+import { requireFileAsExpression } from 'webpack/lib/ParserHelpers'
 
 
 export default {
@@ -49,24 +58,25 @@ export default {
   },
   data () {
     return {
+      rightSidebar_isActive: true,
       editor: null,
       exportValue: null,
       listNodes: [
         {
           name: 'fileUpload',
-          color: 'white',
+          img: require('@/assets/file-upload.png'),
           input: 0,
           output: 1
         },
         {
           name: 'dataTable',
-          color: 'white',
+          img: require('@/assets/table.png'),
           input: 1,
           output: 1
         },
         {
           name: 'scatterPlot',
-          color: 'white',
+          img: require('@/assets/scatter-plot.png'),
           input: 1,
           output: 0
         }
@@ -156,7 +166,11 @@ export default {
       const nodeSelected = this.listNodes.find(ele => ele.name === name)
       console.log(nodeSelected)
       this.$df.addNode(name, nodeSelected.input, nodeSelected.output, pos_x, pos_y, name, {}, name, 'vue')
-    }
+    },
+    openRightsidebar () {
+      this.rightSidebar_isActive = !this.rightSidebar_isActive
+    },
+
   }
 }
 </script>
@@ -191,8 +205,8 @@ export default {
   font-family: Helvetica, Arial, sans-serif;
 }
 #drawflow {
-  width: 90vw;
-  height: 95vh;
+  width: 100vw;
+  height: 94vh;
 
   background: rgba(0, 0, 0, 1);
   background-size: 30px 30px;
@@ -417,17 +431,35 @@ export default {
 }
 
 .right-sidebar{
-  width: 15vw;
-  height: 100vh;
-  background: rgb(216, 223, 222);
+  margin-top: 50px;
   position: fixed;
   right: 0;
   top: 0;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+}
+
+.right-sidebar__main{
+  width: 0;
+  height: 94vh;
+  background: #DBDFFD;
+  /* position: fixed; */
+  right: 0;
+  top: 0;
+  /* margin-top: 6vh; */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content:start;
 }
+
+
+
+.right-sidebar__main.open {
+  width: 9vw;
+}
+
 .right-sidebar__row{
   width: 100%;
   height: 50%;
@@ -435,31 +467,78 @@ export default {
   align-items: center;
   justify-content: center;
   flex-direction: column;
+  margin-top: 13vh;
 }
 .right-sidebar__button{
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100px;
-  height: 50px;
-  border-radius: 8px;
-  border: 2px solid #494949;
-  line-height:40px;
+  width: 8vw;
+  height: 4vh;
+  border-radius: 30px;
+  color: white;
+  background-color: #242F9B;
   padding: 10px;
   margin: 10px 0px;
   cursor: pointer;
+  font-size: 1.2vw;
+  border: none;
+  margin-top: 7vh;
 }
 .right-sidebar__node{
   display: flex;
+  flex-direction: column-reverse;
   align-items: center;
   justify-content: center;
   text-align: center;
   border-radius: 8px;
-  border: 2px solid #494949;
+  /* border: 2px solid #494949; */
   height: 60px;
   line-height:40px;
-  padding: 10px;
-  margin: 10px 0px;
+  padding: 20px;
+  margin: 50px 0px;
   cursor: move;
+  font-weight: bold;
+  font-size: 1vw;
+  white-space: nowrap;
+}
+.right-sidebar__img{
+  width: 2vw;
+}
+
+.right-sidebar__main > * {
+  visibility: hidden;
+}
+
+
+.right-sidebar__main.open > * {
+  visibility: visible;
+  opacity: 1;
+}
+
+
+.popBtn{
+  width: 40px;
+  height: 8vh;
+  background-color: #242F9B;
+  border-radius: 30px;
+  margin-right: -20px;
+  /* position: fixed; */
+  right: 0;
+  top: 0;
+  margin-top: 4vh;
+  text-align: center;
+  color:white;
+  z-index: -1;
+}
+.popBtn__txt{
+  margin-top: 25px;
+  margin-right: 20px;
+  cursor: default;
+}
+
+.right-sidebar__main.open ~ .popBtn > .popBtn__txt{
+  margin-top: 27px;
+  transform: rotate( 180deg );
 }
 </style>

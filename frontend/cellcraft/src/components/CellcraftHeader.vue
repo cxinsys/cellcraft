@@ -1,4 +1,8 @@
 <style scoped>
+  a{
+    text-decoration: none;
+    color: black;
+  }
 
   button {
     border: 0;
@@ -9,16 +13,17 @@
     position: fixed;
     height: 100%;
     background: white;
-    z-index: 99;
-    transition: all 0.5s ease;
+    z-index: 5;
+    transition: all 0.2s ease;
     /* display: none; */
     width: 0;
     box-sizing: border-box;
+    /* position: ; */
   }
 
   .sidebar.open{
-    transition: all 0.5s ease;
-    width: 13vw;
+    transition: all 0.2s ease;
+    width: 12vw;
     box-sizing: border-box;
   }
 
@@ -52,7 +57,7 @@
   .sidebar__logoImg{
     height: auto;
     width: 10vw;
-    margin-left: -1vw;
+    margin-left: -24px;
     margin-top: .7vh;
   }
   .sidebar.open .sidebar__logo__name{
@@ -72,7 +77,8 @@
     margin-right: .5vw;
   }
   .sidebar.open .fa-bars{
-    text-align: right;
+    /* text-align: right; */
+    font-size: .8vw;
   }
 
   .i-sidebar__navList{
@@ -82,23 +88,29 @@
 
   .sidebar__mainMenu{
     height: 2vh;
-    width: 92%;
+    width: 12vw;
     align-items: center;
     text-decoration: none;
-    transition: all 0.4s ease;
-    padding: 2vh 0vh 2vh 1vw;
+    padding: 2.5vh 0vh 2.5vh 0vw;
     border-top: rgb(206, 206, 206) .1vw solid;
     display: flex;
+    text-decoration: none;
+  }
+
+  .sidebar__mainMenu > *{
+    transition: all 0.5s ease;
   }
 
   .mainMenu__icon{
     width: 1.5vw;
     height: auto;
     margin-right: 1vw;
+    margin-left: 1vw;
   }
 
   .sidebar__linksName{
     font-weight: bold;
+    text-decoration: none;
   }
 
   .sidebar__mainMenu:hover{
@@ -134,28 +146,6 @@
     color: black;
   }
 
-  /* .sidebar li a .links_name, .sidebar li a .fa{
-    color: black;
-    font-size: 1.2vw;
-    font-weight: 400;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: 0.4s;
-    margin-bottom: 1vh;
-  } */
-
-  /* .sidebar.open li a .links_name, .sidebar li a .fa{
-    opacity: 1;
-    pointer-events: auto;
-  } */
-/*
-  .sidebar li a:hover .links_name,
-  .sidebar li a:hover i{
-    transition: all 0.5s ease;
-    color: #473cbf;
-  } */
-
   .home{
     position: relative;
     background: #E4E9F7;
@@ -165,16 +155,8 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    height: 6vh;
+    height: 50px;
   }
-  /* .homeMain{
-    z-index: 2;
-    background-color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 6vh;
-  } */
 
   .home__section1{
     margin-left: 1vw;
@@ -194,7 +176,7 @@
     border-radius: .7vw;
     /* border: .2vw black solid; */
     padding: 1vh 0;
-    margin-top: -90px;
+    margin-top: 7px;
   }
 
   /* .home__menu > a{
@@ -252,7 +234,6 @@
     display: flex;
     flex-direction: column-reverse;
     align-items: flex-end;
-    margin-top: 2px;
   }
 
   .home__profile{
@@ -292,6 +273,7 @@
     margin-top: 10px;
     margin-right: 2vw;
     opacity: 0;
+    z-index: 3;
   }
   .profile__setting.open {
     opacity: 1;
@@ -321,10 +303,11 @@
   .profile__func__txt{
     font-size:.7vw;
     font-weight: bold;
+    cursor: default;
   }
 
   .sidebar.open ~ .app-contents{
-    width: calc(100% - 13vw);
+    width: calc(100% - 12vw);
   }
   /* .section2 .menu:hover ul{
     opacity: 1;
@@ -354,44 +337,94 @@
   .section2 li ul li i {
     margin-right: .5vw;
   } */
-
+  .modal__profile__header{
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px white solid;
+    padding-top: 1vw;
+    padding-bottom: 15px;
+    padding-left: 8px;
+    margin: 15px 0px 0px 0px;
+  }
+  .modal__profile__header__account{
+    margin-left: 10px;
+  }
+  .modal__profile__header__closeBtn{
+    margin-right: 10px
+  }
+  .modal__profile__header__closeBtn:hover{
+    cursor: default;
+  }
+  .modal__profile__main{
+    display: flex;
+  }
+  .modal__profile__img{
+    padding: 2.5vw;
+    width: 10vw;
+    height: auto;
+    border-radius: 50%;
+  }
+  .modal__profile__setting{
+    font-size: .8vw;
+    padding-top: 5vh;
+  }
+  .setting__nickname,.setting__emailAddress{
+    margin-top: .6vh;
+    margin-left: 1vw;
+  }
+  .setting__changeName, .setting__changeEmail, .setting__changePassword, .setting__delete{
+    font-size: .1vw;
+  }
+  .setting__email, .setting__password{
+    margin-top: 4vh;
+  }
+  .setting__delete{
+    margin-top: 24vw;
+    color: red;
+  }
 </style>
 
 <template>
   <div>
     <section class = "sidebar" v-bind:class="{open: S_isActive}">
-
       <div class="sidebar__logo">
         <div class="sidebar__logo__name">
-          <a href="" @click="redirect"><img class="sidebar__logoImg" src="@/assets/logo_light.png" alt=""></a>
+          <router-link to="/main">
+            <img class="sidebar__logoImg" src="@/assets/logo_light.png" alt="">
+          </router-link>
         </div>
         <i class="fa-solid fa-bars" @click="openSidebar"></i>
       </div>
 
       <ul class="sidebar__navList">
         <li class="i-sidebar__navList">
-          <div class="sidebar__mainMenu" @click="openMenu1">
+          <router-link to="/workflow">
+            <div class="sidebar__mainMenu" @click="openMenu1">
             <!-- <i class="fa fa-home"></i> -->
-            <img class ="mainMenu__icon" src="@/assets/workflow.png" alt="">
-            <span class="sidebar__linksName">Workflows</span>
-          </div>
-          <ul class="sidebar__subMenu" v-bind:class="{open: M1_isActive}">
+              <img class ="mainMenu__icon" src="@/assets/workflow.png" alt="">
+              <span class="sidebar__linksName">Workflows</span>
+            </div>
+          </router-link>
+
+          <!-- <ul class="sidebar__subMenu" v-bind:class="{open: M1_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
             <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
             <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
-          </ul>
+          </ul> -->
         </li>
 
         <li class="i-sidebar__navList">
-          <div class="sidebar__mainMenu" @click="openMenu2">
-            <img class="mainMenu__icon" src="@/assets/files.png" alt="">
-            <span class="sidebar__linksName">Files</span>
-          </div>
-          <ul class="sidebar__subMenu" v-bind:class="{open: M2_isActive}">
+          <router-link to="/files">
+            <div class="sidebar__mainMenu" @click="openMenu2">
+              <img class="mainMenu__icon" src="@/assets/files.png" alt="">
+              <span class="sidebar__linksName">Files</span>
+            </div>
+          </router-link>
+          <!-- <ul class="sidebar__subMenu" v-bind:class="{open: M2_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
             <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
             <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
-          </ul>
+          </ul> -->
         </li>
 
         <li class="i-sidebar__navList">
@@ -400,11 +433,11 @@
             <img class="mainMenu__icon" src="@/assets/database-file.png" alt="">
             <span class="sidebar__linksName">Data Sets</span>
           </div>
-          <ul class="sidebar__subMenu" v-bind:class="{open: M3_isActive}">
+          <!-- <ul class="sidebar__subMenu" v-bind:class="{open: M3_isActive}">
             <li><i class="fa-solid fa-heart"></i><a href="">Contact1</a></li>
             <li><i class="fa-solid fa-face-grin"></i><a href="">Contact2</a></li>
             <li><i class="fa-solid fa-heart"></i><a href="">Contact3</a></li>
-          </ul>
+          </ul> -->
         </li>
       </ul>
     </section>
@@ -416,41 +449,48 @@
             <i class="fa fa-solid fa-bars"></i>
           </button>
         </template>
-
         <button>
           <div class = "home__logo">
-            <a href="" @click="redirect"><img class="home__logoImg" src="@/assets/logo_dark.png" alt=""></a>
+            <router-link to="/main">
+              <img class="home__logoImg" src="@/assets/logo_dark.png" alt="">
+            </router-link>
           </div>
         </button>
 
       </section>
 
       <section class="home__section2">
-        <ul class = "profile__setting" v-bind:class="{open: setting_isActive}">
-          <li class="profile__func">
-            <div class="profile__img">
-              <!-- <div class="profile__text">J</div> -->
-            </div>
-            <div class="profile__func__txt"> email@ㅇㄹㄴ.com </div>
-          </li>
-          <li class="profile__func">
-            <img class="profile__func__img" src="@/assets/person-profile-image.png" alt="">
-            <div class="profile__func__txt"> internal profile </div>
-          </li>
-          <li class="profile__func">
-            <img class="profile__func__img" src="@/assets/settings-gear.png" alt="">
-            <div class="profile__func__txt"> settings </div>
-          </li>
-          <li class="profile__func">
-            <img class="profile__func__img" src="@/assets/themes.png" alt="">
-            <div class="profile__func__txt"> themes </div>
-          </li>
-          <li class="profile__func" style="border-top: 1px rgb(222,222,222) solid ">
-            <img class="profile__func__img" src="@/assets/logout.png" alt="" style="padding-left:.2vw">
-            <div class="profile__func__txt"> logout </div>
-          </li>
-        </ul>
         <template v-if="isUserLogin">
+          <ul class = "profile__setting" v-bind:class="{open: setting_isActive}">
+            <li class="profile__func">
+              <div class="profile__img">
+                <!-- <div class="profile__text">J</div> -->
+              </div>
+              <div class="profile__func__txt"> email@ㅇㄹㄴ.com </div>
+            </li>
+            <li class="profile__func" @click="modal=true">
+              <img class="profile__func__img" src="@/assets/person-profile-image.png" alt="">
+              <div class="profile__func__txt"> internal profile </div>
+            </li>
+            <li class="profile__func">
+              <img class="profile__func__img" src="@/assets/settings-gear.png" alt="">
+              <div class="profile__func__txt"> settings </div>
+            </li>
+            <li class="profile__func">
+              <img class="profile__func__img" src="@/assets/themes.png" alt="">
+              <div class="profile__func__txt"> themes </div>
+            </li>
+            <li class="profile__func" style="border-top: 1px rgb(222,222,222) solid ">
+              <img class="profile__func__img" src="@/assets/logout.png" alt="" style="padding-left:.2vw">
+              <!-- <div class="profile__func__txt" @click="logoutUser"> logout </div> -->
+              <router-link to="/main">
+                <div class="profile__func__txt" @click="logoutUser">
+                  Logout
+                </div>
+              </router-link>
+            </li>
+          </ul>
+
           <!-- <li class="home__menu">
             <a href="#" @click="logoutUser" class="home__linksName">logout</a>
           </li> -->
@@ -470,7 +510,28 @@
             <router-link to="/login" class="home__login__text">login</router-link>
           </li>
         </template>
-
+        <Profile @click="modal=false" v-if="modal">
+          <div slot="header" class="modal__profile__header">
+            <div class="modal__profile__header__account">Account</div>
+            <div class="modal__profile__header__closeBtn" @click="modal=false">X</div>
+          </div>
+          <div slot="body" class="modal__profile__main">
+            <div>
+              <img class="modal__profile__img" src="@/assets/no-profile-picture.png" alt="">
+            </div>
+            <div class="modal__profile__setting">
+              <div class="setting__name">Name</div>
+              <div class="setting__nickname">Jisu Kang</div>
+              <div class="setting__changeName">Change name</div>
+              <div class="setting__email">Email</div>
+              <div class="setting__emailAddress">email@uuu.com</div>
+              <div class="setting__changeEmail">Change mail</div>
+              <div class="setting__password">Password</div>
+              <div class="setting__changePassword">Change Password</div>
+            </div>
+            <div class="setting__delete">Delete account</div>
+          </div>
+        </Profile>
       </section>
     </section>
   </div>
@@ -479,10 +540,13 @@
 <script>
 import { getUser } from '@/api/index'
 import { deleteCookie } from '@/utils/cookies'
+import Profile from '@/components/profile'
 
 export default {
+  components: {Profile},
   data () {
     return {
+      modal: false,
       S_isActive: false, // sidebar
       M1_isActive: false, // subMenu
       M2_isActive: false,
@@ -529,10 +593,20 @@ export default {
       this.setting_isActive = !this.setting_isActive
     }
   }
-
 }
+
 </script>
 
 <style>
   @import '../../css/style.css';
+
+  footer{
+    height: 50px;
+    background-color: white;
+  }
+
+  .copyright{
+    text-align: center;
+    line-height : 50px;
+  }
 </style>
