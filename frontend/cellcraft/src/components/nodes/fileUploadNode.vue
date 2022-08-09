@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="inputBox">
-        file
+        File
     </div>
   </div>
 </template>
