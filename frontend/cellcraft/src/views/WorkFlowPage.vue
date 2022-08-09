@@ -13,12 +13,12 @@
 
   <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)">
     <div class="node-info" v-if="is_show_info">
-      <div class="l-column">
+      <div class="l-row">
         <h1 class="node-info__title">{{ node_info.name }}</h1>
         <h1 class="node-info__desc">{{ node_info.desc }}</h1>
       </div>
-      <div class="l-column">
-        <h2 class="node-info__connection">{{ node_info.input }}{{ node_info.output }}</h2>
+      <div class="l-row">
+        <h2 class="node-info__connection" v-if="node_info.input || node_info.output">{{ node_info.input }}{{ node_info.name }}{{ node_info.output }}</h2>
         <h2 class="node-info__content">{{ node_info.content }}</h2>
       </div>
     </div>
@@ -79,19 +79,19 @@ export default {
       exportValue: null,
       listNodes: [
         {
-          name: 'fileUpload',
+          name: 'File',
           img: require('@/assets/file-upload.png'),
           input: 0,
           output: 1
         },
         {
-          name: 'dataTable',
+          name: 'Data Table',
           img: require('@/assets/table.png'),
           input: 1,
           output: 1
         },
         {
-          name: 'scatterPlot',
+          name: 'Scatter Plot',
           img: require('@/assets/scatter-plot.png'),
           input: 1,
           output: 0
@@ -114,9 +114,9 @@ export default {
     Vue.prototype.$df = new Drawflow(id, Vue, this)
     this.$df.start()
 
-    this.$df.registerNode('scatterPlot', scatterPlot, {}, {})
-    this.$df.registerNode('fileUpload', fileUpload, {}, {})
-    this.$df.registerNode('dataTable', dataTable, {}, {})
+    this.$df.registerNode('Scatter Plot', scatterPlot, {}, {})
+    this.$df.registerNode('File', fileUpload, {}, {})
+    this.$df.registerNode('Data Table', dataTable, {}, {})
     this.$df.on('nodeDataChanged', (ev) => {
       //nodeData 바뀌게 되면 Connection Update
       // console.log(ev)
@@ -129,17 +129,31 @@ export default {
       this.is_show_info = true
       const node = this.$df.getNodeFromId(ev)
       console.log(node.inputs, node.outputs);
-      if (node.name === 'fileUpload'){
-        this.node_info.name = 'file'
+      this.node_info.name = node.name
+      if(node.name == 'File'){
         this.node_info.desc = 'Read data from an input file'
       }
-      else if (node.name === 'dataTable'){
-        this.node_info.name = 'Data Table'
+      else if(node.name = 'Data Table'){
         this.node_info.desc = 'View the dataset in a spreadsheet'
       }
-      else if (node.name === 'scatterPlot'){
-        this.node_info.name = 'Scatter Plot'
+      else if(node.name = 'Scatter Plot'){
         this.node_info.desc = 'Interactive scatter plot visualization'
+      }
+      if(this.connectionParsing(node.inputs)){
+        const input_node = this.$df.getNodeFromId(this.connectionParsing(node.inputs))
+        console.log(input_node.name);
+        this.node_info.input = `${input_node.name} -> `
+      }
+      else {
+        this.node_info.input = null
+      }
+      if(this.connectionParsing(node.outputs)){
+        const output_node = this.$df.getNodeFromId(this.connectionParsing(node.outputs))
+        console.log(output_node.name);
+        this.node_info.output = ` -> ${output_node.name}`
+      }
+      else {
+        this.node_info.output = null
       }
     })
     this.$df.on('nodeUnselected', (ev) => {
@@ -154,8 +168,27 @@ export default {
         this.show_modal = this.$df.node_selected.innerText.replace(/(\s*)/g, "")
       }
     })
+    this.$df.on('connectionCreated', (ev) => {
+      //ev 값에 따라 기능 구분
+      // console.log(ev);
+      const input_id = this.$df.getNodeFromId(ev.input_id)
+      const output_id = this.$df.getNodeFromId(ev.output_id)
+      console.log(input_id, output_id);
+    })
   },
   methods: {
+    connectionParsing(IO){
+      if(Object.keys(IO)[0] == null){
+        return null
+      }
+      else{
+        if(Object.values(Object.values(Object.values(IO)[0])[0])[0]){
+          const node_id = Object.entries(Object.values(Object.values(Object.values(IO)[0])[0])[0])[0][1]
+          return node_id
+        }
+        return null
+      }
+    },
     handle_toggle(){
       this.is_show_modal = !this.is_show_modal
       const df = document.querySelector('#drawflow')
@@ -211,12 +244,47 @@ export default {
     openRightsidebar () {
       this.rightSidebar_isActive = !this.rightSidebar_isActive
     },
-
   }
 }
 </script>
 
 <style>
+.l-row{
+  width: 100%;
+  height: 50%;
+}
+
+.l-row:nth-child(2){
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.node-info__connection{
+  width: 70%;
+  height: 60%;
+  border: 1px solid black;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  border-radius: 15px;
+  margin: 15px 0;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(205, 216, 253);
+}
+
+.node-info__title{
+  font-size: 1.4rem;
+  color: #242F9B;
+}
+
+.node-info__desc{
+  font: 0.7rem;
+  margin: 6px 0;
+}
+
 .node-info{
   position: absolute;
   z-index: 9997;
@@ -228,6 +296,8 @@ export default {
   border-radius: 15px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   background: white;
+  
+  padding: 1rem;
 
   animation: infoAnimation 1.5s ease-in-out forwards;
 }
