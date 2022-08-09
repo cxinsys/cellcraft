@@ -65,7 +65,6 @@ import scatterPlotModal from '@/components/modals/scatterPlot.vue'
 import { exportData } from '@/api/index'
 import { requireFileAsExpression } from 'webpack/lib/ParserHelpers'
 
-
 export default {
   components: {
     dataTableModal,
@@ -105,8 +104,8 @@ export default {
         desc: null,
         input: null,
         output: null,
-        content: null,
-      },
+        content: null
+      }
     }
   },
   mounted () {
@@ -118,41 +117,37 @@ export default {
     this.$df.registerNode('File', fileUpload, {}, {})
     this.$df.registerNode('Data Table', dataTable, {}, {})
     this.$df.on('nodeDataChanged', (ev) => {
-      //nodeData 바뀌게 되면 Connection Update
+      // nodeData 바뀌게 되면 Connection Update
       // console.log(ev)
       const node = this.$df.getNodeFromId(ev)
       console.log(node)
       this.$df.updateConnectionNodes(ev)
     })
     this.$df.on('nodeSelected', (ev) => {
-      //ev 값에 따라 기능 구분
+      // ev 값에 따라 기능 구분
       this.is_show_info = true
       const node = this.$df.getNodeFromId(ev)
-      console.log(node.inputs, node.outputs);
+      console.log(node.inputs, node.outputs)
       this.node_info.name = node.name
-      if(node.name == 'File'){
+      if (node.name == 'File') {
         this.node_info.desc = 'Read data from an input file'
-      }
-      else if(node.name = 'Data Table'){
+      } else if (node.name == 'Data Table') {
         this.node_info.desc = 'View the dataset in a spreadsheet'
-      }
-      else if(node.name = 'Scatter Plot'){
+      } else if (node.name == 'Scatter Plot') {
         this.node_info.desc = 'Interactive scatter plot visualization'
       }
-      if(this.connectionParsing(node.inputs)){
+      if (this.connectionParsing(node.inputs)) {
         const input_node = this.$df.getNodeFromId(this.connectionParsing(node.inputs))
-        console.log(input_node.name);
+        console.log(input_node.name)
         this.node_info.input = `${input_node.name} -> `
-      }
-      else {
+      } else {
         this.node_info.input = null
       }
-      if(this.connectionParsing(node.outputs)){
+      if (this.connectionParsing(node.outputs)) {
         const output_node = this.$df.getNodeFromId(this.connectionParsing(node.outputs))
-        console.log(output_node.name);
+        console.log(output_node.name)
         this.node_info.output = ` -> ${output_node.name}`
-      }
-      else {
+      } else {
         this.node_info.output = null
       }
     })
@@ -160,46 +155,45 @@ export default {
       this.is_show_info = false
     })
     this.$df.on('clickEnd', (ev) => {
-      //ev 값에 따라 기능 구분
+      // ev 값에 따라 기능 구분
       // console.log(ev);
-      if (ev.detail === 2 && this.$df.node_selected){
-        console.dir(this.$df.node_selected.innerText.replace(/(\s*)/g, ""))
+      if (ev.detail === 2 && this.$df.node_selected) {
+        console.dir(this.$df.node_selected.innerText.replace(/(\s*)/g, ''))
         this.is_show_modal = true
-        this.show_modal = this.$df.node_selected.innerText.replace(/(\s*)/g, "")
+        this.show_modal = this.$df.node_selected.innerText.replace(/(\s*)/g, '')
       }
     })
     this.$df.on('connectionCreated', (ev) => {
-      //ev 값에 따라 기능 구분
+      // ev 값에 따라 기능 구분
       // console.log(ev);
       const input_id = this.$df.getNodeFromId(ev.input_id)
       const output_id = this.$df.getNodeFromId(ev.output_id)
-      console.log(input_id, output_id);
+      console.log(input_id, output_id)
     })
   },
   methods: {
-    connectionParsing(IO){
-      if(Object.keys(IO)[0] == null){
+    connectionParsing (IO) {
+      if (Object.keys(IO)[0] == null) {
         return null
-      }
-      else{
-        if(Object.values(Object.values(Object.values(IO)[0])[0])[0]){
+      } else {
+        if (Object.values(Object.values(Object.values(IO)[0])[0])[0]) {
           const node_id = Object.entries(Object.values(Object.values(Object.values(IO)[0])[0])[0])[0][1]
           return node_id
         }
         return null
       }
     },
-    handle_toggle(){
+    handle_toggle () {
       this.is_show_modal = !this.is_show_modal
       const df = document.querySelector('#drawflow')
       df.dispatchEvent(new Event('mouseup'))
     },
     async exportdf () {
       try {
-       this.exportValue = this.$df.export()
+        this.exportValue = this.$df.export()
         const JsonData = await exportData(JSON.stringify(this.exportValue.drawflow.Home.data))
         // console.log(JSON.stringify(this.exportValue.drawflow.Home.data))
-        console.log(typeof (JsonData), JsonData) 
+        console.log(typeof (JsonData), JsonData)
       } catch (error) {
         console.error(error)
       }
@@ -243,7 +237,7 @@ export default {
     },
     openRightsidebar () {
       this.rightSidebar_isActive = !this.rightSidebar_isActive
-    },
+    }
   }
 }
 </script>
@@ -296,7 +290,7 @@ export default {
   border-radius: 15px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   background: white;
-  
+
   padding: 1rem;
 
   animation: infoAnimation 1.5s ease-in-out forwards;
@@ -596,8 +590,6 @@ export default {
   justify-content:start;
 }
 
-
-
 .right-sidebar__main.open {
   width: 9vw;
 }
@@ -652,12 +644,10 @@ export default {
   visibility: hidden;
 }
 
-
 .right-sidebar__main.open > * {
   visibility: visible;
   opacity: 1;
 }
-
 
 .popBtn{
   width: 40px;
