@@ -5,7 +5,7 @@
       <div class="modal__container">
         <button @click="handle_toggle" type="button"> X </button>
         <dataTableModal v-if="show_modal === 'DataTable'"></dataTableModal>
-        <fileuploadModal v-if="show_modal === 'file'"></fileuploadModal>
+        <fileuploadModal v-if="show_modal === 'File'"></fileuploadModal>
         <scatterPlotModal v-if="show_modal === 'ScatterPlot'"></scatterPlotModal>
       </div>
     </div>
