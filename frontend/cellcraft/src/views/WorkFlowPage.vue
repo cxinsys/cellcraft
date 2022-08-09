@@ -1,6 +1,6 @@
 <template>
 <div>
-  <div class="modal" v-if="is_show">
+  <div class="modal" v-if="is_show_modal">
     <div class="modal__wrapper">
       <div class="modal__container">
         <button @click="handle_toggle" type="button"> X </button>
@@ -10,8 +10,22 @@
       </div>
     </div>
   </div>
-  <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
+
+  <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)">
+    <div class="node-info" v-if="is_show_info">
+      <div class="l-row">
+        <h1 class="node-info__title">{{ node_info.name }}</h1>
+        <h1 class="node-info__desc">{{ node_info.desc }}</h1>
+      </div>
+      <div class="l-row">
+        <h2 class="node-info__connection" v-if="node_info.input || node_info.output">{{ node_info.input }}{{ node_info.name }}{{ node_info.output }}</h2>
+        <h2 class="node-info__content">{{ node_info.content }}</h2>
+      </div>
+    </div>
+  </div>
+
   <section class="right-sidebar">
+
     <section class="right-sidebar__main" v-bind:class="{open: rightSidebar_isActive}">
       <div class="right-sidebar__row">
         <ul>
@@ -26,9 +40,11 @@
         <button class="right-sidebar__button" @click="exportdf">complie</button>
       </div>
     </section>
+
     <div class="popBtn" @click="openRightsidebar">
       <div class="popBtn__txt">></div>
     </div>
+
   </section>
 
 </div>
@@ -49,7 +65,6 @@ import scatterPlotModal from '@/components/modals/scatterPlot.vue'
 import { exportData } from '@/api/index'
 import { requireFileAsExpression } from 'webpack/lib/ParserHelpers'
 
-
 export default {
   components: {
     dataTableModal,
@@ -63,26 +78,34 @@ export default {
       exportValue: null,
       listNodes: [
         {
-          name: 'fileUpload',
+          name: 'File',
           img: require('@/assets/file-upload.png'),
           input: 0,
           output: 1
         },
         {
-          name: 'dataTable',
+          name: 'Data Table',
           img: require('@/assets/table.png'),
           input: 1,
           output: 1
         },
         {
-          name: 'scatterPlot',
+          name: 'Scatter Plot',
           img: require('@/assets/scatter-plot.png'),
           input: 1,
           output: 0
         }
       ],
-      is_show: false,
-      show_modal: null
+      is_show_modal: false,
+      is_show_info: false,
+      show_modal: null,
+      node_info: {
+        name: null,
+        desc: null,
+        input: null,
+        output: null,
+        content: null
+      }
     }
   },
   mounted () {
@@ -90,42 +113,87 @@ export default {
     Vue.prototype.$df = new Drawflow(id, Vue, this)
     this.$df.start()
 
-    this.$df.registerNode('scatterPlot', scatterPlot, {}, {})
-    this.$df.registerNode('fileUpload', fileUpload, {}, {})
-    this.$df.registerNode('dataTable', dataTable, {}, {})
+    this.$df.registerNode('Scatter Plot', scatterPlot, {}, {})
+    this.$df.registerNode('File', fileUpload, {}, {})
+    this.$df.registerNode('Data Table', dataTable, {}, {})
     this.$df.on('nodeDataChanged', (ev) => {
-      //nodeData 바뀌게 되면 Connection Update
+      // nodeData 바뀌게 되면 Connection Update
       // console.log(ev)
       const node = this.$df.getNodeFromId(ev)
-      console.log(node);
+      console.log(node)
       this.$df.updateConnectionNodes(ev)
     })
     this.$df.on('nodeSelected', (ev) => {
-      //ev 값에 따라 기능 구분
-      console.log(ev);
+      // ev 값에 따라 기능 구분
+      this.is_show_info = true
+      const node = this.$df.getNodeFromId(ev)
+      console.log(node.inputs, node.outputs)
+      this.node_info.name = node.name
+      if (node.name == 'File') {
+        this.node_info.desc = 'Read data from an input file'
+      } else if (node.name == 'Data Table') {
+        this.node_info.desc = 'View the dataset in a spreadsheet'
+      } else if (node.name == 'Scatter Plot') {
+        this.node_info.desc = 'Interactive scatter plot visualization'
+      }
+      if (this.connectionParsing(node.inputs)) {
+        const input_node = this.$df.getNodeFromId(this.connectionParsing(node.inputs))
+        console.log(input_node.name)
+        this.node_info.input = `${input_node.name} -> `
+      } else {
+        this.node_info.input = null
+      }
+      if (this.connectionParsing(node.outputs)) {
+        const output_node = this.$df.getNodeFromId(this.connectionParsing(node.outputs))
+        console.log(output_node.name)
+        this.node_info.output = ` -> ${output_node.name}`
+      } else {
+        this.node_info.output = null
+      }
+    })
+    this.$df.on('nodeUnselected', (ev) => {
+      this.is_show_info = false
     })
     this.$df.on('clickEnd', (ev) => {
-      //ev 값에 따라 기능 구분
+      // ev 값에 따라 기능 구분
       // console.log(ev);
-      if (ev.detail === 2 && this.$df.node_selected){
-        console.dir(this.$df.node_selected.innerText.replace(/(\s*)/g, ""))
-        this.is_show = true
-        this.show_modal = this.$df.node_selected.innerText.replace(/(\s*)/g, "")
+      if (ev.detail === 2 && this.$df.node_selected) {
+        console.dir(this.$df.node_selected.innerText.replace(/(\s*)/g, ''))
+        this.is_show_modal = true
+        this.show_modal = this.$df.node_selected.innerText.replace(/(\s*)/g, '')
       }
+    })
+    this.$df.on('connectionCreated', (ev) => {
+      // ev 값에 따라 기능 구분
+      // console.log(ev);
+      const input_id = this.$df.getNodeFromId(ev.input_id)
+      const output_id = this.$df.getNodeFromId(ev.output_id)
+      console.log(input_id, output_id)
     })
   },
   methods: {
-    handle_toggle(){
-      this.is_show = !this.is_show
+    connectionParsing (IO) {
+      if (Object.keys(IO)[0] == null) {
+        return null
+      } else {
+        if (Object.values(Object.values(Object.values(IO)[0])[0])[0]) {
+          const node_id = Object.entries(Object.values(Object.values(Object.values(IO)[0])[0])[0])[0][1]
+          return node_id
+        }
+        return null
+      }
+    },
+    handle_toggle () {
+      this.is_show_modal = !this.is_show_modal
       const df = document.querySelector('#drawflow')
       df.dispatchEvent(new Event('mouseup'))
     },
     async exportdf () {
       try {
-       this.exportValue = this.$df.export()
+        this.exportValue = this.$df.export()
         const JsonData = await exportData(JSON.stringify(this.exportValue.drawflow.Home.data))
         // console.log(JSON.stringify(this.exportValue.drawflow.Home.data))
-        console.log(typeof (JsonData), JsonData) 
+        console.log(typeof (JsonData), JsonData)
       } catch (error) {
         console.error(error)
       }
@@ -169,13 +237,79 @@ export default {
     },
     openRightsidebar () {
       this.rightSidebar_isActive = !this.rightSidebar_isActive
-    },
-
+    }
   }
 }
 </script>
 
 <style>
+.l-row{
+  width: 100%;
+  height: 50%;
+}
+
+.l-row:nth-child(2){
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.node-info__connection{
+  width: 70%;
+  height: 60%;
+  border: 1px solid black;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  border-radius: 15px;
+  margin: 15px 0;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(205, 216, 253);
+}
+
+.node-info__title{
+  font-size: 1.4rem;
+  color: #242F9B;
+}
+
+.node-info__desc{
+  font: 0.7rem;
+  margin: 6px 0;
+}
+
+.node-info{
+  position: absolute;
+  z-index: 9997;
+  bottom: 10%;
+  left: 29%;
+
+  width: 40vw;
+  height: 10vh;
+  border-radius: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: white;
+
+  padding: 1rem;
+
+  animation: infoAnimation 1.5s ease-in-out forwards;
+}
+
+@keyframes infoAnimation {
+  0%{
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  50%{
+    opacity: 1;
+  }
+  100%{
+    transform: none;
+    opacity: 1;
+  }
+}
+
 .modal{
   position: fixed;
   z-index: 9998;
@@ -207,6 +341,8 @@ export default {
 #drawflow {
   width: 100vw;
   height: 94vh;
+
+  position: relative;
 
   background: rgba(0, 0, 0, 1);
   background-size: 30px 30px;
@@ -454,8 +590,6 @@ export default {
   justify-content:start;
 }
 
-
-
 .right-sidebar__main.open {
   width: 9vw;
 }
@@ -510,12 +644,10 @@ export default {
   visibility: hidden;
 }
 
-
 .right-sidebar__main.open > * {
   visibility: visible;
   opacity: 1;
 }
-
 
 .popBtn{
   width: 40px;
