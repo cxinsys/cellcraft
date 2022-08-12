@@ -10,7 +10,8 @@ from jose import jwt
 
 from app.common.config import settings
 from app.common import security
-from app.database import crud, models
+from app.database import models
+from app.database.crud import crud_user
 from app.database.conn import SessionLocal
 from app import model
 
@@ -39,7 +40,7 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
         )
-    user = crud.get_user(db, id=token_data.sub)
+    user = crud_user.get_user(db, id=token_data.sub)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
@@ -48,6 +49,6 @@ def get_current_user(
 def get_current_active_user(
     current_user: models.User = Depends(get_current_user),
 ) -> models.User:
-    if not crud.is_active(current_user):
+    if not crud_user.is_active(current_user):
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
