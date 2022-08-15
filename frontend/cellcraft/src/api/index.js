@@ -42,7 +42,7 @@ function uploadForm (formData) {
   // for (let value of formData.values()) {
   //   console.log(value)
   // }
-  return instance.post('/routes/workflow/upload', formData,
+  return instance.post('/routes/files/upload', formData,
     {
       headers: {
         'Content-Type': 'multipart/form-data'
