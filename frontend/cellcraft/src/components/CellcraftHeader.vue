@@ -368,8 +368,8 @@
     font-size: .8vw;
     padding-top: 5vh;
   }
-  .setting__nickname,.setting__emailAddress{
-    margin-top: .6vh;
+  .setting__nickname,.setting__emailAddress, .setting__hashedPassword{
+    margin: .6vh 0;
     margin-left: 1vw;
   }
   .setting__changeName, .setting__changeEmail, .setting__changePassword, .setting__delete{
@@ -468,7 +468,7 @@
               </div>
               <div class="profile__func__txt"> email@ㅇㄹㄴ.com </div>
             </li>
-            <li class="profile__func" @click="modal=true">
+            <li class="profile__func" @click="getProfile">
               <img class="profile__func__img" src="@/assets/person-profile-image.png" alt="">
               <div class="profile__func__txt"> internal profile </div>
             </li>
@@ -490,19 +490,12 @@
               </router-link>
             </li>
           </ul>
-
-          <!-- <li class="home__menu">
-            <a href="#" @click="logoutUser" class="home__linksName">logout</a>
-          </li> -->
           <div class="home__menu"  @click="openProfile">
             <div class="home__profile">
               <div class="home__profile__text">J</div>
             </div>
             <img class = "profile__arrow" src="@/assets/arrow-bottom.png" alt="">
           </div>
-          <!-- <li class="home__menu">
-            <a href="#" @click="getCurrentUser" class="home__linksName">UserInfo</a>
-          </li> -->
         </template>
 
         <template v-else>
@@ -521,12 +514,13 @@
             </div>
             <div class="modal__profile__setting">
               <div class="setting__name">Name</div>
-              <div class="setting__nickname">Jisu Kang</div>
+              <div class="setting__nickname">{{ profile.username }}</div>
               <div class="setting__changeName">Change name</div>
               <div class="setting__email">Email</div>
-              <div class="setting__emailAddress">email@uuu.com</div>
+              <div class="setting__emailAddress">{{ profile.email }}</div>
               <div class="setting__changeEmail">Change mail</div>
               <div class="setting__password">Password</div>
+              <div class="setting__hashedPassword">{{ profile.password }}</div>
               <div class="setting__changePassword">Change Password</div>
             </div>
             <div class="setting__delete">Delete account</div>
@@ -551,7 +545,12 @@ export default {
       M1_isActive: false, // subMenu
       M2_isActive: false,
       M3_isActive: false,
-      setting_isActive: false
+      setting_isActive: false,
+      profile: {
+        username: null,
+        email: null,
+        password: '********'
+      }
     }
   },
   computed: {
@@ -568,11 +567,13 @@ export default {
       deleteCookie()
       this.$router.push('/')
     },
-    async getCurrentUser () {
+    async getProfile () {
+      this.modal = true
       const userInfo = await getUser()
       this.$store.commit('setUserInfo', userInfo.data)
       console.log(userInfo.data)
-      return userInfo.data
+      this.profile.username = userInfo.data.username
+      this.profile.email = userInfo.data.email
     },
     openSidebar () {
       this.S_isActive = !this.S_isActive
