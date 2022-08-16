@@ -1,19 +1,22 @@
 from typing import Any, Dict, Optional, Union
-
+from fastapi import UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import models
 from app.database.schemas import user, file
 from app.database.crud import crud_file
 
+
 def get_user_file(db: Session, id: int, file_name: int):
     user_id = db.query(models.User.id).filter(models.User.id == id).first()
-    return db.query(models.File).filter(models.File.file_name == file_name, models.File.user_id == user_id)
+    return db.query(models.File).filter(models.File.file_name == file_name, models.File.user_id == id).first()
 
-def create_file(db: Session, file: file.FileCreate, user_id: int) -> models.File:
+async def create_file(db: Session, file: UploadFile, filesize: str, user_id: int) -> models.File:
+    UPLOAD_DIRECTORY = './'
+
     db_file = models.File(
-        file_name = file.file_name,
-        file_size = file.file_size,
-        file_path = file.file_path,
+        file_name = file.filename,
+        file_size = filesize,
+        file_path = UPLOAD_DIRECTORY,
         user_id = user_id
         )
     db.add(db_file)

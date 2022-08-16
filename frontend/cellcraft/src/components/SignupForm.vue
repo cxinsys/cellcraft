@@ -58,6 +58,7 @@ export default {
           password: this.password,
           username: this.username
         }
+        console.log(userData)
         const response = await registerUser(userData)
         console.log(response)
         this.$router.push('/main')

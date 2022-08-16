@@ -28,8 +28,10 @@ def create_user(db: Session, user: user.UserCreate) -> models.User:
 def authenticate(db: Session, *, email: str, password: str) -> Optional[models.User]:
         user = get_user_by_email(db, email=email)
         if not user:
+            print('not email')
             return None
         if not verify_password(password, user.hashed_password):
+            print('not password')
             return None
         return user
 
