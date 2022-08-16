@@ -51,4 +51,8 @@ function uploadForm (formData) {
   )
 }
 
-export { registerUser, loginUser, getUser, exportData, uploadForm }
+function getFiles () {
+  return instance.get('/routes/files/me')
+}
+
+export { registerUser, loginUser, getUser, exportData, uploadForm, getFiles }

@@ -42,3 +42,13 @@ async def fileUpload(
         create_file = await crud_file.create_file(db, item_file, len(contents), current_user.id)
         
     return create_file
+
+#User Files get
+@router.get("/me")
+def read_user_files(
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user)
+    ) -> Any:
+    user_files = crud_file.get_user_files(db, current_user.id)
+    print(user_files)
+    return user_files

@@ -7,8 +7,10 @@ from app.database.crud import crud_file
 
 
 def get_user_file(db: Session, id: int, file_name: int):
-    user_id = db.query(models.User.id).filter(models.User.id == id).first()
     return db.query(models.File).filter(models.File.file_name == file_name, models.File.user_id == id).first()
+
+def get_user_files(db: Session, id: int):
+    return db.query(models.File).filter(models.File.user_id == id).all()
 
 async def create_file(db: Session, file: UploadFile, filesize: str, user_id: int) -> models.File:
     UPLOAD_DIRECTORY = './'
