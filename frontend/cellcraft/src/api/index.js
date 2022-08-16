@@ -42,7 +42,7 @@ function uploadForm (formData) {
   // for (let value of formData.values()) {
   //   console.log(value)
   // }
-  return instance.post('/routes/workflow/upload', formData,
+  return instance.post('/routes/files/upload', formData,
     {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -51,4 +51,8 @@ function uploadForm (formData) {
   )
 }
 
-export { registerUser, loginUser, getUser, exportData, uploadForm }
+function getFiles () {
+  return instance.get('/routes/files/me')
+}
+
+export { registerUser, loginUser, getUser, exportData, uploadForm, getFiles }

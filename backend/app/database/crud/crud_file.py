@@ -1,0 +1,27 @@
+from typing import Any, Dict, Optional, Union
+from fastapi import UploadFile, File
+from sqlalchemy.orm import Session
+from app.database import models
+from app.database.schemas import user, file
+from app.database.crud import crud_file
+
+
+def get_user_file(db: Session, id: int, file_name: int):
+    return db.query(models.File).filter(models.File.file_name == file_name, models.File.user_id == id).first()
+
+def get_user_files(db: Session, id: int):
+    return db.query(models.File).filter(models.File.user_id == id).all()
+
+async def create_file(db: Session, file: UploadFile, filesize: str, user_id: int) -> models.File:
+    UPLOAD_DIRECTORY = './'
+
+    db_file = models.File(
+        file_name = file.filename,
+        file_size = filesize,
+        file_path = UPLOAD_DIRECTORY,
+        user_id = user_id
+        )
+    db.add(db_file)
+    db.commit()
+    db.refresh(db_file)
+    return db_file

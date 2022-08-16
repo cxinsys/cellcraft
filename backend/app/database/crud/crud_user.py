@@ -1,7 +1,8 @@
 from typing import Any, Dict, Optional, Union
 
 from sqlalchemy.orm import Session
-from app.database import models, schemas
+from app.database import models
+from app.database.schemas import user
 from app.common.security import get_password_hash, verify_password
 
 
@@ -13,7 +14,7 @@ def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
 
-def create_user(db: Session, user: schemas.UserCreate) -> models.User:
+def create_user(db: Session, user: user.UserCreate) -> models.User:
     db_user = models.User(
         email=user.email, 
         hashed_password=get_password_hash(user.password),
@@ -27,8 +28,10 @@ def create_user(db: Session, user: schemas.UserCreate) -> models.User:
 def authenticate(db: Session, *, email: str, password: str) -> Optional[models.User]:
         user = get_user_by_email(db, email=email)
         if not user:
+            print('not email')
             return None
         if not verify_password(password, user.hashed_password):
+            print('not password')
             return None
         return user
 
