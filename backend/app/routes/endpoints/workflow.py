@@ -30,13 +30,13 @@ def linkList(nodeList):
     return result
 
 #export workflow data
-@router.post("/export")
+@router.post("/compile")
 async def exportData(request: Request):
     try:
         payload_as_json = await request.json()
         inputCon_list = []
         outputCon_list = []
-        print(payload_as_json)
+        # print(payload_as_json)
         for key, val in payload_as_json.items():
             for val_key, val_val in val.items():
                 if val_key == "inputs":
@@ -48,12 +48,15 @@ async def exportData(request: Request):
                             outputCon_list.append([key, O_val['connections'][0]['node']])
                         
         nodeObject_list = linkList(outputCon_list)
-        print(nodeObject_list)
-        # for item in nodeObject_list:
-        #     with open(f"workflow/data/build_{nodeObject_list.index(item)}.txt", 'w') as f:
-        #         f.write(payload_as_json[item[0]]["data"]["file"])
-        #     process = Popen(['snakemake',f'workflow/data/validation_{nodeObject_list.index(item)}.txt','-j'], stdout=PIPE, stderr=PIPE)
-        #     stdout, stderr = process.communicate()
+        # print(nodeObject_list)
+        for item in nodeObject_list:
+            item_file = payload_as_json[item[0]]["data"]["file"].replace('C:\\fakepath\\', '').replace('.csv', '')
+            lastNode = payload_as_json[item[len(item)-1]]["name"].replace(' ', '')
+            print(item_file, lastNode)
+            with open(f"workflow/data/build_{item_file}.txt", 'w') as f:
+                f.write(item_file)
+            process = Popen(['snakemake',f'workflow/data/{lastNode}_{item_file}.csv','-j'], stdout=PIPE, stderr=PIPE)
+            stdout, stderr = process.communicate()
         message = "success"
     except json.JSONDecodeError:
         payload_as_json = None

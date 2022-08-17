@@ -159,8 +159,10 @@ export default {
       // console.log(ev);
       if (ev.detail === 2 && this.$df.node_selected) {
         console.dir(this.$df.node_selected.innerText.replace(/(\s*)/g, ''))
-        this.is_show_modal = true
-        this.show_modal = this.$df.node_selected.innerText.replace(/(\s*)/g, '')
+        if (this.$df.node_selected.innerText.replace(/(\s*)/g, '') != 'File') {
+          this.is_show_modal = true
+          this.show_modal = this.$df.node_selected.innerText.replace(/(\s*)/g, '')
+        }
       }
     })
     this.$df.on('connectionCreated', (ev) => {

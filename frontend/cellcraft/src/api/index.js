@@ -34,7 +34,7 @@ function getUser () {
 }
 
 function exportData (data) {
-  return instance.post('/routes/workflow/export', data)
+  return instance.post('/routes/workflow/compile', data)
 }
 
 function uploadForm (formData) {
