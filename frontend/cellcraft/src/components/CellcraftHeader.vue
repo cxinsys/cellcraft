@@ -88,7 +88,7 @@
 
   .sidebar__mainMenu{
     height: 2vh;
-    width: 92%;
+    width: 100%;
     align-items: center;
     text-decoration: none;
     transition: all 0.4s ease;
@@ -150,7 +150,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    height: 50px;
+    height: 55px;
   }
 
   .home__section1{
@@ -446,7 +446,7 @@
               <div class="profile__img">
                 <!-- <div class="profile__text">J</div> -->
               </div>
-              <div class="profile__func__txt"> email@ㅇㄹㄴ.com </div>
+              <div class="profile__func__txt"> {{ profile.email }} </div>
             </li>
             <li class="profile__func" @click="getProfile">
               <img class="profile__func__img" src="@/assets/person-profile-image.png" alt="">
@@ -471,7 +471,7 @@
           </ul>
           <div class="home__menu"  @click="openProfile">
             <div class="home__profile">
-              <div class="home__profile__text">{{ $store.state.userInfo }}</div>
+              <div class="home__profile__text">{{ profile.username[0] }}</div>
             </div>
             <img class = "profile__arrow" src="@/assets/arrow-bottom.png" alt="">
           </div>
