@@ -59,17 +59,22 @@
     padding: 2vh 1vw;
     align-items: center;
     word-break:keep-all;
+    flex-direction: column;
+    justify-content: center;
+    height: 22vh;
   }
   .menu__item img{
     max-width: 3vw;
     max-height: 100%;
     margin-right: .5vw;
+    margin-bottom: 2vh;
   }
   .menu__title{
     color: #269ABC;
     font-size: .9vw;
     font-weight: bold;
     margin-bottom: 1vh;
+    text-align: center;
   }
   /* .tab{
     margin-top: 5vh;
@@ -144,18 +149,18 @@
           </div>
         </li>
         <li class="menu__item">
-          <img src="@/assets/loudspeaker.png" alt="">
+          <img src="@/assets/faqs.png" alt="">
           <div>
             <div class="menu__title">
-              Announcements
+              Forum
             </div>
             <div class="menu__info">
-              Blog and events
+              Ask our team for help and report issues
             </div>
           </div>
         </li>
       </ul>
-      <ul class="i-menu__blocks">
+      <!-- <ul class="i-menu__blocks">
         <li class="menu__item">
           <img src="@/assets/repair-fix-repairing.png" alt="">
           <div>
@@ -168,18 +173,17 @@
           </div>
         </li>
         <li class="menu__item">
-          <img src="@/assets/faqs.png" alt="">
+          <img src="@/assets/loudspeaker.png" alt="">
           <div>
             <div class="menu__title">
-              Forum
+              Announcements
             </div>
             <div class="menu__info">
-              Ask our team for help and report issues
+              Blog and events
             </div>
           </div>
         </li>
         <li class="menu__item">
-          <!-- <img src="../assets/stars.png" alt=""> -->
           <img src="@/assets/stars.png" alt="">
           <div>
             <div class="menu__title">
@@ -190,7 +194,7 @@
             </div>
           </div>
         </li>
-      </ul>
+      </ul> -->
     </section>
     <!-- <section class="tab">
       <div class="tab__menubar">
