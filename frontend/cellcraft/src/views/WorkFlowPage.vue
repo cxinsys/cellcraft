@@ -4,9 +4,9 @@
     <div class="modal__wrapper">
       <div class="modal__container">
         <button @click="handle_toggle" type="button"> X </button>
-        <dataTableModal v-if="show_modal === 'DataTable'"></dataTableModal>
         <fileuploadModal v-if="show_modal === 'File'"></fileuploadModal>
-        <scatterPlotModal v-if="show_modal === 'ScatterPlot'"></scatterPlotModal>
+        <dataTableModal v-if="show_modal === 'DataTable'" :file_name="file_name"></dataTableModal>
+        <scatterPlotModal v-if="show_modal === 'ScatterPlot'" :file_name="file_name"></scatterPlotModal>
       </div>
     </div>
   </div>
@@ -37,6 +37,8 @@
         </ul>
       </div>
       <div class="right-sidebar__row">
+        <h2 v-if="compile_check == 'loading'">loading...</h2>
+        <h2 v-if="compile_check == 'complete'">√</h2>
         <button class="right-sidebar__button" @click="exportdf">complie</button>
       </div>
     </section>
@@ -62,7 +64,7 @@ import dataTableModal from '@/components/modals/datatable.vue'
 import fileuploadModal from '@/components/modals/fileupload.vue'
 import scatterPlotModal from '@/components/modals/scatterPlot.vue'
 
-import { exportData } from '@/api/index'
+import { exportData, getCheckCompile } from '@/api/index'
 import { requireFileAsExpression } from 'webpack/lib/ParserHelpers'
 
 export default {
@@ -99,13 +101,17 @@ export default {
       is_show_modal: false,
       is_show_info: false,
       show_modal: null,
+      compile_check: null,
       node_info: {
         name: null,
         desc: null,
         input: null,
         output: null,
         content: null
-      }
+      },
+      node_connection: [],
+      selected_file: null,
+      file_name: null
     }
   },
   mounted () {
@@ -158,8 +164,26 @@ export default {
       // ev 값에 따라 기능 구분
       // console.log(ev);
       if (ev.detail === 2 && this.$df.node_selected) {
+
+        // 해당 노드와 연결되어 있는 File 정보 추출
+        const node_id = this.$df.node_selected.id.replace(/node-/g, '')
+        console.log(node_id)
+        this.node_connection.forEach(connection => {
+          // console.log(connection)
+          connection.forEach(node => {
+            // console.log(node)
+            if (node == node_id){
+              
+              const node_info = this.$df.getNodeFromId(connection[0])
+              const file_name = node_info.data.file.replace(/C:\\fakepath\\/, '').replace(/.csv/, '')
+              this.file_name = file_name
+              console.log(connection[0], file_name)
+            }
+          });
+        });
+        // 해당 노드 File 노드 아니면 modal 보여줌
         console.dir(this.$df.node_selected.innerText.replace(/(\s*)/g, ''))
-        if (this.$df.node_selected.innerText.replace(/(\s*)/g, '') != 'File') {
+        if (this.$df.node_selected.innerText.replace(/(\s*)/g, '') == 'DataTable' | this.$df.node_selected.innerText.replace(/(\s*)/g, '') == 'ScatterPlot') {
           this.is_show_modal = true
           this.show_modal = this.$df.node_selected.innerText.replace(/(\s*)/g, '')
         }
@@ -193,9 +217,12 @@ export default {
     async exportdf () {
       try {
         this.exportValue = this.$df.export()
+        this.compile_check = 'loading'
         const JsonData = await exportData(JSON.stringify(this.exportValue.drawflow.Home.data))
         // console.log(JSON.stringify(this.exportValue.drawflow.Home.data))
-        console.log(typeof (JsonData), JsonData)
+        this.compile_check = 'complete'
+        console.log(typeof (JsonData.data.recived_data), JsonData.data.recived_data)
+        this.node_connection = JsonData.data.recived_data
       } catch (error) {
         console.error(error)
       }

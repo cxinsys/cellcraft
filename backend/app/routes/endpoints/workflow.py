@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile, File, responses
+from fastapi.responses import FileResponse
 from fastapi.encoders import jsonable_encoder
 from typing import List, Union
 from subprocess import Popen,PIPE
 import os
 import json
+
+from app.database.schemas.workflow import WorkflowResult
 
 router = APIRouter()
 
@@ -61,4 +64,21 @@ async def exportData(request: Request):
     except json.JSONDecodeError:
         payload_as_json = None
         message = "Received data is not a valid JSON"
-    return {"message": message, "recived_data": payload_as_json}
+    return {"message": message, "recived_data": nodeObject_list}
+
+@router.post("/result")
+def checkResult(filename: WorkflowResult):
+    PATH_COMPILE_RESULT = './workflow/result'
+    file_list = os.listdir(PATH_COMPILE_RESULT)
+    print(file_list)
+    FILE_NAME = filename.filename
+    print(FILE_NAME)
+    for item_file in file_list:
+        if FILE_NAME in item_file:
+            FILE_NAME = item_file
+    
+    FILE_PATH = PATH_COMPILE_RESULT + '/' + FILE_NAME
+    
+    # workflow DB에서 가장 최근에 생성된 Column 가져옴
+    # 노드 정보들을 통해 file_list 안에 해당 노드 결과들이 생성되었는지 파악
+    return FileResponse(FILE_PATH)

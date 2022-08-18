@@ -37,6 +37,10 @@ function exportData (data) {
   return instance.post('/routes/workflow/compile', data)
 }
 
+function getResult (filename) {
+  return instance.post('/routes/workflow/result', filename)
+}
+
 function uploadForm (formData) {
   // FormData의 value 확인
   // for (let value of formData.values()) {
@@ -55,4 +59,4 @@ function getFiles () {
   return instance.get('/routes/files/me')
 }
 
-export { registerUser, loginUser, getUser, exportData, uploadForm, getFiles }
+export { registerUser, loginUser, getUser, exportData, getResult, uploadForm, getFiles }
