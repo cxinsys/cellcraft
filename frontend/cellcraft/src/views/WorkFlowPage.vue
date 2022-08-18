@@ -339,8 +339,7 @@ export default {
   font-family: Helvetica, Arial, sans-serif;
 }
 #drawflow {
-  width: 100vw;
-  height: 94vh;
+  height: calc(100vh - 55px);
 
   position: relative;
 
@@ -664,13 +663,13 @@ export default {
   z-index: -1;
 }
 .popBtn__txt{
-  margin-top: 25px;
+  margin-top: 28px;
   margin-right: 20px;
   cursor: default;
 }
 
 .right-sidebar__main.open ~ .popBtn > .popBtn__txt{
-  margin-top: 27px;
+  margin-top: 32px;
   transform: rotate( 180deg );
 }
 </style>
