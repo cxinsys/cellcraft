@@ -116,9 +116,9 @@
     </section>
     <section>
       <div class="infoTxt">
-        Developed in the Data Sciences Platform at the Broad Institute, the toolkit offers a wide variety of tools with a primary focus on variant discovery and
+        Platform for Reconstruction of Inter-cell Type Gene Regulatory Network Model
         <br>
-        genotyping. Its powerful processing engine and high-performance computing features make it capable of taking on projects of any size. Learn more
+        based on Integrative Analysis of Single Cell RNA-seq, ATAC-seq and Spatial Transcriptomics Data
       </div>
     </section>
     <section class="menu">
