@@ -2,7 +2,7 @@
   <div>
     <!-- <nodeHeader v-bind:title="title" /> -->
     <div class="plotBox">
-        Scatter Plot
+        Plot
     </div>
   </div>
 </template>
