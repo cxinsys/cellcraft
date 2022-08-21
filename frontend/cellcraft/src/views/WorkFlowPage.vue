@@ -6,7 +6,7 @@
         <button @click="handle_toggle" type="button"> X </button>
         <fileuploadModal v-if="show_modal === 'File'"></fileuploadModal>
         <dataTableModal v-if="show_modal === 'DataTable'" :file_name="file_name"></dataTableModal>
-        <scatterPlotModal v-if="show_modal === 'ScatterPlot'" :file_name="file_name"></scatterPlotModal>
+        <scatterPlotModal v-if="show_modal === 'Plot'" :file_name="file_name"></scatterPlotModal>
       </div>
     </div>
   </div>
@@ -30,7 +30,8 @@
       <div class="right-sidebar__row">
         <ul>
           <li class="right-sidebar__drag-drawflow"  v-for="(node, idx) in listNodes" :key="idx" draggable="true" :data-node="node.name" @dragstart="drag($event)">
-            <div class="right-sidebar__node">{{ node.name }}
+            <!-- <div class="right-sidebar__node">{{ node.name }} -->
+            <div class="right-sidebar__node">{{ node.name2 }}
               <img :src="node.img" alt="" class="right-sidebar__img">
             </div>
           </li>
@@ -81,18 +82,21 @@ export default {
       listNodes: [
         {
           name: 'File',
+          name2: 'File',
           img: require('@/assets/file-upload.png'),
           input: 0,
           output: 1
         },
         {
           name: 'Data Table',
+          name2: 'Data Table',
           img: require('@/assets/table.png'),
           input: 1,
           output: 1
         },
         {
           name: 'Scatter Plot',
+          name2: 'Plot',
           img: require('@/assets/scatter-plot.png'),
           input: 1,
           output: 0
@@ -134,13 +138,23 @@ export default {
       this.is_show_info = true
       const node = this.$df.getNodeFromId(ev)
       console.log(node.inputs, node.outputs)
-      this.node_info.name = node.name
+      // this.node_info.name = node.name
+
+      //Plot 임시 코드
+      if (node.name != 'Scatter Plot'){
+        this.node_info.name = node.name
+      }
+      else {
+        this.node_info.name = 'Plot'
+      }
+      
       if (node.name == 'File') {
         this.node_info.desc = 'Read data from an input file'
       } else if (node.name == 'Data Table') {
         this.node_info.desc = 'View the dataset in a spreadsheet'
       } else if (node.name == 'Scatter Plot') {
-        this.node_info.desc = 'Interactive scatter plot visualization'
+        // this.node_info.desc = 'Interactive scatter plot visualization'
+        this.node_info.desc = 'Interactive plot visualization'
       }
       if (this.connectionParsing(node.inputs)) {
         const input_node = this.$df.getNodeFromId(this.connectionParsing(node.inputs))
@@ -152,7 +166,15 @@ export default {
       if (this.connectionParsing(node.outputs)) {
         const output_node = this.$df.getNodeFromId(this.connectionParsing(node.outputs))
         console.log(output_node.name)
-        this.node_info.output = ` -> ${output_node.name}`
+        // this.node_info.output = ` -> ${output_node.name}`
+        //Plot 임시 코드
+        if(output_node.name != 'Scatter Plot'){
+          this.node_info.output = ` -> ${output_node.name}`
+        }
+        else{
+          this.node_info.output = ' -> Plot'
+        }
+
       } else {
         this.node_info.output = null
       }
@@ -183,7 +205,7 @@ export default {
         });
         // 해당 노드 File 노드 아니면 modal 보여줌
         console.dir(this.$df.node_selected.innerText.replace(/(\s*)/g, ''))
-        if (this.$df.node_selected.innerText.replace(/(\s*)/g, '') == 'DataTable' | this.$df.node_selected.innerText.replace(/(\s*)/g, '') == 'ScatterPlot') {
+        if (this.$df.node_selected.innerText.replace(/(\s*)/g, '') == 'DataTable' | this.$df.node_selected.innerText.replace(/(\s*)/g, '') == 'Plot') {
           this.is_show_modal = true
           this.show_modal = this.$df.node_selected.innerText.replace(/(\s*)/g, '')
         }

@@ -1,6 +1,6 @@
 <template>
 <div>
-    <h1>Scatter Plot</h1>
+    <h1>Plot</h1>
     <img id="plot" src=''>
 </div>
 </template>
