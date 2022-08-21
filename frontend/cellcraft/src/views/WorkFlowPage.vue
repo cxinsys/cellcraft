@@ -92,8 +92,8 @@ export default {
           output: 1
         },
         {
-          name: 'Scatter Plot',
-          img: require('@/assets/scatter-plot.png'),
+          name: 'Plot',
+          img: require('@/assets/plot.png'),
           input: 1,
           output: 0
         }
