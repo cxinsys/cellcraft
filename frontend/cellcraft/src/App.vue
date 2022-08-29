@@ -22,3 +22,19 @@ export default {
   }
 }
 </script>
+
+<style>
+#app{
+  width: 100vw;
+  height: 100vh;
+}
+.app-contents{
+  width: 100%;
+  height: 87%;
+}
+.copyright{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+</style>

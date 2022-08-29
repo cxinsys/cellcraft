@@ -1,10 +1,14 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile, File, responses
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.encoders import jsonable_encoder
 from typing import List, Union
 from subprocess import Popen,PIPE
 import os
 import json
+import base64
+import requests
+import io
+from PIL import Image
 
 from app.database.schemas.workflow import WorkflowResult
 
@@ -66,19 +70,38 @@ async def exportData(request: Request):
         message = "Received data is not a valid JSON"
     return {"message": message, "recived_data": nodeObject_list}
 
+# 이미지 base64 변환
+def from_image_to_bytes(img):
+    # Pillow 이미지 객체를 Bytes로 변환
+    imgByteArr = io.BytesIO()
+    img.save(imgByteArr, format=img.format)
+    imgByteArr = imgByteArr.getvalue()
+    # Base64로 Bytes를 인코딩
+    encoded = base64.b64encode(imgByteArr)
+    # Base64로 ascii로 디코딩
+    decoded = encoded.decode('ascii')
+    return decoded
+
 @router.post("/result")
 def checkResult(filename: WorkflowResult):
     PATH_COMPILE_RESULT = './workflow/result'
     file_list = os.listdir(PATH_COMPILE_RESULT)
     print(file_list)
     FILE_NAME = filename.filename
-    print(FILE_NAME)
+    
     for item_file in file_list:
         if FILE_NAME in item_file:
             FILE_NAME = item_file
-    
+    print(FILE_NAME)
     FILE_PATH = PATH_COMPILE_RESULT + '/' + FILE_NAME
-    
+
+    if FILE_NAME.find("ScatterPlot") != -1:
+        img = Image.open(FILE_PATH)
+        img_converted = from_image_to_bytes(img)
+        return JSONResponse(img_converted)
+    else:
+        return FileResponse(FILE_PATH)
+
+    # 차후 개발 방향
     # workflow DB에서 가장 최근에 생성된 Column 가져옴
     # 노드 정보들을 통해 file_list 안에 해당 노드 결과들이 생성되었는지 파악
-    return FileResponse(FILE_PATH)

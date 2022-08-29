@@ -148,6 +148,17 @@
             </div>
           </div>
         </li>
+        <!-- <li class="menu__item">
+          <img src="@/assets/loudspeaker.png" alt="">
+          <div>
+            <div class="menu__title">
+              Forum
+            </div>
+            <div class="menu__info">
+              Ask our team for help and report issues
+            </div>
+          </div>
+        </li> -->
         <li class="menu__item">
           <img src="@/assets/faqs.png" alt="">
           <div>
@@ -173,18 +184,9 @@
           </div>
         </li>
         <li class="menu__item">
-          <img src="@/assets/loudspeaker.png" alt="">
-          <div>
-            <div class="menu__title">
-              Announcements
-            </div>
-            <div class="menu__info">
-              Blog and events
-            </div>
-          </div>
-        </li>
-        <li class="menu__item">
-          <img src="@/assets/stars.png" alt="">
+
+          <img src="../assets/stars.png" alt=""> -->
+          <!-- <img src="@/assets/stars.png" alt="">
           <div>
             <div class="menu__title">
               Showcase
@@ -194,7 +196,7 @@
             </div>
           </div>
         </li>
-      </ul> -->
+      </ul>-->
     </section>
     <!-- <section class="tab">
       <div class="tab__menubar">
@@ -217,7 +219,7 @@
           Help
         </div>
       </div>
-    </section> -->
+    </section>-->
   </section>
 </template>
 

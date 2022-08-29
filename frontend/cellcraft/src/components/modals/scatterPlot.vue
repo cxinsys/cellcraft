@@ -1,6 +1,6 @@
 <template>
 <div>
-    <h1>Scatter Plot</h1>
+    <h1>Plot</h1>
     <img id="plot" src=''>
 </div>
 </template>
@@ -29,5 +29,9 @@ export default {
 </script>
 
 <style>
-
+#plot{
+  width: 100%;
+  height: 400px;
+  object-fit: contain;
+}
 </style>
