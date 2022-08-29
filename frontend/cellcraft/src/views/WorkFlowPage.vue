@@ -139,7 +139,6 @@ export default {
       const node = this.$df.getNodeFromId(ev)
       console.log(node.inputs, node.outputs)
       // this.node_info.name = node.name
-
       //Plot 임시 코드
       if (node.name != 'Scatter Plot'){
         this.node_info.name = node.name
