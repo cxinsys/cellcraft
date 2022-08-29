@@ -29,5 +29,9 @@ export default {
 </script>
 
 <style>
-
+#plot{
+  width: 100%;
+  height: 400px;
+  object-fit: contain;
+}
 </style>

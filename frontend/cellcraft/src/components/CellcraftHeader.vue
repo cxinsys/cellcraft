@@ -471,7 +471,7 @@
           </ul>
           <div class="home__menu"  @click="openProfile">
             <div class="home__profile">
-              <div class="home__profile__text">{{ $store.state.userInfo }}</div>
+              <div class="home__profile__text"></div>
             </div>
             <img class = "profile__arrow" src="@/assets/arrow-bottom.png" alt="">
           </div>
