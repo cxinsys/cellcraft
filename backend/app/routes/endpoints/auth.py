@@ -35,7 +35,7 @@ def create_user(
                 detail="this email already exists in the system",
             )
         user = crud_user.create_user(db, user=user_in)
-        USER_DIRECTORY_NAME = './user/' + user_in.username
+        USER_DIRECTORY_NAME = './user/' + user_in.username + '/data'
         os.makedirs(USER_DIRECTORY_NAME)
         #회원가입 시 보내는 확인 이메일
         # if user_in.email:

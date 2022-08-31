@@ -23,12 +23,12 @@ async def fileUpload(
     current_user: models.User = Depends(dep.get_current_active_user),
     ) -> Any:
     #upload to directory
-    UPLOAD_DIRECTORY = './workflow/data'
+    UPLOAD_DIRECTORY = f'./user/{current_user.username}/data'
     for item_file in files:
         contents = await item_file.read()
         with open(os.path.join(UPLOAD_DIRECTORY, item_file.filename), "wb") as f:
             f.write(contents)
-        #file 있는지 여부 검증
+        #file 있는지 여부 검증 
         #file 있으면 에러
         #file create
         #upload to DB

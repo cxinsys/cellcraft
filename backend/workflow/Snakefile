@@ -1,19 +1,19 @@
 rule dataTable:
     input:
-        "workflow/data/build_{filename}.txt",
-        "workflow/data/{filename}.csv"
+        "workflow/data/{username}_{filename}.txt",
+        "user/{username}/data/{filename}.csv"
     output:
-        "workflow/data/DataTable_{filename}.csv",
-        "workflow/result/DataTable_{filename}.html"
+        "workflow/data/DataTable_{username}_{filename}.csv",
+        "user/{username}/result/DataTable_{filename}.html"
     script:
         "script/dataTable.py"
 
 rule scatterPlot:
     input:
-        "workflow/data/build_{filename}.txt",
-        "workflow/data/DataTable_{filename}.csv"
+        "workflow/data/{username}_{filename}.txt",
+        "workflow/data/DataTable_{username}_{filename}.csv"
     output:
-        "workflow/data/ScatterPlot_{filename}.csv",
-        "workflow/result/ScatterPlot_{filename}.png"
+        "workflow/data/ScatterPlot_{username}_{filename}.csv",
+        "user/{username}/result/ScatterPlot_{filename}.png"
     script:
         "script/scatterPlot.py"
