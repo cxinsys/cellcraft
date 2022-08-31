@@ -11,6 +11,8 @@ import io
 from PIL import Image
 
 from app.database.schemas.workflow import WorkflowResult
+from app.routes import dep
+from app.database import models
 
 router = APIRouter()
 
@@ -38,7 +40,7 @@ def linkList(nodeList):
 
 #export workflow data
 @router.post("/compile")
-async def exportData(request: Request):
+async def exportData(request: Request, current_user: models.User = Depends(dep.get_current_active_user)):
     try:
         payload_as_json = await request.json()
         inputCon_list = []
@@ -60,9 +62,9 @@ async def exportData(request: Request):
             item_file = payload_as_json[item[0]]["data"]["file"].replace('C:\\fakepath\\', '').replace('.csv', '')
             lastNode = payload_as_json[item[len(item)-1]]["name"].replace(' ', '')
             print(item_file, lastNode)
-            with open(f"workflow/data/build_{item_file}.txt", 'w') as f:
+            with open(f"workflow/data/{current_user.username}_{item_file}.txt", 'w') as f:
                 f.write(item_file)
-            process = Popen(['snakemake',f'workflow/data/{lastNode}_{item_file}.csv','-j'], stdout=PIPE, stderr=PIPE)
+            process = Popen(['snakemake',f'workflow/data/{lastNode}_{current_user.username}_{item_file}.csv','-j'], stdout=PIPE, stderr=PIPE)
             stdout, stderr = process.communicate()
         message = "success"
     except json.JSONDecodeError:
@@ -83,8 +85,8 @@ def from_image_to_bytes(img):
     return decoded
 
 @router.post("/result")
-def checkResult(filename: WorkflowResult):
-    PATH_COMPILE_RESULT = './workflow/result'
+def checkResult(filename: WorkflowResult, current_user: models.User = Depends(dep.get_current_active_user)):
+    PATH_COMPILE_RESULT = f'./user/{current_user.username}/result'
     file_list = os.listdir(PATH_COMPILE_RESULT)
     print(file_list)
     FILE_NAME = filename.filename
