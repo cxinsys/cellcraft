@@ -424,11 +424,13 @@
 
     <section class="home homeMain">
       <section class="home__section1">
+
         <template v-if="isUserLogin">
           <button @click="openSidebar">
             <i class="fa fa-solid fa-bars"></i>
           </button>
         </template>
+
         <button>
           <div class = "home__logo">
             <router-link to="/main">
@@ -440,6 +442,7 @@
       </section>
 
       <section class="home__section2">
+
         <template v-if="isUserLogin">
           <ul class = "profile__setting" v-bind:class="{open: setting_isActive}">
             <li class="profile__func">
@@ -482,6 +485,7 @@
             <router-link to="/login" class="home__login__text">login</router-link>
           </li>
         </template>
+
         <Profile @click="modal=false" v-if="modal">
           <div slot="header" class="modal__profile__header">
             <div class="modal__profile__header__account">Account</div>
@@ -534,6 +538,7 @@ export default {
   },
   computed: {
     isUserLogin () {
+      console.log(this.$store.getters.isLogin)
       return this.$store.getters.isLogin
     }
   },
