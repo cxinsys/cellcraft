@@ -416,7 +416,7 @@
           <div class="sidebar__mainMenu" @click="openMenu3">
             <!-- <i class="fa-solid fa-database mainMenu__icon"></i> -->
             <img class="mainMenu__icon" src="@/assets/database-file.png" alt="">
-            <span class="sidebar__linksName">Data Sets</span>
+            <span class="sidebar__linksName">Datasets</span>
           </div>
         </li>
       </ul>
@@ -453,15 +453,15 @@
             </li>
             <li class="profile__func" @click="getProfile">
               <img class="profile__func__img" src="@/assets/person-profile-image.png" alt="">
-              <div class="profile__func__txt"> internal profile </div>
+              <div class="profile__func__txt"> Internal profile </div>
             </li>
             <li class="profile__func">
               <img class="profile__func__img" src="@/assets/settings-gear.png" alt="">
-              <div class="profile__func__txt"> settings </div>
+              <div class="profile__func__txt"> Settings </div>
             </li>
             <li class="profile__func">
               <img class="profile__func__img" src="@/assets/themes.png" alt="">
-              <div class="profile__func__txt"> themes </div>
+              <div class="profile__func__txt"> Themes </div>
             </li>
             <li class="profile__func" style="border-top: 1px rgb(222,222,222) solid ">
               <img class="profile__func__img" src="@/assets/logout.png" alt="" style="padding-left:.2vw">
@@ -482,7 +482,7 @@
 
         <template v-else>
           <li class="home__login">
-            <router-link to="/login" class="home__login__text">login</router-link>
+            <router-link to="/login" class="home__login__text">Login</router-link>
           </li>
         </template>
 
