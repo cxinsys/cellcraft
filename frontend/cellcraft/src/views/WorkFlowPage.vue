@@ -100,6 +100,13 @@ export default {
           img: require('@/assets/scatter-plot.png'),
           input: 1,
           output: 0
+        },
+        {
+          name: 'Algorithm',
+          name2: 'Algorithm',
+          img: require('@/assets/algorithm.png'),
+          input: 1,
+          output: 0
         }
       ],
       is_show_modal: false,
@@ -651,7 +658,7 @@ export default {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  margin-top: 13vh;
+  margin-top: 19vh;
 }
 .right-sidebar__button{
   display: flex;
@@ -667,7 +674,7 @@ export default {
   cursor: pointer;
   font-size: 1.2vw;
   border: none;
-  margin-top: 7vh;
+  margin-top: -4vh;
 }
 .right-sidebar__node{
   display: flex;
@@ -680,7 +687,7 @@ export default {
   height: 60px;
   line-height:40px;
   padding: 20px;
-  margin: 50px 0px;
+  margin: 40px 0px;
   cursor: move;
   font-weight: bold;
   font-size: 1vw;
