@@ -2,31 +2,31 @@
   <div>
       <form @submit.prevent="submitForm">
             <div class="field input-field">
-              <input type="email" placeholder="이메일을 입력해주세요" class="input" v-model="email">
+              <input type="email" placeholder="Email address" class="input" v-model="email">
             </div>
 
             <div class="form-link" v-if="!isEmailValidation && email">
-              <p>이메일 형식으로 입력해주세요</p>
+              <p>Enter in the email format</p>
             </div>
 
             <div class="field input-field">
-              <input type="name" placeholder="이름을 입력해주세요" class="input" v-model="username">
+              <input type="name" placeholder="Username" class="input" v-model="username">
             </div>
 
             <div class="field input-field">
-              <input type="password" placeholder="비밀번호를 입력해주세요" class="password" v-model="password">
+              <input type="password" placeholder="Password" class="password" v-model="password">
             </div>
 
             <div class="form-link">
-              <p> 비밀번호 8자리 이상으로 설정해주세요</p>
+              <p>At least 8 characters</p>
             </div>
 
             <div class="field input-field">
-              <input type="password" placeholder="비밀번호를 다시 입력해주세요" class="pwCheck" v-model="re_password">
+              <input type="password" placeholder="Re-enter password" class="pwCheck" v-model="re_password">
             </div>
 
             <div class="field button-field">
-              <button :disabled="!email || !username || !password" type="submit">가입하기</button>
+              <button :disabled="!email || !username || !password" type="submit">Join</button>
             </div>
       </form>
   </div>

@@ -40,7 +40,7 @@
       <div class="right-sidebar__row">
         <h2 v-if="compile_check == 'loading'">loading...</h2>
         <h2 v-if="compile_check == 'complete'">√</h2>
-        <button class="right-sidebar__button" @click="exportdf">complie</button>
+        <button class="right-sidebar__button" @click="exportdf">Complie</button>
       </div>
     </section>
 
