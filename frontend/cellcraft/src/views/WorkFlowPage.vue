@@ -38,9 +38,18 @@
         </ul>
       </div>
       <div class="right-sidebar__row">
-        <h2 v-if="compile_check == 'loading'">loading...</h2>
-        <h2 v-if="compile_check == 'complete'">√</h2>
-        <button class="right-sidebar__button" @click="exportdf">Complie</button>
+        <div class="loading_bg">
+          <!-- <h2 class="loading_container"> -->
+          <h2 v-if="compile_check == 'loading'" class="loading_container">
+            <div class="loading"></div>
+            <div class="loading_text">Loading...</div>
+          </h2>
+          <div class="complete_container">
+            <h2 v-if="compile_check == 'complete'" class="complete">√</h2>
+          </div>
+          <!-- <h2 class="complete">√</h2> -->
+        </div>
+        <button class="right-sidebar__button" @click="exportdf">Compile</button>
       </div>
     </section>
 
@@ -300,6 +309,83 @@ export default {
 </script>
 
 <style>
+@keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+
+@keyframes complete-text-opacity {
+  0% {opacity: 0;}
+  5% {opacity: 1;}
+  95% {opacity: 1;}
+  100% {opacity: 0;}
+}
+
+.loading-container,
+.loading {
+  height: 100px;
+  position: relative;
+  width: 100px;
+  border-radius: 100%;
+}
+
+.loading_container, .complete_container { 
+  /* margin: 40px auto; */
+  /* background-color: rgba(0, 0, 0, 0.7); */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading_bg{
+  position: absolute;
+  top: 43.5vh;
+  right: 50vw;
+  z-index: 2;
+}
+
+.loading {
+  margin: 40px auto;
+  border: 2px solid transparent;
+  border-color: transparent black transparent black;
+  animation: rotate-loading 1.5s linear 0s infinite normal;
+  transform-origin: 50% 50%;
+  z-index: 14;
+  position: absolute;
+}
+.loading-container .loading {
+    transition: all 0.5s ease-in-out;
+}
+
+.loading_text {
+    animation: loading-text-opacity 2s linear 0s infinite normal;
+    color: black;
+    font-size: .7rem;
+    font-weight: bold;
+    /* margin-top: 45px; */
+    opacity: 0;
+    position: relative;
+    text-align: center;
+    text-transform: uppercase;
+    top: 0;
+    width: 100px;
+    z-index: 14;
+}
+
+.complete{
+  font-size: 2rem;
+  opacity: 0;
+  animation: complete-text-opacity 5s;
+  animation-iteration-count: 1;
+}
+
 .l-row{
   width: 100%;
   height: 50%;
@@ -658,7 +744,7 @@ export default {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  margin-top: 19vh;
+  margin-top: 16vh;
 }
 .right-sidebar__button{
   display: flex;
@@ -674,7 +760,7 @@ export default {
   cursor: pointer;
   font-size: 1.2vw;
   border: none;
-  margin-top: -4vh;
+  margin-top: 0vh;
 }
 .right-sidebar__node{
   display: flex;
