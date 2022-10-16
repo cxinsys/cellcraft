@@ -142,6 +142,15 @@ export default {
     this.$df.registerNode('Scatter Plot', scatterPlot, {}, {})
     this.$df.registerNode('File', fileUpload, {}, {})
     this.$df.registerNode('Data Table', dataTable, {}, {})
+    // 노드 연결선 수직으로 바꾸는 코드
+    // this.$df.curvature = 0;
+    // this.$df.reroute_curvature_start_end = 0;
+    // this.$df.reroute_curvature = 0;
+
+    // this.$df.createCurvature = function(start_pos_x, start_pos_y, end_pos_x, end_pos_y, curvature_value) {
+    //   var center_x = ((end_pos_x - start_pos_x)/2)+start_pos_x;
+    //   return ' M ' + start_pos_x + ' ' + start_pos_y + ' L '+ center_x +' ' +  start_pos_y  + ' L ' + center_x + ' ' +  end_pos_y  + ' L ' + end_pos_x + ' ' + end_pos_y;
+    // }
     this.$df.on('nodeDataChanged', (ev) => {
       // nodeData 바뀌게 되면 Connection Update
       // console.log(ev)
