@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.encoders import jsonable_encoder
 from typing import List, Union
 from subprocess import Popen,PIPE
+from multiprocessing import Process, Pool, cpu_count
 import os
 import json
 import base64
@@ -38,6 +39,11 @@ def linkList(nodeList):
                 result.append(searchList)
     return result
 
+def snakemakeProcess(filepath):
+    process = Popen(['snakemake',f'workflow/data/{filepath}.csv','-j'], stdout=PIPE, stderr=PIPE)
+    stdout, stderr = process.communicate()
+
+
 #export workflow data
 @router.post("/compile")
 async def exportData(request: Request, current_user: models.User = Depends(dep.get_current_active_user)):
@@ -61,11 +67,16 @@ async def exportData(request: Request, current_user: models.User = Depends(dep.g
         for item in nodeObject_list:
             item_file = payload_as_json[item[0]]["data"]["file"].replace('C:\\fakepath\\', '').replace('.csv', '')
             lastNode = payload_as_json[item[len(item)-1]]["name"].replace(' ', '')
-            print(item_file, lastNode)
+            # print(item_file, lastNode)
             with open(f"workflow/data/{current_user.username}_{item_file}.txt", 'w') as f:
                 f.write(item_file)
-            process = Popen(['snakemake',f'workflow/data/{lastNode}_{current_user.username}_{item_file}.csv','-j'], stdout=PIPE, stderr=PIPE)
-            stdout, stderr = process.communicate()
+            target = f'{lastNode}_{current_user.username}_{item_file}'
+            print(target)
+            p = Pool(cpu_count())
+            snakemake = p.apply_async(snakemakeProcess, (target,))
+            print(snakemake.get())
+            p.close()
+            p.join()
         message = "success"
     except json.JSONDecodeError:
         payload_as_json = None
