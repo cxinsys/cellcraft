@@ -13,8 +13,8 @@
               <input class="fileUpload-form__button" type="submit" value="업로드">
             </label>
           </div>
-          <input class="fileUpload-form__info" placeholder="첨부파일" v-if="selectFile" v-model="selectFile.name">
-          <input class="fileUpload-form__info" placeholder="첨부파일" v-else>
+          <input class="fileUpload-form__info" placeholder="첨부파일" v-if="selectFile" v-model="selectFile.name" readonly>
+          <input class="fileUpload-form__info" placeholder="첨부파일" v-else readonly>
           <!-- <ul class="fileUploa d-form__info" v-if="selectFile">
             <li>name : {{ selectFile.name }}</li>
             <li>size : {{ selectFile.size | formatBytes}}</li>
