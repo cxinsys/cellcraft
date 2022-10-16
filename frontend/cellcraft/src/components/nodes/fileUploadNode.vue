@@ -1,15 +1,35 @@
 <template>
-  <div>
+  <div class="layout">
     <form class="fileUpload-form" @submit.prevent="uploadFile">
-        <label class="fileUpload-form__title">Select CSV to upload</label>
-        <input df-file class="fileUpload-form__input" type="file" ref="selectFile" @change.prevent="previewFile" accept="text/csv" />
-        <ul class="fileUpload-form__info" v-if="selectFile">
-          <li>name : {{ selectFile.name }}</li>
-          <li>size : {{ selectFile.size | formatBytes}}</li>
-          <li>type : {{ selectFile.type }}</li>
-        </ul>
-        <input type="submit" value="업로드">
+        <label class="fileUpload-form__title">File</label>
+        <div class="toggle-layout" v-if="toggle_file">
+          <div class="toggle-layout__row">
+            <label class="fileUpload-form__button">
+              파일 찾기
+              <input df-file class="fileUpload-form__input" type="file" ref="selectFile" @change.prevent="previewFile" accept="text/csv" />
+            </label>
+            <label class="fileUpload-form__button">
+              업로드
+              <input class="fileUpload-form__button" type="submit" value="업로드">
+            </label>
+          </div>
+          <input class="fileUpload-form__info" placeholder="첨부파일" v-model="selectFile.name">
+          <!-- <ul class="fileUploa d-form__info" v-if="selectFile">
+            <li>name : {{ selectFile.name }}</li>
+            <li>size : {{ selectFile.size | formatBytes}}</li>
+            <li>type : {{ selectFile.type }}</li>
+          </ul>
+          <ul class="fileUpload-form__info" v-else>
+            <li>name : </li>
+            <li>size : </li>
+            <li>type : </li>
+          </ul> -->
+        </div>
     </form>
+    <div class="toggle-icon" @click="toggleFile">
+      <i class="fileUpload-form__arrow fa-solid fa-arrow-up" v-if="toggle_arrow"></i>
+      <i class="fileUpload-form__arrow fa-solid fa-arrow-down" v-else></i>
+    </div>
   </div>
 </template>
 
@@ -22,7 +42,9 @@ export default {
       title: 'File Upload',
       selectFile: null,
       is_upload: false,
-      done_upload: false
+      done_upload: false,
+      toggle_arrow: false,
+      toggle_file: false
     }
   },
   methods: {
@@ -30,6 +52,10 @@ export default {
       if (this.$refs.selectFile.files.length > 0) {
         this.selectFile = this.$refs.selectFile.files[0]
       }
+    },
+    toggleFile () {
+      this.toggle_arrow = !this.toggle_arrow
+      this.toggle_file = !this.toggle_file
     },
     async uploadFile () {
       if (this.selectFile) {
@@ -59,6 +85,27 @@ export default {
 </script>
 
 <style>
+.layout{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.toggle-layout{
+  margin: 20px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.toggle-layout__row{
+  width: 100%;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content:space-between;
+}
 .fileUpload-form{
   width: 100%;
   height: 100%;
@@ -68,16 +115,52 @@ export default {
   justify-content: center;
   text-align: center;
 }
+.fileUpload-form__button{
+  display: inline-block;
+  width: 46%;
+  height: 1.5rem;
+  padding-top: 10px;
+  border: 1px solid black;
+  color: black;
+  background: white;
+  margin-bottom: 5px;
+  cursor: pointer;
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+.fileUpload-form input[type="file"], .fileUpload-form input[type="submit"] {
+    position: absolute;
+    width: 0;
+    height: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+}
+
 .fileUpload-form__title{
     font-size: 1rem;
+    font-weight: bold;
 }
 
-.fileUpload-form__input{
-  width: 100px;
-  margin: 2rem 0;
-}
+/* .fileUpload-form__info{
 
-.fileUpload-form__info{
-    margin-bottom: 1rem;
+} */
+
+.fileUpload-form__arrow{
+  color: black;
+  width: 1.5rem;
+  height: auto;
+}
+.toggle-icon{
+  background: rgb(227, 243, 252);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 </style>
