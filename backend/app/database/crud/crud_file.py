@@ -6,7 +6,7 @@ from app.database.schemas import user, file
 from app.database.crud import crud_file
 
 
-def get_user_file(db: Session, id: int, file_name: int):
+def get_user_file(db: Session, id: int, file_name: str):
     return db.query(models.File).filter(models.File.file_name == file_name, models.File.user_id == id).first()
 
 def get_user_files(db: Session, id: int):
@@ -25,3 +25,9 @@ async def create_file(db: Session, file: UploadFile, filesize: str, user_id: int
     db.commit()
     db.refresh(db_file)
     return db_file
+
+def delete_user_file(db: Session, id: int, file_name: str):
+    target_file = db.query(models.File).filter(models.File.file_name == file_name, models.File.user_id == id).first()
+    db.delete(target_file)
+    db.commit()
+    return target_file

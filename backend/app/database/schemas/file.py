@@ -12,6 +12,9 @@ class FileCreate(FileBase):
     file_size: str
     file_path: str
 
+class FileDelete(FileBase):
+    file_name: str
+
 class File(FileBase):
     id: int
     user_id: int
