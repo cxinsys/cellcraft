@@ -15,6 +15,10 @@ class FileCreate(FileBase):
 class FileDelete(FileBase):
     file_name: str
 
+class FileUpdate(FileBase):
+    file_name: str
+    update_name: str
+
 class File(FileBase):
     id: int
     user_id: int
