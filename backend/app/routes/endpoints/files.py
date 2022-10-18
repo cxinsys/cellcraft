@@ -10,7 +10,8 @@ from json import JSONDecodeError
 from app.routes import dep
 from app.database.crud import crud_file
 from app.database import models
-from app.database.schemas.file import FileCreate
+from app.database.schemas.file import FileCreate, FileDelete, FileUpdate
+
 
 router = APIRouter()
 
@@ -52,3 +53,41 @@ def read_user_files(
     user_files = crud_file.get_user_files(db, current_user.id)
     print(user_files)
     return user_files
+
+#User File delete
+@router.post("/delete")
+def delete_user_file(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    file_info: FileDelete,
+    ) -> Any:
+    user_file = crud_file.get_user_file(db, current_user.id, file_info.file_name)
+    if user_file:
+        delete_file = crud_file.delete_user_file(db, current_user.id, file_info.file_name)
+        print(delete_file)
+        return delete_file
+    else:
+        raise HTTPException(
+                status_code=400,
+                detail="this file not exists in your files",
+                )
+
+#User File Update
+@router.post("/update")
+def update_user_file(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    file_info: FileUpdate,
+    ) -> Any:
+    user_file = crud_file.get_user_file(db, current_user.id, file_info.file_name)
+    if user_file:
+        update_file = crud_file.update_user_file(db, current_user.id, file_info)
+        print(update_file)
+        return update_file
+    else:
+        raise HTTPException(
+                status_code=400,
+                detail="this file not exists in your files",
+                )
