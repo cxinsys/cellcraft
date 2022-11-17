@@ -1,8 +1,8 @@
 <template>
-<div>
+  <div class="layout">
     <h1>Data Table</h1>
     <div class="dataTable" v-html="dataTable"></div>
-</div>
+  </div>
 </template>
 
 <script>
@@ -38,7 +38,9 @@ export default {
     overflow-y: auto;
     margin: 10px;
 }
-.dataframe{
 
+.layout{
+  width: 100%;
+  height: 100%;
 }
 </style>
