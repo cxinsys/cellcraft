@@ -3,10 +3,19 @@
   <div class="modal" v-if="is_show_modal">
     <div class="modal__wrapper">
       <div class="modal__container">
-        <button @click="handle_toggle" type="button"> X </button>
-        <fileuploadModal v-if="show_modal === 'File'"></fileuploadModal>
-        <dataTableModal v-if="show_modal === 'DataTable'" :file_name="file_name"></dataTableModal>
-        <scatterPlotModal v-if="show_modal === 'Plot'" :file_name="file_name"></scatterPlotModal>
+        <div class="modal__header">
+          <button class="modal__exitBtn" @click="handle_toggle" type="button"> X </button>
+          <div class="tab" v-if="show_modal === 'Plot'">
+            <div class="tab__column" @click="tabClick">Bar Plot</div>
+            <div class="tab__column" @click="tabClick">Scatter Plot</div>
+          </div>
+          <div class="modal__name" v-else>{{ show_modal }}</div>
+        </div>
+        <div class="modal__content">
+          <fileuploadModal v-if="show_modal === 'File'"></fileuploadModal>
+          <dataTableModal v-if="show_modal === 'DataTable'" :file_name="file_name"></dataTableModal>
+          <PlotModal v-if="show_modal === 'Plot'" :file_name="file_name"></PlotModal>
+        </div>
       </div>
     </div>
   </div>
@@ -67,12 +76,12 @@ import Vue from 'vue'
 /* eslint-disable */
 // import Drawflow from 'drawflow'
 // import styleDrawflow from 'drawflow/dist/drawflow.min.css' // eslint-disable-line no-use-before-define
-import scatterPlot from '@/components/nodes/scatterPlotNode.vue'
+import Plot from '@/components/nodes/PlotNode.vue'
 import fileUpload from '@/components/nodes/fileUploadNode.vue'
 import dataTable from '@/components/nodes/dataTableNode.vue'
 import dataTableModal from '@/components/modals/datatable.vue'
 import fileuploadModal from '@/components/modals/fileupload.vue'
-import scatterPlotModal from '@/components/modals/scatterPlot.vue'
+import PlotModal from '@/components/modals/Plot.vue'
 
 import { exportData, getCheckCompile } from '@/api/index'
 import { requireFileAsExpression } from 'webpack/lib/ParserHelpers'
@@ -81,7 +90,7 @@ export default {
   components: {
     dataTableModal,
     fileuploadModal,
-    scatterPlotModal
+    PlotModal
   },
   data () {
     return {
@@ -104,7 +113,7 @@ export default {
           output: 1
         },
         {
-          name: 'Scatter Plot',
+          name: 'Plot',
           name2: 'Plot',
           img: require('@/assets/scatter-plot.png'),
           input: 1,
@@ -139,7 +148,7 @@ export default {
     Vue.prototype.$df = new Drawflow(id, Vue, this)
     this.$df.start()
 
-    this.$df.registerNode('Scatter Plot', scatterPlot, {}, {})
+    this.$df.registerNode('Plot', Plot, {}, {})
     this.$df.registerNode('File', fileUpload, {}, {})
     this.$df.registerNode('Data Table', dataTable, {}, {})
     // 노드 수직 연결선
@@ -211,7 +220,7 @@ export default {
       console.log(node.inputs, node.outputs)
       // this.node_info.name = node.name
       //Plot 임시 코드
-      if (node.name != 'Scatter Plot'){
+      if (node.name != 'Plot'){
         this.node_info.name = node.name
       }
       else {
@@ -222,8 +231,8 @@ export default {
         this.node_info.desc = 'Read data from an input file'
       } else if (node.name == 'Data Table') {
         this.node_info.desc = 'View the dataset in a spreadsheet'
-      } else if (node.name == 'Scatter Plot') {
-        // this.node_info.desc = 'Interactive scatter plot visualization'
+      } else if (node.name == 'Plot') {
+        // this.node_info.desc = 'Interactive Plot visualization'
         this.node_info.desc = 'Interactive plot visualization'
       }
       if (this.connectionParsing(node.inputs)) {
@@ -238,7 +247,7 @@ export default {
         console.log(output_node.name)
         // this.node_info.output = ` -> ${output_node.name}`
         //Plot 임시 코드
-        if(output_node.name != 'Scatter Plot'){
+        if(output_node.name != 'Plot'){
           this.node_info.output = ` -> ${output_node.name}`
         }
         else{
@@ -358,6 +367,18 @@ export default {
     },
     openRightsidebar () {
       this.rightSidebar_isActive = !this.rightSidebar_isActive
+    },
+    tabClick(event){
+      const tab = document.querySelectorAll(".tab__column");
+      for (let i = 0; i < tab.length; i++) {
+        tab[i].style.background = "white";
+      }
+      event.target.style.background = "rgb(175, 175, 175)";
+      // if (event.target.innerText == "Scatter Plot") {
+        
+      // } else if (event.target.innerText == "Bar Plot") {
+        
+      // }
     }
   }
 }
@@ -526,15 +547,53 @@ export default {
 }
 
 .modal__container{
-  width: 400px;
-  height: 500px;
+  width: 700px;
+  height: 600px;
   margin: 0px auto;
-  padding: 20px 30px;
   background-color: #fff;
   border-radius: 2px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
   transition: all 0.3s ease;
   font-family: Helvetica, Arial, sans-serif;
+}
+.modal__header{
+  width: 100%;
+  height: 55px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 10px;
+  box-sizing: border-box;
+  background: rgb(235, 235, 235);
+  border-bottom: 1px solid rgb(124, 124, 124);
+}
+.modal__exitBtn{
+  width: 40px;
+  height: 40px;
+  background: white;
+  cursor: pointer;
+  text-align: center;
+  font-size: 1.5rem;
+}
+.tab{
+  width: 655px;
+  height: 100%;
+  padding: 0 20px; 
+  display: flex;
+  align-items: center;
+}
+.tab__column{
+  width: 50%;
+  height: 100%;
+  border: 1px solid rgb(145, 145, 145);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal__content{
+  width: 100%;
+  height: 545px;
 }
 #drawflow {
   width: 100vw;
