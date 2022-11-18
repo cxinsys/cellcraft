@@ -1,6 +1,6 @@
 <template>
   <div class="layout">
-    <img id="plot" src=''>
+    <div>{{ data }}</div>
   </div>
 </template>
 
@@ -12,28 +12,29 @@ export default {
   },
   data () {
     return {
-      node_name: 'ScatterPlot',
-      img: null
+      node_name: 'Plot',
+      data: []
     }
   },
   async mounted () {
-    const filename = {'filename': `${this.node_name}_${this.file_name}`}
+    const filename = { filename: `${this.node_name}_${this.file_name}` }
     console.log(filename)
     const PlotResult = await getResult(filename)
     console.log(PlotResult)
-    this.img = PlotResult.data
-    document.getElementById('plot').src = 'data:image/png;base64,' + PlotResult.data
+    this.data = PlotResult.data
+    // document.getElementById('plot').src =
+    //   'data:image/png;base64,' + PlotResult.data
   }
 }
 </script>
 
 <style>
-#plot{
+#plot {
   width: 100%;
-  height: 400px;
+  height: 100%;
   object-fit: contain;
 }
-.layout{
+.layout {
   width: 100%;
   height: 100%;
 }

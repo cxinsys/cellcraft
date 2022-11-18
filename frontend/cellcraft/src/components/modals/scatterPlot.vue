@@ -16,7 +16,11 @@
 <script>
 /* eslint-disable */
 import * as d3 from "d3";
+import { getResult } from '@/api/index';
 export default {
+  props: {
+    file_name: null
+  },
   data() {
     return {
       csv: [],
@@ -36,7 +40,13 @@ export default {
     };
   },
   methods: {},
-  mounted() {
+  async mounted() {
+    const filename = { filename: `${this.node_name}_${this.file_name}` }
+    console.log(filename)
+    const PlotResult = await getResult(filename)
+    console.log(PlotResult)
+    this.data = PlotResult.data
+
     this.graphWidth = this.width - this.margin.ml - this.margin.mr;
     this.graphHeight = this.height - this.margin.mt - this.margin.mb;
     d3.select(".graph").attr(

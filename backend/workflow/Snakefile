@@ -8,12 +8,12 @@ rule dataTable:
     script:
         "script/dataTable.py"
 
-rule scatterPlot:
+rule Plot:
     input:
         "workflow/data/{username}_{filename}.txt",
         "workflow/data/DataTable_{username}_{filename}.csv"
     output:
-        "workflow/data/ScatterPlot_{username}_{filename}.csv",
-        "user/{username}/result/ScatterPlot_{filename}.png"
+        "workflow/data/Plot_{username}_{filename}.csv",
+        "user/{username}/result/Plot_{filename}.json"
     script:
-        "script/scatterPlot.py"
+        "script/Plot.py"

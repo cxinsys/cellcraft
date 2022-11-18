@@ -108,10 +108,14 @@ def checkResult(filename: WorkflowResult, current_user: models.User = Depends(de
     print(FILE_NAME)
     FILE_PATH = PATH_COMPILE_RESULT + '/' + FILE_NAME
 
-    if FILE_NAME.find("ScatterPlot") != -1:
-        img = Image.open(FILE_PATH)
-        img_converted = from_image_to_bytes(img)
-        return JSONResponse(img_converted)
+    if FILE_NAME.find("Plot") != -1:
+        # img = Image.open(FILE_PATH)
+        # img_converted = from_image_to_bytes(img)
+        # return JSONResponse(img_converted)
+        with open(FILE_PATH, 'r') as file:
+            data = json.load(file)
+            print(data)
+            return JSONResponse(data)
     else:
         return FileResponse(FILE_PATH)
 

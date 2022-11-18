@@ -5,7 +5,7 @@
       <div class="modal__container">
         <div class="modal__header">
           <button class="modal__exitBtn" @click="handle_toggle" type="button"> X </button>
-          <div class="tab" v-if="show_modal === 'Plot'">
+          <div class="tab" v-if="show_modal === 'Plot' || show_modal === 'Scatter Plot'">
             <div class="tab__column" @click="tabClick">Bar Plot</div>
             <div class="tab__column" @click="tabClick">Scatter Plot</div>
           </div>
@@ -15,6 +15,7 @@
           <fileuploadModal v-if="show_modal === 'File'"></fileuploadModal>
           <dataTableModal v-if="show_modal === 'DataTable'" :file_name="file_name"></dataTableModal>
           <PlotModal v-if="show_modal === 'Plot'" :file_name="file_name"></PlotModal>
+          <scatterPlotModal v-if="show_modal === 'Scatter Plot'" :file_name="file_name"></scatterPlotModal>
         </div>
       </div>
     </div>
@@ -82,6 +83,7 @@ import dataTable from '@/components/nodes/dataTableNode.vue'
 import dataTableModal from '@/components/modals/datatable.vue'
 import fileuploadModal from '@/components/modals/fileupload.vue'
 import PlotModal from '@/components/modals/Plot.vue'
+import scatterPlotModal from '@/components/modals/scatterPlot.vue'
 
 import { exportData, getCheckCompile } from '@/api/index'
 import { requireFileAsExpression } from 'webpack/lib/ParserHelpers'
@@ -369,16 +371,16 @@ export default {
       this.rightSidebar_isActive = !this.rightSidebar_isActive
     },
     tabClick(event){
-      const tab = document.querySelectorAll(".tab__column");
+      const tab = document.querySelectorAll(".tab__column")
       for (let i = 0; i < tab.length; i++) {
-        tab[i].style.background = "white";
+        tab[i].style.background = "rgb(175, 175, 175)"
       }
-      event.target.style.background = "rgb(175, 175, 175)";
-      // if (event.target.innerText == "Scatter Plot") {
-        
-      // } else if (event.target.innerText == "Bar Plot") {
-        
-      // }
+      event.target.style.background = "white"
+      if (event.target.innerText == "Bar Plot") {
+        this.show_modal = "Plot"
+      } else {
+        this.show_modal = event.target.innerText 
+      }
     }
   }
 }
@@ -547,7 +549,7 @@ export default {
 }
 
 .modal__container{
-  width: 700px;
+  width: 800px;
   height: 600px;
   margin: 0px auto;
   background-color: #fff;
@@ -561,6 +563,7 @@ export default {
   height: 55px;
   display: flex;
   align-items: center;
+  justify-content: center;
   position: relative;
   padding: 10px;
   box-sizing: border-box;
@@ -568,15 +571,21 @@ export default {
   border-bottom: 1px solid rgb(124, 124, 124);
 }
 .modal__exitBtn{
-  width: 40px;
-  height: 40px;
+  width: 33px;
+  height: 33px;
   background: white;
   cursor: pointer;
   text-align: center;
+  font-size: 1.25rem;
+  position: absolute;
+  left: 10px;
+}
+.modal__name{
   font-size: 1.5rem;
+  text-align: center;
 }
 .tab{
-  width: 655px;
+  width: 700px;
   height: 100%;
   padding: 0 20px; 
   display: flex;
@@ -590,6 +599,10 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgb(175, 175, 175);
+}
+.tab__column:first-child{
+  background: white;
 }
 .modal__content{
   width: 100%;
