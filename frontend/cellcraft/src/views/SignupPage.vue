@@ -23,9 +23,6 @@ export default {
 
 <style>
   @import '../../css/style.css';
-  *{
-    box-sizing: border-box;
-  }
   .container{
     height: 100vh;
     width: 100%;

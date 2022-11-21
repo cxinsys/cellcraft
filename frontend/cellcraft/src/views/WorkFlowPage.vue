@@ -92,7 +92,8 @@ export default {
   components: {
     dataTableModal,
     fileuploadModal,
-    PlotModal
+    PlotModal,
+    scatterPlotModal
   },
   data () {
     return {
@@ -553,9 +554,9 @@ export default {
   height: 600px;
   margin: 0px auto;
   background-color: #fff;
-  border-radius: 2px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
   transition: all 0.3s ease;
+  border-radius: 20px;
   font-family: Helvetica, Arial, sans-serif;
 }
 .modal__header{
@@ -578,6 +579,7 @@ export default {
   text-align: center;
   font-size: 1.25rem;
   position: absolute;
+  border: 1px solid rgb(145, 145, 145);
   left: 10px;
 }
 .modal__name{

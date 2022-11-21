@@ -27,9 +27,10 @@ export default {
 
 <style>
   @import '../../css/style.css';
-  *{
-      box-sizing: border-box;
+  .form, .field input{
+    box-sizing: border-box;
   }
+  .container, .form
   .container{
       height: 100vh;
       width: 100%;
