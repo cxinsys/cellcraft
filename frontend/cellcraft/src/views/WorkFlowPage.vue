@@ -63,7 +63,7 @@
     </section>
 
     <div class="popBtn" @click="openRightsidebar">
-      <div class="popBtn__txt">></div>
+      <img src="@/assets/popIcon.png" class="popBtn__txt">
     </div>
 
   </section>
@@ -849,6 +849,7 @@ export default {
 
 .right-sidebar__main.open {
   width: 9vw;
+  min-width: 80px;
 }
 
 .right-sidebar__row{
@@ -865,6 +866,7 @@ export default {
   align-items: center;
   justify-content: center;
   width: 8vw;
+  min-width: 60px;
   height: 4vh;
   border-radius: 30px;
   color: white;
@@ -887,7 +889,7 @@ export default {
   height: 60px;
   line-height:40px;
   padding: 20px;
-  margin: 40px 0px;
+  margin-bottom: 15px;
   cursor: move;
   font-weight: bold;
   font-size: 1vw;
@@ -895,6 +897,7 @@ export default {
 }
 .right-sidebar__img{
   width: 2vw;
+  min-width: 14px;
 }
 
 .right-sidebar__main > * {
@@ -919,15 +922,19 @@ export default {
   text-align: center;
   color:white;
   z-index: -1;
+  display: flex;
+  align-content: center;
+  align-items: center;
 }
 .popBtn__txt{
-  margin-top: 25px;
-  margin-right: 20px;
   cursor: default;
+  width: 18px;
+  padding-right:1px;
 }
 
 .right-sidebar__main.open ~ .popBtn > .popBtn__txt{
-  margin-top: 27px;
+  /* margin-top: 27px; */
   transform: rotate( 180deg );
+  padding-right:1px;
 }
 </style>
