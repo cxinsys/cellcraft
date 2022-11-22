@@ -39,8 +39,24 @@ export default {
     margin: 10px;
 }
 
-.layout{
-  width: 100%;
-  height: 100%;
+table {
+  border-collapse: separate;
+  text-align: center;
+  line-height: 1.5;
+  border-top: 1px solid #ccc;
+  margin: 20px 10px;
+}
+th {
+  padding: 10px;
+  font-weight: bold;
+  vertical-align: top;
+  border-bottom: 1px solid #ccc;
+  background: #efefef;
+}
+td {
+  width: 350px;
+  padding: 10px;
+  vertical-align: top;
+  border-bottom: 1px solid #ccc;
 }
 </style>
