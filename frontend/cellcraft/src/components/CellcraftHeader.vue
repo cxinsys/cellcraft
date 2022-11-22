@@ -26,6 +26,7 @@
     transition: all 0.5s ease;
     width: 13vw;
     box-sizing: border-box;
+    min-width: 100px;
   }
 
   .sidebar__navList{
@@ -60,6 +61,7 @@
     width: 10vw;
     margin-left: -1vw;
     margin-top: .7vh;
+    min-width: 80px;
   }
   .sidebar.open .sidebar__logo__name{
     display: block;
@@ -101,11 +103,13 @@
     width: 1.5vw;
     height: auto;
     margin-right: 1vw;
+    min-width: 12px;
   }
 
   .sidebar__linksName{
     font-weight: bold;
     text-decoration: none;
+    font-size: 0.8rem;
   }
 
   .sidebar__mainMenu:hover{
@@ -156,7 +160,7 @@
   .home__section1{
     margin-left: 1vw;
     display: flex;
-    margin-top: -5px;
+    margin-top: 3px;
   }
 
   .sidebar.open ~ .home__section1{
@@ -262,19 +266,19 @@
     height: 1vh;
   }
   .profile__setting{
+    display: none;
+  }
+  .profile__setting.open {
     display: flex;
     background-color: white;
     flex-direction: column;
     padding: .5vw 1.5vw .5vw 1vw;
     margin-top: 10px;
     margin-right: 2vw;
-    opacity: 0;
+    opacity: 1;
     z-index: 3;
   }
-  .profile__setting.open {
-    opacity: 1;
-  }
-  .profile__setting.open .profile__arrow{
+  .profile__setting.open ~ .home__menu .profile__arrow{
     transform: rotate( 180deg );
   }
   .profile__func{
@@ -444,34 +448,34 @@
       <section class="home__section2">
 
         <template v-if="isUserLogin">
-          <ul class = "profile__setting" v-bind:class="{open: setting_isActive}">
-            <li class="profile__func">
-              <div class="profile__img">
-                <!-- <div class="profile__text">J</div> -->
-              </div>
-              <div class="profile__func__txt"> {{ profile.email }} </div>
-            </li>
-            <li class="profile__func" @click="getProfile">
-              <img class="profile__func__img" src="@/assets/person-profile-image.png" alt="">
-              <div class="profile__func__txt"> Internal profile </div>
-            </li>
-            <li class="profile__func">
-              <img class="profile__func__img" src="@/assets/settings-gear.png" alt="">
-              <div class="profile__func__txt"> Settings </div>
-            </li>
-            <li class="profile__func">
-              <img class="profile__func__img" src="@/assets/themes.png" alt="">
-              <div class="profile__func__txt"> Themes </div>
-            </li>
-            <li class="profile__func" style="border-top: 1px rgb(222,222,222) solid ">
-              <img class="profile__func__img" src="@/assets/logout.png" alt="" style="padding-left:.2vw">
-              <router-link to="/main">
-                <div class="profile__func__txt" @click="logoutUser">
-                  Logout
+            <ul class = "profile__setting" v-bind:class="{open: setting_isActive}">
+              <li class="profile__func">
+                <div class="profile__img">
+                  <!-- <div class="profile__text">J</div> -->
                 </div>
-              </router-link>
-            </li>
-          </ul>
+                <div class="profile__func__txt"> {{ profile.email }} </div>
+              </li>
+              <li class="profile__func" @click="getProfile">
+                <img class="profile__func__img" src="@/assets/person-profile-image.png" alt="">
+                <div class="profile__func__txt"> Internal profile </div>
+              </li>
+              <li class="profile__func">
+                <img class="profile__func__img" src="@/assets/settings-gear.png" alt="">
+                <div class="profile__func__txt"> Settings </div>
+              </li>
+              <li class="profile__func">
+                <img class="profile__func__img" src="@/assets/themes.png" alt="">
+                <div class="profile__func__txt"> Themes </div>
+              </li>
+              <li class="profile__func" style="border-top: 1px rgb(222,222,222) solid ">
+                <img class="profile__func__img" src="@/assets/logout.png" alt="" style="padding-left:.2vw">
+                <router-link to="/main">
+                  <div class="profile__func__txt" @click="logoutUser">
+                    Logout
+                  </div>
+                </router-link>
+              </li>
+            </ul>
           <div class="home__menu"  @click="openProfile">
             <div class="home__profile">
               <div class="home__profile__text"></div>
