@@ -51,6 +51,7 @@
         <text class="xLabel"></text>
         <text class="yLabel"></text>
       </svg>
+      <div class="tooltip"></div>
     </div>
   </div>
 </template>
@@ -112,6 +113,24 @@ export default {
       }
       this.bar();
     },
+    dotMouseover(ev, d, i) {
+      console.log(d);
+      d3.select(".tooltip")
+        .html(
+          `${this.value} : ${d.value} <br> ${this.annotation} : ${d.annotation}`
+        )
+        .style("display", "block")
+        .style("left", ev.layerX + 10 + "px")
+        .style("top", ev.layerY + 10 + "px");
+    },
+    dotMouseleave(ev, d, i) {
+      console.log(ev);
+      d3.select(".tooltip").style("display", "none");
+    },
+    dotMouseclick(ev, d, i){
+      console.log(ev.target.style);
+      // ev.target.style.boxShadow = "rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px";
+    },
     bar() {
       d3.selectAll(".graph > rect").remove();
       // console.log(this.data[this.value][0]);
@@ -142,10 +161,10 @@ export default {
       d3.select(".xLabel").text(this.annotation);
       d3.select(".yLabel").text(this.value);
       d3.select(".xAxisG")
-      .selectAll("text")
-      .attr("fill", "blue")
-      .attr("transform", "rotate(-45)")
-      .attr("text-anchor", "end");
+        .selectAll("text")
+        .attr("fill", "blue")
+        .attr("transform", "rotate(-45)")
+        .attr("text-anchor", "end");
       return d3
         .select(".graph")
         .selectAll("rect")
@@ -155,7 +174,10 @@ export default {
         .attr("height", d => this.graphHeight - y(d.value))
         .attr("width", x.bandwidth)
         .attr("x", d => x(d.annotation))
-        .attr("y", d => y(d.value));
+        .attr("y", d => y(d.value))
+        .on("mouseover", this.dotMouseover)
+        .on("mouseleave", this.dotMouseleave)
+        .on("click", this.dotMouseclick);
     }
   },
   async mounted() {
@@ -248,7 +270,10 @@ export default {
       .attr("height", d => this.graphHeight - y(d.value))
       .attr("width", x.bandwidth)
       .attr("x", d => x(d.annotation))
-      .attr("y", d => y(d.value));
+      .attr("y", d => y(d.value))
+      .on("mouseover", this.dotMouseover)
+      .on("mouseleave", this.dotMouseleave)
+      .on("click", this.dotMouseclick);
   }
 };
 </script>
@@ -395,5 +420,15 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.tooltip {
+  position: absolute;
+  display: none;
+  width: 100px;
+  height: 150px;
+  padding: 10px;
+  background: white;
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  border-radius: 20px;
 }
 </style>

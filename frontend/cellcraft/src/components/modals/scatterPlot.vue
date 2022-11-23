@@ -2,20 +2,58 @@
   <div class="layout">
     <div class="options">
       <div class="options__column">
-        <div class="options__name"> Axis X: </div>
-        <input type="text" class="options__button" name="axisX" v-model="axisX" @click="optionClick">
+        <div class="options__name">Axis X:</div>
+        <input
+          type="text"
+          class="options__button"
+          name="axisX"
+          v-model="axisX"
+          @click="optionClick"
+        />
         <ul class="options__menu">
-          <li class="options__content" v-for="(header, idx) in headers" :key="idx" @click="menuClick">
-            {{header}}
+          <li
+            class="options__content"
+            v-for="(header, idx) in num_headers"
+            :key="idx"
+            @click="menuClick"
+          >
+            {{ header }}
+          </li>
+          <li
+            class="options__content"
+            v-for="(header, idx) in bool_headers"
+            :key="idx"
+            @click="menuClick"
+          >
+            {{ header }}
           </li>
         </ul>
       </div>
       <div class="options__column">
-        <div class="options__name"> Axis Y: </div>
-        <input type="text" class="options__button" name="axisY" v-model="axisY" @click="optionClick">
+        <div class="options__name">Axis Y:</div>
+        <input
+          type="text"
+          class="options__button"
+          name="axisY"
+          v-model="axisY"
+          @click="optionClick"
+        />
         <ul class="options__menu">
-          <li class="options__content" v-for="(header, idx) in headers" :key="idx" @click="menuClick">
-            {{header}}
+          <li
+            class="options__content"
+            v-for="(header, idx) in num_headers"
+            :key="idx"
+            @click="menuClick"
+          >
+            {{ header }}
+          </li>
+          <li
+            class="options__content"
+            v-for="(header, idx) in bool_headers"
+            :key="idx"
+            @click="menuClick"
+          >
+            {{ header }}
           </li>
         </ul>
       </div>
@@ -29,6 +67,7 @@
         <text class="xLabel"></text>
         <text class="yLabel"></text>
       </svg>
+      <div class="tooltip"></div>
     </div>
   </div>
 </template>
@@ -36,14 +75,14 @@
 <script>
 /* eslint-disable */
 import * as d3 from "d3";
-import { getResult } from '@/api/index';
+import { getResult } from "@/api/index";
 export default {
   props: {
     file_name: null
   },
   data() {
     return {
-      node_name: 'Plot',
+      node_name: "Plot",
       headers: [],
       num_headers: [],
       str_headers: [],
@@ -61,50 +100,75 @@ export default {
         mt: 60,
         mb: 60,
         mr: 20,
-        ml: 60,
+        ml: 60
       }
     };
   },
   methods: {
-    optionClick (event) {
-      event.target.style.opacity = '0.6'
-      event.target.nextElementSibling.style.display = 'block'
+    optionClick(event) {
+      event.target.style.opacity = "0.6";
+      event.target.nextElementSibling.style.display = "block";
     },
-    menuClick (event) {
+    menuClick(event) {
       // console.dir(event.target.parentElement.previousElementSibling)
-      const menuContent = event.target.innerText
-      event.target.parentElement.style.display = 'none'
-      event.target.parentElement.previousElementSibling.style.opacity = '1'
-      if (event.target.parentElement.previousElementSibling.previousElementSibling.innerText.includes('Y')) {
-        this.axisY = menuContent
-      } else if (event.target.parentElement.previousElementSibling.previousElementSibling.innerText.includes('X')) {
-        this.axisX = menuContent
+      const menuContent = event.target.innerText;
+      event.target.parentElement.style.display = "none";
+      event.target.parentElement.previousElementSibling.style.opacity = "1";
+      if (
+        event.target.parentElement.previousElementSibling.previousElementSibling.innerText.includes(
+          "Y"
+        )
+      ) {
+        this.axisY = menuContent;
+      } else if (
+        event.target.parentElement.previousElementSibling.previousElementSibling.innerText.includes(
+          "X"
+        )
+      ) {
+        this.axisX = menuContent;
       }
       this.scatter();
     },
-    scatter(){
+    dotMouseover(ev, d, i) {
+      console.log(d);
+      d3.select(".tooltip")
+        .html(`${this.axisX} : ${d.AxisX} <br> ${this.axisY} : ${d.AxisY}`)
+        .style("display", "block")
+        .style("left", (ev.layerX + 10) + "px")
+        .style("top", (ev.layerY + 10) + "px");
+    },
+    dotMouseleave(ev, d, i) {
+      console.log(ev);
+      d3.select(".tooltip")
+        .style("display", "none");
+    },
+    dotMouseclick(ev, d, i){
+      console.log(ev.target.style);
+      // ev.target.style.boxShadow = "rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px";
+    },
+    scatter() {
       d3.selectAll(".graph > circle").remove();
       // console.log(this.data[this.axisX][0]);
       this.filtered_data = [];
 
-      for(let i = 0; i < Object.keys(this.data[this.axisX]).length; i++){
+      for (let i = 0; i < Object.keys(this.data[this.axisX]).length; i++) {
         this.filtered_data.push({
-          AxisX : this.data[this.axisX][i],
-          AxisY : this.data[this.axisY][i]
+          AxisX: this.data[this.axisX][i],
+          AxisY: this.data[this.axisY][i]
         });
-      };
+      }
       const x = d3
         .scaleLinear()
         .domain([
-          d3.min(this.filtered_data, (d) => d.AxisX) - 10,
-          d3.max(this.filtered_data, (d) => d.AxisX) + 10
+          d3.min(this.filtered_data, d => d.AxisX) - 10,
+          d3.max(this.filtered_data, d => d.AxisX) + 10
         ])
         .range([0, this.graphWidth]);
       const y = d3
         .scaleLinear()
         .domain([
-          d3.min(this.filtered_data, (d) => d.AxisY) - 10,
-          d3.max(this.filtered_data, (d) => d.AxisY) + 10
+          d3.min(this.filtered_data, d => d.AxisY) - 10,
+          d3.max(this.filtered_data, d => d.AxisY) + 10
         ])
         .range([this.graphHeight, 0]);
       const xAxis = d3.axisBottom(x).ticks(5);
@@ -121,30 +185,33 @@ export default {
         .append("circle")
         .attr("cx", d => x(d.AxisX))
         .attr("cy", d => y(d.AxisY))
-        .attr("r", 10);
+        .attr("r", 10)
+        .on("mouseover", this.dotMouseover)
+        .on("mouseleave", this.dotMouseleave)
+        .on("click", this.dotMouseclick);
     }
   },
   async mounted() {
-    const filename = { filename: `${this.node_name}_${this.file_name}` }
+    const filename = { filename: `${this.node_name}_${this.file_name}` };
     // console.log(filename)
-    const PlotResult = await getResult(filename)
+    const PlotResult = await getResult(filename);
     // console.log(PlotResult.data.club[0])
-    this.data = PlotResult.data
+    this.data = PlotResult.data;
     console.log(this.data);
-    this.headers = Object.keys(PlotResult.data).slice(1)
+    this.headers = Object.keys(PlotResult.data).slice(1);
     this.headers.forEach(element => {
-      console.log(typeof(this.data[element][0]));
-      if(typeof(this.data[element][0]) === 'number'){
-        this.num_headers.push(element)
-      } else if(typeof(this.data[element][0]) === 'string'){
-        this.str_headers.push(element)
-      } else if(typeof(this.data[element][0]) === 'boolean'){
-        this.bool_headers.push(element)
+      console.log(typeof this.data[element][0]);
+      if (typeof this.data[element][0] === "number") {
+        this.num_headers.push(element);
+      } else if (typeof this.data[element][0] === "string") {
+        this.str_headers.push(element);
+      } else if (typeof this.data[element][0] === "boolean") {
+        this.bool_headers.push(element);
       }
-    })
+    });
     console.log(this.num_headers);
-    this.axisX = this.num_headers[0]
-    this.axisY = this.num_headers[1]
+    this.axisX = this.num_headers[0];
+    this.axisY = this.num_headers[1];
     // console.log(typeof(this.axisX));
 
     this.graphWidth = this.width - this.margin.ml - this.margin.mr;
@@ -165,12 +232,12 @@ export default {
       .attr("y", this.margin.ml / 2 - 5)
       .attr("x", -this.height / 2 + 20);
 
-    for(let i = 0; i < Object.keys(this.data[this.axisX]).length; i++){
+    for (let i = 0; i < Object.keys(this.data[this.axisX]).length; i++) {
       this.filtered_data.push({
-        AxisX : this.data[this.axisX][i],
-        AxisY : this.data[this.axisY][i]
+        AxisX: this.data[this.axisX][i],
+        AxisY: this.data[this.axisY][i]
       });
-    };
+    }
     const x = d3
       .scaleLinear()
       .domain([
@@ -191,6 +258,8 @@ export default {
     d3.select(".yAxisG").call(yAxis);
     d3.select(".xLabel").text(this.axisX);
     d3.select(".yLabel").text(this.axisY);
+
+    //점 그리기
     d3.select(".graph")
       .selectAll("circle")
       .data(this.filtered_data)
@@ -198,7 +267,10 @@ export default {
       .append("circle")
       .attr("cx", d => x(d.AxisX))
       .attr("cy", d => y(d.AxisY))
-      .attr("r", 10);
+      .attr("r", 10)
+      .on("mouseover", this.dotMouseover)
+      .on("mouseleave", this.dotMouseleave)
+      .on("click", this.dotMouseclick);
   }
 };
 </script>
@@ -212,7 +284,7 @@ export default {
   justify-content: center;
   position: relative;
 }
-.options{
+.options {
   width: 40%;
   height: 100%;
   padding: 10px;
@@ -223,7 +295,7 @@ export default {
   position: absolute;
   left: 0;
 }
-.options__column{
+.options__column {
   width: 100%;
   height: 5%;
   margin-bottom: 15px;
@@ -232,14 +304,15 @@ export default {
   position: relative;
   background: rgb(210, 210, 210);
 }
-.options__name{
- width: 35%;
- height: 100%;
- padding: 5px;
- display: flex;
- align-items: center;
+.options__name {
+  width: 35%;
+  height: 100%;
+  padding: 5px;
+  display: flex;
+  align-items: center;
 }
-.options__button, .options__menu{
+.options__button,
+.options__menu {
   width: 65%;
   height: 100%;
   padding: 5px;
@@ -248,7 +321,7 @@ export default {
   justify-content: flex-start;
   background: white;
 }
-.options__menu{
+.options__menu {
   display: none;
   height: auto;
   flex-direction: column;
@@ -259,10 +332,10 @@ export default {
   right: 0;
   z-index: 1;
 }
-.options__content{
+.options__content {
   margin-bottom: 4px;
 }
-.options__content:hover{
+.options__content:hover {
   background: rgb(125, 125, 255);
 }
 .canvas {
@@ -273,5 +346,15 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.tooltip {
+  position: absolute;
+  display: none;
+  width: 100px;
+  height: 150px;
+  padding: 10px;
+  background: white;
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  border-radius: 20px;
 }
 </style>
