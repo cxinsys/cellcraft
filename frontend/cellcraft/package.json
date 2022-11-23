@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "axios": "^0.27.2",
+    "d3": "^7.6.1",
     "drawflow": "0.0.59",
     "vue": "^2.5.2",
     "vue-router": "^3.0.1",
