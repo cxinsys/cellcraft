@@ -42,9 +42,9 @@ export default {
   },
   async mounted () {
     const filename = { filename: `${this.node_name}_${this.file_name}` }
-    console.log(filename)
+    // console.log(filename)
     const PlotResult = await getResult(filename)
-    console.log(PlotResult.data)
+    // console.log(PlotResult.data)
     this.data = PlotResult.data
     this.headers = Object.keys(PlotResult.data).slice(1)
     this.value = this.headers[0]
@@ -81,7 +81,6 @@ export default {
   display: flex;
   align-items: center;
   position: relative;
-  box-sizing: border-box
 }
 .options{
   width: 40%;
