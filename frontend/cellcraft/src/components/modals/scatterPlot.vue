@@ -274,13 +274,4 @@ export default {
   align-items: center;
   justify-content: center;
 }
-.uploadCsv {
-  width: 100%;
-  height: 10%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  margin: 10px 0;
-}
 </style>
