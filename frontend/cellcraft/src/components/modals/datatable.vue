@@ -1,6 +1,5 @@
 <template>
   <div class="layout">
-    <h1>Data Table</h1>
     <div class="dataTable" v-html="dataTable"></div>
   </div>
 </template>
