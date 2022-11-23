@@ -130,19 +130,18 @@ export default {
       this.scatter();
     },
     dotMouseover(ev, d, i) {
-      console.log(d);
+      // console.log(d);
       d3.select(".tooltip")
         .html(`${this.axisX} : ${d.AxisX} <br> ${this.axisY} : ${d.AxisY}`)
         .style("display", "block")
-        .style("left", (ev.layerX + 10) + "px")
-        .style("top", (ev.layerY + 10) + "px");
+        .style("left", ev.layerX + 10 + "px")
+        .style("top", ev.layerY + 10 + "px");
     },
     dotMouseleave(ev, d, i) {
       console.log(ev);
-      d3.select(".tooltip")
-        .style("display", "none");
+      d3.select(".tooltip").style("display", "none");
     },
-    dotMouseclick(ev, d, i){
+    dotMouseclick(ev, d, i) {
       console.log(ev.target.style);
       // ev.target.style.boxShadow = "rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px";
     },
@@ -238,6 +237,7 @@ export default {
         AxisY: this.data[this.axisY][i]
       });
     }
+
     const x = d3
       .scaleLinear()
       .domain([
