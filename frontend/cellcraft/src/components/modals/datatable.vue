@@ -31,32 +31,50 @@ export default {
 .dataTable{
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 100%;
+    justify-content: flex-start;
+    align-content: flex-start;
+    flex-wrap: wrap;
+    /* width: 100%; */
     height: 400px;
-    overflow-x: auto;
-    overflow-y: auto;
-    margin: 10px;
+    overflow-x: scroll;
+    overflow-y: scroll;
+    margin-top: 15px;
+    margin-right: 10px;
+    margin-left: 0px;
 }
 
 table {
   border-collapse: separate;
   text-align: center;
-  line-height: 1.5;
+  line-height: 10px;
   border-top: 1px solid #ccc;
   margin: 20px 10px;
 }
 th {
+  width: auto;
+  max-height: 10px;
   padding: 10px;
   font-weight: bold;
   vertical-align: top;
   border-bottom: 1px solid #ccc;
   background: #efefef;
+  word-wrap: normal;
+  text-align: center;
+  position: sticky;
+  top: 0;
 }
 td {
-  width: 350px;
-  padding: 10px;
-  vertical-align: top;
-  border-bottom: 1px solid #ccc;
+  width: auto;
+  text-align: start;
+  max-height: 10px;
+  /* padding: 10px; */
+  vertical-align: middle;
+  border: 1px solid #ccc;
+  word-wrap: break-word;
+  word-break: keep-all;
+  padding:0px 3px;
+  overflow:hidden;
+  white-space : nowrap;
+  text-overflow: ellipsis;
 }
 </style>
