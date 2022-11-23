@@ -6,7 +6,7 @@
     </div>
     <footer class="copyright">
       <div class="copyright__txt">
-        Copyright 2022. Cellcraft Co. all rights reserved
+        <!-- Copyright 2022. Cellcraft Co. all rights reserved -->
       </div>
     </footer>
   </div>

@@ -213,8 +213,9 @@
 
   }
   .home__logoImg {
-    height: 6vh;
-    margin-top: .7vh;
+    width: 130px;
+    height: auto;
+    margin-top: 12px;
   }
   /* .home__login{
     color: white;
