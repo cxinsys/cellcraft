@@ -1,12 +1,14 @@
 <template>
   <div id="app">
-    <CellcraftHeader></CellcraftHeader>
-    <div class="app-contents">
+    <header class="header-component">
+      <CellcraftHeader></CellcraftHeader>
+    </header>
+    <main class="main-component">
       <router-view></router-view>
-    </div>
-    <footer class="copyright">
+    </main>
+    <footer class="footer-component">
       <div class="copyright__txt">
-        <!-- Copyright 2022. Cellcraft Co. all rights reserved -->
+        Cell Craft © 2023. All rights reserved
       </div>
     </footer>
   </div>
@@ -26,15 +28,36 @@ export default {
 <style>
 #app{
   width: 100vw;
-  height: 100vh;
+  height: 135vh;
 }
-.app-contents{
+.header-component{
   width: 100%;
-  height: 87%;
+  height: 7.5%;
 }
-.copyright{
+.main-component{
+  width: 100%;
+  height: 85%;
+}
+.footer-component{
+  width: 100%;
+  height: 7.5%;
+  background: #fff;
+  border-top: 1px solid #e1e1e1;
+}
+.copyright__txt{
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+
+  font-family: 'NanumGothic';
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 16px;
+  /* identical to box height */
+
+  color: #5E5E5E;
 }
 </style>
