@@ -28,19 +28,19 @@ export default {
 <style>
 #app{
   width: 100vw;
-  height: 135vh;
+  height: 155vh;
 }
 .header-component{
   width: 100%;
-  height: 7.5%;
+  height: 5.5%;
 }
 .main-component{
   width: 100%;
-  height: 85%;
+  height: 89%;
 }
 .footer-component{
   width: 100%;
-  height: 7.5%;
+  height: 5.5%;
   background: #fff;
   border-top: 1px solid #e1e1e1;
 }

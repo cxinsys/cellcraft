@@ -2,8 +2,8 @@
   <div class="layout">
     <div class="logo-component">
       <router-link class="logo" to="/main">
-        <img class="logo__img" src="@/assets/logo.png">
-        <p class="logo__text">CellCraft</p>
+        <img class="logo__img" src="@/assets/cellcraft_logo.png">
+        <p class="logo__text">CELLCRAFT</p>
       </router-link>
     </div>
     <nav class="menu-component">
@@ -109,7 +109,6 @@ a{
   width: 4.5rem;
   height: 4.5rem;
   object-fit: contain;
-  margin-right: 1rem;
 }
 .logo__text{
   font-family: 'NanumGothic';
@@ -136,7 +135,9 @@ a{
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
+
 .header-menu__link{
   font-family: 'NanumGothic';
   font-style: normal;
@@ -144,7 +145,20 @@ a{
   font-size: 1.5rem;
   line-height: 1.5rem;
   color: rgb(51, 51, 51);
+  position: relative;
+  transform:translateY(3px);
 }
+.header-menu__link:after {
+  display:block;
+  content: '';
+  border-bottom: solid 3px #000000;
+  transform: scaleX(0) translateY(10px);
+  transition: transform 250ms ease-in-out;
+}
+.header-menu__link:hover:after { transform: scaleX(1) translateY(10px); }
+.header-menu__link.fromRight:after{ transform-origin:100% 50%; }
+.header-menu__link.fromLeft:after{  transform-origin:  0% 50%; }
+
 .login-component{
   width: 25%;
   height: 100%;
