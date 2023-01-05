@@ -31,6 +31,7 @@
             <p class="menu-list__title">Tutorial</p>
             <span class="menu-list__desc">The best tutorial you can see to get started with CELLCRAFT</span>
           </div>
+          <img class="arrow hidden" src="@/assets/right-arrow.png">
         </li>
         <li class="menu-list__card">
           <img class="menu-list__icon" src="@/assets/document.png">
@@ -38,7 +39,7 @@
             <p class="menu-list__title">Document</p>
             <span class="menu-list__desc">Algorithms, Data sets, Research results, detailed resources etc.</span>
           </div>
-          <img class="arrow" src="@/assets/right-arrow.png">
+          <img class="arrow hidden" src="@/assets/right-arrow.png">
         </li>
         <li class="menu-list__card">
           <img class="menu-list__icon" src="@/assets/chat.png">
@@ -46,6 +47,7 @@
             <p class="menu-list__title">Forum</p>
             <span class="menu-list__desc">A community where users communicate freely with each other.</span>
           </div>
+          <img class="arrow hidden" src="@/assets/right-arrow.png">
         </li>
         <li class="menu-list__card">
           <img class="menu-list__icon" src="@/assets/database.png">
@@ -53,6 +55,7 @@
             <p class="menu-list__title">Dataset</p>
             <span class="menu-list__desc">Single-cell data set accumulated through the study</span>
           </div>
+          <img class="arrow hidden" src="@/assets/right-arrow.png">
         </li>
         <li class="menu-list__card">
           <img class="menu-list__icon" src="@/assets/megaphone.png">
@@ -60,6 +63,7 @@
             <p class="menu-list__title">Notice</p>
             <span class="menu-list__desc">Check out announcements, blogs, and events</span>
           </div>
+          <img class="arrow hidden" src="@/assets/right-arrow.png">
         </li>
         <li class="menu-list__card">
           <img class="menu-list__icon" src="@/assets/faq.png">
@@ -67,6 +71,7 @@
             <p class="menu-list__title">FAQ</p>
             <span class="menu-list__desc">You can see frequently asked questions while using our service</span>
           </div>
+          <img class="arrow hidden" src="@/assets/right-arrow.png">
         </li>
       </ul>
     </section>
@@ -118,9 +123,6 @@ export default {
 .bold{
   font-weight: bold;
 }
-.hidden{
-  display: none;
-}
 .arrow{
   display: inline-block;
   width: 1.5rem;
@@ -129,6 +131,9 @@ export default {
   position: absolute;
   top: 1rem;
   right: 1rem;
+}
+.hidden{
+  display: none;
 }
 .layout{
   width: 100%;
@@ -208,19 +213,19 @@ export default {
   justify-content: space-between;
 }
 .main__name{
-  font-family: 'NanumGothic';
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
-  font-weight: bold;
+  font-weight: 600;
   font-size: 4rem;
   line-height: 4rem;
   text-align: left;
 }
 .main__desc{
-  font-family: 'NanumGothic';
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
-  font-weight: 500;
-  font-size: 1.1rem;
-  line-height: 1.5rem;
+  font-weight: 400;
+  font-size: 1.04rem;
+  line-height: 1.6rem;
   text-align: left;
 }
 .notice__title{
@@ -229,7 +234,8 @@ export default {
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  font-family: 'NanumGothic';
+
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
   font-weight: bold;
   font-size: 1.5rem;
@@ -245,11 +251,11 @@ export default {
 }
 .notice__info,
 .notice__date{
-  font-family: 'NanumGothic';
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
-  font-weight: 500;
-  font-size: 1.1rem;
-  line-height: 1.1rem;
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1rem;
   text-align: center;
   color: #fff;
   opacity: 0.7;
@@ -314,10 +320,10 @@ export default {
   position: relative;
 }
 .menu-list__title{
-  font-family: 'NanumGothic';
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
-  font-weight: bold;
-  font-size: 1.5rem;
+  font-weight: 600;
+  font-size: 1.4rem;
   line-height: 1.1rem;
   position: absolute;
   top: calc(100% - 5rem);
@@ -325,10 +331,10 @@ export default {
 .menu-list__desc{
   width: calc(100%);
   max-width: 19rem;
-  font-family: 'NanumGothic';
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
-  font-weight: 500;
-  font-size: 1rem;
+  font-weight: 400;
+  font-size: 0.9rem;
   line-height: 1.1rem;
   position: absolute;
   top: calc(100% - 3rem);
@@ -343,9 +349,9 @@ export default {
   border-right: 1px solid rgba(0, 0, 0, 0.3);
 }
 .intro__title{
-  font-family: 'NanumGothic';
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
-  font-weight: 500;
+  font-weight: 400;
   font-size: 2.75rem;
   line-height: 2.75rem;
 }
@@ -358,7 +364,7 @@ export default {
 .intro__list-item{
   width: 70%;
   margin: 1rem 0;
-  font-family: 'NanumGothic';
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
   font-weight: 500;
   font-size: 1rem;
@@ -398,20 +404,20 @@ export default {
   margin: 0 1rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
 }
 .intro__desc-title{
-  font-family: 'NanumGothic';
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
   font-weight: bold;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   line-height: 1.4rem;
 }
 .intro__desc-text{
-  font-family: 'NanumGothic';
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
-  font-weight: 500;
-  font-size: 1rem;
+  font-weight: 400;
+  font-size: 0.9rem;
   line-height: 1.5rem;
   margin-top: 1rem;
   opacity: 0.7;

@@ -111,9 +111,9 @@ a{
   object-fit: contain;
 }
 .logo__text{
-  font-family: 'NanumGothic';
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
-  font-weight: 700;
+  font-weight: bold;
   font-size: 2rem;
   line-height: 2rem;
   text-decoration: none;
@@ -137,13 +137,12 @@ a{
   justify-content: center;
   position: relative;
 }
-
 .header-menu__link{
-  font-family: 'NanumGothic';
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
-  font-weight: 600;
-  font-size: 1.5rem;
-  line-height: 1.5rem;
+  font-weight: 400;
+  font-size: 1.3rem;
+  line-height: 1.3rem;
   color: rgb(51, 51, 51);
   position: relative;
   transform:translateY(3px);
@@ -167,7 +166,9 @@ a{
   align-items: center;
 }
 .login__link{
-  font-family: 'NanumGothic';
+  display: flex;
+  align-items: center;
+  font-family: 'Montserrat', sans-serif;
   font-style: normal;
   font-weight: 600;
   font-size: 1.2rem;
