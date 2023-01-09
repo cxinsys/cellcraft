@@ -1,17 +1,31 @@
 <template>
-  <section class="container forms">
-    <div class="form login">
-      <div class="form-content">
-          <header>Login</header>
-
+  <div class="layout">
+    <div class="login-component">
+        <router-link class="login__logo" to="/main">
+          <img class="logo__img" src="@/assets/cellcraft_logo.png">
+          <p class="logo__text">CELLCRAFT</p>
+        </router-link>
+        <div class="login-box">
           <LoginForm></LoginForm>
-
-          <div class="form-link">
-            <span>Don't have an account? <router-link to="/signup" class="link signup-link">Signup</router-link> </span>
+        </div>
+        <div class="login-help">
+          <div class="login-help__column">
+            <router-link class="login-help__text" to="/signup">Sign up</router-link>
           </div>
-      </div>
+          <div class="login-help__column">
+            <router-link class="login-help__text" to="/main">Find ID</router-link>
+          </div>
+          <div class="login-help__column">
+            <router-link class="login-help__text" to="/main">Find Password</router-link>
+          </div>
+        </div>
+        <footer class="login-footer">
+          <div class="copyright__txt">
+            CELLCRAFT © 2023. All rights reserved
+          </div>
+        </footer>
     </div>
-  </section>
+  </div>
 </template>
 
 <script>
@@ -25,89 +39,79 @@ export default {
 
 </script>
 
-<style>
-  @import '../../css/style.css';
-  .form, .field input{
-    box-sizing: border-box;
-  }
-  .container, .form
-  .container{
-      height: 100vh;
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: black;
-      column-gap: 30px;
-  }
-  .form{
-      position: absolute;
-      max-width: 25vw;
-      width: 100%;
-      padding: 1.5vw;
-      border-radius: .6vw;
-      background: #FFF;
-  }
-  header{
-      font-size: 1.5vw;
-      font-weight: 600;
-      text-align: center;
-  }
-  form{
-      margin-top: 3vw;
-  }
-  .form .field{
-      position: relative;
-      height: 5vh;
-      width: 100%;
-      margin-top: 2vh;
-      border-radius: .6vw;
-  }
-  .field input,
-  .field button{
-      height: 100%;
-      width: 100%;
-      border: none;
-      font-size: .8vw;
-      font-weight: 400;
-      border-radius: .5vw;
-  }
-  .field input{
-      outline: none;
-      padding: 0 1vw;
-      border: .1vw solid#CACACA;
-  }
-  .field input:focus{
-      border-bottom-width: .2vw;
-  }
-  .field button{
-      color: #fff;
-      background-color: black;
-      transition: all 0.3s ease;
-      cursor: pointer;
-  }
-  /* .field button:hover{
-      background-color: black;
-  } */
-  .form-link{
-      text-align: center;
-      margin-top: 1vh;
-  }
-  .form-link a{
-      font-size: .7vw;
-      font-weight: 400;
-      color: #232836;
-  }
-  .form a{
-      color: #0171d3;
-      text-decoration: none;
-  }
-  .form-content a:hover{
-      text-decoration: underline;
-  }
-  .form-link span{
-      font-size: .8vw;
-      font-weight: 400;
-      color: #232836;
-  }
+<style scoped>
+.layout{
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 5rem;
+  box-sizing: border-box;
+}
+.login-component{
+  width: 26rem;
+  height: 34rem;
+}
+.login__logo{
+  width: 100%;
+  height: 6rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-decoration: none;
+  color: black;
+  margin-bottom: 2rem;
+}
+.logo__img{
+  width: 6rem;
+  height: 6rem;
+  object-fit: contain;
+}
+.logo__text{
+  font-family: 'Montserrat', sans-serif;
+  font-style: normal;
+  font-weight: bold;
+  font-size: 3rem;
+  line-height: 3rem;
+  text-decoration: none;
+}
+.login-box{
+  width: 100%;
+  height: 20rem;
+}
+.login-help{
+  width: 100%;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+.login-help__column{
+  width: auto;
+  height: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-help__column:nth-child(2){
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+}
+.login-help__text{
+  font-family: 'Montserrat', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 0.9rem;
+  line-height: 0.9rem;
+  padding: 0 1rem;
+  text-decoration: none;
+  color: rgba(0, 0, 0, 0.6);
+}
+.login-footer{
+  width: 100%;
+  height: 3rem;
+  border-top: 1px solid rgba(204, 204, 204, 0.5);
+}
 </style>

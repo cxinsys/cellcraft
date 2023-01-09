@@ -1,79 +1,37 @@
-<style scoped>
-.modal__alert__header{
-  display: flex;
-  align-content: center;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 10px;
-}
-.modal__alert__header__closeBtn:hover{
-  cursor: default;
-}
-.modal__alert__main{
-  display: flex;
-  flex-direction: column;
-  align-content: center;
-  justify-content: center;
-  align-items: center;
-  margin-top: 20px;
-}
-.modal__alert__main__content{
-  /* margin-top: 50px; */
-  position: absolute;
-  top: 45%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.modal__alert__main__btn{
-  margin-top: 50px;
-}
-</style>
-
 <template>
-  <div>
-      <form @submit.prevent="submitForm">
-        <div class="field input-field">
-          <input type="email" placeholder="Email address" class="input" v-model="email">
+  <div class="signup-layout">
+    <header class="signup-header">
+      <h1 class="header-text">
+        Sign up
+      </h1>
+    </header>
+    <form class="signup-form" @submit.prevent="submitForm">
+      <div class="signup__field">
+        <input class="signup__input" type="email" placeholder="Email" v-model="email">
+        <div class="error-message" v-if="!isEmailValidation && email">
+          Please follow the email format
         </div>
+      </div>
 
-        <div class="form-link" v-if="!isEmailValidation && email">
-          <p>Enter in the email format</p>
+       <div class="signup__field">
+        <input class="signup__input" type="name" placeholder="Username" v-model="username">
+      </div>
+
+      <div class="signup__field">
+        <input class="signup__input" type="password" placeholder="Password" v-model="password">
+        <div class="error-message">
+          At least 8 characters
         </div>
+      </div>
 
-        <div class="field input-field">
-          <input type="name" placeholder="Username" class="input" v-model="username">
-        </div>
+      <div class="signup__field">
+        <input class="signup__input" type="password" placeholder="Confirm password" v-model="re_password">
+      </div>
 
-        <div class="field input-field">
-          <input type="password" placeholder="Password" class="password" v-model="password">
-        </div>
-
-        <div class="form-link">
-          <p>At least 8 characters</p>
-        </div>
-
-        <div class="field input-field">
-          <input type="password" placeholder="Re-enter password" class="pwCheck" v-model="re_password">
-        </div>
-
-        <!-- <div class="field button-field" > -->
-        <div class="field button-field">
-          <button :disabled="!email || !username || !password">Join</button>
-        </div>
-        <Alert @click="modal=false" v-if="modal">
-          <div slot="header" class="modal__alert__header">
-          </div>
-          <div slot="body" class="modal__alert__main">
-            <div class="modal__alert__main__content">
-              Success Signup!<br><br>Move to MainPage
-              <button class="modal__alert__main__btn" @click="successSignup">OK</button>
-            </div>
-            <!-- <button class="modal__alert__main__btn" type="submit">OK</button> -->
-          </div>
-        </Alert>
-      </form>
-
+      <div class="signup__signup">
+        <button class="signup__button" :disabled="!email || !username || !password">Join</button>
+      </div>
+    </form>
   </div>
 </template>
 
@@ -129,3 +87,80 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.signup-layout{
+  width: 100%;
+  height: 100%;
+  border-radius: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.signup-header{
+  width: 100%;
+  height: 15%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 5%;
+}
+.header-text{
+  font-family: 'Montserrat', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 2rem;
+  line-height: 2rem;
+  text-decoration: none;
+}
+.signup-form{
+  width: 100%;
+  height: 100%;
+}
+.signup__field{
+  width: 100%;
+  height: 15%;
+  position: relative;
+  margin-bottom: 5.5%;
+}
+.signup__input{
+  width: 100%;
+  height: 100%;
+  border: 1px solid #ccc;
+  border-radius: 0.4rem;
+  padding: 0 1rem;
+  box-sizing: border-box;
+  font-size: 1rem;
+}
+.signup__signup{
+  width: 100%;
+  height: 15%;
+}
+.signup__button{
+  width: 100%;
+  height: 100%;
+  border-radius: 0.4rem;
+  background: rgb(75, 119, 209);
+  color: white;
+
+  font-family: 'Montserrat', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1rem;
+  text-decoration: none;
+}
+.error-message{
+  width: 100%;
+  height: 5%;
+  left: 0.5rem;
+  top: calc(100% + 0.3rem);
+  position: absolute;
+  font-family: 'Montserrat', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 0.75rem;
+  line-height: 0.75rem;
+}
+</style>
