@@ -14,64 +14,64 @@
     <div class="notice-component">
       <h1 class="notice__title">Notice</h1>
       <div class="notice__column">
-        <p class="notice__info">[Notice] The lastest CELLCRAFT release came out...</p>
+        <p class="notice__info">[Notice] The lastest CellCraft release came out...</p>
         <p class="notice__date">2023.01.04</p>
       </div>
       <div class="notice__column">
-        <p class="notice__info">[Event] Welcome to CELLCRAFT   workshop</p>
+        <p class="notice__info">[Event] Welcome to CellCraft   workshop</p>
         <p class="notice__date">2023.01.04</p>
       </div>
       <img class="notice__list" src="@/assets/menu.png">
     </div>
     <section class="menu-component">
       <ul class="menu-list">
-        <li class="menu-list__card">
+        <li class="menu-list__card" @mouseover="mouseoverEvent" @mouseout="mouseoutEvent">
           <img class="menu-list__icon" src="@/assets/e-book.png">
           <div class="menu-list__textbox">
             <p class="menu-list__title">Tutorial</p>
-            <span class="menu-list__desc">The best tutorial you can see to get started with CELLCRAFT</span>
+            <span class="menu-list__desc">The best tutorial you can see to get started with CellCraft</span>
           </div>
-          <img class="arrow hidden" src="@/assets/right-arrow.png">
+          <img class="arrow " src="@/assets/right-arrow.png">
         </li>
-        <li class="menu-list__card">
+        <li class="menu-list__card" @mouseover="mouseoverEvent" @mouseout="mouseoutEvent">
           <img class="menu-list__icon" src="@/assets/document.png">
           <div class="menu-list__textbox">
             <p class="menu-list__title">Document</p>
             <span class="menu-list__desc">Algorithms, Data sets, Research results, detailed resources etc.</span>
           </div>
-          <img class="arrow hidden" src="@/assets/right-arrow.png">
+          <img class="arrow " src="@/assets/right-arrow.png">
         </li>
-        <li class="menu-list__card">
+        <li class="menu-list__card" @mouseover="mouseoverEvent" @mouseout="mouseoutEvent">
           <img class="menu-list__icon" src="@/assets/chat.png">
           <div class="menu-list__textbox">
             <p class="menu-list__title">Forum</p>
             <span class="menu-list__desc">A community where users communicate freely with each other.</span>
           </div>
-          <img class="arrow hidden" src="@/assets/right-arrow.png">
+          <img class="arrow " src="@/assets/right-arrow.png">
         </li>
-        <li class="menu-list__card">
+        <li class="menu-list__card" @mouseover="mouseoverEvent" @mouseout="mouseoutEvent">
           <img class="menu-list__icon" src="@/assets/database.png">
           <div class="menu-list__textbox">
             <p class="menu-list__title">Dataset</p>
             <span class="menu-list__desc">Single-cell data set accumulated through the study</span>
           </div>
-          <img class="arrow hidden" src="@/assets/right-arrow.png">
+          <img class="arrow " src="@/assets/right-arrow.png">
         </li>
-        <li class="menu-list__card">
+        <li class="menu-list__card" @mouseover="mouseoverEvent" @mouseout="mouseoutEvent">
           <img class="menu-list__icon" src="@/assets/megaphone.png">
           <div class="menu-list__textbox">
             <p class="menu-list__title">Notice</p>
             <span class="menu-list__desc">Check out announcements, blogs, and events</span>
           </div>
-          <img class="arrow hidden" src="@/assets/right-arrow.png">
+          <img class="arrow " src="@/assets/right-arrow.png">
         </li>
-        <li class="menu-list__card">
+        <li class="menu-list__card" @mouseover="mouseoverEvent" @mouseout="mouseoutEvent">
           <img class="menu-list__icon" src="@/assets/faq.png">
           <div class="menu-list__textbox">
             <p class="menu-list__title">FAQ</p>
             <span class="menu-list__desc">You can see frequently asked questions while using our service</span>
           </div>
-          <img class="arrow hidden" src="@/assets/right-arrow.png">
+          <img class="arrow " src="@/assets/right-arrow.png">
         </li>
       </ul>
     </section>
@@ -92,10 +92,10 @@
         <div class="intro__descbox__column">
           <h1 class="intro__desc-title">Single-cell analysis data platform for researchers</h1>
           <p class="intro__desc-text">
-            CELLCRAFT is a data platform for easy analysis of single cell data and efficient use of data. CELLCRAFT contains many utilities for performing related tasks such as processing and quality control of high-throughput sequencing data and provides services on the web.
+            CellCraft is a data platform for easy analysis of single cell data and efficient use of data. CellCraft contains many utilities for performing related tasks such as processing and quality control of high-throughput sequencing data and provides services on the web.
           </p>
           <p class="intro__desc-text">
-            These tools are primarily designed for data analysts in bioinformatics, but even those who do not know programming can easily use CELLCRAFT to handle data analysis. CELLCRAFT was originally developed for single-cell analysis, but it is being developed to handle multiple biological data.
+            These tools are primarily designed for data analysts in bioinformatics, but even those who do not know programming can easily use CellCraft to handle data analysis. CellCraft was originally developed for single-cell analysis, but it is being developed to handle multiple biological data.
           </p>
         </div>
         <div class="intro__descbox__column">
@@ -110,10 +110,14 @@
 export default {
   methods: {
     mouseoverEvent (ev) {
-      console.log(ev)
+      if (ev.target.children[2]) {
+        ev.target.children[2].classList.add('right-move')
+      }
     },
-    mouseleaveEvent (ev) {
-      console.log(ev)
+    mouseoutEvent (ev) {
+      if (ev.target.children[2]) {
+        ev.target.children[2].classList.remove('right-move')
+      }
     }
   }
 }
@@ -121,19 +125,22 @@ export default {
 
 <style scoped>
 .bold{
-  font-weight: bold;
+  font-weight: 400;
 }
 .arrow{
   display: inline-block;
+  opacity: 0;
   width: 1.5rem;
   height: 1.5rem;
   object-fit: cover;
   position: absolute;
   top: 1rem;
-  right: 1rem;
+  right: 3rem;
+  transition: 0.5s;
 }
-.hidden{
-  display: none;
+.right-move{
+  transform: translateX(2rem);
+  opacity: 1;
 }
 .layout{
   width: 100%;
@@ -163,7 +170,7 @@ export default {
 }
 .notice-component:before {
     content: '';
-    background: #203969;
+    background: rgb(31, 66, 154);
     width: 1000%;
     height: 100%;
     position: absolute;
@@ -306,12 +313,14 @@ export default {
   transition: 0.5s;
 }
 .menu-list__icon{
+  pointer-events: none;
   width: 3rem;
   height: 3rem;
   object-fit: cover;
   margin-right: 1rem;
 }
 .menu-list__textbox{
+  pointer-events: none;
   width: 17.5rem;
   height: 5.5rem;
   display: flex;
@@ -320,6 +329,7 @@ export default {
   position: relative;
 }
 .menu-list__title{
+  pointer-events: none;
   font-family: 'Montserrat', sans-serif;
   font-style: normal;
   font-weight: 600;
@@ -329,6 +339,7 @@ export default {
   top: calc(100% - 5rem);
 }
 .menu-list__desc{
+  pointer-events: none;
   width: calc(100%);
   max-width: 19rem;
   font-family: 'Montserrat', sans-serif;
@@ -351,7 +362,7 @@ export default {
 .intro__title{
   font-family: 'Montserrat', sans-serif;
   font-style: normal;
-  font-weight: 400;
+  font-weight: 600;
   font-size: 2.75rem;
   line-height: 2.75rem;
 }
@@ -406,6 +417,9 @@ export default {
   flex-direction: column;
   align-items: flex-start;
 }
+.intro__descbox__column:last-child{
+  align-items: center;
+}
 .intro__desc-title{
   font-family: 'Montserrat', sans-serif;
   font-style: normal;
@@ -423,7 +437,7 @@ export default {
   opacity: 0.7;
 }
 .intro__desc-img{
-  width: 80%;
+  width: 28rem;
   height: 100%;
   object-fit: cover;
   border-radius: 2rem;
