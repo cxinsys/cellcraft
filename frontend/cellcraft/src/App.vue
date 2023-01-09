@@ -36,7 +36,7 @@ export default {
         this.mainPage = true
         this.loginPage = false
         this.workflowPage = false
-      } else if (to.path === '/login') {
+      } else if (to.path === '/login' || to.path === '/signup') {
         this.mainPage = false
         this.loginPage = true
         this.workflowPage = false

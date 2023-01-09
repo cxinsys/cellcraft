@@ -1,14 +1,20 @@
 <template>
-  <section class="container forms">
-    <div class="form signup">
-      <div class="form-content">
-          <header>Sign Up</header>
-      </div>
-
-      <SignupForm></SignupForm>
-
+  <div class="layout">
+    <div class="signup-component">
+        <router-link class="signup__logo" to="/main">
+          <img class="logo__img" src="@/assets/cellcraft_logo.png">
+          <p class="logo__text">CELLCRAFT</p>
+        </router-link>
+        <div class="signup-box">
+          <SignupForm></SignupForm>
+        </div>
+        <footer class="signup-footer">
+          <div class="copyright__txt">
+            CELLCRAFT © 2023. All rights reserved
+          </div>
+        </footer>
     </div>
-  </section>
+  </div>
 </template>
 
 <script>
@@ -21,86 +27,51 @@ export default {
 }
 </script>
 
-<style>
-  @import '../../css/style.css';
-  .container{
-    height: 100vh;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: black;
-    column-gap: 30px;
-  }
-  .form{
-    position: absolute;
-    max-width: 25vw;
-    width: 100%;
-    padding: 1.5vw;
-    border-radius: .6vw;
-    background: #FFF;
-  }
-  header{
-    font-size: 1.5vw;
-    font-weight: 600;
-    text-align: center;
-  }
-  form{
-    margin-top: 3vw;
-  }
-  .form .field{
-    position: relative;
-    height: 5vh;
-    width: 100%;
-    margin-top: 2vh;
-    border-radius: .6vw;
-  }
-  .field input,
-  .field button{
-    height: 100%;
-    width: 100%;
-    border: none;
-    font-size: .8vw;
-    font-weight: 400;
-    border-radius: .5vw;
-  }
-  .field input{
-    outline: none;
-    padding: 0 1vw;
-    border: .1vw solid#CACACA;
-  }
-  .field input:focus{
-    border-bottom-width: .2vw;
-  }
-  .field button{
-    color: #fff;
-    background-color: black;
-    transition: all 0.3s ease;
-    cursor: pointer;
-  }
-  /* .field button:hover{
-    background-color: skyblue;
-  } */
-  .form-link{
-    text-align: center;
-    margin-top: 1vh;
-  }
-  .form-link a, .form-link p{
-    font-size: .7vw;
-    font-weight: 400;
-    color: #232836;
-  }
-
-  .form a{
-    color: #0171d3;
-    text-decoration: none;
-  }
-  .form-content a:hover{
-    text-decoration: underline;
-  }
-  .form-link span{
-    font-size: .8vw;
-    font-weight: 400;
-    color: #232836;
-  }
+<style scoped>
+ .layout{
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 5rem;
+  box-sizing: border-box;
+}
+.signup-component{
+  width: 26rem;
+  height: 40rem;
+}
+.signup__logo{
+  width: 100%;
+  height: 6rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-decoration: none;
+  color: black;
+  margin-bottom: 1rem;
+}
+.logo__img{
+  width: 6rem;
+  height: 6rem;
+  object-fit: contain;
+}
+.logo__text{
+  font-family: 'Montserrat', sans-serif;
+  font-style: normal;
+  font-weight: bold;
+  font-size: 3rem;
+  line-height: 3rem;
+  text-decoration: none;
+}
+.signup-box{
+  width: 100%;
+  height: 30rem;
+  margin-bottom: 2rem;
+}
+.signup-footer{
+  width: 100%;
+  height: 3rem;
+  border-top: 1px solid rgba(204, 204, 204, 0.5);
+}
 </style>
