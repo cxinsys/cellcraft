@@ -1,12 +1,12 @@
 <template>
-  <div class="app" v-bind:class="{loginPage__layout: loginPage}">
-    <header class="header-component" v-bind:class="{loginPage__header: loginPage}">
+  <div class="app" v-bind:class="{loginPage__layout: loginPage, workflowPage__layout: workflowPage}">
+    <header class="header-component" v-bind:class="{loginPage__header: loginPage, workflowPage__header: workflowPage}">
       <CellcraftHeader></CellcraftHeader>
     </header>
-    <main class="main-component" v-bind:class="{loginPage__main: loginPage}">
+    <main class="main-component" v-bind:class="{loginPage__main: loginPage, workflowPage__main: workflowPage}">
       <router-view></router-view>
     </main>
-    <footer class="footer-component" v-bind:class="{loginPage__footer: loginPage}">
+    <footer class="footer-component" v-bind:class="{loginPage__footer: loginPage, workflowPage__footer: workflowPage}">
       <div class="copyright__txt">
         CELLCRAFT © 2023. All rights reserved
       </div>
@@ -69,6 +69,7 @@ export default {
   display: none;
 }
 .workflowPage__header{
+  height: 8.525%;
 }
 .main-component{
   width: 100%;
@@ -79,6 +80,7 @@ export default {
   height: 100%;
 }
 .workflowPage__main{
+  height: 91.475%;
 }
 .footer-component{
   width: 100%;
@@ -90,6 +92,7 @@ export default {
   display: none;
 }
 .workflowPage__footer{
+  display: none;
 }
 .copyright__txt{
   width: 100%;
