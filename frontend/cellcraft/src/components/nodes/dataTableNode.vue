@@ -1,8 +1,7 @@
 <template>
   <div>
-    <!-- <nodeHeader v-bind:title="title" /> -->
-    <div class="buttonBox">
-        Data Table
+    <div class="nodeBox">
+      <img class="nodeBox__icon" src="@/assets/table.png">
     </div>
   </div>
 </template>
@@ -25,15 +24,19 @@ export default {
 }
 </script>
 
-<style>
-.buttonBox{
-  width: 100%;
-  height: 100%;
+<style scoped>
+.nodeBox{
+  width: 3rem;
+  height: 3rem;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-size: 1rem;
-  font-weight: bold;
+}
+.nodeBox__icon{
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+  filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg) brightness(107%) contrast(101%);
 }
 </style>

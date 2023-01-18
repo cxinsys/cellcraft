@@ -278,7 +278,7 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 .options,
 .options__column,
 .options__name,

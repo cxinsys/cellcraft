@@ -1,5 +1,5 @@
 <template>
-  <div class="layout">
+  <!-- <div class="layout">
     <form class="fileUpload-form" @submit.prevent="uploadFile">
         <label class="fileUpload-form__title">File</label>
         <div class="toggle-layout" v-if="toggle_file">
@@ -15,7 +15,7 @@
           </div>
           <input class="fileUpload-form__info" placeholder="첨부파일" v-if="selectFile" v-model="selectFile.name" readonly>
           <input class="fileUpload-form__info" placeholder="첨부파일" v-else readonly>
-          <!-- <ul class="fileUploa d-form__info" v-if="selectFile">
+          <ul class="fileUploa d-form__info" v-if="selectFile">
             <li>name : {{ selectFile.name }}</li>
             <li>size : {{ selectFile.size | formatBytes}}</li>
             <li>type : {{ selectFile.type }}</li>
@@ -24,12 +24,17 @@
             <li>name : </li>
             <li>size : </li>
             <li>type : </li>
-          </ul> -->
+          </ul>
         </div>
     </form>
     <div class="toggle-icon" @click="toggleFile">
       <i class="fileUpload-form__arrow fa-solid fa-arrow-up" v-if="toggle_arrow"></i>
       <i class="fileUpload-form__arrow fa-solid fa-arrow-down" v-else></i>
+    </div>
+  </div> -->
+  <div>
+    <div class="nodeBox">
+      <img class="nodeBox__icon" src="@/assets/file-upload.png">
     </div>
   </div>
 </template>
@@ -86,6 +91,20 @@ export default {
 </script>
 
 <style scoped>
+.nodeBox{
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.nodeBox__icon{
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+  filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg) brightness(107%) contrast(101%);
+}
 .layout{
   display: flex;
   flex-direction: column;

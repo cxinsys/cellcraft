@@ -1,75 +1,42 @@
 <template>
-<div>
-  <div class="modal" v-if="is_show_modal">
-    <div class="modal__wrapper">
-      <div class="modal__container">
-        <div class="modal__header">
-          <button class="modal__exitBtn" @click="handle_toggle" type="button"> X </button>
-          <div class="tab" v-if="show_modal === 'Plot' || show_modal === 'Scatter Plot'">
-            <div class="tab__column" @click="tabClick">Bar Plot</div>
-            <div class="tab__column" @click="tabClick">Scatter Plot</div>
-          </div>
-          <div class="modal__name" v-else>{{ show_modal }}</div>
-        </div>
-        <div class="modal__content">
-          <fileuploadModal v-if="show_modal === 'File'"></fileuploadModal>
-          <dataTableModal v-if="show_modal === 'DataTable'" :file_name="file_name"></dataTableModal>
-          <PlotModal v-if="show_modal === 'Plot'" :file_name="file_name"></PlotModal>
-          <scatterPlotModal v-if="show_modal === 'Scatter Plot'" :file_name="file_name"></scatterPlotModal>
-        </div>
-      </div>
+  <div class="layout__workflow">
+    <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)">
     </div>
-  </div>
-
-  <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)">
-    <div class="node-info" v-if="is_show_info">
-      <div class="l-row">
-        <h1 class="node-info__title">{{ node_info.name }}</h1>
-        <h1 class="node-info__desc">{{ node_info.desc }}</h1>
-      </div>
-      <div class="l-row">
-        <h2 class="node-info__connection" v-if="node_info.input || node_info.output">{{ node_info.input }}{{ node_info.name }}{{ node_info.output }}</h2>
-        <h2 class="node-info__content">{{ node_info.content }}</h2>
-      </div>
-    </div>
-  </div>
-
-  <section class="right-sidebar">
-
-    <section class="right-sidebar__main" v-bind:class="{open: rightSidebar_isActive}">
-      <div class="right-sidebar__row">
-        <ul>
-          <li class="right-sidebar__drag-drawflow"  v-for="(node, idx) in listNodes" :key="idx" draggable="true" :data-node="node.name" @dragstart="drag($event)">
-            <!-- <div class="right-sidebar__node">{{ node.name }} -->
-            <div class="right-sidebar__node">{{ node.name2 }}
-              <img :src="node.img" alt="" class="right-sidebar__img">
+    <section class="node-bar">
+      <ul class="node-bar__nodelist">
+        <li class="node-bar__drag-drawflow"  v-for="(node, idx) in listNodes" :key="idx" draggable="true" :data-node="node.name" @dragstart="drag($event)">
+            <img class="node-bar__img" :src="node.img">
+        </li>
+      </ul>
+        <!-- <div class="node-bar__row">
+          <div class="loading_bg">
+            <h2 v-if="compile_check == 'loading'" class="loading_container">
+              <div class="loading"></div>
+              <div class="loading_text">Loading...</div>
+            </h2>
+            <div class="complete_container">
+              <h2 v-if="compile_check == 'complete'" class="complete">√</h2>
             </div>
-          </li>
-        </ul>
-      </div>
-      <div class="right-sidebar__row">
-        <div class="loading_bg">
-          <!-- <h2 class="loading_container"> -->
-          <h2 v-if="compile_check == 'loading'" class="loading_container">
-            <div class="loading"></div>
-            <div class="loading_text">Loading...</div>
-          </h2>
-          <div class="complete_container">
-            <h2 v-if="compile_check == 'complete'" class="complete">√</h2>
           </div>
-          <!-- <h2 class="complete">√</h2> -->
-        </div>
-        <button class="right-sidebar__button" @click="exportdf">Compile</button>
-      </div>
+            <button class="node-bar__button" @click="exportdf">Compile</button>
+        </div> -->
     </section>
-
-    <div class="popBtn" @click="openRightsidebar">
-      <img src="@/assets/popIcon.png" class="popBtn__txt">
-    </div>
-
-  </section>
-
-</div>
+    <main class="content-component" v-bind:class="{tab_actvie: tabList.length != 0}">
+      <ul class="content-tab">
+        <li class="tab__item" v-for="(tab, idx) in tabList" :key="idx" v-bind:class="{currentTab:currentTab === idx}" @click="currentTab = idx">
+          <div class="tab__name">
+            <img class="tab__icon" :src="tab.img">
+            <p class="tab__text">{{tab.name}}</p>
+          </div>
+        </li>
+      </ul>
+      <div class="content-view" v-if="tabList.length != 0">
+        <fileuploadModal v-show="tabList[currentTab].name === 'File'"></fileuploadModal>
+        <dataTableModal v-show="tabList[currentTab].name === 'DataTable'"></dataTableModal>
+        <PlotModal v-show="tabList[currentTab].name === 'Plot'"></PlotModal>
+      </div>
+    </main>
+  </div>
 </template>
 
 <script>
@@ -87,13 +54,15 @@ import scatterPlotModal from '@/components/modals/scatterPlot.vue'
 
 import { exportData, getCheckCompile } from '@/api/index'
 import { requireFileAsExpression } from 'webpack/lib/ParserHelpers'
+import Fileupload from '../components/modals/fileupload.vue'
 
 export default {
   components: {
     dataTableModal,
     fileuploadModal,
     PlotModal,
-    scatterPlotModal
+    scatterPlotModal,
+    Fileupload
   },
   data () {
     return {
@@ -109,8 +78,8 @@ export default {
           output: 1
         },
         {
-          name: 'Data Table',
-          name2: 'Data Table',
+          name: 'DataTable',
+          name2: 'DataTable',
           img: require('@/assets/table.png'),
           input: 1,
           output: 1
@@ -130,6 +99,7 @@ export default {
           output: 0
         }
       ],
+      tabList: [],
       is_show_modal: false,
       is_show_info: false,
       show_modal: null,
@@ -143,7 +113,8 @@ export default {
       },
       node_connection: [],
       selected_file: null,
-      file_name: null
+      file_name: null,
+      currentTab: 0
     }
   },
   mounted () {
@@ -153,62 +124,71 @@ export default {
 
     this.$df.registerNode('Plot', Plot, {}, {})
     this.$df.registerNode('File', fileUpload, {}, {})
-    this.$df.registerNode('Data Table', dataTable, {}, {})
+    this.$df.registerNode('DataTable', dataTable, {}, {})
     // 노드 수직 연결선
-    this.$df.curvature = 0;
+    this.$df.curvature = 0.5;
     this.$df.reroute_curvature_start_end = 0;
     this.$df.reroute_curvature = 0;
     //노드 연결선 화살표 추가
-    this.$df.createCurvature = function(start_pos_x, start_pos_y, end_pos_x, end_pos_y, curvature_value, type) {
-      var line_x = start_pos_x;
-      var line_y = start_pos_y;
-      var x = end_pos_x;
-      var y = end_pos_y;
-      var curvature = curvature_value;
+    // this.$df.createCurvature = function(start_pos_x, start_pos_y, end_pos_x, end_pos_y, curvature_value, type) {
+    //   var line_x = start_pos_x;
+    //   var line_y = start_pos_y;
+    //   var x = end_pos_x;
+    //   var y = end_pos_y;
+    //   var curvature = curvature_value;
       
-      //type openclose open close other
-      switch (type) {
-        case 'open':
-          if(start_pos_x >= end_pos_x) {
-            var hx1 = line_x + Math.abs(x - line_x) * curvature;
-            var hx2 = x - Math.abs(x - line_x) * (curvature*-1);
-          } else {
-            var hx1 = line_x + Math.abs(x - line_x) * curvature;
-            var hx2 = x - Math.abs(x - line_x) * curvature;
-          }
-          return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y;
+    //   //type openclose open close other
+    //   switch (type) {
+    //     case 'open':
+    //       if(start_pos_x >= end_pos_x) {
+    //         var hx1 = line_x + Math.abs(x - line_x) * curvature;
+    //         var hx2 = x - Math.abs(x - line_x) * (curvature*-1);
+    //       } else {
+    //         var hx1 = line_x + Math.abs(x - line_x) * curvature;
+    //         var hx2 = x - Math.abs(x - line_x) * curvature;
+    //       }
+    //       return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y;
 
-          break
-        case 'close':
-          if(start_pos_x >= end_pos_x) {
-            var hx1 = line_x + Math.abs(x - line_x) * (curvature*-1);
-            var hx2 = x - Math.abs(x - line_x) * curvature;
-          } else {
-            var hx1 = line_x + Math.abs(x - line_x) * curvature;
-            var hx2 = x - Math.abs(x - line_x) * curvature;
-          }                                                                                                                  //M0 75H10L5 80L0 75Z
-          return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-5)+'  L'+(x-20)+' '+ (y+5)+' Z' +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-3)+'  L'+(x-20)+' '+ (y+3)+' Z' +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-1)+'  L'+(x-20)+' '+ (y+1)+' Z';
-          // return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-5)+'  L'+(x-20)+' '+ (y+5)+'Z';
-          break;
-        case 'other':
-          if(start_pos_x >= end_pos_x) {
-            var hx1 = line_x + Math.abs(x - line_x) * (curvature*-1);
-            var hx2 = x - Math.abs(x - line_x) * (curvature*-1);
-          } else {
-            var hx1 = line_x + Math.abs(x - line_x) * curvature;
-            var hx2 = x - Math.abs(x - line_x) * curvature;
-          }
-          return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y;
-          break;
-        default:
+    //       break
+    //     case 'close':
+    //       if(start_pos_x >= end_pos_x) {
+    //         var hx1 = line_x + Math.abs(x - line_x) * (curvature*-1);
+    //         var hx2 = x - Math.abs(x - line_x) * curvature;
+    //       } else {
+    //         var hx1 = line_x + Math.abs(x - line_x) * curvature;
+    //         var hx2 = x - Math.abs(x - line_x) * curvature;
+    //       }                                                                                                                  //M0 75H10L5 80L0 75Z
+    //       return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-5)+'  L'+(x-20)+' '+ (y+5)+' Z' +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-3)+'  L'+(x-20)+' '+ (y+3)+' Z' +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-1)+'  L'+(x-20)+' '+ (y+1)+' Z';
+    //       // return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-5)+'  L'+(x-20)+' '+ (y+5)+'Z';
+    //       break;
+    //     case 'other':
+    //       if(start_pos_x >= end_pos_x) {
+    //         var hx1 = line_x + Math.abs(x - line_x) * (curvature*-1);
+    //         var hx2 = x - Math.abs(x - line_x) * (curvature*-1);
+    //       } else {
+    //         var hx1 = line_x + Math.abs(x - line_x) * curvature;
+    //         var hx2 = x - Math.abs(x - line_x) * curvature;
+    //       }
+    //       return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y;
+    //       break;
+    //     default:
 
-          var hx1 = line_x + Math.abs(x - line_x) * curvature;
-          var hx2 = x - Math.abs(x - line_x) * curvature;
+    //       var hx1 = line_x + Math.abs(x - line_x) * curvature;
+    //       var hx2 = x - Math.abs(x - line_x) * curvature;
 
-          //return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y;
-          return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-5)+'  L'+(x-20)+' '+ (y+5)+'Z';
-      }
-    }
+    //       //return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y;
+    //       return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-5)+'  L'+(x-20)+' '+ (y+5)+'Z';
+    //   }
+    // }
+    this.$df.on('nodeCreated', (ev) => {
+      const node = this.$df.getNodeFromId(ev)
+      console.log(node.name);
+      this.tabList.push({
+        name: node.name,
+        img: require(`@/assets/${node.name}.png`)
+      })
+      console.log(this.tabList);
+    })
     this.$df.on('nodeDataChanged', (ev) => {
       // nodeData 바뀌게 되면 Connection Update
       // console.log(ev)
@@ -218,7 +198,6 @@ export default {
     })
     this.$df.on('nodeSelected', (ev) => {
       // ev 값에 따라 기능 구분
-      this.is_show_info = true
       const node = this.$df.getNodeFromId(ev)
       console.log(node.inputs, node.outputs)
       // this.node_info.name = node.name
@@ -232,7 +211,7 @@ export default {
       
       if (node.name == 'File') {
         this.node_info.desc = 'Read data from an input file'
-      } else if (node.name == 'Data Table') {
+      } else if (node.name == 'DataTable') {
         this.node_info.desc = 'View the dataset in a spreadsheet'
       } else if (node.name == 'Plot') {
         // this.node_info.desc = 'Interactive Plot visualization'
@@ -339,7 +318,7 @@ export default {
     // console.log(event.dataTransfer, event.target);
     // 모바일
     // if (event.type === 'touchstart') {
-    //   mobile_item_selec = event.target.closest('right-sidebar__drag-drawflow').getAttribute('data-node')
+    //   mobile_item_selec = event.target.closest('node-bar__drag-drawflow').getAttribute('data-node')
     // }
     },
     drop (event) {
@@ -368,21 +347,6 @@ export default {
       console.log(nodeSelected)
       this.$df.addNode(name, nodeSelected.input, nodeSelected.output, pos_x, pos_y, name, {}, name, 'vue')
     },
-    openRightsidebar () {
-      this.rightSidebar_isActive = !this.rightSidebar_isActive
-    },
-    tabClick(event){
-      const tab = document.querySelectorAll(".tab__column")
-      for (let i = 0; i < tab.length; i++) {
-        tab[i].style.background = "rgb(175, 175, 175)"
-      }
-      event.target.style.background = "white"
-      if (event.target.innerText == "Bar Plot") {
-        this.show_modal = "Plot"
-      } else {
-        this.show_modal = event.target.innerText 
-      }
-    }
   }
 }
 </script>
@@ -407,214 +371,129 @@ export default {
   100% {opacity: 0;}
 }
 
-.loading-container,
-.loading {
-  height: 100px;
-  position: relative;
-  width: 100px;
-  border-radius: 100%;
-}
-
-.loading_container, .complete_container { 
-  /* margin: 40px auto; */
-  /* background-color: rgba(0, 0, 0, 0.7); */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.loading_bg{
-  position: absolute;
-  top: 43.5vh;
-  right: 50vw;
-  z-index: 2;
-}
-
-.loading {
-  margin: 40px auto;
-  border: 2px solid transparent;
-  border-color: transparent black transparent black;
-  animation: rotate-loading 1.5s linear 0s infinite normal;
-  transform-origin: 50% 50%;
-  z-index: 14;
-  position: absolute;
-}
-.loading-container .loading {
-    transition: all 0.5s ease-in-out;
-}
-
-.loading_text {
-    animation: loading-text-opacity 2s linear 0s infinite normal;
-    color: black;
-    font-size: .7rem;
-    font-weight: bold;
-    /* margin-top: 45px; */
-    opacity: 0;
-    position: relative;
-    text-align: center;
-    text-transform: uppercase;
-    top: 0;
-    width: 100px;
-    z-index: 14;
-}
-
-.complete{
-  font-size: 2rem;
-  opacity: 0;
-  animation: complete-text-opacity 5s;
-  animation-iteration-count: 1;
-}
-
-.l-row{
+.layout__workflow{
   width: 100%;
-  height: 50%;
+  height: 100%;
+  position: relative;
 }
-
-.l-row:nth-child(2){
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 10px;
-}
-
-.node-info__connection{
-  width: 70%;
-  height: 60%;
-  border: 1px solid black;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
-  border-radius: 15px;
-  margin: 15px 0;
-  padding: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgb(205, 216, 253);
-}
-
-.node-info__title{
-  font-size: 1.4rem;
-  color: #242F9B;
-}
-
-.node-info__desc{
-  font: 0.7rem;
-  margin: 6px 0;
-}
-
-.node-info{
+.content-component{
+  width: 55rem;
+  height: 42rem;
   position: absolute;
-  z-index: 9997;
-  bottom: 10%;
-  left: 29%;
-
-  width: 40vw;
-  height: 10vh;
-  border-radius: 15px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  background: white;
-
-  padding: 1rem;
-
-  animation: infoAnimation 1.5s ease-in-out forwards;
+  right: -55rem;
+  top: calc(50% - 21rem);
+  transition: all 0.8s;
 }
-
-@keyframes infoAnimation {
-  0%{
-    transform: translateY(10px);
-    opacity: 0;
-  }
-  50%{
-    opacity: 1;
-  }
-  100%{
-    transform: none;
-    opacity: 1;
-  }
+.tab_actvie{
+  right: 0;
 }
-
-.modal{
-  position: fixed;
+.content-tab{
+  width: 100%;
+  height: 3rem;
+  display: flex;
+}
+.tab__item{
+  cursor: pointer;
+  width: 10rem;
+  height: 100%;
+  border-radius: 1rem 1rem 0 0;
+  display: flex;
+  align-items: center;
+  background: rgb(184, 184, 184);
+  color: rgba(0, 0, 0, 1);
+  position: relative;
+  opacity: 0.9;
+}
+.currentTab{
+  background: rgb(255, 255, 255);
+}
+.tab__name{
+  width: 8rem;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  position: absolute;
+  left: 0.5rem;
+}
+.tab__text{
+  font-family: 'Montserrat', sans-serif;
+  font-style: normal;
+  font-weight:  400;
+  font-size: 0.9rem;
+  line-height: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+.tab__icon{
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  margin-right: 0.7rem;
+}
+.tab__close{
+  width: 0.8rem;
+  height: 0.8rem;
+  object-fit: contain;
+  position: absolute;
+  right: 1rem;
+}
+.content-view{
+  width: 100%;
+  height: 39rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 0 1rem 1rem 1rem;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+}
+.node-bar{
+  width: 8rem;
+  height: 34rem;
+  border-radius: 1rem;
+  background: #FFFFFF;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  position: absolute;
+  top: calc(50% - 17rem);
+  left: 1rem;
   z-index: 9998;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: table;
-  transition: opacity 0.3s ease;
-}
-
-.modal__wrapper{
-  display: table-cell;
-  vertical-align: middle;
-}
-
-.modal__container{
-  width: 800px;
-  height: 600px;
-  margin: 0px auto;
-  background-color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
-  transition: all 0.3s ease;
-  border-radius: 20px;
-  font-family: Helvetica, Arial, sans-serif;
-}
-.modal__header{
-  width: 100%;
-  height: 55px;
+  opacity: 0.9;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  padding: 10px;
-  box-sizing: border-box;
-  background: rgb(235, 235, 235);
-  border-bottom: 1px solid rgb(124, 124, 124);
 }
-.modal__exitBtn{
-  width: 33px;
-  height: 33px;
-  background: white;
-  cursor: pointer;
-  text-align: center;
-  font-size: 1.25rem;
-  position: absolute;
-  border: 1px solid rgb(145, 145, 145);
-  left: 10px;
-}
-.modal__name{
-  font-size: 1.5rem;
-  text-align: center;
-}
-.tab{
-  width: 700px;
+.node-bar__nodelist{
+  width: 80%;
   height: 100%;
-  padding: 0 20px; 
   display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
   align-items: center;
 }
-.tab__column{
-  width: 50%;
-  height: 100%;
-  border: 1px solid rgb(145, 145, 145);
-  cursor: pointer;
+.node-bar__drag-drawflow{
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(175, 175, 175);
+  cursor: move;
+  background: rgb(58, 58, 58);
+  color: #fff;
+  border-radius: 1rem;
+  width: 5rem;
+  height: 5rem;
 }
-.tab__column:first-child{
-  background: white;
-}
-.modal__content{
-  width: 100%;
-  height: 545px;
+.node-bar__img{
+  width: 3rem;
+  height: 3rem;
+  object-fit: contain;
+  filter: invert(100%) sepia(3%) saturate(2008%) hue-rotate(348deg) brightness(125%) contrast(111%);
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
 }
 #drawflow {
-  width: 100vw;
-  height: 94vh;
-
-  position: relative;
+  width: 100%;
+  height: 100%;
+  position: absolute;
 
   background: var(--dfBackgroundColor);
   background-size: var(--dfBackgroundSize) var(--dfBackgroundSize);
@@ -730,120 +609,5 @@ export default {
   background: var(--dfDeleteHoverBackgroundColor);
   border: var(--dfDeleteHoverBorderSize) solid var(--dfDeleteHoverBorderColor);
   border-radius: var(--dfDeleteHoverBorderRadius);
-}
-
-.right-sidebar{
-  margin-top: 50px;
-  position: fixed;
-  right: 0;
-  top: 0;
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
-}
-
-.right-sidebar__main{
-  width: 0;
-  height: 94vh;
-  background: #DBDFFD;
-  /* position: fixed; */
-  right: 0;
-  top: 0;
-  /* margin-top: 6vh; */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content:start;
-}
-
-.right-sidebar__main.open {
-  width: 9vw;
-  min-width: 80px;
-}
-
-.right-sidebar__row{
-  width: 100%;
-  height: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  margin-top: 16vh;
-}
-.right-sidebar__button{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 8vw;
-  min-width: 60px;
-  height: 4vh;
-  border-radius: 30px;
-  color: white;
-  background-color: #242F9B;
-  padding: 10px;
-  margin: 10px 0px;
-  cursor: pointer;
-  font-size: 1.2vw;
-  border: none;
-  margin-top: 0vh;
-}
-.right-sidebar__node{
-  display: flex;
-  flex-direction: column-reverse;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  border-radius: 8px;
-  /* border: 2px solid #494949; */
-  height: 60px;
-  line-height:40px;
-  padding: 20px;
-  margin-bottom: 15px;
-  cursor: move;
-  font-weight: bold;
-  font-size: 1vw;
-  white-space: nowrap;
-}
-.right-sidebar__img{
-  width: 2vw;
-  min-width: 14px;
-}
-
-.right-sidebar__main > * {
-  visibility: hidden;
-}
-
-.right-sidebar__main.open > * {
-  visibility: visible;
-  opacity: 1;
-}
-
-.popBtn{
-  width: 40px;
-  height: 8vh;
-  background-color: #242F9B;
-  border-radius: 30px;
-  margin-right: -20px;
-  /* position: fixed; */
-  right: 0;
-  top: 0;
-  margin-top: 4vh;
-  text-align: center;
-  color:white;
-  z-index: -1;
-  display: flex;
-  align-content: center;
-  align-items: center;
-}
-.popBtn__txt{
-  cursor: default;
-  width: 18px;
-  padding-right:1px;
-}
-
-.right-sidebar__main.open ~ .popBtn > .popBtn__txt{
-  /* margin-top: 27px; */
-  transform: rotate( 180deg );
-  padding-right:1px;
 }
 </style>

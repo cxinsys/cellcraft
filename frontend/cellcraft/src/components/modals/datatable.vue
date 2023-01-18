@@ -26,7 +26,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .dataTable{
     display: flex;
     align-items: center;
