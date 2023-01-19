@@ -5,20 +5,11 @@
         <h1 class="form__name">Choose File</h1>
         <div class="form__selectFile">
           <ul class="form__fileList">
-            <li class="fileList__item">
-              <p class="fileList__text">RecentData_01.csv</p>
+            <li class="fileList__item" v-for="(file, idx) in files_list" :key="idx">
+              <p class="fileList__text">{{file.file_name}}</p>
             </li>
-            <li class="fileList__item">
-              <p class="fileList__text">RecentData_02.csv</p>
-            </li>
-            <li class="fileList__item">
-              <p class="fileList__text">RecentData_03.csv</p>
-            </li>
-            <li class="fileList__item">
-              <p class="fileList__text">RecentData_04.csv</p>
-            </li>
-            <li class="fileList__item">
-              <p class="fileList__text">RecentData_05.csv</p>
+            <li class="fileList__item" v-if="files_list.length === 0">
+              <p class="fileList__text--blank">Please upload a new file</p>
             </li>
           </ul>
           <label class="form__button">
@@ -38,6 +29,9 @@
           </li>
           <li class="form__info--name">{{ selectFile.name }}&nbsp;&nbsp;&nbsp;{{ selectFile.size | formatBytes}}</li>
         </ul>
+        <ul class="form__info" v-else>
+          <li class="form__info--blank">Please add data file</li>
+        </ul>
       </div>
       <div class="form-row">
         <label class="form__button--apply">
@@ -50,7 +44,7 @@
 </template>
 
 <script>
-import { uploadForm } from '@/api/index'
+import { uploadForm, getFiles } from '@/api/index'
 
 export default {
   data () {
@@ -58,7 +52,8 @@ export default {
       node_name: 'File',
       selectFile: null,
       is_upload: false,
-      done_upload: false
+      done_upload: false,
+      files_list: []
     }
   },
   methods: {
@@ -76,6 +71,9 @@ export default {
         console.log(response)
         if (response) {
           this.done_upload = true
+          const fileList = await getFiles()
+          console.log(fileList.data)
+          this.files_list = fileList.data
         }
       }
     }
@@ -90,6 +88,11 @@ export default {
 
       return parseFloat((a / Math.pow(c, f)).toFixed(d)) + ' ' + e[f]
     }
+  },
+  async mounted () {
+    const fileList = await getFiles()
+    console.log(fileList.data)
+    this.files_list = fileList.data
   }
 }
 </script>
@@ -160,6 +163,14 @@ export default {
   line-height: 1.3rem;
   color: rgb(51, 51, 51);
 }
+.fileList__text--blank{
+  font-family: 'Montserrat', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 1.3rem;
+  line-height: 1.3rem;
+  color: rgba(51, 51, 51, 0.5);
+}
 .form__button{
   width: 40%;
   height: 100%;
@@ -227,6 +238,19 @@ export default {
   font-size: 1.5rem;
   line-height: 1.5rem;
   color: rgb(51, 51, 51);
+}
+.form__info--blank{
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 1.6rem;
+  line-height: 1.6rem;
+  color: rgba(51, 51, 51, 0.5);
 }
 .form__button--apply{
   cursor: pointer;
