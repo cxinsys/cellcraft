@@ -5,7 +5,7 @@
         <h1 class="form__name">Choose File</h1>
         <div class="form__selectFile">
           <ul class="form__fileList">
-            <li class="fileList__item" v-for="(file, idx) in files_list" :key="idx">
+            <li class="fileList__item" v-for="(file, idx) in files_list" :key="idx" @click="fileSelect">
               <p class="fileList__text">{{file.file_name}}</p>
             </li>
             <li class="fileList__item" v-if="files_list.length === 0">
@@ -44,7 +44,7 @@
 </template>
 
 <script>
-import { uploadForm, getFiles } from '@/api/index'
+import { uploadForm, getFiles, findFile } from '@/api/index'
 
 export default {
   data () {
@@ -77,8 +77,17 @@ export default {
         }
       }
     },
-    clickEvent (ev) {
-      console.log(ev.target)
+    async fileSelect (ev) {
+      console.dir(ev.target.innerText)
+      const fileInfo = {
+        file_name: ev.target.innerText
+      }
+      const selectFile = await findFile(fileInfo)
+      this.selectFile = {
+        name: selectFile.data.file_name,
+        size: selectFile.data.file_size
+      }
+      console.log(selectFile.data)
     }
   },
   filters: {
