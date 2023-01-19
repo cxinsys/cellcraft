@@ -59,4 +59,8 @@ function getFiles () {
   return instance.get('/routes/files/me')
 }
 
-export { registerUser, loginUser, getUser, exportData, getResult, uploadForm, getFiles }
+function findFile (fileInfo) {
+  return instance.post('routes/files/find', fileInfo)
+}
+
+export { registerUser, loginUser, getUser, exportData, getResult, uploadForm, getFiles, findFile }

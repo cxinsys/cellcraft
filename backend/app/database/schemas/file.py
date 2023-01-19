@@ -12,6 +12,8 @@ class FileCreate(FileBase):
     file_size: str
     file_path: str
 
+class FileFind(FileBase):
+    file_name: Optional[str] = None
 class FileDelete(FileBase):
     file_name: str
 
