@@ -63,7 +63,7 @@ export default {
       }
     },
     async uploadFile () {
-      if (this.selectFile) {
+      if (this.selectFile === this.$refs.selectFile.files[0]) {
         this.is_upload = true
         const form = new FormData()
         form.append('files', this.selectFile)
