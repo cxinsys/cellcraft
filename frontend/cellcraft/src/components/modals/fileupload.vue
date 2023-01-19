@@ -76,6 +76,9 @@ export default {
           this.files_list = fileList.data
         }
       }
+    },
+    clickEvent (ev) {
+      console.log(ev.target)
     }
   },
   filters: {
