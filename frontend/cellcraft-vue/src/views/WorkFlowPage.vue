@@ -1,6 +1,8 @@
 <template>
   <div class="layout__workflow">
-    <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
+    <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)">
+      <button class="run_button" @click="exportdf">Run</button>
+    </div>
     <section class="node-bar">
       <ul class="node-bar__nodelist">
         <li
@@ -24,7 +26,6 @@
               <h2 v-if="compile_check == 'complete'" class="complete">√</h2>
             </div>
           </div>
-            <button class="node-bar__button" @click="exportdf">Compile</button>
         </div> -->
     </section>
     <main
@@ -329,6 +330,7 @@ export default {
       try {
         this.exportValue = this.$df.export();
         this.compile_check = "loading";
+        console.log(this.exportValue);
         const JsonData = await exportData(
           JSON.stringify(this.exportValue.drawflow.Home.data)
         );
@@ -578,10 +580,30 @@ export default {
   -moz-user-drag: none;
   -o-user-drag: none;
 }
+.run_button{
+  width: 8rem;
+  height: 5rem;
+  background: rgb(170, 193, 240);
+  border-radius: 1rem;
+  border: none;
+
+  position:absolute;
+  bottom: 2rem;
+  left: 1rem;
+
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 1.3rem;
+  line-height: 1.3rem;
+
+  z-index: 9997;
+  cursor: pointer;
+}
 #drawflow {
   width: 100%;
   height: 100%;
-  position: absolute;
+  position: relative;
 
   background: var(--dfBackgroundColor);
   background-size: var(--dfBackgroundSize) var(--dfBackgroundSize);
