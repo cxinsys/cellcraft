@@ -198,8 +198,8 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin: 1rem;
-  padding: 3rem 1rem 3rem 2rem;
+  margin: 1rem 0 1rem 1rem;
+  padding: 3rem 0 3rem 1rem;
   border-radius: 1rem;
   box-sizing: border-box;
   background-color: rgb(32, 33, 36);
@@ -234,7 +234,7 @@ export default {
 .fileUpload-form {
   width: 55%;
   height: 95%;
-  margin: 1rem;
+  margin: 1rem 2rem 1rem 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -273,6 +273,7 @@ export default {
   width: 100%;
   height: 85%;
   display: flex;
+  padding: 0 0 0 0.5rem;
 }
 .form__fileList {
   width: 80%;
@@ -399,20 +400,20 @@ export default {
   cursor: pointer;
   position: absolute;
   left: 80%;
-  top: 15%;
-  width: 12%;
-  height: 30%;
+  top: 7%;
+  width: 20%;
+  height: 46%;
   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   border-radius: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #3478f6;
+  background: rgb(170, 193, 240);
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 400;
+  font-weight: 500;
   font-size: 1rem;
   line-height: 1rem;
-  color: #ffffff;
+  color: rgb(53, 54, 58);
 }
 </style>

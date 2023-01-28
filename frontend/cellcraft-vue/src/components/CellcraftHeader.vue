@@ -80,7 +80,7 @@ a {
   color: black;
 }
 .layout {
-  height: 100%;
+  height: 100%-0.5px;
   width: 95rem;
   max-width: calc(100% - 3rem);
   margin-right: auto;
@@ -94,6 +94,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: left;
+  transform: translateY(3px);
 }
 .logo {
   width: 100%;
@@ -142,7 +143,7 @@ a {
   line-height: 1rem;
   color: rgb(70, 70, 70);
   position: relative;
-  transform: translateY(1px);
+  transform: translateY(4px);
 }
 .header-menu__link:after {
   display: block;
@@ -167,6 +168,7 @@ a {
   display: flex;
   justify-content: right;
   align-items: center;
+  transform: translateY(3px);
 }
 .login__link {
   display: flex;
