@@ -147,12 +147,12 @@ a {
 .header-menu__link:after {
   display: block;
   content: "";
-  border-bottom: solid 3px #575757;
-  transform: scaleX(0) translateY(10px);
+  border-bottom: solid 2px #575757;
+  transform: scaleX(0) translateY(4px);
   transition: transform 250ms ease-in-out;
 }
 .header-menu__link:hover:after {
-  transform: scaleX(1) translateY(10px);
+  transform: scaleX(1) translateY(4px);
 }
 .header-menu__link.fromRight:after {
   transform-origin: 100% 50%;
