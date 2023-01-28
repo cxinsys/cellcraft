@@ -126,7 +126,7 @@ table {
 }
 
 :root {
-  --dfBackgroundColor: rgba(53, 54, 58, 1);
+  --dfBackgroundColor: rgba(31, 31, 31, 1);
   --dfBackgroundSize: 8px;
   --dfBackgroundImage: radial-gradient(rgba(0, 0, 0, 1) 1px, transparent 1px);
 
