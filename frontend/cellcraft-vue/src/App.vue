@@ -84,24 +84,28 @@ export default {
 }
 .header-component {
   width: 100%;
-  height: 5.5%;
+  /* height: 5.5%; */
+  height: 3%;
 }
 .loginPage__header {
   display: none;
 }
 .workflowPage__header {
-  height: 8.525%;
+  /* height: 8.525%; */
+  height: 4.6%;
 }
 .main-component {
   width: 100%;
-  height: 89%;
+  /* height: 89%; */
+  height: 88.5%;
 }
 .loginPage__main {
   width: 100%;
   height: 100%;
 }
 .workflowPage__main {
-  height: 91.475%;
+  /* height: 91.475%; */
+  height: 95.4%;
 }
 .footer-component {
   width: 100%;

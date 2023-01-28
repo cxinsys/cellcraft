@@ -92,6 +92,7 @@ export default {
   font-size: 2rem;
   line-height: 2rem;
   text-decoration: none;
+  color: rgb(81, 81, 81);
 }
 .login-form {
   width: 90%;

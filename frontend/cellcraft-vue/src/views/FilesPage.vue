@@ -30,6 +30,7 @@
 .font-setting {
   font-size: 1vw;
   font-weight: bold;
+  color: rgb(70, 70, 70);
 }
 .files__contents {
   width: 100vw;

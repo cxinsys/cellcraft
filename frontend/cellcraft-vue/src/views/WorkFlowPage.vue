@@ -476,23 +476,25 @@ export default {
 }
 .content-tab {
   width: 100%;
-  height: 3rem;
+  height: 2rem;
   display: flex;
 }
 .tab__item {
   cursor: pointer;
   width: 10rem;
   height: 100%;
-  border-radius: 1rem 1rem 0 0;
+  border-radius: 0.5rem 0.5rem 0 0;
   display: flex;
   align-items: center;
-  background: rgb(184, 184, 184);
-  color: rgba(0, 0, 0, 1);
+  background: rgb(32, 33, 36);
+  color: rgb(255, 255, 255);
   position: relative;
-  opacity: 0.9;
+  opacity: 1;
+  box-shadow: 0px -6px 5px 0px rgba(0, 0, 0, 0.5);
 }
 .currentTab {
-  background: rgb(255, 255, 255);
+  background: rgb(53, 54, 58);
+  box-shadow: 0px -6px 5px 0px rgba(0, 0, 0, 0.5);
 }
 .tab__name {
   width: 8rem;
@@ -506,8 +508,8 @@ export default {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
-  font-size: 0.9rem;
-  line-height: 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1rem;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -517,7 +519,7 @@ export default {
   width: 1rem;
   height: 1rem;
   object-fit: contain;
-  margin-right: 0.7rem;
+  margin-right: 0.5rem;
 }
 .tab__close {
   width: 0.8rem;
@@ -529,28 +531,31 @@ export default {
 .content-view {
   width: 100%;
   height: 39rem;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 0 1rem 1rem 1rem;
-  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  background: rgb(53, 54, 58);
+  border-radius: 0 0 0 0.5rem;
+  box-shadow: 0px -5px 5px 0px rgba(0, 0, 0, 0.5);
 }
 .node-bar {
-  width: 8rem;
-  height: 34rem;
+  /* width: 8rem; */
+  width: 4.5rem;
+  /* height: 34rem; */
+  height: 20rem;
   border-radius: 1rem;
-  background: #ffffff;
-  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  background: rgb(53, 54, 58);
+  box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 1);
   position: absolute;
-  top: calc(50% - 17rem);
+  /* top: calc(50% - 17rem); */
+  top: calc(50% - 13rem);
   left: 1rem;
   z-index: 9998;
-  opacity: 0.9;
+  opacity: 1;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .node-bar__nodelist {
   width: 80%;
-  height: 100%;
+  height: 105%;
   display: flex;
   flex-direction: column;
   justify-content: space-evenly;
@@ -561,15 +566,19 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: move;
-  background: rgb(58, 58, 58);
-  color: #fff;
+  background: rgb(31, 31, 31);
+  color: rgb(245, 245, 245);
   border-radius: 1rem;
-  width: 5rem;
-  height: 5rem;
+  /* width: 5rem;
+  height: 5rem; */
+  width: 4rem;
+  height: 4rem;
 }
 .node-bar__img {
-  width: 3rem;
-  height: 3rem;
+  /* width: 3rem;
+  height: 3rem; */
+  width: 2.2rem;
+  height: 2.2rem;
   object-fit: contain;
   filter: invert(100%) sepia(3%) saturate(2008%) hue-rotate(348deg)
     brightness(125%) contrast(111%);

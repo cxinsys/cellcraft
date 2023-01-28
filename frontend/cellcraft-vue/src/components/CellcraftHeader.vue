@@ -3,7 +3,7 @@
     <div class="logo-component">
       <router-link class="logo" to="/main">
         <img class="logo__img" src="@/assets/cellcraft_logo.png" />
-        <p class="logo__text">CELLCRAFT</p>
+        <!-- <p class="logo__text">CELLCRAFT</p> -->
       </router-link>
     </div>
     <nav class="menu-component">
@@ -81,7 +81,7 @@ a {
 }
 .layout {
   height: 100%;
-  width: 90rem;
+  width: 95rem;
   max-width: calc(100% - 3rem);
   margin-right: auto;
   margin-left: auto;
@@ -103,8 +103,8 @@ a {
   justify-content: left;
 }
 .logo__img {
-  width: 4.5rem;
-  height: 4.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
   object-fit: contain;
 }
 .logo__text {
@@ -138,16 +138,16 @@ a {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
-  font-size: 1.3rem;
-  line-height: 1.3rem;
-  color: rgb(51, 51, 51);
+  font-size: 1rem;
+  line-height: 1rem;
+  color: rgb(70, 70, 70);
   position: relative;
-  transform: translateY(3px);
+  transform: translateY(1px);
 }
 .header-menu__link:after {
   display: block;
   content: "";
-  border-bottom: solid 3px #000000;
+  border-bottom: solid 3px #575757;
   transform: scaleX(0) translateY(10px);
   transition: transform 250ms ease-in-out;
 }
