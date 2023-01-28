@@ -97,7 +97,7 @@ export default {
 .main-component {
   width: 100%;
   /* height: 89%; */
-  height: 88.5%;
+  height: 91.5%;
 }
 .loginPage__main {
   width: 100%;
