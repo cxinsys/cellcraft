@@ -32,62 +32,10 @@ export default {
         // {
         //   label: "Name",
         //   field: "name",
-        // },
-        // {
-        //   label: "Age",
-        //   field: "age",
-        //   type: "number",
-        // },
-        // {
-        //   label: "Created On",
-        //   field: "createdAt",
-        //   type: "date",
-        //   dateInputFormat: "yyyy-MM-dd",
-        //   dateOutputFormat: "MMM do yy",
-        // },
-        // {
-        //   label: "Percent",
-        //   field: "score",
-        //   type: "percentage",
-        // },
+        // }
       ],
       rows: [
-        // { id: 1, name: "John", age: 20, createdAt: "", score: 0.03343 },
-        // {
-        //   id: 2,
-        //   name: "Jane",
-        //   age: 24,
-        //   createdAt: "2011-10-31",
-        //   score: 0.03343,
-        // },
-        // {
-        //   id: 3,
-        //   name: "Susan",
-        //   age: 16,
-        //   createdAt: "2011-10-30",
-        //   score: 0.03343,
-        // },
-        // {
-        //   id: 4,
-        //   name: "Chris",
-        //   age: 55,
-        //   createdAt: "2011-10-11",
-        //   score: 0.03343,
-        // },
-        // {
-        //   id: 5,
-        //   name: "Dan",
-        //   age: 40,
-        //   createdAt: "2011-10-21",
-        //   score: 0.03343,
-        // },
-        // {
-        //   id: 6,
-        //   name: "John",
-        //   age: 20,
-        //   createdAt: "2011-10-31",
-        //   score: 0.03343,
-        // },
+        // { id: 1, name: "John", age: 20, createdAt: "", score: 0.03343 }
       ],
     };
   },
@@ -115,20 +63,16 @@ export default {
         console.log(dataTableResult.data);
         this.dataTable = dataTableResult.data;
 
+        //dataTable 데이터 추가
+        this.columns = [];
+        this.rows = [];
         Object.keys(this.dataTable).forEach((column) => {
           this.columns.push({
             label: column,
             field: column,
           });
         });
-        // console.log(Object.values(this.dataTable));
-
-        // for (const [key, value] of Object.entries(
-        //   Object.values(this.dataTable)
-        // )) {
-        //   console.log(`${key}: ${Object.values(value).length}`);
-        // }
-        console.log(Object.entries(Object.values(this.dataTable)[0]).length);
+        // console.log(Object.entries(Object.values(this.dataTable)[0]).length);
         const rowLength = Object.entries(
           Object.values(this.dataTable)[0]
         ).length;
@@ -137,7 +81,6 @@ export default {
           Object.keys(this.dataTable).forEach((column) => {
             row.push([column, this.dataTable[column][i]]);
           });
-          console.log(row);
           this.rows.push(Object.fromEntries(row));
         }
       }
