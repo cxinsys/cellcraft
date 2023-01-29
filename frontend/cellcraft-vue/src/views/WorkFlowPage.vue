@@ -215,19 +215,20 @@ export default {
       this.$store.commit("changeNode", node.id);
       console.log(this.currentTab);
       if (this.tabList.length != 1) {
-        this.currentTab += 1;
+        this.currentTab = this.tabList.length - 1;
       }
     });
     this.$df.on("nodeRemoved", (ev) => {
       this.tabList.forEach((ele, idx) => {
         if (ele.id === parseInt(ev)) {
           this.tabList.splice(idx, 1);
-          if (this.currentTab != idx) {
-            this.currentTab = idx;
-          } else if (this.currentTab == 0) {
-            this.currentTab = idx;
-          } else {
-            this.currentTab = idx - 1;
+          //현재 탭이 지워지는 탭일 때
+          if (this.currentTab === idx) {
+            this.currentTab -= 1;
+          } else if (this.currentTab > idx) {
+            this.currentTab -= 1;
+          } else if (this.currentTab < idx) {
+            this.currentTab = this.currentTab;
           }
         }
       });
