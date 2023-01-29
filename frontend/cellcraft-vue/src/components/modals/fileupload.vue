@@ -1,8 +1,80 @@
 <template>
   <div class="layout">
-    <form class="fileUpload-form" @submit.prevent="uploadFile">
+    <form class="cloud-form" @submit.prevent="uploadFile">
+      <div class="cloud-row">
+        <label class="form__button">
+          <div class="form__addfile">
+            <img class="form__button--foldericon" src="@/assets/add-file.png" />
+            <!-- <img class="form__button--plusicon" src="@/assets/plus.png" /> -->
+          </div>
+          <input
+            df-file
+            class="form__input"
+            type="file"
+            ref="selectFile"
+            @change.prevent="previewFile"
+            accept="text/csv"
+          />
+        </label>
+        <div class="cloud-textbox">
+          <h1 class="cloud-textbox__title">Get file</h1>
+          <p class="cloud-textbox__desc">
+            Get file from CELLCRAFT files directory.
+          </p>
+        </div>
+      </div>
+      <div class="cloud-row">
+        <label class="form__button">
+          <div class="form__addfile">
+            <img
+              class="form__button--foldericon"
+              src="@/assets/upload-file.png"
+            />
+            <!-- <img class="form__button--plusicon" src="@/assets/plus.png" /> -->
+          </div>
+          <input
+            df-file
+            class="form__input"
+            type="file"
+            ref="selectFile"
+            @change.prevent="previewFile"
+            accept="text/csv"
+          />
+        </label>
+        <div class="cloud-textbox">
+          <h1 class="cloud-textbox__title">Upload file</h1>
+          <p class="cloud-textbox__desc">
+            Upload file to CELLCRAFT files directory.
+          </p>
+        </div>
+      </div>
+      <div class="cloud-row">
+        <label class="form__button">
+          <div class="form__addfile">
+            <img
+              class="form__button--foldericon"
+              src="@/assets/manage-file.png"
+            />
+            <!-- <img class="form__button--plusicon" src="@/assets/plus.png" /> -->
+          </div>
+          <input
+            df-file
+            class="form__input"
+            type="file"
+            ref="selectFile"
+            @change.prevent="previewFile"
+            accept="text/csv"
+          />
+        </label>
+        <div class="cloud-textbox">
+          <h1 class="cloud-textbox__title">Files directory</h1>
+          <p class="cloud-textbox__desc">Open CELLCRAFT files directory.</p>
+        </div>
+      </div>
+    </form>
+    <form class="fileUpload-form">
       <div class="form-row">
-        <h1 class="form__name">Choose File</h1>
+        <h1 class="form__name">Choose recently file</h1>
         <div class="form__selectFile">
           <ul class="form__fileList">
             <li
@@ -17,27 +89,12 @@
               <p class="fileList__text--blank">Please upload a new file</p>
             </li>
           </ul>
-          <label class="form__button">
-            <div class="form__addfile">
-              <img
-                class="form__button--foldericon"
-                src="@/assets/add-file.png"
-              />
-              <img class="form__button--plusicon" src="@/assets/plus.png" />
-            </div>
-            <input
-              df-file
-              class="form__input"
-              type="file"
-              ref="selectFile"
-              @change.prevent="previewFile"
-              accept="text/csv"
-            />
-          </label>
         </div>
       </div>
       <div class="form-row">
         <h1 class="form__name">Current File</h1>
+      </div>
+      <div class="form-row">
         <ul class="form__info" v-if="selectFile">
           <li class="form__info--type">
             <img class="form__info--img" src="@/assets/csv.png" />
@@ -51,8 +108,6 @@
         <ul class="form__info" v-else>
           <li class="form__info--blank">Please add data file</li>
         </ul>
-      </div>
-      <div class="form-row">
         <label class="form__button--apply">
           Apply
           <input class="form__input" type="submit" value="업로드" />
@@ -143,100 +198,157 @@ export default {
   width: 100%;
   height: 100%;
   position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+.cloud-form {
+  width: 45%;
+  height: 95%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 1rem 0 1rem 1rem;
+  padding: 3rem 0 3rem 1rem;
+  border-radius: 1rem;
+  box-sizing: border-box;
+  background-color: rgb(32, 33, 36);
+}
+.cloud-row {
+  width: 100%;
+  padding: 5% 0;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+}
+.cloud-textbox {
+  width: 17rem;
+  height: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0 0 0 1rem;
+}
+.cloud-textbox__title {
+  color: white;
+  font-size: 1rem;
+  font-weight: 400;
+}
+.cloud-textbox__desc {
+  color: white;
+  font-size: 1rem;
+  font-weight: 200;
+  padding: 0.2rem 0 0 0;
 }
 .fileUpload-form {
-  width: 100%;
-  height: 100%;
+  width: 55%;
+  height: 95%;
+  margin: 1rem 2rem 1rem 0;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 .form-row {
   width: 100%;
-  height: 30%;
+  height: 8%;
   position: relative;
 }
 .form-row:first-child {
-  height: 60%;
+  height: 75%;
+  margin: 1rem;
 }
 .form-row:last-child {
-  height: 10%;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  height: 17%;
+  padding: 0 2rem;
+  box-sizing: border-box;
 }
 .form__name {
   width: 100%;
-  height: 30%;
+  height: 3rem;
   display: flex;
   align-items: center;
   padding: 0 2rem;
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
-  font-size: 2rem;
-  line-height: 2rem;
-  color: rgb(51, 51, 51);
+  font-size: 1.4rem;
+  line-height: 1.4rem;
+  color: rgb(255, 255, 255);
 }
 .form__selectFile {
   width: 100%;
-  height: 70%;
+  height: 85%;
   display: flex;
+  padding: 0 0 0 0.5rem;
 }
 .form__fileList {
-  width: 60%;
+  width: 80%;
   height: 100%;
   display: flex;
+  padding: 0% 3%;
   flex-direction: column;
   align-items: center;
   overflow: hidden;
 }
 .fileList__item {
-  width: 70%;
+  width: 90%;
   padding: 0.5rem;
   background: #ffffff;
   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   border-radius: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.1rem;
 }
 .fileList__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
-  font-size: 1.3rem;
-  line-height: 1.3rem;
-  color: rgb(51, 51, 51);
+  font-size: 1rem;
+  line-height: 1rem;
+  color: rgb(53, 54, 58);
 }
 .fileList__text--blank {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
-  font-size: 1.3rem;
-  line-height: 1.3rem;
+  font-size: 1rem;
+  line-height: 1rem;
   color: rgba(51, 51, 51, 0.5);
 }
 .form__button {
-  width: 40%;
-  height: 100%;
+  width: 3rem;
+  height: 3rem;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .form__addfile {
-  width: 7rem;
-  height: 7rem;
+  width: 3rem;
+  height: 3rem;
   position: relative;
   cursor: pointer;
+  background-color: rgb(67, 68, 73);
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  border-radius: 1rem;
 }
 .form__button--plusicon {
-  width: 2rem;
-  height: 2rem;
+  width: 1rem;
+  height: 1rem;
   object-fit: cover;
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 2rem;
+  right: 2rem;
 }
-.form__button--fordericon {
-  width: 7rem;
-  height: 7rem;
-  object-fit: cover;
+.form__button--foldericon {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
 }
 .form__input {
   position: absolute;
@@ -247,10 +359,11 @@ export default {
   border: 0;
 }
 .form__info {
-  width: 70%;
+  width: 80%;
   height: 60%;
   display: flex;
-  margin: auto;
+  /* margin: auto; */
+  top: 0;
   background: #ffffff;
   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   border-radius: 0.5rem;
@@ -263,8 +376,8 @@ export default {
   justify-content: center;
 }
 .form__info--img {
-  width: 5rem;
-  height: 5rem;
+  width: 2rem;
+  height: 2rem;
   object-fit: cover;
 }
 .form__info--name,
@@ -276,8 +389,8 @@ export default {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
-  font-size: 1.5rem;
-  line-height: 1.5rem;
+  font-size: 1rem;
+  line-height: 1rem;
   color: rgb(51, 51, 51);
 }
 .form__info--blank {
@@ -289,27 +402,28 @@ export default {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
-  font-size: 1.6rem;
-  line-height: 1.6rem;
+  font-size: 1rem;
+  line-height: 1rem;
   color: rgba(51, 51, 51, 0.5);
 }
 .form__button--apply {
   cursor: pointer;
   position: absolute;
-  right: 3rem;
-  width: 8rem;
-  height: 80%;
+  left: 80%;
+  top: 7%;
+  width: 20%;
+  height: 46%;
   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   border-radius: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #3478f6;
+  background: rgb(170, 193, 240);
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 400;
-  font-size: 1.5rem;
-  line-height: 1.5rem;
-  color: #ffffff;
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1rem;
+  color: rgb(53, 54, 58);
 }
 </style>

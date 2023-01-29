@@ -237,7 +237,8 @@ export default {
   box-sizing: border-box;
 }
 .intro-component {
-  height: 22.5rem;
+  /* height: 22.5rem; */
+  height: 24.5rem;
   display: flex;
   align-items: center;
 }
@@ -272,11 +273,12 @@ export default {
 }
 .main__name {
   font-family: "Montserrat", sans-serif;
-  font-style: normal;
-  font-weight: 600;
+  font-style: bold;
+  font-weight: 700;
   font-size: 4rem;
   line-height: 4rem;
   text-align: left;
+  color: rgb(31, 66, 154);
 }
 .main__desc {
   font-family: "Montserrat", sans-serif;
@@ -285,6 +287,7 @@ export default {
   font-size: 1.04rem;
   line-height: 1.6rem;
   text-align: left;
+  color: rgb(40, 40, 40);
 }
 .notice__title {
   width: 10%;
@@ -355,21 +358,22 @@ export default {
   display: flex;
   align-items: center;
   /* box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px; */
-  box-shadow: rgba(0, 0, 0, 0.04) 0px 3px 5px;
+  box-shadow: rgba(0, 0, 0, 0.14) 0.5px 3px 5px;
   padding: 1rem;
   border-radius: 1rem;
   position: relative;
 }
 .menu-list__card:hover {
-  box-shadow: rgba(0, 0, 0, 0.19) 0px 10px 20px, rgba(0, 0, 0, 0.23) 0px 6px 6px;
+  box-shadow: rgba(0, 0, 0, 0.31) 0px 10px 20px, rgba(0, 0, 0, 0.35) 0px 6px 6px;
   transition: 0.5s;
 }
 .menu-list__icon {
   pointer-events: none;
-  width: 3rem;
-  height: 3rem;
+  width: 2.5rem;
+  height: 2.5rem;
   object-fit: cover;
   margin-right: 1rem;
+  opacity: 0.8;
 }
 .menu-list__textbox {
   pointer-events: none;
@@ -389,6 +393,7 @@ export default {
   line-height: 1.1rem;
   position: absolute;
   top: calc(100% - 5rem);
+  color: rgb(70, 70, 70);
 }
 .menu-list__desc {
   pointer-events: none;
@@ -401,6 +406,7 @@ export default {
   line-height: 1.1rem;
   position: absolute;
   top: calc(100% - 3rem);
+  color: rgb(80, 80, 80);
 }
 .intro__textbox {
   width: 20rem;
@@ -414,9 +420,11 @@ export default {
 .intro__title {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 600;
-  font-size: 2.75rem;
+  font-weight: 700;
+  /* font-size: 2.75rem; */
+  font-size: 2.3rem;
   line-height: 2.75rem;
+  color: rgb(70, 70, 70);
 }
 .intro__list {
   width: 100%;
@@ -431,7 +439,7 @@ export default {
   font-style: normal;
   font-weight: 500;
   font-size: 1rem;
-  line-height: 1rem;
+  line-height: 0.75rem;
   padding: 0.25rem;
 }
 .intro__list-item:hover {
@@ -478,6 +486,7 @@ export default {
   font-weight: bold;
   font-size: 1.2rem;
   line-height: 1.4rem;
+  color: rgb(70, 70, 70);
 }
 .intro__desc-text {
   font-family: "Montserrat", sans-serif;
@@ -487,9 +496,11 @@ export default {
   line-height: 1.5rem;
   margin-top: 1rem;
   opacity: 0.7;
+  color: rgb(70, 70, 70);
 }
 .intro__desc-img {
-  width: 28rem;
+  /* width: 28rem; */
+  width: 26rem;
   height: 100%;
   object-fit: cover;
   border-radius: 2rem;

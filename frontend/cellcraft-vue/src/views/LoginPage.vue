@@ -72,8 +72,9 @@ export default {
 .logo__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: bold;
+  font-weight: 800;
   font-size: 3rem;
+  color: rgb(40, 84, 197);
   line-height: 3rem;
   text-decoration: none;
 }
