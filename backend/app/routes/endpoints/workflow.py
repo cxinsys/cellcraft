@@ -49,39 +49,54 @@ def snakemakeProcess(filepath):
 async def exportData(request: Request, current_user: models.User = Depends(dep.get_current_active_user)):
     try:
         payload_as_json = await request.json()
-        inputCon_list = []
-        outputCon_list = []
-        # print(payload_as_json)
-        for key, val in payload_as_json.items():
-            for val_key, val_val in val.items():
-                if val_key == "inputs":
-                    for I_val in val_val.values():
-                        inputCon_list.append([key, I_val['connections'][0]['node']])
-                elif val_key == "outputs":
-                    for O_val in val_val.values():
-                        if len(O_val['connections']) != 0:
-                            outputCon_list.append([key, O_val['connections'][0]['node']])
-                        
-        nodeObject_list = linkList(outputCon_list)
-        # print(nodeObject_list)
-        for item in nodeObject_list:
-            item_file = payload_as_json[item[0]]["data"]["file"].replace('C:\\fakepath\\', '').replace('.csv', '')
-            lastNode = payload_as_json[item[len(item)-1]]["name"].replace(' ', '')
-            # print(item_file, lastNode)
-            with open(f"workflow/data/{current_user.username}_{item_file}.txt", 'w') as f:
-                f.write(item_file)
-            target = f'{lastNode}_{current_user.username}_{item_file}'
-            print(target)
+        # print(type(payload_as_json))
+        for nodes in payload_as_json:
+            # print(type(nodes))
+            fileName = nodes['file'].replace('.csv', '')
+            lastNode = nodes['lastNode']
+            print(fileName, lastNode)
+            target = f'{lastNode}_{current_user.username}_{fileName}'
             p = Pool(cpu_count())
             snakemake = p.apply_async(snakemakeProcess, (target,))
             print(snakemake.get())
             p.close()
             p.join()
+            # for key, val in nodes.items():
+            #     if key != "connection":
+            #         print(val)
+        # inputCon_list = []
+        # outputCon_list = []
+        # print(payload_as_json)
+        # for key, val in payload_as_json.items():
+        #     for val_key, val_val in val.items():
+        #         if val_key == "inputs":
+        #             for I_val in val_val.values():
+        #                 inputCon_list.append([key, I_val['connections'][0]['node']])
+        #         elif val_key == "outputs":
+        #             for O_val in val_val.values():
+        #                 if len(O_val['connections']) != 0:
+        #                     outputCon_list.append([key, O_val['connections'][0]['node']])
+                        
+        # nodeObject_list = linkList(outputCon_list)
+        # print(nodeObject_list)
+        # for item in nodeObject_list:
+        #     item_file = payload_as_json[item[0]]["data"]["file"].replace('C:\\fakepath\\', '').replace('.csv', '')
+        #     lastNode = payload_as_json[item[len(item)-1]]["name"].replace(' ', '')
+        #     print(item_file, lastNode)
+        #     with open(f"workflow/data/{current_user.username}_{item_file}.txt", 'w') as f:
+        #         f.write(item_file)
+        #     target = f'{lastNode}_{current_user.username}_{item_file}'
+        #     print(target)
+        #     p = Pool(cpu_count())
+        #     snakemake = p.apply_async(snakemakeProcess, (target,))
+        #     print(snakemake.get())
+        #     p.close()
+        #     p.join()
         message = "success"
     except json.JSONDecodeError:
         payload_as_json = None
         message = "Received data is not a valid JSON"
-    return {"message": message, "recived_data": nodeObject_list}
+    return {"message": message, "recived_data": payload_as_json}
 
 # 이미지 base64 변환
 def from_image_to_bytes(img):

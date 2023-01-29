@@ -1,6 +1,8 @@
 <template>
   <div class="layout__workflow">
-    <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
+    <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)">
+      <button class="run_button" @click="exportdf">Run</button>
+    </div>
     <section class="node-bar">
       <ul class="node-bar__nodelist">
         <li
@@ -24,7 +26,6 @@
               <h2 v-if="compile_check == 'complete'" class="complete">√</h2>
             </div>
           </div>
-            <button class="node-bar__button" @click="exportdf">Compile</button>
         </div> -->
     </section>
     <main
@@ -37,7 +38,7 @@
           v-for="(tab, idx) in tabList"
           :key="idx"
           v-bind:class="{ currentTab: currentTab === idx }"
-          @click="currentTab = idx"
+          @click="tabClick(idx)"
         >
           <div class="tab__name">
             <img class="tab__icon" :src="tab.img" />
@@ -200,12 +201,64 @@ export default {
     // }
     this.$df.on("nodeCreated", (ev) => {
       const node = this.$df.getNodeFromId(ev);
-      console.log(node.name);
       this.tabList.push({
+        id: node.id,
         name: node.name,
         img: require(`@/assets/${node.name}.png`),
       });
-      console.log(this.tabList);
+      console.log(node);
+      this.$store.commit("createNode", {
+        id: node.id,
+        name: node.name,
+        file: "",
+      });
+      this.$store.commit("changeNode", node.id);
+      console.log(this.currentTab);
+      if (this.tabList.length != 1) {
+        this.currentTab = this.tabList.length - 1;
+      }
+    });
+    this.$df.on("nodeRemoved", (ev) => {
+      this.tabList.forEach((ele, idx) => {
+        if (ele.id === parseInt(ev)) {
+          this.tabList.splice(idx, 1);
+          //현재 탭이 지워지는 탭일 때
+          if (this.currentTab === idx) {
+            this.currentTab -= 1;
+          } else if (this.currentTab > idx) {
+            this.currentTab -= 1;
+          } else if (this.currentTab < idx) {
+            this.currentTab = this.currentTab;
+          }
+        }
+      });
+      this.$store.commit("deleteNode", {
+        id: parseInt(ev),
+      });
+    });
+    this.$df.on("connectionCreated", (ev) => {
+      // ev 값에 따라 기능 구분
+      console.log(ev);
+      // const input_id = this.$df.getNodeFromId(ev.input_id);
+      // const output_id = this.$df.getNodeFromId(ev.output_id);
+      const lastNodeInfo = this.$store.getters.getNodeInfo(parseInt(ev.input_id));
+      // console.log(lastNodeInfo.name);
+      this.$store.commit("createConnection", {
+        connection: [parseInt(ev.output_id), parseInt(ev.input_id)],
+        file: "",
+        lastNode: lastNodeInfo.name,
+      });
+      this.$store.commit("shareConnectionFile");
+    });
+    this.$df.on("connectionRemoved", (ev) => {
+      // ev 값에 따라 기능 구분
+      console.log(ev);
+      // const input_id = this.$df.getNodeFromId(ev.input_id);
+      // const output_id = this.$df.getNodeFromId(ev.output_id);
+      this.$store.commit("deleteConnection", [
+        parseInt(ev.output_id),
+        parseInt(ev.input_id),
+      ]);
     });
     this.$df.on("nodeDataChanged", (ev) => {
       // nodeData 바뀌게 되면 Connection Update
@@ -269,6 +322,12 @@ export default {
         // 해당 노드와 연결되어 있는 File 정보 추출
         const node_id = this.$df.node_selected.id.replace(/node-/g, "");
         console.log(node_id);
+        this.$store.commit("changeNode", parseInt(node_id));
+        this.tabList.forEach((ele, idx) => {
+          if (ele.id === parseInt(node_id)) {
+            this.currentTab = idx;
+          }
+        });
         this.node_connection.forEach((connection) => {
           // console.log(connection)
           connection.forEach((node) => {
@@ -298,13 +357,6 @@ export default {
         }
       }
     });
-    this.$df.on("connectionCreated", (ev) => {
-      // ev 값에 따라 기능 구분
-      // console.log(ev);
-      const input_id = this.$df.getNodeFromId(ev.input_id);
-      const output_id = this.$df.getNodeFromId(ev.output_id);
-      console.log(input_id, output_id);
-    });
   },
   methods: {
     connectionParsing(IO) {
@@ -320,25 +372,23 @@ export default {
         return null;
       }
     },
-    handle_toggle() {
-      this.is_show_modal = !this.is_show_modal;
-      const df = document.querySelector("#drawflow");
-      df.dispatchEvent(new Event("mouseup"));
-    },
     async exportdf() {
       try {
-        this.exportValue = this.$df.export();
-        this.compile_check = "loading";
-        const JsonData = await exportData(
-          JSON.stringify(this.exportValue.drawflow.Home.data)
-        );
+        const result = await this.$store.dispatch("compileNodes");
+        console.log(result);
+        // this.exportValue = this.$df.export();
+        // this.compile_check = "loading";
+        // console.log(this.exportValue);
+        // const JsonData = await exportData(
+        //   JSON.stringify(this.exportValue.drawflow.Home.data)
+        // );
         // console.log(JSON.stringify(this.exportValue.drawflow.Home.data))
-        this.compile_check = "complete";
-        console.log(
-          typeof JsonData.data.recived_data,
-          JsonData.data.recived_data
-        );
-        this.node_connection = JsonData.data.recived_data;
+        // this.compile_check = "complete";
+        // console.log(
+        //   typeof JsonData.data.recived_data,
+        //   JsonData.data.recived_data
+        // );
+        // this.node_connection = JsonData.data.recived_data;
       } catch (error) {
         console.error(error);
       }
@@ -404,6 +454,10 @@ export default {
         name,
         "vue"
       );
+    },
+    tabClick(idx) {
+      this.currentTab = idx;
+      this.$store.commit("changeNode", this.tabList[idx].id);
     },
   },
 };
@@ -578,10 +632,30 @@ export default {
   -moz-user-drag: none;
   -o-user-drag: none;
 }
+.run_button {
+  width: 8rem;
+  height: 5rem;
+  background: rgb(170, 193, 240);
+  border-radius: 1rem;
+  border: none;
+
+  position: absolute;
+  bottom: 2rem;
+  left: 1rem;
+
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 1.3rem;
+  line-height: 1.3rem;
+
+  z-index: 9997;
+  cursor: pointer;
+}
 #drawflow {
   width: 100%;
   height: 100%;
-  position: absolute;
+  position: relative;
 
   background: var(--dfBackgroundColor);
   background-size: var(--dfBackgroundSize) var(--dfBackgroundSize);

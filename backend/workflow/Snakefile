@@ -1,16 +1,14 @@
 rule dataTable:
     input:
-        "workflow/data/{username}_{filename}.txt",
         "user/{username}/data/{filename}.csv"
     output:
         "workflow/data/DataTable_{username}_{filename}.csv",
-        "user/{username}/result/DataTable_{filename}.html"
+        "user/{username}/result/DataTable_{filename}.json"
     script:
         "script/dataTable.py"
 
 rule Plot:
     input:
-        "workflow/data/{username}_{filename}.txt",
         "workflow/data/DataTable_{username}_{filename}.csv"
     output:
         "workflow/data/Plot_{username}_{filename}.csv",

@@ -63,7 +63,7 @@
 </template>
 
 <script>
-import { uploadForm, getFiles, findFile } from "@/api/index";
+import { uploadForm, getFiles } from "@/api/index";
 
 export default {
   data() {
@@ -82,31 +82,41 @@ export default {
       }
     },
     async uploadFile() {
+      this.$store.commit("changeFile", this.selectFile.name);
+      this.$store.commit("shareConnectionFile");
       if (this.selectFile === this.$refs.selectFile.files[0]) {
         this.is_upload = true;
         const form = new FormData();
         form.append("files", this.selectFile);
         const response = await uploadForm(form);
-        console.log(response);
+        // console.log(response);
         if (response) {
           this.done_upload = true;
           const fileList = await getFiles();
-          console.log(fileList.data);
+          // console.log(fileList.data);
           this.files_list = fileList.data;
         }
       }
     },
-    async fileSelect(ev) {
+    fileSelect(ev) {
       console.dir(ev.target.innerText);
-      const fileInfo = {
-        file_name: ev.target.innerText,
-      };
-      const selectFile = await findFile(fileInfo);
-      this.selectFile = {
-        name: selectFile.data.file_name,
-        size: selectFile.data.file_size,
-      };
-      console.log(selectFile.data);
+      // const fileInfo = {
+      //   file_name: ev.target.innerText,
+      // };
+      // const selectFile = await findFile(fileInfo);
+      // this.selectFile = {
+      //   name: selectFile.data.file_name,
+      //   size: selectFile.data.file_size,
+      // };
+      // console.log(selectFile.data);
+      this.files_list.forEach((ele) => {
+        if (ele.file_name === ev.target.innerText) {
+          this.selectFile = {
+            name: ele.file_name,
+            size: ele.file_size,
+          };
+        }
+      });
     },
   },
   filters: {
@@ -122,7 +132,7 @@ export default {
   },
   async mounted() {
     const fileList = await getFiles();
-    console.log(fileList.data);
+    // console.log(fileList.data);
     this.files_list = fileList.data;
   },
 };
