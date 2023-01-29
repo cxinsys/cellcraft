@@ -72,7 +72,7 @@
         </div>
       </div>
     </form>
-    <form class="fileUpload-form">
+    <form class="fileUpload-form" @submit.prevent="uploadFile">
       <div class="form-row">
         <h1 class="form__name">Choose recently file</h1>
         <div class="form__selectFile">
@@ -300,7 +300,7 @@ export default {
   background: #ffffff;
   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   border-radius: 0.5rem;
-  margin-bottom: 0.1rem;
+  margin-bottom: 0.5rem;
 }
 .fileList__text {
   font-family: "Montserrat", sans-serif;
