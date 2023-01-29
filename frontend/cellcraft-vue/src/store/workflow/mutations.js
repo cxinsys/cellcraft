@@ -27,6 +27,7 @@ export default {
           connection_info.connection[0]
         ) {
           state.linked_nodes[i].connection.push(connection_info.connection[1]);
+          state.linked_nodes[i].lastNode = connection_info.lastNode;
           return 0;
         } else if (
           state.linked_nodes[i].connection.at(0) ===
@@ -41,7 +42,7 @@ export default {
         } else if (
           state.linked_nodes[i].connection.indexOf(
             connection_info.connection[0]
-          )
+          ) != -1
         ) {
           const based_connection = state.linked_nodes[i].connection.slice(
             0,
@@ -52,11 +53,12 @@ export default {
           state.linked_nodes.push({
             connection: [...based_connection, ...connection_info.connection],
             file: "",
+            lastNode: connection_info.lastNode,
           });
           return 0;
         }
       }
-      state.linked_nodes.push(connection_info.connection);
+      state.linked_nodes.push(connection_info);
     }
   },
   deleteConnection(state, connection) {

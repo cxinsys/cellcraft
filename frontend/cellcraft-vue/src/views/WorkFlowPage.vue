@@ -241,9 +241,12 @@ export default {
       console.log(ev);
       // const input_id = this.$df.getNodeFromId(ev.input_id);
       // const output_id = this.$df.getNodeFromId(ev.output_id);
+      const lastNodeInfo = this.$store.getters.getNodeInfo(parseInt(ev.input_id));
+      // console.log(lastNodeInfo.name);
       this.$store.commit("createConnection", {
         connection: [parseInt(ev.output_id), parseInt(ev.input_id)],
         file: "",
+        lastNode: lastNodeInfo.name,
       });
       this.$store.commit("shareConnectionFile");
     });
@@ -371,19 +374,21 @@ export default {
     },
     async exportdf() {
       try {
-        this.exportValue = this.$df.export();
-        this.compile_check = "loading";
-        console.log(this.exportValue);
-        const JsonData = await exportData(
-          JSON.stringify(this.exportValue.drawflow.Home.data)
-        );
+        const result = await this.$store.dispatch("compileNodes");
+        console.log(result);
+        // this.exportValue = this.$df.export();
+        // this.compile_check = "loading";
+        // console.log(this.exportValue);
+        // const JsonData = await exportData(
+        //   JSON.stringify(this.exportValue.drawflow.Home.data)
+        // );
         // console.log(JSON.stringify(this.exportValue.drawflow.Home.data))
-        this.compile_check = "complete";
-        console.log(
-          typeof JsonData.data.recived_data,
-          JsonData.data.recived_data
-        );
-        this.node_connection = JsonData.data.recived_data;
+        // this.compile_check = "complete";
+        // console.log(
+        //   typeof JsonData.data.recived_data,
+        //   JsonData.data.recived_data
+        // );
+        // this.node_connection = JsonData.data.recived_data;
       } catch (error) {
         console.error(error);
       }
