@@ -202,7 +202,7 @@ export default {
   padding: 3rem 0 3rem 1rem;
   border-radius: 1rem;
   box-sizing: border-box;
-  background-color: rgb(32, 33, 36);
+  background-color: rgb(255, 255, 255);
 }
 .cloud-row {
   width: 100%;
@@ -221,12 +221,12 @@ export default {
   padding: 0 0 0 1rem;
 }
 .cloud-textbox__title {
-  color: white;
+  color: rgb(51, 51, 51);
   font-size: 1rem;
   font-weight: 400;
 }
 .cloud-textbox__desc {
-  color: white;
+  color: rgb(51, 51, 51);
   font-size: 1rem;
   font-weight: 200;
   padding: 0.2rem 0 0 0;
@@ -267,7 +267,7 @@ export default {
   font-weight: 400;
   font-size: 1.4rem;
   line-height: 1.4rem;
-  color: rgb(255, 255, 255);
+  color: rgb(51, 51, 51);
 }
 .form__selectFile {
   width: 100%;
@@ -320,7 +320,7 @@ export default {
   height: 3rem;
   position: relative;
   cursor: pointer;
-  background-color: rgb(67, 68, 73);
+  background-color: rgb(241, 243, 244);
   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   border-radius: 1rem;
 }
@@ -414,6 +414,59 @@ export default {
   font-weight: 500;
   font-size: 1rem;
   line-height: 1rem;
-  color: rgb(53, 54, 58);
+  color: rgb(244, 246, 251);
+}
+
+@media (prefers-color-scheme: dark) {
+  .form__button--foldericon {
+    filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg)
+      brightness(107%) contrast(101%);
+  }
+  .cloud-form {
+    width: 45%;
+    height: 95%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0 1rem 1rem;
+    padding: 3rem 0 3rem 1rem;
+    border-radius: 1rem;
+    box-sizing: border-box;
+    background-color: rgb(41, 43, 48);
+  }
+  .form__addfile {
+    width: 3rem;
+    height: 3rem;
+    position: relative;
+    cursor: pointer;
+    background-color: rgb(32, 34, 39);
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    border-radius: 1rem;
+  }
+  .cloud-textbox__title {
+    color: rgb(255, 255, 255);
+    font-size: 1rem;
+    font-weight: 400;
+  }
+  .cloud-textbox__desc {
+    color: rgb(255, 255, 255);
+    font-size: 1rem;
+    font-weight: 200;
+    padding: 0.2rem 0 0 0;
+  }
+  .form__name {
+    width: 100%;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    padding: 0 2rem;
+    font-family: "Montserrat", sans-serif;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 1.4rem;
+    line-height: 1.4rem;
+    color: rgb(255, 255, 255);
+  }
 }
 </style>
