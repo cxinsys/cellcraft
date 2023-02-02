@@ -74,7 +74,7 @@
     </form>
     <form class="fileUpload-form">
       <div class="form-row">
-        <h1 class="form__name">Choose recently file</h1>
+        <h1 class="form__name">Choose recent file</h1>
         <div class="form__selectFile">
           <ul class="form__fileList">
             <li
@@ -92,7 +92,7 @@
         </div>
       </div>
       <div class="form-row">
-        <h1 class="form__name">Current File</h1>
+        <h1 class="form__name">Current file</h1>
       </div>
       <div class="form-row">
         <ul class="form__info" v-if="selectFile">
