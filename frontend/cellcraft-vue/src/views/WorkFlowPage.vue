@@ -1,7 +1,9 @@
 <template>
   <div class="layout__workflow">
     <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)">
-      <button class="run_button" @click="exportdf">Run</button>
+      <button class="run_button" @click="exportdf">
+        <img class="run_button__icon" src="@/assets/run.png" />
+      </button>
     </div>
     <section class="node-bar">
       <ul class="node-bar__nodelist">
@@ -30,9 +32,9 @@
     </section>
     <main
       class="content-component"
-      v-bind:class="{ tab_actvie: tabList.length != 0 }"
+      v-bind:class="{ tab_actvie: tabList.length != 0 && isTabView }"
     >
-      <ul class="content-tab">
+      <ul class="content-tab" v-if="tabList.length != 0 && isTabView">
         <li
           class="tab__item"
           v-for="(tab, idx) in tabList"
@@ -44,9 +46,14 @@
             <img class="tab__icon" :src="tab.img" />
             <p class="tab__text">{{ tab.name }}</p>
           </div>
+          <!-- <img
+            class="tab__close"
+            @click="isTabView = false"
+            src="@/assets/close.png"
+          /> -->
         </li>
       </ul>
-      <div class="content-view" v-if="tabList.length != 0">
+      <div class="content-view" v-if="tabList.length != 0 && isTabView">
         <fileuploadModal
           v-show="tabList[currentTab].name === 'File'"
         ></fileuploadModal>
@@ -88,6 +95,7 @@ export default {
       rightSidebar_isActive: true,
       editor: null,
       exportValue: null,
+      isTabView: true,
       listNodes: [
         {
           name: "File",
@@ -241,7 +249,9 @@ export default {
       console.log(ev);
       // const input_id = this.$df.getNodeFromId(ev.input_id);
       // const output_id = this.$df.getNodeFromId(ev.output_id);
-      const lastNodeInfo = this.$store.getters.getNodeInfo(parseInt(ev.input_id));
+      const lastNodeInfo = this.$store.getters.getNodeInfo(
+        parseInt(ev.input_id)
+      );
       // console.log(lastNodeInfo.name);
       this.$store.commit("createConnection", {
         connection: [parseInt(ev.output_id), parseInt(ev.input_id)],
@@ -320,6 +330,7 @@ export default {
       // console.log(ev);
       if (ev.detail === 2 && this.$df.node_selected) {
         // 해당 노드와 연결되어 있는 File 정보 추출
+        this.isTabView = true;
         const node_id = this.$df.node_selected.id.replace(/node-/g, "");
         console.log(node_id);
         this.$store.commit("changeNode", parseInt(node_id));
@@ -642,9 +653,9 @@ export default {
   -o-user-drag: none;
 }
 .run_button {
-  width: 8rem;
-  height: 5rem;
-  background: rgb(170, 193, 240);
+  width: 7rem;
+  height: 3rem;
+  background: rgb(40, 84, 197);
   border-radius: 1rem;
   border: none;
 
@@ -655,11 +666,18 @@ export default {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 500;
-  font-size: 1.3rem;
-  line-height: 1.3rem;
+  font-size: 1rem;
+  line-height: 1rem;
 
   z-index: 9997;
   cursor: pointer;
+}
+.run_button__icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: contain;
+  filter: invert(100%) sepia(3%) saturate(2008%) hue-rotate(348deg)
+    brightness(125%) contrast(111%);
 }
 #drawflow {
   width: 100%;

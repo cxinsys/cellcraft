@@ -89,7 +89,7 @@ export default {
         this.modal = true;
         const response = await registerUser(userData);
         console.log(response);
-        // this.$router.push('/main')
+        this.$router.push("/login");
       } catch (error) {
         console.error(error.response.data.detail);
       } finally {

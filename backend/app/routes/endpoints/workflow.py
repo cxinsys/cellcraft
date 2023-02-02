@@ -40,6 +40,7 @@ def linkList(nodeList):
     return result
 
 def snakemakeProcess(filepath):
+    print(filepath)
     process = Popen(['snakemake',f'workflow/data/{filepath}.csv','-j'], stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
 

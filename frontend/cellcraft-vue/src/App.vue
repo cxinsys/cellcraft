@@ -74,7 +74,7 @@ export default {
 <style>
 .app {
   width: 100vw;
-  height: 155vh;
+  height: 191vh;
 }
 .loginPage__layout {
   height: 100vh;
@@ -84,7 +84,7 @@ export default {
 }
 .header-component {
   width: 100%;
-  /* height: 5.5%; */
+  /* height: 4%; */
   height: 3%;
 }
 .loginPage__header {

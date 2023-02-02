@@ -29,17 +29,18 @@ export default {
       dataTable: null,
       current_file: null,
       columns: [
+        // columns 데이터 형식
         // {
         //   label: "Name",
         //   field: "name",
         // }
       ],
       rows: [
+        // rows 데이터 형식
         // { id: 1, name: "John", age: 20, createdAt: "", score: 0.03343 }
       ],
     };
   },
-  mounted() {},
   computed: {
     checkCurrentNode() {
       return this.$store.getters.getCurrentNode;
@@ -61,28 +62,30 @@ export default {
         console.log(filename);
         const dataTableResult = await getResult(filename);
         console.log(dataTableResult.data);
+
+        //백엔드에서 넘겨준 dataTable 데이터
         this.dataTable = dataTableResult.data;
 
         //dataTable 데이터 추가
-        this.columns = [];
-        this.rows = [];
-        Object.keys(this.dataTable).forEach((column) => {
-          this.columns.push({
-            label: column,
-            field: column,
-          });
-        });
+        // this.columns = [];
+        // this.rows = [];
+        // Object.keys(this.dataTable).forEach((column) => {
+        //   this.columns.push({
+        //     label: column,
+        //     field: column,
+        //   });
+        // });
         // console.log(Object.entries(Object.values(this.dataTable)[0]).length);
-        const rowLength = Object.entries(
-          Object.values(this.dataTable)[0]
-        ).length;
-        for (let i = 0; i < rowLength; i++) {
-          let row = [];
-          Object.keys(this.dataTable).forEach((column) => {
-            row.push([column, this.dataTable[column][i]]);
-          });
-          this.rows.push(Object.fromEntries(row));
-        }
+        // const rowLength = Object.entries(
+        //   Object.values(this.dataTable)[0]
+        // ).length;
+        // for (let i = 0; i < rowLength / 10; i++) {
+        //   let row = [];
+        //   Object.keys(this.dataTable).forEach((column) => {
+        //     row.push([column, this.dataTable[column][i]]);
+        //   });
+        //   this.rows.push(Object.fromEntries(row));
+        // }
       }
     },
   },
