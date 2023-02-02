@@ -93,6 +93,7 @@ export default {
 .workflowPage__header {
   /* height: 8.525%; */
   height: 4.6%;
+  border-bottom: 1px;
 }
 .main-component {
   width: 100%;
@@ -105,6 +106,7 @@ export default {
 }
 .workflowPage__main {
   /* height: 91.475%; */
+  border-top: 1px solid #e1e1e1;
   height: 95.4%;
 }
 .footer-component {
@@ -134,5 +136,16 @@ export default {
   /* identical to box height */
 
   color: #5e5e5e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .header-component {
+    background-color: rgb(53, 55, 60);
+  }
+  .workflowPage__main {
+    /* height: 91.475%; */
+    border-top: 1px solid #404040;
+    height: 95.4%;
+  }
 }
 </style>

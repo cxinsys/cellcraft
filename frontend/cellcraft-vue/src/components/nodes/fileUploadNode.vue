@@ -103,8 +103,8 @@ export default {
   width: 70%;
   height: 70%;
   object-fit: contain;
-  filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg)
-    brightness(107%) contrast(101%);
+  filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg) brightness(27%)
+    contrast(101%);
 }
 .layout {
   display: flex;
@@ -184,5 +184,12 @@ export default {
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  .nodeBox__icon {
+    filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg)
+      brightness(107%) contrast(101%);
+  }
 }
 </style>

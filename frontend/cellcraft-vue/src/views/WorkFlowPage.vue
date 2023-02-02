@@ -540,14 +540,14 @@ export default {
   border-radius: 0.5rem 0.5rem 0 0;
   display: flex;
   align-items: center;
-  background: rgb(32, 33, 36);
-  color: rgb(255, 255, 255);
+  background: rgb(223, 225, 229);
+  color: rgb(51, 51, 51);
   position: relative;
   opacity: 1;
   box-shadow: 0px -6px 5px 0px rgba(0, 0, 0, 0.5);
 }
 .currentTab {
-  background: rgb(53, 54, 58);
+  background: rgb(244, 246, 251);
   box-shadow: 0px -6px 5px 0px rgba(0, 0, 0, 0.5);
 }
 .tab__name {
@@ -585,7 +585,7 @@ export default {
 .content-view {
   width: 100%;
   height: 39rem;
-  background: rgb(53, 54, 58);
+  background: rgb(244, 246, 251);
   border-radius: 0 0 0 0.5rem;
   box-shadow: 0px -5px 5px 0px rgba(0, 0, 0, 0.5);
 }
@@ -595,7 +595,7 @@ export default {
   /* height: 34rem; */
   height: 20rem;
   border-radius: 1rem;
-  background: rgb(53, 54, 58);
+  background: rgb(244, 246, 251);
   box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 1);
   position: absolute;
   /* top: calc(50% - 17rem); */
@@ -620,13 +620,14 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: move;
-  background: rgb(31, 31, 31);
+  background: rgb(255, 255, 255);
   color: rgb(245, 245, 245);
   border-radius: 1rem;
   /* width: 5rem;
   height: 5rem; */
   width: 4rem;
   height: 4rem;
+  box-shadow: 0px 0px 8px 0px rgba(75, 119, 209, 1);
 }
 .node-bar__img {
   /* width: 3rem;
@@ -634,12 +635,12 @@ export default {
   width: 2.2rem;
   height: 2.2rem;
   object-fit: contain;
-  filter: invert(100%) sepia(3%) saturate(2008%) hue-rotate(348deg)
-    brightness(125%) contrast(111%);
   -webkit-user-drag: none;
   -khtml-user-drag: none;
   -moz-user-drag: none;
   -o-user-drag: none;
+  filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg) brightness(27%)
+    contrast(101%);
 }
 .run_button {
   width: 8rem;
@@ -790,5 +791,68 @@ export default {
   background: var(--dfDeleteHoverBackgroundColor);
   border: var(--dfDeleteHoverBorderSize) solid var(--dfDeleteHoverBorderColor);
   border-radius: var(--dfDeleteHoverBorderRadius);
+}
+
+@media (prefers-color-scheme: dark) {
+  .node-bar__img {
+    filter: invert(100%) sepia(3%) saturate(2008%) hue-rotate(348deg)
+      brightness(125%) contrast(111%);
+  }
+  .tab__item {
+    cursor: pointer;
+    width: 10rem;
+    height: 100%;
+    border-radius: 0.5rem 0.5rem 0 0;
+    display: flex;
+    align-items: center;
+    background: rgb(32, 34, 39);
+    color: rgb(255, 255, 255);
+    position: relative;
+    opacity: 1;
+    box-shadow: 0px -6px 5px 0px rgba(0, 0, 0, 0.5);
+  }
+  .currentTab {
+    background: rgb(53, 55, 60);
+    box-shadow: 0px -6px 5px 0px rgba(0, 0, 0, 0.5);
+  }
+  .content-view {
+    width: 100%;
+    height: 39rem;
+    background: rgb(53, 55, 60);
+    border-radius: 0 0 0 0.5rem;
+    box-shadow: 0px -5px 5px 0px rgba(0, 0, 0, 0.5);
+  }
+  .node-bar {
+    /* width: 8rem; */
+    width: 4.5rem;
+    /* height: 34rem; */
+    height: 20rem;
+    border-radius: 1rem;
+    background: rgb(53, 55, 60);
+    box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 1);
+    position: absolute;
+    /* top: calc(50% - 17rem); */
+    top: calc(50% - 13rem);
+    left: 1rem;
+    z-index: 9998;
+    opacity: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .node-bar__drag-drawflow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: move;
+    background: rgb(32, 34, 39);
+    color: rgb(245, 245, 245);
+    border-radius: 1rem;
+    /* width: 5rem;
+  height: 5rem; */
+    width: 4rem;
+    height: 4rem;
+    box-shadow: 0px 0px 8px 0px rgba(75, 119, 209, 1);
+  }
 }
 </style>
