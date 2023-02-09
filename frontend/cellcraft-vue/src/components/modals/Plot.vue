@@ -3,13 +3,60 @@
     <div class="plotly-layout">
       <div id="plotly__chart"></div>
     </div>
-    <div class="options-layout"></div>
+    <div class="options-layout">
+      <div class="options__item">
+        X - axis
+        <select :value="selectedX" @change="setSelectX($event)">
+          <option
+            v-for="(item, index) in numList"
+            :key="index"
+            :value="item.value"
+          >
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
+      <div class="options__item">
+        Y - axis
+        <select :value="selectedY" @change="setSelectY($event)">
+          <option
+            v-for="(item, index) in numList"
+            :key="index"
+            :value="item.value"
+          >
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
+      <div class="options__item">
+        Name
+        <select :value="selectedName" @change="setSelectName($event)">
+          <option
+            v-for="(item, index) in keyList"
+            :key="index"
+            :value="item.value"
+          >
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
+      <div class="options__item">
+        Cluster
+        <select :value="selectedCluster" @change="setSelectCluster($event)">
+          <option
+            v-for="(item, index) in clusterList"
+            :key="index"
+            :value="item.value"
+          >
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-// import { Plotly } from "vue-plotly";
-// import { changeData, changeLayout } from "./plotly/plotlypresenter.js";
 import { getResult } from "@/api/index";
 import Plotly from "plotly.js-dist-min";
 
@@ -19,31 +66,104 @@ export default {
   // },
   data() {
     return {
-      keys: null,
-      lines: null,
       plotData: null,
       current_file: null,
       file_num: null,
+      keys: null,
+      areNum: null,
+      lines: null,
+      chartType: "scattergl",
+      chartMode: "markers",
+      selectedX: null,
+      selectedY: null,
+      selectedName: null,
+      selectedCluster: null,
+      numClusterConstraint: 1000,
+      markerSize: 1,
+      numList: [{ name: " ", value: null }],
+      keyList: [{ name: " ", value: null }],
+      clusterList: [{ name: " ", value: null }],
     };
   },
   mounted() {
-    Plotly.newPlot(
-      "plotly__chart",
-      /* JSON object */ {
-        data: [{ type: "scattergl" }],
-        layout: {
-          autosize: true,
-          automargin: true,
-          width: 600,
-          height: 400,
-        },
-        // config: {
-        //   responsive: true,
-        // },
-      }
-    );
+    Plotly.newPlot("plotly__chart", {
+      data: [{ type: this.chartType }],
+      layout: {
+        autosize: true,
+        automargin: true,
+        width: 600,
+        height: 400,
+      },
+    });
   },
-  methods: {},
+  methods: {
+    updateChart() {
+      if (this.selectedCluster) {
+        const clusterList = [
+          ...new Set(this.lines.map((x) => x[this.selectedCluster])),
+        ];
+
+        var traces = [];
+        for (let i = 0; i < clusterList.length; i++) {
+          traces.push({
+            x: [],
+            y: [],
+            text: [],
+            name: clusterList[i] ?? "Undefined",
+            type: this.chartType,
+            mode: this.chartMode,
+            marker: { size: this.markerSize },
+          });
+        }
+
+        for (let i = 0; i < this.lines.length; i++) {
+          traces[
+            clusterList.indexOf(this.lines[i][this.selectedCluster])
+          ].x.push(this.lines[i][this.selectedX]);
+          traces[
+            clusterList.indexOf(this.lines[i][this.selectedCluster])
+          ].y.push(this.lines[i][this.selectedY]);
+          traces[
+            clusterList.indexOf(this.lines[i][this.selectedCluster])
+          ].text.push(this.lines[i][this.selectedName]);
+        }
+        Plotly.newPlot("plotly__chart", {
+          data: traces,
+          layout: {},
+        });
+      } else {
+        Plotly.newPlot("plotly__chart", {
+          data: [
+            {
+              x: this.lines.map((x) => x[this.selectedX]),
+              y: this.lines.map((x) => x[this.selectedY]),
+              text: this.lines.map((x) => x[this.selectedName]),
+              type: this.chartType,
+              mode: this.chartMode,
+              marker: { size: this.markerSize },
+            },
+          ],
+          layout: {},
+        });
+      }
+    },
+    setSelectX(event) {
+      this.selectedX = event.target.value;
+      this.updateChart();
+    },
+    setSelectY(event) {
+      this.selectedY = event.target.value;
+      this.updateChart();
+    },
+    setSelectName(event) {
+      this.selectedName = event.target.value;
+      this.updateChart();
+    },
+    setSelectCluster(event) {
+      this.selectedCluster = event.target.value;
+      this.updateChart();
+    },
+  },
   computed: {
     checkCurrentNode() {
       return this.$store.getters.getCurrentNode;
@@ -69,29 +189,30 @@ export default {
         // dataTableResult.data;
         this.lines = dataTableResult.data.split("\n").map((x) => x.split(","));
         this.keys = this.lines.splice(0, 1)[0];
+        this.keys[0] = "INDEX";
+        this.areNum = this.lines[0].map((x) => !isNaN(x));
 
-        //얘를 여기 넣으면 안 될것 같은데 ㅜ
-        Plotly.newPlot(
-          "plotly__chart",
-          /* JSON object */ {
-            data: [
-              {
-                x: this.lines.map((x) => x[2]),
-                y: this.lines.map((x) => x[3]),
-                type: "scattergl",
-                mode: "markers",
-                marker: { size: 1 },
-              },
-            ],
-            // layout: {
-            //   autosize: true,
-            //   automargin: true,
-            // },
-            // config: {
-            //   responsive: true,
-            // },
+        this.numList = [{ name: " ", value: null }];
+        for (let i = 0; i < this.keys.length; i++) {
+          if (this.areNum[i] == true) {
+            this.numList.push({ name: this.keys[i], value: i });
           }
-        );
+        }
+
+        this.keyList = [{ name: " ", value: null }];
+        for (let i = 0; i < this.keys.length; i++) {
+          this.keyList.push({ name: this.keys[i], value: i });
+        }
+
+        this.clusterList = [{ name: " ", value: null }];
+        for (let i = 0; i < this.keys.length; i++) {
+          const countUnique = new Set(this.lines.map((x) => x[i])).size;
+          if (countUnique < this.numClusterConstraint) {
+            this.clusterList.push({ name: this.keys[i], value: i });
+          }
+        }
+
+        this.updateChart();
       }
     },
   },
@@ -124,5 +245,8 @@ export default {
   align-items: center;
   justify-content: center;
   flex-direction: column;
+}
+.options__item {
+  /* margin: auto; */
 }
 </style>
