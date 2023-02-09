@@ -80,13 +80,14 @@ a {
   color: black;
 }
 .layout {
-  height: 100%-0.5px;
+  height: 100%;
   width: 95rem;
   max-width: calc(100% - 3rem);
   margin-right: auto;
   margin-left: auto;
   display: flex;
   align-items: center;
+  overflow: hidden;
 }
 .logo-component {
   width: 25%;
@@ -104,8 +105,8 @@ a {
   justify-content: left;
 }
 .logo__img {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
   object-fit: contain;
 }
 .logo__text {

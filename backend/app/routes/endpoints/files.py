@@ -40,7 +40,7 @@ async def fileUpload(
                 detail="this file already exists in your files",
                 )
         print(len(contents))
-        create_file = await crud_file.create_file(db, item_file, len(contents), current_user.id)
+        create_file = await crud_file.create_file(db, item_file, len(contents), UPLOAD_DIRECTORY, current_user.id)
         
     return create_file
 
@@ -50,9 +50,19 @@ def read_user_files(
     db: Session = Depends(dep.get_db),
     current_user: models.User = Depends(dep.get_current_active_user)
     ) -> Any:
+    USER_FOLDER = f'./user/{current_user.username}'
+    res = []
+    for (dir_path, dir_names, file_names) in os.walk(USER_FOLDER):
+        if dir_path == USER_FOLDER:
+            continue
+        else :
+            folder = dir_path.replace(USER_FOLDER + '/', '')
+            res.extend({folder : file_names}.items())
+            print(f"Directories: {dir_path}, Files: {file_names}")
+    print(res)
     user_files = crud_file.get_user_files(db, current_user.id)
-    print(user_files)
-    return user_files
+    # print(user_files)
+    return res, user_files
 
 #User File find
 @router.post("/find")

@@ -28,7 +28,7 @@
           <div class="form__addfile">
             <img
               class="form__button--foldericon"
-              src="@/assets/upload-file.png"
+              src="@/assets/upload-file-white.png"
             />
             <!-- <img class="form__button--plusicon" src="@/assets/plus.png" /> -->
           </div>
@@ -148,7 +148,7 @@ export default {
         if (response) {
           this.done_upload = true;
           const fileList = await getFiles();
-          // console.log(fileList.data);
+          console.log(fileList.data);
           this.files_list = fileList.data;
         }
       }
@@ -187,8 +187,8 @@ export default {
   },
   async mounted() {
     const fileList = await getFiles();
-    // console.log(fileList.data);
-    this.files_list = fileList.data;
+    console.log(fileList.data);
+    this.files_list = fileList.data[1];
   },
 };
 </script>
@@ -382,15 +382,15 @@ export default {
 }
 .form__info--name,
 .form__info--size {
-  width: 60%;
+  width: 70%;
   height: 100%;
   display: flex;
   align-items: center;
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
-  font-size: 1rem;
-  line-height: 1rem;
+  font-size: 0.9rem;
+  line-height: 0.9rem;
   color: rgb(51, 51, 51);
 }
 .form__info--blank {

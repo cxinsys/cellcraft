@@ -11,13 +11,11 @@ def get_user_file(db: Session, id: int, file_name: str):
 def get_user_files(db: Session, id: int):
     return db.query(models.File).filter(models.File.user_id == id).all()
 
-async def create_file(db: Session, file: UploadFile, filesize: str, user_id: int) -> models.File:
-    UPLOAD_DIRECTORY = './'
-
+async def create_file(db: Session, file: UploadFile, filesize: str, filepath: str,user_id: int) -> models.File:
     db_file = models.File(
         file_name = file.filename,
         file_size = filesize,
-        file_path = UPLOAD_DIRECTORY,
+        file_path = filepath,
         user_id = user_id
         )
     db.add(db_file)
