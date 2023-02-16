@@ -200,7 +200,7 @@ export default {
       this.current_file = this.$store.getters.getCurrentFile.file;
       // console.log(current_node);
       // console.log(this.current_file.file);
-      if (current_node.name === "Plot") {
+      if (current_node.name === "heatMap") {
         const filename = {
           filename: `${current_node.name}_${this.current_file.replace(
             ".csv",

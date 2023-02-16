@@ -7,11 +7,11 @@ rule dataTable:
     script:
         "script/dataTable.py"
 
-rule Plot:
+rule scatterPlot:
     input:
         "workflow/data/DataTable_{username}_{filename}.csv"
     output:
-        "workflow/data/Plot_{username}_{filename}.csv",
-        "user/{username}/result/Plot_{filename}.csv"
+        "workflow/data/scatterPlot_{username}_{filename}.csv",
+        "user/{username}/result/scatterPlot_{filename}.csv"
     script:
-        "script/Plot.py"
+        "script/scatterPlot.py"
