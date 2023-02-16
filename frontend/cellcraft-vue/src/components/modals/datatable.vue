@@ -28,70 +28,21 @@ export default {
       node_name: "DataTable",
       dataTable: null,
       current_file: null,
+      lines: null,
+      firstLine: null,
       columns: [
+        // columns 데이터 형식
         // {
         //   label: "Name",
         //   field: "name",
-        // },
-        // {
-        //   label: "Age",
-        //   field: "age",
-        //   type: "number",
-        // },
-        // {
-        //   label: "Created On",
-        //   field: "createdAt",
-        //   type: "date",
-        //   dateInputFormat: "yyyy-MM-dd",
-        //   dateOutputFormat: "MMM do yy",
-        // },
-        // {
-        //   label: "Percent",
-        //   field: "score",
-        //   type: "percentage",
-        // },
+        // }
       ],
       rows: [
-        // { id: 1, name: "John", age: 20, createdAt: "", score: 0.03343 },
-        // {
-        //   id: 2,
-        //   name: "Jane",
-        //   age: 24,
-        //   createdAt: "2011-10-31",
-        //   score: 0.03343,
-        // },
-        // {
-        //   id: 3,
-        //   name: "Susan",
-        //   age: 16,
-        //   createdAt: "2011-10-30",
-        //   score: 0.03343,
-        // },
-        // {
-        //   id: 4,
-        //   name: "Chris",
-        //   age: 55,
-        //   createdAt: "2011-10-11",
-        //   score: 0.03343,
-        // },
-        // {
-        //   id: 5,
-        //   name: "Dan",
-        //   age: 40,
-        //   createdAt: "2011-10-21",
-        //   score: 0.03343,
-        // },
-        // {
-        //   id: 6,
-        //   name: "John",
-        //   age: 20,
-        //   createdAt: "2011-10-31",
-        //   score: 0.03343,
-        // },
+        // rows 데이터 형식
+        // { id: 1, name: "John", age: 20, createdAt: "", score: 0.03343 }
       ],
     };
   },
-  mounted() {},
   computed: {
     checkCurrentNode() {
       return this.$store.getters.getCurrentNode;
@@ -113,33 +64,38 @@ export default {
         console.log(filename);
         const dataTableResult = await getResult(filename);
         console.log(dataTableResult.data);
-        this.dataTable = dataTableResult.data;
 
-        Object.keys(this.dataTable).forEach((column) => {
-          this.columns.push({
-            label: column,
-            field: column,
-          });
+        //백엔드에서 넘겨준 dataTable 데이터
+        this.lines = dataTableResult.data.split("\n").map((x) => x.split(","));
+        this.firstLine = this.lines.splice(0, 1)[0];
+        this.columns = this.firstLine.slice(1).map((x) => {
+          return { label: x, field: x };
         });
-        // console.log(Object.values(this.dataTable));
-
-        // for (const [key, value] of Object.entries(
-        //   Object.values(this.dataTable)
-        // )) {
-        //   console.log(`${key}: ${Object.values(value).length}`);
+        this.rows = this.lines.map((x) => {
+          return Object.assign(
+            ...this.firstLine.map((k, i) => ({ [k]: x[i] }))
+          );
+        });
+        //dataTable 데이터 추가
+        // this.columns = [];
+        // this.rows = [];
+        // Object.keys(this.dataTable).forEach((column) => {
+        //   this.columns.push({
+        //     label: column,
+        //     field: column,
+        //   });
+        // });
+        // console.log(Object.entries(Object.values(this.dataTable)[0]).length);
+        // const rowLength = Object.entries(
+        //   Object.values(this.dataTable)[0]
+        // ).length;
+        // for (let i = 0; i < rowLength / 10; i++) {
+        //   let row = [];
+        //   Object.keys(this.dataTable).forEach((column) => {
+        //     row.push([column, this.dataTable[column][i]]);
+        //   });
+        //   this.rows.push(Object.fromEntries(row));
         // }
-        console.log(Object.entries(Object.values(this.dataTable)[0]).length);
-        const rowLength = Object.entries(
-          Object.values(this.dataTable)[0]
-        ).length;
-        for (let i = 0; i < rowLength; i++) {
-          let row = [];
-          Object.keys(this.dataTable).forEach((column) => {
-            row.push([column, this.dataTable[column][i]]);
-          });
-          console.log(row);
-          this.rows.push(Object.fromEntries(row));
-        }
       }
     },
   },

@@ -25,7 +25,10 @@
         </li>
       </ul>
     </nav>
-    <div class="login-component">
+    <div class="login-component" v-if="isUserLogin">
+      <p class="login__link" @click="logoutUser">LOGOUT</p>
+    </div>
+    <div class="login-component" v-else>
       <router-link class="login__link" to="/login"> LOGIN </router-link>
     </div>
   </div>

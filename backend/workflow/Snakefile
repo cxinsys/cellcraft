@@ -3,7 +3,7 @@ rule dataTable:
         "user/{username}/data/{filename}.csv"
     output:
         "workflow/data/DataTable_{username}_{filename}.csv",
-        "user/{username}/result/DataTable_{filename}.json"
+        "user/{username}/result/DataTable_{filename}.csv"
     script:
         "script/dataTable.py"
 
@@ -12,6 +12,6 @@ rule Plot:
         "workflow/data/DataTable_{username}_{filename}.csv"
     output:
         "workflow/data/Plot_{username}_{filename}.csv",
-        "user/{username}/result/Plot_{filename}.json"
+        "user/{username}/result/Plot_{filename}.csv"
     script:
         "script/Plot.py"

@@ -275,6 +275,26 @@ export default {
       console.error(error);
     }
   },
+  computed: {
+    checkCurrentNode() {
+      return this.$store.getters.getCurrentNode;
+    },
+  },
+  watch: {
+    checkCurrentNode(val) {
+      const current_node = this.$store.getters.getNodeInfo(val);
+      this.current_file = this.$store.getters.getCurrentFile.file;
+      console.log(current_node, this.current_file);
+      this.files_list.forEach((ele) => {
+        if (ele.file_name === this.current_file) {
+          this.selectFile = {
+            name: ele.file_name,
+            size: ele.file_size,
+          };
+        }
+      });
+    },
+  },
 };
 </script>
 
