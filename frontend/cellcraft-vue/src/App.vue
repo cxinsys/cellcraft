@@ -4,6 +4,7 @@
     v-bind:class="{
       loginPage__layout: loginPage,
       workflowPage__layout: workflowPage,
+      filesPage__layout: filesPage,
     }"
   >
     <header
@@ -11,6 +12,7 @@
       v-bind:class="{
         loginPage__header: loginPage,
         workflowPage__header: workflowPage,
+        filesPage__header: filesPage,
       }"
     >
       <CellcraftHeader></CellcraftHeader>
@@ -20,6 +22,7 @@
       v-bind:class="{
         loginPage__main: loginPage,
         workflowPage__main: workflowPage,
+        filesPage__main: filesPage,
       }"
     >
       <router-view></router-view>
@@ -29,6 +32,7 @@
       v-bind:class="{
         loginPage__footer: loginPage,
         workflowPage__footer: workflowPage,
+        filesPage__footer: filesPage,
       }"
     >
       <div class="copyright__txt">CELLCRAFT © 2023. All rights reserved</div>
@@ -48,6 +52,7 @@ export default {
       mainPage: true,
       loginPage: false,
       workflowPage: false,
+      filesPage: false,
     };
   },
   watch: {
@@ -57,14 +62,22 @@ export default {
         this.mainPage = true;
         this.loginPage = false;
         this.workflowPage = false;
+        this.filesPage = false;
       } else if (to.path === "/login" || to.path === "/signup") {
         this.mainPage = false;
         this.loginPage = true;
         this.workflowPage = false;
+        this.filesPage = false;
       } else if (to.path === "/workflow") {
         this.mainPage = false;
         this.loginPage = false;
         this.workflowPage = true;
+        this.filesPage = false;
+      } else if (to.path === "/files") {
+        this.mainPage = false;
+        this.loginPage = false;
+        this.workflowPage = false;
+        this.filesPage = true;
       }
     },
   },
@@ -82,6 +95,9 @@ export default {
 .workflowPage__layout {
   height: 100vh;
 }
+.filesPage__layout {
+  height: 100vh;
+}
 .header-component {
   width: 100%;
   /* height: 5.5%; */
@@ -94,6 +110,10 @@ export default {
   /* height: 8.525%; */
   height: 4.6%;
   border-bottom: 1px;
+}
+.filesPage__header {
+  height: 4.5%;
+  border-bottom: 1px solid #e1e1e1;
 }
 .main-component {
   width: 100%;
@@ -109,6 +129,9 @@ export default {
   border-top: 1px solid #e1e1e1;
   height: 95.4%;
 }
+.filesPage__main {
+  height: 95.3%;
+}
 .footer-component {
   width: 100%;
   height: 5.5%;
@@ -119,6 +142,9 @@ export default {
   display: none;
 }
 .workflowPage__footer {
+  display: none;
+}
+.filesPage__footer {
   display: none;
 }
 .copyright__txt {

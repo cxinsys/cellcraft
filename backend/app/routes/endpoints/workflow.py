@@ -17,32 +17,9 @@ from app.database import models
 
 router = APIRouter()
 
-def linkList(nodeList):
-    result = []
-    #while문으로 검사
-    while True:
-        for item in nodeList:
-            for i in range(len(nodeList)):
-                if(i >= len(nodeList)):
-                    continue
-                if item[len(item)-1] == nodeList[i][0]:
-                    nodeList.append(item + nodeList[i])
-                    del nodeList[i]
-                    nodeList.remove(item)
-        break
-    for itemList in nodeList:
-        searchList = []
-        for x in itemList:
-            if x not in searchList:
-                searchList.append(x)
-            if x == itemList[len(itemList)-1]:
-                result.append(searchList)
-    return result
-
 def snakemakeProcess(filepath):
     process = Popen(['snakemake',f'workflow/data/{filepath}.csv','-j'], stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
-
 
 #export workflow data
 @router.post("/compile")
@@ -61,37 +38,6 @@ async def exportData(request: Request, current_user: models.User = Depends(dep.g
             print(snakemake.get())
             p.close()
             p.join()
-            # for key, val in nodes.items():
-            #     if key != "connection":
-            #         print(val)
-        # inputCon_list = []
-        # outputCon_list = []
-        # print(payload_as_json)
-        # for key, val in payload_as_json.items():
-        #     for val_key, val_val in val.items():
-        #         if val_key == "inputs":
-        #             for I_val in val_val.values():
-        #                 inputCon_list.append([key, I_val['connections'][0]['node']])
-        #         elif val_key == "outputs":
-        #             for O_val in val_val.values():
-        #                 if len(O_val['connections']) != 0:
-        #                     outputCon_list.append([key, O_val['connections'][0]['node']])
-                        
-        # nodeObject_list = linkList(outputCon_list)
-        # print(nodeObject_list)
-        # for item in nodeObject_list:
-        #     item_file = payload_as_json[item[0]]["data"]["file"].replace('C:\\fakepath\\', '').replace('.csv', '')
-        #     lastNode = payload_as_json[item[len(item)-1]]["name"].replace(' ', '')
-        #     print(item_file, lastNode)
-        #     with open(f"workflow/data/{current_user.username}_{item_file}.txt", 'w') as f:
-        #         f.write(item_file)
-        #     target = f'{lastNode}_{current_user.username}_{item_file}'
-        #     print(target)
-        #     p = Pool(cpu_count())
-        #     snakemake = p.apply_async(snakemakeProcess, (target,))
-        #     print(snakemake.get())
-        #     p.close()
-        #     p.join()
         message = "success"
     except json.JSONDecodeError:
         payload_as_json = None
@@ -134,6 +80,6 @@ def checkResult(filename: WorkflowResult, current_user: models.User = Depends(de
     else:
         return FileResponse(FILE_PATH)
 
-    # 차후 개발 방향
+     # 차후 개발 방향
     # workflow DB에서 가장 최근에 생성된 Column 가져옴
     # 노드 정보들을 통해 file_list 안에 해당 노드 결과들이 생성되었는지 파악
