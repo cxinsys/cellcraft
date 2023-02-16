@@ -59,6 +59,10 @@ function findFile(fileInfo) {
   return instance.post("routes/files/find", fileInfo);
 }
 
+function findFolder(folder) {
+  return instance.post("routes/files/folder", folder);
+}
+
 export {
   registerUser,
   loginUser,
@@ -68,4 +72,5 @@ export {
   uploadForm,
   getFiles,
   findFile,
+  findFolder,
 };

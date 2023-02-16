@@ -83,13 +83,14 @@ a {
   color: black;
 }
 .layout {
-  height: 100%-0.5px;
+  height: 100%;
   width: 95rem;
   max-width: calc(100% - 3rem);
   margin-right: auto;
   margin-left: auto;
   display: flex;
   align-items: center;
+  overflow: hidden;
 }
 .logo-component {
   width: 25%;
@@ -107,8 +108,8 @@ a {
   justify-content: left;
 }
 .logo__img {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
   object-fit: contain;
 }
 .logo__text {
@@ -182,5 +183,35 @@ a {
   font-size: 1.2rem;
   line-height: 1.2rem;
   color: rgba(51, 51, 51, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  .header-menu__link {
+    font-family: "Montserrat", sans-serif;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 1rem;
+    line-height: 1rem;
+    color: rgb(248, 250, 255);
+    position: relative;
+    transform: translateY(4px);
+  }
+  .header-menu__link:after {
+    display: block;
+    content: "";
+    border-bottom: solid 2px rgb(248, 250, 255);
+    transform: scaleX(0) translateY(4px);
+    transition: transform 250ms ease-in-out;
+  }
+  .login__link {
+    display: flex;
+    align-items: center;
+    font-family: "Montserrat", sans-serif;
+    font-style: normal;
+    font-weight: 600;
+    font-size: 1.2rem;
+    line-height: 1.2rem;
+    color: rgb(241, 243, 248);
+  }
 }
 </style>

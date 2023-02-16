@@ -13,7 +13,11 @@ class FileCreate(FileBase):
     file_path: str
 
 class FileFind(FileBase):
-    file_name: Optional[str] = None
+    file_name: str
+
+class FolderFind(FileBase):
+    folder_name: str
+
 class FileDelete(FileBase):
     file_name: str
 
