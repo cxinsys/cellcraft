@@ -13,7 +13,8 @@
           class="folder__item"
           v-for="(folder, idx) in folders_list"
           :key="idx"
-          @click="folderClick(idx)"
+          v-bind:class="{ toggleFolder: toggleFolder === idx }"
+          @click="folderClick(idx, folder[0])"
         >
           <div class="folder__item--col">
             <img
@@ -37,7 +38,6 @@
               v-else
             />
           </div>
-
           <p class="folder__name">{{ folder[0] }}</p>
         </li>
       </ul>
@@ -45,7 +45,7 @@
     <main class="files">
       <div class="files__header">
         <div class="header__column left">
-          <p class="files__folder">User > Data</p>
+          <p class="files__folder">{{ currentFolder }}</p>
         </div>
         <input
           class="files__search"
@@ -59,7 +59,13 @@
               class="files__button--icon"
               src="@/assets/upload-file-black.png"
             />
-            <input class="files__input" type="file" name="file" />
+            <input
+              class="files__input"
+              type="file"
+              name="file"
+              ref="selectFile"
+              @change.prevent="uploadFile"
+            />
           </label>
           <button class="files__button">
             <img class="files__button--icon" src="@/assets/delete.png" />
@@ -111,9 +117,16 @@
 </template>
 
 <script>
-import { getFiles } from "@/api/index";
+import { uploadForm, getFiles, findFolder } from "@/api/index";
 
 export default {
+  props: {
+    doUploadFile: {
+      type: String,
+      default: "",
+    },
+  },
+
   data() {
     return {
       folders_list: [],
@@ -121,6 +134,10 @@ export default {
       R_Mouse_isActive: false,
       Clickout_isActive: false,
       toggleFolder: null,
+      currentFolder: "data",
+      xPosition: 0,
+      yPosition: 0,
+      selectFile: null,
     };
   },
 
@@ -134,20 +151,53 @@ export default {
     ClickOut() {
       this.R_Mouse_isActive = false;
     },
-    folderClick(idx) {
+    folderClick(idx, folderName) {
       if (idx === this.toggleFolder) {
         this.toggleFolder = null;
       } else {
         this.toggleFolder = idx;
       }
+      this.currentFolder = folderName;
+    },
+    async uploadFile() {
+      if (this.$refs.selectFile.files.length > 0) {
+        this.selectFile = new File(
+          [this.$refs.selectFile.files[0]],
+          `${this.currentFolder}_${this.$refs.selectFile.files[0].name}`
+        );
+        try {
+          const form = new FormData();
+          form.append("files", this.selectFile);
+          const response = await uploadForm(form);
+          console.log(response);
+          const folderList = await findFolder({
+            folder_name: this.currentFolder,
+          });
+          console.log(folderList.data);
+          this.files_list = folderList.data;
+        } catch (error) {
+          console.error(error);
+        }
+      }
     },
   },
 
   async mounted() {
-    const fileList = await getFiles();
-    console.log(fileList.data);
-    this.folders_list = fileList.data[0];
-    this.files_list = fileList.data[1];
+    if (this.$route.query.doUploadFile) {
+      this.$refs.selectFile.click();
+    }
+    try {
+      const fileList = await getFiles();
+      console.log(fileList.data);
+      this.folders_list = fileList.data;
+      const folderList = await findFolder({
+        folder_name: this.currentFolder,
+      });
+      console.log(folderList.data);
+      this.files_list = folderList.data;
+    } catch (error) {
+      console.error(error);
+    }
   },
   filters: {
     formatBytes(a, b) {
@@ -221,6 +271,13 @@ export default {
   width: 100%;
   height: 5%;
   display: flex;
+  cursor: pointer;
+}
+.folder__item:hover {
+  background: rgb(204, 218, 245);
+}
+.toggleFolder {
+  background: rgb(204, 218, 245);
 }
 .folder__item--col {
   width: 5rem;
