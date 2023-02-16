@@ -218,6 +218,7 @@ export default {
         this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
         this.areNum = this.lines[0].map((x) => !isNaN(x));
 
+        console.log(this.lines, this.keys);
         this.numList = [{ name: "None", value: null }];
         for (let i = 0; i < this.keys.length; i++) {
           if (this.areNum[i] == true) {

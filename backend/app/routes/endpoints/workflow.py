@@ -81,7 +81,3 @@ def checkResult(filename: WorkflowResult, current_user: models.User = Depends(de
     # else:
     #     return FileResponse(FILE_PATH)
     return FileResponse(FILE_PATH)
-
-     # 차후 개발 방향
-    # workflow DB에서 가장 최근에 생성된 Column 가져옴
-    # 노드 정보들을 통해 file_list 안에 해당 노드 결과들이 생성되었는지 파악
