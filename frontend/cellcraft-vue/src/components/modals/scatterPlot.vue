@@ -1,7 +1,7 @@
 <template>
   <div id="layout">
     <div class="plotly-layout">
-      <div id="plotly__chart"></div>
+      <div id="plotly__scatter"></div>
     </div>
     <div class="options-layout">
       <input
@@ -98,7 +98,7 @@ export default {
     };
   },
   mounted() {
-    Plotly.newPlot("plotly__chart", {
+    Plotly.newPlot("plotly__scatter", {
       data: [{ type: this.chartType }],
       layout: {
         autosize: true,
@@ -144,14 +144,14 @@ export default {
             clusterList.indexOf(this.lines[i][this.selectedCluster])
           ].text.push(this.lines[i][this.selectedName]);
         }
-        Plotly.newPlot("plotly__chart", {
+        Plotly.newPlot("plotly__scatter", {
           data: traces,
           layout: {
             title: this.chartTitle,
           },
         });
       } else {
-        Plotly.newPlot("plotly__chart", {
+        Plotly.newPlot("plotly__scatter", {
           data: [
             {
               x: this.lines.map((x) => x[this.selectedX]),
@@ -255,7 +255,7 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 #layout {
   width: 100%;
   height: 100%;
@@ -288,27 +288,17 @@ export default {
 }
 .options__item {
   /* margin: auto; */
-  color: aqua;
+  color: black;
   /* padding: 2% 0; */
   margin: 2%;
 }
 
 @media (prefers-color-scheme: dark) {
   .plotly-layout {
-    width: 75%;
-    height: 95%;
-    /* background-color: blue; */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    padding: 1rem;
-    border-radius: 1rem;
-    box-sizing: border-box;
     background-color: rgb(41, 43, 48);
   }
   .options__item {
-    color: rgb(255, 255, 255);
+    /* color: rgb(255, 255, 255); */
   }
 }
 </style>
