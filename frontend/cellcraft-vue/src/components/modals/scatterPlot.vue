@@ -201,19 +201,44 @@ export default {
       // console.log(current_node);
       // console.log(this.current_file.file);
       if (current_node.name === "scatterPlot") {
-        const filename = {
-          filename: `${current_node.name}_${this.current_file.replace(
-            ".csv",
-            ""
-          )}`,
+        // const filename = {
+        //   filename: `${current_node.name}_${this.current_file.replace(
+        //     ".csv",
+        //     ""
+        //   )}`,
+        // };
+        // adata.obs 받아오기
+        const filename_obs = {
+          filename: `file_${this.current_file.replace(".h5ad", "")}_obs`,
         };
-        console.log(filename);
-        const dataTableResult = await getResult(filename);
+        console.log(filename_obs);
+        const scatterResult_obs = await getResult(filename_obs);
+        // adta.var 받아오기
+        const filename_var = {
+          filename: `file_${this.current_file.replace(".h5ad", "")}_var`,
+        };
+        console.log(filename_var);
+        const scatterResult_var = await getResult(filename_var);
+        // adata.X 받아오기
+        const filename_X = {
+          filename: `file_${this.current_file.replace(".h5ad", "")}_X`,
+        };
+        console.log(filename_X);
+        const scatterResult_X = await getResult(filename_X);
+
+        // 받아온 데이터 출력
+        console.log(
+          scatterResult_obs.data,
+          scatterResult_var.data,
+          scatterResult_X.data
+        );
 
         //백엔드에서 넘겨준 plot 데이터
-        // dataTableResult.data;
+        // scatterResult.data;
         // lines, keys, areNum 업데이트
-        this.lines = dataTableResult.data.split("\n").map((x) => x.split(","));
+
+        // 잠깐 주석 처리
+        // this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
         this.keys = this.lines.splice(0, 1)[0];
         this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
         this.areNum = this.lines[0].map((x) => !isNaN(x));
