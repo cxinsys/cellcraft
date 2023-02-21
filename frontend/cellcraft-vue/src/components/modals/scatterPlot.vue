@@ -213,25 +213,14 @@ export default {
         };
         console.log(filename_obs);
         const scatterResult_obs = await getResult(filename_obs);
-        // adta.var 받아오기
-        const filename_var = {
-          filename: `file_${this.current_file.replace(".h5ad", "")}_var`,
+        // adta.obsm['X_umap'] 받아오기
+        const filename_obsm = {
+          filename: `file_${this.current_file.replace(".h5ad", "")}_obsm`,
         };
-        console.log(filename_var);
-        const scatterResult_var = await getResult(filename_var);
-        // adata.X 받아오기
-        const filename_X = {
-          filename: `file_${this.current_file.replace(".h5ad", "")}_X`,
-        };
-        console.log(filename_X);
-        const scatterResult_X = await getResult(filename_X);
-
+        console.log(filename_obsm);
+        const scatterResult_obsm = await getResult(filename_obsm);
         // 받아온 데이터 출력
-        console.log(
-          scatterResult_obs.data,
-          scatterResult_var.data,
-          scatterResult_X.data
-        );
+        console.log(scatterResult_obs.data, scatterResult_obsm.data);
 
         //백엔드에서 넘겨준 plot 데이터
         // scatterResult.data;
