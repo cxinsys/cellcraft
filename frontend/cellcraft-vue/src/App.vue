@@ -73,7 +73,7 @@ export default {
         this.loginPage = false;
         this.workflowPage = true;
         this.filesPage = false;
-      } else if (to.path === "/files") {
+      } else if (to.path === "/files" || to.path === "/projects") {
         this.mainPage = false;
         this.loginPage = false;
         this.workflowPage = false;

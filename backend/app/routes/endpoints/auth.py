@@ -67,10 +67,10 @@ def login_access_token(
     }
 
 #read Current User
-@router.get("/me", response_model=user.User)
+@router.get("/me", response_model=user.UserProfile)
 def read_user_me(
     db: Session = Depends(dep.get_db),
     current_user: models.User = Depends(dep.get_current_active_user),
 ) -> Any:
 
-    return current_user
+    return { "email" : current_user.email, "username" : current_user.username }
