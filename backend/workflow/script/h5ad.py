@@ -5,7 +5,12 @@ import matplotlib.pyplot as plt
 
 adata = sc.read_h5ad(snakemake.input[0]) # 입력받은 h5ad파일
 
+# obs + X_umap
+df = pd.concat([adata.obs, pd.DataFrame(adata.obsm['X_umap'], columns = ['X','Y'], index = adata.obs.index)], axis=1,)
 
-adata.obs.to_csv(snakemake.output[0],index=False)
-adata.obs.to_csv(snakemake.output[1],index=False)
-np.savetxt(snakemake.output[2], adata.obsm['X_umap'], delimiter=",")
+df.to_csv(snakemake.output[0],index=True)
+df.to_csv(snakemake.output[1],index=True)
+
+# adata.obs.to_csv(snakemake.output[0],index=False)
+# adata.obs.to_csv(snakemake.output[1],index=False)
+# np.savetxt(snakemake.output[2], adata.obsm['X_umap'], delimiter=",")

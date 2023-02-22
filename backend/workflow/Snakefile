@@ -3,8 +3,9 @@ rule h5ad:
         "user/{username}/data/{filename}.h5ad"
     output:
         "workflow/data/file_{username}_{filename}.csv",
-        "user/{username}/result/file_{filename}_obs.csv",
-        "user/{username}/result/file_{filename}_obsm.csv"
+        "user/{username}/result/file_{filename}_obs_umap.csv"
+        # "user/{username}/result/file_{filename}_obs.csv",
+        # "user/{username}/result/file_{filename}_obsm.csv"
     script:
         "script/h5ad.py"
 

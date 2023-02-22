@@ -8,10 +8,10 @@
         type="text"
         placeholder="Title"
         class="options__item"
-        @input="searchChangeFunc($event)"
+        @input="titleChangeFunc($event)"
       />
       <div class="options__item">
-        X - axis
+        X - axis&nbsp;
         <select :value="selectedX" @change="setSelectX($event)">
           <option
             v-for="(item, index) in numList"
@@ -23,7 +23,7 @@
         </select>
       </div>
       <div class="options__item">
-        Y - axis
+        Y - axis&nbsp;
         <select :value="selectedY" @change="setSelectY($event)">
           <option
             v-for="(item, index) in numList"
@@ -35,7 +35,7 @@
         </select>
       </div>
       <div class="options__item">
-        Name
+        Name&nbsp;
         <select :value="selectedName" @change="setSelectName($event)">
           <option
             v-for="(item, index) in keyList"
@@ -47,7 +47,7 @@
         </select>
       </div>
       <div class="options__item">
-        Cluster
+        Cluster&nbsp;
         <select :value="selectedCluster" @change="setSelectCluster($event)">
           <option
             v-for="(item, index) in clusterList"
@@ -57,6 +57,12 @@
             {{ item.name }}
           </option>
         </select>
+      </div>
+      <div class="options__item">
+        Plot Size&nbsp;
+        <button v-on:click="markerSizeMinus">-</button>
+        &nbsp;
+        <button v-on:click="markerSizePlus">+</button>
       </div>
     </div>
   </div>
@@ -85,14 +91,9 @@ export default {
       selectedY: null, // 선택된 Y축의 column index
       selectedName: null, // 선택된 Name의 column index
       selectedCluster: null, // 선택된 Cluster의 column index
-      numClusterConstraint: 1000, // Cluster가 너무 다양하면 성능에 저하가 생기므로 제한을 둠
-      markerSize: 1, // 점의 사이즈
-      numList: [
-        { name: "None", value: null },
-        { name: "None", value: 0 }, // ! -- tab을 옮겨갔다와야 업데이트되는 문제를 해결하면 삭제할 라인
-        { name: "None", value: 2 }, // ! -- tab을 옮겨갔다와야 업데이트되는 문제를 해결하면 삭제할 라인
-        { name: "None", value: 3 }, // ! -- tab을 옮겨갔다와야 업데이트되는 문제를 해결하면 삭제할 라인
-      ], // number type으로 x,y축에 들어가기 적합한 자료들의 option list
+      numClusterConstraint: 200, // Cluster가 너무 다양하면 성능에 저하가 생기므로 제한을 둠
+      markerSize: 2, // 점의 사이즈
+      numList: [{ name: "None", value: null }], // number type으로 x,y축에 들어가기 적합한 자료들의 option list
       keyList: [{ name: "None", value: null }], // key list
       clusterList: [{ name: "None", value: null }], // cluster가 되기 적합한 list, unique한 자료수가 적은 column의 list
     };
@@ -117,7 +118,6 @@ export default {
         const clusterList = [
           ...new Set(this.lines.map((x) => x[this.selectedCluster])),
         ];
-
         var traces = [];
         // cluster 개수만큼 traces 생성
         for (let i = 0; i < clusterList.length; i++) {
@@ -131,7 +131,6 @@ export default {
             marker: { size: this.markerSize },
           });
         }
-
         // lines를 순회하며 cluster에 맞는 traces에 x,y,text 값을 기입
         for (let i = 0; i < this.lines.length; i++) {
           traces[
@@ -184,9 +183,21 @@ export default {
       this.selectedCluster = event.target.value;
       this.updateChart();
     },
-    searchChangeFunc(event) {
+    titleChangeFunc(event) {
       this.chartTitle = event.target.value;
       this.updateChart();
+    },
+    markerSizeMinus() {
+      if (this.markerSize > 1) {
+        this.markerSize--;
+        this.updateChart();
+      }
+    },
+    markerSizePlus() {
+      if (this.markerSize < 21) {
+        this.markerSize++;
+        this.updateChart();
+      }
     },
   },
   computed: {
@@ -207,20 +218,28 @@ export default {
         //     ""
         //   )}`,
         // };
-        // adata.obs 받아오기
-        const filename_obs = {
-          filename: `file_${this.current_file.replace(".h5ad", "")}_obs`,
+        // // adata.obs 받아오기
+        // const filename_obs = {
+        //   filename: `file_${this.current_file.replace(".h5ad", "")}_obs`,
+        // };
+        // console.log(filename_obs);
+        // const scatterResult_obs = await getResult(filename_obs);
+        // // adta.obsm['X_umap'] 받아오기
+        // const filename_obsm = {
+        //   filename: `file_${this.current_file.replace(".h5ad", "")}_obsm`,
+        // };
+        // console.log(filename_obsm);
+        // const scatterResult_obsm = await getResult(filename_obsm);
+        // // 받아온 데이터 출력
+        // console.log(scatterResult_obs.data);
+        // console.log(scatterResult_obsm.data);
+
+        // obs + X_umap 가져오기
+        const filename_obs_umap = {
+          filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
         };
-        console.log(filename_obs);
-        const scatterResult_obs = await getResult(filename_obs);
-        // adta.obsm['X_umap'] 받아오기
-        const filename_obsm = {
-          filename: `file_${this.current_file.replace(".h5ad", "")}_obsm`,
-        };
-        console.log(filename_obsm);
-        const scatterResult_obsm = await getResult(filename_obsm);
-        // 받아온 데이터 출력
-        console.log(scatterResult_obs.data, scatterResult_obsm.data);
+        console.log(filename_obs_umap);
+        const scatterResult = await getResult(filename_obs_umap);
 
         //백엔드에서 넘겨준 plot 데이터
         // scatterResult.data;
@@ -228,11 +247,14 @@ export default {
 
         // 잠깐 주석 처리
         // this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
+
+        // this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
+        this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
         this.keys = this.lines.splice(0, 1)[0];
         this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
         this.areNum = this.lines[0].map((x) => !isNaN(x));
 
-        console.log(this.lines, this.keys);
+        console.log("lines and keys", this.lines, this.keys);
         this.numList = [{ name: "None", value: null }];
         for (let i = 0; i < this.keys.length; i++) {
           if (this.areNum[i] == true) {
@@ -253,13 +275,19 @@ export default {
           }
         }
 
-        // 초기 x,y축 세팅하기
-        if (this.numList.length == 3) {
-          this.selectedX = this.numList[2].value;
-          this.selectedY = this.numList[2].value;
-        } else if (this.numList.length > 3) {
-          this.selectedX = this.numList[2].value;
-          this.selectedY = this.numList[3].value;
+        // // 초기 x,y축 세팅하기
+        // if (this.numList.length == 3) {
+        //   this.selectedX = this.numList[2].value;
+        //   this.selectedY = this.numList[2].value;
+        // } else if (this.numList.length > 3) {
+        //   this.selectedX = this.numList[2].value;
+        //   this.selectedY = this.numList[3].value;
+        // }
+        if (this.keys.indexOf("X") != -1) {
+          this.selectedX = this.keys.indexOf("X");
+        }
+        if (this.keys.indexOf("Y") != -1) {
+          this.selectedY = this.keys.indexOf("Y");
         }
 
         this.updateChart();
@@ -311,8 +339,8 @@ export default {
   .plotly-layout {
     background-color: rgb(41, 43, 48);
   }
-  .options__item {
-    /* color: rgb(255, 255, 255); */
-  }
+  /* .options__item {
+    color: rgb(255, 255, 255);
+  } */
 }
 </style>
