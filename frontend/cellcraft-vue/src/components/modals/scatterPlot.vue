@@ -77,7 +77,7 @@
         <button v-on:click="switchShowZeroLine">ON / OFF</button>
       </div>
       <div class="options__item">
-        Show Label&nbsp;
+        Show Axes Label&nbsp;
         <button v-on:click="switchShowLabel">ON / OFF</button>
       </div>
     </div>
