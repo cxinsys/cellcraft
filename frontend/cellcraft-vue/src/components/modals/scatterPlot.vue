@@ -59,10 +59,29 @@
         </select>
       </div>
       <div class="options__item">
+        Contrast&nbsp;
+        <button v-on:click="clusterContrastMinus">-</button>
+        &nbsp;
+        <button v-on:click="clusterContrastPlus">+</button>
+        &nbsp;
+        <button v-on:click="clusterContrastReset">reset</button>
+      </div>
+      <div class="options__item">
+        Quantile&nbsp;
+        <button v-on:click="clusterQuantileMinus">-</button>
+        &nbsp;
+        <button v-on:click="clusterQuantilePlus">+</button>
+        &nbsp;
+        <button v-on:click="clusterQuantileReset">reset</button>
+      </div>
+
+      <div class="options__item">
         Marker Size&nbsp;
         <button v-on:click="markerSizeMinus">-</button>
         &nbsp;
         <button v-on:click="markerSizePlus">+</button>
+        &nbsp;
+        <button v-on:click="markerSizeReset">reset</button>
       </div>
       <div class="options__item">
         Show Grid&nbsp;
@@ -108,6 +127,8 @@ export default {
       selectedName: null, // 선택된 Name의 column index
       selectedCluster: null, // 선택된 Cluster의 column index
       numClusterConstraint: 200, // Cluster가 너무 다양하면 성능에 저하가 생기므로 제한을 둠
+      clusterQuantile: 0,
+      clusterContrast: 1,
       markerSize: 2, // 점의 사이즈
       showGrid: true,
       showZeroLine: true,
@@ -135,7 +156,6 @@ export default {
     // 차트 업데이트
     updateChart() {
       if (this.selectedCluster) {
-        console.log(this.clusterList[this.selectedCluster].isTooVarious);
         if (this.clusterList[this.selectedCluster].isTooVarious == false) {
           const clusterList = [
             ...new Set(this.lines.map((x) => x[this.selectedCluster])),
@@ -169,6 +189,8 @@ export default {
             data: traces,
             layout: {
               title: this.chartTitle,
+              width: 600, // !--조정필요
+              height: 570, // !--조정필요
               xaxis: {
                 showgrid: this.showGrid,
                 showticklabels: this.showLabel,
@@ -184,7 +206,15 @@ export default {
             },
           });
         } else {
-          console.log([this.lines.map((x) => x[this.selectedCluster])]);
+          console.log(this.clusterQuantile);
+          console.log(this.clusterContrast);
+          console.log(
+            this.lines.map(
+              (x) =>
+                x[this.selectedCluster] * this.clusterContrast +
+                this.clusterQuantile
+            )
+          );
           Plotly.newPlot("plotly__scatter", {
             data: [
               {
@@ -195,12 +225,18 @@ export default {
                 mode: this.chartMode,
                 marker: {
                   size: this.markerSize,
-                  color: this.lines.map((x) => x[this.selectedCluster]),
+                  color: this.lines.map(
+                    (x) =>
+                      x[this.selectedCluster] * this.clusterContrast +
+                      this.clusterQuantile
+                  ),
                 },
               },
             ],
             layout: {
               title: this.chartTitle,
+              width: 600, // !--조정필요
+              height: 570, // !--조정필요
               xaxis: {
                 showgrid: this.showGrid,
                 showticklabels: this.showLabel,
@@ -230,6 +266,8 @@ export default {
           ],
           layout: {
             title: this.chartTitle,
+            width: 600, // !--조정필요
+            height: 570, // !--조정필요
             xaxis: {
               showgrid: this.showGrid,
               showticklabels: this.showLabel,
@@ -266,6 +304,33 @@ export default {
       this.chartTitle = event.target.value;
       this.updateChart();
     },
+    clusterQuantileMinus() {
+      this.clusterQuantile--;
+      this.updateChart();
+    },
+
+    clusterQuantilePlus() {
+      this.clusterQuantile++;
+      this.updateChart();
+    },
+    clusterQuantileReset() {
+      this.clusterQuantile = 0;
+      this.updateChart();
+    },
+    clusterContrastMinus() {
+      if (this.clusterContrast > 0) {
+        this.clusterContrast--;
+        this.updateChart();
+      }
+    },
+    clusterContrastPlus() {
+      this.clusterContrast++;
+      this.updateChart();
+    },
+    clusterContrastReset() {
+      this.clusterContrast = 1;
+      this.updateChart();
+    },
     markerSizeMinus() {
       if (this.markerSize > 1) {
         this.markerSize--;
@@ -277,6 +342,10 @@ export default {
         this.markerSize++;
         this.updateChart();
       }
+    },
+    markerSizeReset() {
+      this.markerSize = 2;
+      this.updateChart();
     },
     switchShowGrid() {
       this.showGrid = !this.showGrid;
@@ -349,7 +418,6 @@ export default {
         this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
         this.areNum = this.lines[0].map((x) => !isNaN(x));
 
-        console.log("lines and keys", this.lines, this.keys);
         this.numList = [{ name: "None", value: null }];
         for (let i = 0; i < this.keys.length; i++) {
           if (this.areNum[i] == true) {
