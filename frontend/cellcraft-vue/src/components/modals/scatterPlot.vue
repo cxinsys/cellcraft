@@ -59,10 +59,26 @@
         </select>
       </div>
       <div class="options__item">
-        Size&nbsp;
+        Marker Size&nbsp;
         <button v-on:click="markerSizeMinus">-</button>
         &nbsp;
         <button v-on:click="markerSizePlus">+</button>
+      </div>
+      <div class="options__item">
+        Show Grid&nbsp;
+        <button v-on:click="switchShowGrid">ON / OFF</button>
+      </div>
+      <div class="options__item">
+        Show Line&nbsp;
+        <button v-on:click="switchShowLine">ON / OFF</button>
+      </div>
+      <div class="options__item">
+        Show Zero Line&nbsp;
+        <button v-on:click="switchShowZeroLine">ON / OFF</button>
+      </div>
+      <div class="options__item">
+        Show Label&nbsp;
+        <button v-on:click="switchShowLabel">ON / OFF</button>
       </div>
     </div>
   </div>
@@ -93,6 +109,10 @@ export default {
       selectedCluster: null, // 선택된 Cluster의 column index
       numClusterConstraint: 200, // Cluster가 너무 다양하면 성능에 저하가 생기므로 제한을 둠
       markerSize: 2, // 점의 사이즈
+      showGrid: true,
+      showZeroLine: true,
+      showLine: false,
+      showLabel: true,
       numList: [{ name: "None", value: null }], // number type으로 x,y축에 들어가기 적합한 자료들의 option list
       keyList: [{ name: "None", value: null }], // key list
       clusterList: [{ name: "None", value: null, isTooVarious: null }], // cluster가 되기 적합한 list, unique한 자료수가 적은 column의 list
@@ -149,6 +169,18 @@ export default {
             data: traces,
             layout: {
               title: this.chartTitle,
+              xaxis: {
+                showgrid: this.showGrid,
+                showticklabels: this.showLabel,
+                zeroline: this.showZeroLine,
+                showline: this.showLine,
+              },
+              yaxis: {
+                showgrid: this.showGrid,
+                showticklabels: this.showLabel,
+                zeroline: this.showZeroLine,
+                showline: this.showLine,
+              },
             },
           });
         } else {
@@ -169,6 +201,18 @@ export default {
             ],
             layout: {
               title: this.chartTitle,
+              xaxis: {
+                showgrid: this.showGrid,
+                showticklabels: this.showLabel,
+                zeroline: this.showZeroLine,
+                showline: this.showLine,
+              },
+              yaxis: {
+                showgrid: this.showGrid,
+                showticklabels: this.showLabel,
+                zeroline: this.showZeroLine,
+                showline: this.showLine,
+              },
             },
           });
         }
@@ -186,6 +230,18 @@ export default {
           ],
           layout: {
             title: this.chartTitle,
+            xaxis: {
+              showgrid: this.showGrid,
+              showticklabels: this.showLabel,
+              zeroline: this.showZeroLine,
+              showline: this.showLine,
+            },
+            yaxis: {
+              showgrid: this.showGrid,
+              showticklabels: this.showLabel,
+              zeroline: this.showZeroLine,
+              showline: this.showLine,
+            },
           },
         });
       }
@@ -221,6 +277,22 @@ export default {
         this.markerSize++;
         this.updateChart();
       }
+    },
+    switchShowGrid() {
+      this.showGrid = !this.showGrid;
+      this.updateChart();
+    },
+    switchShowZeroLine() {
+      this.showZeroLine = !this.showZeroLine;
+      this.updateChart();
+    },
+    switchShowLine() {
+      this.showLine = !this.showLine;
+      this.updateChart();
+    },
+    switchShowLabel() {
+      this.showLabel = !this.showLabel;
+      this.updateChart();
     },
   },
   computed: {
@@ -340,7 +412,7 @@ export default {
   flex-direction: row;
 }
 .plotly-layout {
-  width: 75%;
+  width: 70%;
   height: 95%;
   /* background-color: blue; */
   display: flex;
@@ -348,6 +420,7 @@ export default {
   justify-content: center;
   flex-direction: column;
   padding: 1rem;
+  margin: 2.5%;
   border-radius: 1rem;
   box-sizing: border-box;
   background-color: rgb(255, 255, 255);
@@ -375,9 +448,9 @@ export default {
 }
 
 @media (prefers-color-scheme: dark) {
-  .plotly-layout {
+  /* .plotly-layout {
     background-color: rgb(41, 43, 48);
-  }
+  } */
   .options__item {
     color: rgb(255, 255, 255);
   }
