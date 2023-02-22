@@ -7,7 +7,7 @@
       <input
         type="text"
         placeholder="Title"
-        class="options__item"
+        class="options__textInput"
         @input="titleChangeFunc($event)"
       />
       <div class="options__item">
@@ -59,7 +59,7 @@
         </select>
       </div>
       <div class="options__item">
-        Plot Size&nbsp;
+        Size&nbsp;
         <button v-on:click="markerSizeMinus">-</button>
         &nbsp;
         <button v-on:click="markerSizePlus">+</button>
@@ -95,7 +95,7 @@ export default {
       markerSize: 2, // 점의 사이즈
       numList: [{ name: "None", value: null }], // number type으로 x,y축에 들어가기 적합한 자료들의 option list
       keyList: [{ name: "None", value: null }], // key list
-      clusterList: [{ name: "None", value: null }], // cluster가 되기 적합한 list, unique한 자료수가 적은 column의 list
+      clusterList: [{ name: "None", value: null, isTooVarious: null }], // cluster가 되기 적합한 list, unique한 자료수가 적은 column의 list
     };
   },
   mounted() {
@@ -115,40 +115,63 @@ export default {
     // 차트 업데이트
     updateChart() {
       if (this.selectedCluster) {
-        const clusterList = [
-          ...new Set(this.lines.map((x) => x[this.selectedCluster])),
-        ];
-        var traces = [];
-        // cluster 개수만큼 traces 생성
-        for (let i = 0; i < clusterList.length; i++) {
-          traces.push({
-            x: [],
-            y: [],
-            text: [],
-            name: clusterList[i] ?? "Undefined",
-            type: this.chartType,
-            mode: this.chartMode,
-            marker: { size: this.markerSize },
+        console.log(this.clusterList[this.selectedCluster].isTooVarious);
+        if (this.clusterList[this.selectedCluster].isTooVarious == false) {
+          const clusterList = [
+            ...new Set(this.lines.map((x) => x[this.selectedCluster])),
+          ];
+          var traces = [];
+          // cluster 개수만큼 traces 생성
+          for (let i = 0; i < clusterList.length; i++) {
+            traces.push({
+              x: [],
+              y: [],
+              text: [],
+              name: clusterList[i] ?? "Undefined",
+              type: this.chartType,
+              mode: this.chartMode,
+              marker: { size: this.markerSize },
+            });
+          }
+          // lines를 순회하며 cluster에 맞는 traces에 x,y,text 값을 기입
+          for (let i = 0; i < this.lines.length; i++) {
+            traces[
+              clusterList.indexOf(this.lines[i][this.selectedCluster])
+            ].x.push(this.lines[i][this.selectedX]);
+            traces[
+              clusterList.indexOf(this.lines[i][this.selectedCluster])
+            ].y.push(this.lines[i][this.selectedY]);
+            traces[
+              clusterList.indexOf(this.lines[i][this.selectedCluster])
+            ].text.push(this.lines[i][this.selectedName]);
+          }
+          Plotly.newPlot("plotly__scatter", {
+            data: traces,
+            layout: {
+              title: this.chartTitle,
+            },
+          });
+        } else {
+          console.log([this.lines.map((x) => x[this.selectedCluster])]);
+          Plotly.newPlot("plotly__scatter", {
+            data: [
+              {
+                x: this.lines.map((x) => x[this.selectedX]),
+                y: this.lines.map((x) => x[this.selectedY]),
+                text: this.lines.map((x) => x[this.selectedName]),
+                type: this.chartType,
+                mode: this.chartMode,
+                marker: {
+                  size: this.markerSize,
+                  color: this.lines.map((x) => x[this.selectedCluster]),
+                },
+              },
+            ],
+            layout: {
+              title: this.chartTitle,
+            },
           });
         }
-        // lines를 순회하며 cluster에 맞는 traces에 x,y,text 값을 기입
-        for (let i = 0; i < this.lines.length; i++) {
-          traces[
-            clusterList.indexOf(this.lines[i][this.selectedCluster])
-          ].x.push(this.lines[i][this.selectedX]);
-          traces[
-            clusterList.indexOf(this.lines[i][this.selectedCluster])
-          ].y.push(this.lines[i][this.selectedY]);
-          traces[
-            clusterList.indexOf(this.lines[i][this.selectedCluster])
-          ].text.push(this.lines[i][this.selectedName]);
-        }
-        Plotly.newPlot("plotly__scatter", {
-          data: traces,
-          layout: {
-            title: this.chartTitle,
-          },
-        });
       } else {
         Plotly.newPlot("plotly__scatter", {
           data: [
@@ -267,11 +290,21 @@ export default {
           this.keyList.push({ name: this.keys[i], value: i });
         }
 
-        this.clusterList = [{ name: "None", value: null }];
-        for (let i = 0; i < this.keys.length; i++) {
+        this.clusterList = [{ name: "None", value: null, isTooVarious: null }];
+        for (let i = 1; i < this.keys.length; i++) {
           const countUnique = new Set(this.lines.map((x) => x[i])).size;
           if (countUnique < this.numClusterConstraint) {
-            this.clusterList.push({ name: this.keys[i], value: i });
+            this.clusterList.push({
+              name: this.keys[i],
+              value: i,
+              isTooVarious: false,
+            });
+          } else {
+            this.clusterList.push({
+              name: this.keys[i],
+              value: i,
+              isTooVarious: true,
+            });
           }
         }
 
@@ -322,11 +355,17 @@ export default {
 .options-layout {
   width: 25%;
   height: 95%;
+  padding-right: 1%;
   /* background-color: red; */
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   flex-direction: column;
+}
+.options__textInput {
+  color: black;
+  /* padding: 2% 0; */
+  margin: 2%;
 }
 .options__item {
   /* margin: auto; */
@@ -339,8 +378,8 @@ export default {
   .plotly-layout {
     background-color: rgb(41, 43, 48);
   }
-  /* .options__item {
+  .options__item {
     color: rgb(255, 255, 255);
-  } */
+  }
 }
 </style>
