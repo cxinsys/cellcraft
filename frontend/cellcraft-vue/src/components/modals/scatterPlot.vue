@@ -125,7 +125,7 @@ export default {
         autosize: true,
         automargin: true,
         width: 600, // !--조정필요
-        height: 500, // !--조정필요
+        height: 570, // !--조정필요
         // paper_bgcolor: rgb(255, 1, 255),
         // plot_bgcolor: rgb(1, 255, 255),
       },
