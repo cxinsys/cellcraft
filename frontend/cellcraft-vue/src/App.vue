@@ -56,8 +56,13 @@ export default {
     };
   },
   watch: {
-    $route(to) {
-      console.log(to.path);
+    $route(to, from) {
+      console.log(to.path, from.path);
+      if (from.path === "/workflow") {
+        this.$store.commit("clearNodes");
+        this.$store.commit("clearLinkedNodes");
+      }
+
       if (to.path === "/main") {
         this.mainPage = true;
         this.loginPage = false;
@@ -73,7 +78,7 @@ export default {
         this.loginPage = false;
         this.workflowPage = true;
         this.filesPage = false;
-      } else if (to.path === "/files") {
+      } else if (to.path === "/files" || to.path === "/projects") {
         this.mainPage = false;
         this.loginPage = false;
         this.workflowPage = false;

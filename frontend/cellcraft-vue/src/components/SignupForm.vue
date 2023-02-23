@@ -59,10 +59,8 @@
 <script>
 import { registerUser } from "@/api/index";
 import { validateEmail } from "@/utils/validation";
-// import Alert from "@/components/alert";
 
 export default {
-  // components: { Alert },
   data() {
     return {
       email: "",
@@ -101,9 +99,6 @@ export default {
       this.password = "";
       this.username = "";
       this.re_password = "";
-    },
-    async successSignup() {
-      this.$router.push("/main");
     },
   },
 };

@@ -14,6 +14,9 @@ class UserCreate(UserBase):
     password: str
     username: Optional[str] = None
 
+class UserProfile(UserBase):
+    email: EmailStr
+    username: str
 
 class User(UserBase):
     id: Optional[int] = None

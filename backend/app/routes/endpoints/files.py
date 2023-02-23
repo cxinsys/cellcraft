@@ -31,10 +31,6 @@ async def fileUpload(
         folder_file = item_file.filename.split('_')
         with open(os.path.join(UPLOAD_DIRECTORY, folder_file[1]), "wb") as f:
             f.write(contents)
-        #file 있는지 여부 검증
-        #file 있으면 에러
-        #file create
-        #upload to DB
         user_file = crud_file.get_user_file(db, current_user.id, folder_file[1])
         if user_file:
             raise HTTPException(
@@ -42,7 +38,7 @@ async def fileUpload(
                 detail="this file already exists in your files",
                 )
         print(len(contents))
-        create_file = await crud_file.create_file(db, folder_file[1], len(contents), UPLOAD_DIRECTORY, folder_file[0], current_user.id)
+        create_file = crud_file.create_file(db, folder_file[1], len(contents), UPLOAD_DIRECTORY, folder_file[0], current_user.id)
         
     return create_file
 

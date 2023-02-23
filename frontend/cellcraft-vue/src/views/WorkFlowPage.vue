@@ -88,9 +88,8 @@ import dataTableModal from "@/components/modals/datatable.vue";
 import fileuploadModal from "@/components/modals/fileupload.vue";
 import scatterPlotModal from "@/components/modals/scatterPlot.vue";
 import heatMapModal from "@/components/modals/heatMap.vue";
-
-import { exportData, getCheckCompile } from "@/api/index";
 import Fileupload from "../components/modals/fileupload.vue";
+import { exportData, findWorkflow } from "@/api/index";
 
 export default {
   components: {
@@ -161,9 +160,10 @@ export default {
       currentTab: 0,
     };
   },
-  mounted() {
+  async mounted() {
     const id = document.getElementById("drawflow");
     Vue.prototype.$df = new Drawflow(id, Vue, this);
+    //this.$df == editor
     this.$df.start();
 
     //노드 등록 (2번)
@@ -176,57 +176,6 @@ export default {
     this.$df.curvature = 0.5;
     this.$df.reroute_curvature_start_end = 0;
     this.$df.reroute_curvature = 0;
-    //노드 연결선 화살표 추가
-    // this.$df.createCurvature = function(start_pos_x, start_pos_y, end_pos_x, end_pos_y, curvature_value, type) {
-    //   var line_x = start_pos_x;
-    //   var line_y = start_pos_y;
-    //   var x = end_pos_x;
-    //   var y = end_pos_y;
-    //   var curvature = curvature_value;
-
-    //   //type openclose open close other
-    //   switch (type) {
-    //     case 'open':
-    //       if(start_pos_x >= end_pos_x) {
-    //         var hx1 = line_x + Math.abs(x - line_x) * curvature;
-    //         var hx2 = x - Math.abs(x - line_x) * (curvature*-1);
-    //       } else {
-    //         var hx1 = line_x + Math.abs(x - line_x) * curvature;
-    //         var hx2 = x - Math.abs(x - line_x) * curvature;
-    //       }
-    //       return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y;
-
-    //       break
-    //     case 'close':
-    //       if(start_pos_x >= end_pos_x) {
-    //         var hx1 = line_x + Math.abs(x - line_x) * (curvature*-1);
-    //         var hx2 = x - Math.abs(x - line_x) * curvature;
-    //       } else {
-    //         var hx1 = line_x + Math.abs(x - line_x) * curvature;
-    //         var hx2 = x - Math.abs(x - line_x) * curvature;
-    //       }                                                                                                                  //M0 75H10L5 80L0 75Z
-    //       return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-5)+'  L'+(x-20)+' '+ (y+5)+' Z' +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-3)+'  L'+(x-20)+' '+ (y+3)+' Z' +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-1)+'  L'+(x-20)+' '+ (y+1)+' Z';
-    //       // return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-5)+'  L'+(x-20)+' '+ (y+5)+'Z';
-    //       break;
-    //     case 'other':
-    //       if(start_pos_x >= end_pos_x) {
-    //         var hx1 = line_x + Math.abs(x - line_x) * (curvature*-1);
-    //         var hx2 = x - Math.abs(x - line_x) * (curvature*-1);
-    //       } else {
-    //         var hx1 = line_x + Math.abs(x - line_x) * curvature;
-    //         var hx2 = x - Math.abs(x - line_x) * curvature;
-    //       }
-    //       return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y;
-    //       break;
-    //     default:
-
-    //       var hx1 = line_x + Math.abs(x - line_x) * curvature;
-    //       var hx2 = x - Math.abs(x - line_x) * curvature;
-
-    //       //return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y;
-    //       return ' M '+ line_x +' '+ line_y +' C '+ hx1 +' '+ line_y +' '+ hx2 +' ' + y +' ' + x +'  ' + y +' M '+ (x-11)  + ' ' + y + ' L'+(x-20)+' '+ (y-5)+'  L'+(x-20)+' '+ (y+5)+'Z';
-    //   }
-    // }
     this.$df.on("nodeCreated", (ev) => {
       const node = this.$df.getNodeFromId(ev);
       this.tabList.push({
@@ -327,6 +276,15 @@ export default {
         });
       }
     });
+
+    const workflowInfo = {
+      id: this.$route.query.id,
+    };
+    const workflow_data = await findWorkflow(workflowInfo);
+    console.log(workflow_data.data);
+    this.$df.import(workflow_data.data.workflow_info);
+    this.$store.commit("setNodes", workflow_data.data.nodes);
+    this.$store.commit("setLinkedNodes", workflow_data.data.linked_nodes);
   },
   methods: {
     connectionParsing(IO) {
@@ -344,14 +302,24 @@ export default {
     },
     async exportdf() {
       try {
-        const result = await this.$store.dispatch("compileNodes");
-        console.log(result);
-        // this.exportValue = this.$df.export();
+        //원래 코드
+        // const result = await this.$store.dispatch("compileNodes");
+        // console.log(result);
+        this.exportValue = this.$df.export();
+        const nodes = this.$store.getters.getNodes;
+        const linked_nodes = this.$store.getters.getLinkedNodes;
+        // console.log(JSON.stringify(this.exportValue));
+        console.log(this.$df.drawflow.drawflow[this.$df.module]);
+        const workflow = {
+          title: "Untitled",
+          workflow_info: this.exportValue,
+          nodes: nodes,
+          linked_nodes: linked_nodes,
+        };
+        console.log(workflow);
         // this.compile_check = "loading";
-        // console.log(this.exportValue);
-        // const JsonData = await exportData(
-        //   JSON.stringify(this.exportValue.drawflow.Home.data)
-        // );
+        const workflow_data = await exportData(workflow);
+        console.log(workflow_data);
         // console.log(JSON.stringify(this.exportValue.drawflow.Home.data))
         // this.compile_check = "complete";
         // console.log(

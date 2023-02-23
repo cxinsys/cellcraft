@@ -31,12 +31,8 @@ export default new Router({
       component: () => import("@/views/FilesPage.vue"),
     },
     {
-      path: "/profile",
-      component: () => import("@/components/profile.vue"),
-    },
-    {
-      path: "*",
-      component: () => import("@/views/NotFoundPage.vue"),
+      path: "/projects",
+      component: () => import("@/views/ProjectPage.vue"),
     },
   ],
 });
