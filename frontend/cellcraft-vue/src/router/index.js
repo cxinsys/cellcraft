@@ -34,9 +34,5 @@ export default new Router({
       path: "/projects",
       component: () => import("@/views/ProjectPage.vue"),
     },
-    {
-      path: "*",
-      component: () => import("@/views/NotFoundPage.vue"),
-    },
   ],
 });

@@ -1,7 +1,6 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSON
-
+from sqlalchemy.dialects.postgresql import JSONB, JSON, ARRAY
 
 from app.database.conn import Base
 
@@ -36,7 +35,9 @@ class Workflow(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
-    workflow_info = Column(JSON, nullable=False)
+    workflow_info = Column(JSONB, nullable=False)
+    nodes = Column(ARRAY(JSON), nullable=False)
+    linked_nodes = Column(ARRAY(JSON), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"))
 
     user = relationship("User", back_populates="workflows")

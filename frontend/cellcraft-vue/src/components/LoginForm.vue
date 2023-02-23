@@ -52,7 +52,7 @@ export default {
         };
         console.log(userData);
         await this.$store.dispatch("LOGIN", userData);
-        this.$router.push("/workflow");
+        this.$router.push("/projects");
       } catch (error) {
         console.error(error.response.data.detail);
       } finally {

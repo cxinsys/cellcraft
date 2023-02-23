@@ -63,6 +63,14 @@ function findFolder(folder) {
   return instance.post("routes/files/folder", folder);
 }
 
+function getWorkflows() {
+  return instance.get("routes/workflow/me");
+}
+
+function findWorkflow(workflowInfo) {
+  return instance.post("routes/workflow/find", workflowInfo);
+}
+
 export {
   registerUser,
   loginUser,
@@ -73,4 +81,6 @@ export {
   getFiles,
   findFile,
   findFolder,
+  getWorkflows,
+  findWorkflow,
 };

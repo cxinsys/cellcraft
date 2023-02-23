@@ -4,11 +4,16 @@ from pydantic import BaseModel, EmailStr
 
 class WorkflowBase(BaseModel):
     title: Optional[str] = None
-    workflow_info: Optional[Dict[str, float]] = None 
+    workflow_info: Optional[Dict] = None 
 
 class WorkflowCreate(WorkflowBase):
     title: str
-    workflow_info: Dict[str, float] = None
+    workflow_info: Dict = None
+    nodes: List = None
+    linked_nodes: List = None
+
+class WorkflowFind(WorkflowBase):
+    id: int
 
 class Workflow(WorkflowBase):
     id: int

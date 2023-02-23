@@ -17,6 +17,12 @@ export default {
       }
     });
   },
+  setNodes(state, nodes) {
+    state.nodes = nodes;
+  },
+  clearNodes(state) {
+    state.nodes = [];
+  },
   createConnection(state, connection_info) {
     if (state.linked_nodes.length === 0) {
       state.linked_nodes.push(connection_info);
@@ -94,6 +100,12 @@ export default {
         });
       }
     });
+  },
+  setLinkedNodes(state, linked_nodes) {
+    state.linked_nodes = linked_nodes;
+  },
+  clearLinkedNodes(state) {
+    state.linked_nodes = [];
   },
   changeNode(state, id) {
     state.current_node = id;

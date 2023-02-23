@@ -9,7 +9,7 @@
     <nav class="menu-component">
       <ul class="header-menu">
         <li class="header-menu__item">
-          <router-link class="header-menu__link" to="/workflow">
+          <router-link class="header-menu__link" to="/projects">
             Workflows
           </router-link>
         </li>
@@ -35,12 +35,9 @@
 </template>
 
 <script>
-import { getUser } from "@/api/index";
 import { deleteCookie } from "@/utils/cookies";
-// import Profile from "@/components/profile";
 
 export default {
-  // components: { Profile },
   data() {
     return {
       profile: {
@@ -64,14 +61,6 @@ export default {
       this.$store.commit("clearToken");
       deleteCookie();
       this.$router.push("/");
-    },
-    async getProfile() {
-      this.modal = true;
-      const userInfo = await getUser();
-      this.$store.commit("setUserInfo", userInfo.data);
-      console.log(userInfo.data);
-      this.profile.username = userInfo.data.username;
-      this.profile.email = userInfo.data.email;
     },
   },
 };

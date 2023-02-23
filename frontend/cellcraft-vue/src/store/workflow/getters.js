@@ -7,6 +7,12 @@ export default {
   getCurrentNode(state) {
     return state.current_node;
   },
+  getNodes(state) {
+    return state.nodes;
+  },
+  getLinkedNodes(state) {
+    return state.linked_nodes;
+  },
   getCurrentFile(state) {
     return state.linked_nodes.find((node) =>
       node.connection.includes(state.current_node)

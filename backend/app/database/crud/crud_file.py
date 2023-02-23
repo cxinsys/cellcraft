@@ -1,9 +1,7 @@
 from typing import Any, Dict, Optional, Union
-from fastapi import UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import models
-from app.database.schemas import user, file
-from app.database.crud import crud_file
+from app.database.schemas import file
 
 def get_user_file(db: Session, id: int, file_name: str):
     return db.query(models.File).filter(models.File.file_name == file_name, models.File.user_id == id).first()
@@ -14,7 +12,7 @@ def get_user_folder(db: Session, id: int, folder_name: str):
 def get_user_files(db: Session, id: int):
     return db.query(models.File).filter(models.File.user_id == id).all()
 
-async def create_file(db: Session, filename: str, filesize: str, filepath: str, folder: str, user_id: int) -> models.File:
+def create_file(db: Session, filename: str, filesize: str, filepath: str, folder: str, user_id: int) -> models.File:
     db_file = models.File(
         file_name = filename,
         file_size = filesize,
