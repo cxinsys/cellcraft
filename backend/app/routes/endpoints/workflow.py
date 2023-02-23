@@ -30,10 +30,11 @@ async def exportData(request: Request, current_user: models.User = Depends(dep.g
         # print(type(payload_as_json))
         for nodes in payload_as_json:
             # print(type(nodes))
-            fileName = nodes['file'].replace('.csv', '')
-            lastNode = nodes['lastNode']
+            fileName = nodes['file'].split('.')
+            # lastNode = nodes['lastNode']
+            lastNode = "file"
             print(fileName, lastNode)
-            target = f'{lastNode}_{current_user.username}_{fileName}'
+            target = f'{lastNode}_{current_user.username}_{fileName[0]}'
             p = Pool(cpu_count())
             snakemake = p.apply_async(snakemakeProcess, (target,))
             print(snakemake.get())
