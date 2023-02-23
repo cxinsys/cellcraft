@@ -1,3 +1,14 @@
+rule h5ad:
+    input:
+        "user/{username}/data/{filename}.h5ad"
+    output:
+        "workflow/data/file_{username}_{filename}.csv",
+        "user/{username}/result/file_{filename}_obs_umap.csv"
+        # "user/{username}/result/file_{filename}_obs.csv",
+        # "user/{username}/result/file_{filename}_obsm.csv"
+    script:
+        "script/h5ad.py"
+
 rule dataTable:
     input:
         "user/{username}/data/{filename}.csv"
@@ -7,11 +18,20 @@ rule dataTable:
     script:
         "script/dataTable.py"
 
-rule Plot:
+rule scatterPlot:
     input:
         "workflow/data/DataTable_{username}_{filename}.csv"
     output:
-        "workflow/data/Plot_{username}_{filename}.csv",
-        "user/{username}/result/Plot_{filename}.csv"
+        "workflow/data/scatterPlot_{username}_{filename}.csv",
+        "user/{username}/result/scatterPlot_{filename}.csv"
     script:
-        "script/Plot.py"
+        "script/scatterPlot.py"
+
+rule heatMap:
+    input:
+        "workflow/data/DataTable_{username}_{filename}.csv"
+    output:
+        "workflow/data/heatMap_{username}_{filename}.csv",
+        "user/{username}/result/heatMap_{filename}.csv"
+    script:
+        "script/heatMap.py"

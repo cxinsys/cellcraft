@@ -1,360 +1,526 @@
 <template>
-  <div class="layout">
-    <div class="options">
-      <div class="options__column">
-        <div class="options__name">Axis X:</div>
-        <input
-          type="text"
-          class="options__button"
-          name="axisX"
-          v-model="axisX"
-          @click="optionClick"
-        />
-        <ul class="options__menu">
-          <li
-            class="options__content"
-            v-for="(header, idx) in num_headers"
-            :key="idx"
-            @click="menuClick"
-          >
-            {{ header }}
-          </li>
-          <li
-            class="options__content"
-            v-for="(header, idx) in bool_headers"
-            :key="idx"
-            @click="menuClick"
-          >
-            {{ header }}
-          </li>
-        </ul>
-      </div>
-      <div class="options__column">
-        <div class="options__name">Axis Y:</div>
-        <input
-          type="text"
-          class="options__button"
-          name="axisY"
-          v-model="axisY"
-          @click="optionClick"
-        />
-        <ul class="options__menu">
-          <li
-            class="options__content"
-            v-for="(header, idx) in num_headers"
-            :key="idx"
-            @click="menuClick"
-          >
-            {{ header }}
-          </li>
-          <li
-            class="options__content"
-            v-for="(header, idx) in bool_headers"
-            :key="idx"
-            @click="menuClick"
-          >
-            {{ header }}
-          </li>
-        </ul>
-      </div>
+  <div id="layout">
+    <div class="plotly-layout">
+      <div id="plotly__scatter"></div>
     </div>
-    <div class="canvas">
-      <svg :width="width" :height="height">
-        <g class="graph" :width="width" :height="height">
-          <g class="xAxisG"></g>
-          <g class="yAxisG"></g>
-        </g>
-        <text class="xLabel"></text>
-        <text class="yLabel"></text>
-      </svg>
-      <div class="tooltip"></div>
+    <div class="options-layout">
+      <input
+        type="text"
+        placeholder="Title"
+        class="options__textInput"
+        @input="titleChangeFunc($event)"
+      />
+      <div class="options__item">
+        X - axis&nbsp;
+        <select :value="selectedX" @change="setSelectX($event)">
+          <option
+            v-for="(item, index) in numList"
+            :key="index"
+            :value="item.value"
+          >
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
+      <div class="options__item">
+        Y - axis&nbsp;
+        <select :value="selectedY" @change="setSelectY($event)">
+          <option
+            v-for="(item, index) in numList"
+            :key="index"
+            :value="item.value"
+          >
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
+      <div class="options__item">
+        Name&nbsp;
+        <select :value="selectedName" @change="setSelectName($event)">
+          <option
+            v-for="(item, index) in keyList"
+            :key="index"
+            :value="item.value"
+          >
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
+      <div class="options__item">
+        Cluster&nbsp;
+        <select :value="selectedCluster" @change="setSelectCluster($event)">
+          <option
+            v-for="(item, index) in clusterList"
+            :key="index"
+            :value="item.value"
+          >
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
+      <div class="options__item">
+        Contrast&nbsp;
+        <button v-on:click="clusterContrastMinus">-</button>
+        &nbsp;
+        <button v-on:click="clusterContrastPlus">+</button>
+        &nbsp;
+        <button v-on:click="clusterContrastReset">reset</button>
+      </div>
+      <div class="options__item">
+        Quantile&nbsp;
+        <button v-on:click="clusterQuantileMinus">-</button>
+        &nbsp;
+        <button v-on:click="clusterQuantilePlus">+</button>
+        &nbsp;
+        <button v-on:click="clusterQuantileReset">reset</button>
+      </div>
+
+      <div class="options__item">
+        Marker Size&nbsp;
+        <button v-on:click="markerSizeMinus">-</button>
+        &nbsp;
+        <button v-on:click="markerSizePlus">+</button>
+        &nbsp;
+        <button v-on:click="markerSizeReset">reset</button>
+      </div>
+      <div class="options__item">
+        Show Grid&nbsp;
+        <button v-on:click="switchShowGrid">ON / OFF</button>
+      </div>
+      <div class="options__item">
+        Show Line&nbsp;
+        <button v-on:click="switchShowLine">ON / OFF</button>
+      </div>
+      <div class="options__item">
+        Show Zero Line&nbsp;
+        <button v-on:click="switchShowZeroLine">ON / OFF</button>
+      </div>
+      <div class="options__item">
+        Show Axes Label&nbsp;
+        <button v-on:click="switchShowLabel">ON / OFF</button>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-/* eslint-disable */
-import * as d3 from "d3";
 import { getResult } from "@/api/index";
+import Plotly from "plotly.js-dist-min";
+
 export default {
-  props: {
-    file_name: null,
-  },
+  // components: {
+  //   Plotly,
+  // },
   data() {
     return {
-      node_name: "Plot",
-      headers: [],
-      num_headers: [],
-      str_headers: [],
-      bool_headers: [],
-      axisX: "axis X",
-      axisY: "axis Y",
-      csv: [],
-      data: [],
-      filtered_data: [],
-      width: 480,
-      height: 520,
-      graphWidth: 0,
-      graphHeight: 0,
-      margin: {
-        mt: 60,
-        mb: 60,
-        mr: 20,
-        ml: 60,
-      },
+      plotData: null,
+      current_file: null,
+      file_num: null,
+      keys: null, // key들의 리스트 - string[]
+      areNum: null, // 각 column 타입의 num 여부 리스트 - bool[]
+      lines: null, // data의 rows의 리스트(keys는 제거됨) - object[][]
+      chartType: "scattergl",
+      chartMode: "markers",
+      chartTitle: "",
+      selectedX: null, // 선택된 X축의 column index
+      selectedY: null, // 선택된 Y축의 column index
+      selectedName: null, // 선택된 Name의 column index
+      selectedCluster: null, // 선택된 Cluster의 column index
+      numClusterConstraint: 200, // Cluster가 너무 다양하면 성능에 저하가 생기므로 제한을 둠
+      clusterQuantile: 0,
+      clusterContrast: 1,
+      markerSize: 2, // 점의 사이즈
+      showGrid: true,
+      showZeroLine: true,
+      showLine: false,
+      showLabel: true,
+      numList: [{ name: "None", value: null }], // number type으로 x,y축에 들어가기 적합한 자료들의 option list
+      keyList: [{ name: "None", value: null }], // key list
+      clusterList: [{ name: "None", value: null, isTooVarious: null }], // cluster가 되기 적합한 list, unique한 자료수가 적은 column의 list
     };
   },
+  mounted() {
+    Plotly.newPlot("plotly__scatter", {
+      data: [{ type: this.chartType }],
+      layout: {
+        autosize: true,
+        automargin: true,
+        width: 600, // !--조정필요
+        height: 570, // !--조정필요
+        // paper_bgcolor: rgb(255, 1, 255),
+        // plot_bgcolor: rgb(1, 255, 255),
+      },
+    });
+  },
   methods: {
-    optionClick(event) {
-      event.target.style.opacity = "0.6";
-      event.target.nextElementSibling.style.display = "block";
-    },
-    menuClick(event) {
-      // console.dir(event.target.parentElement.previousElementSibling)
-      const menuContent = event.target.innerText;
-      event.target.parentElement.style.display = "none";
-      event.target.parentElement.previousElementSibling.style.opacity = "1";
-      if (
-        event.target.parentElement.previousElementSibling.previousElementSibling.innerText.includes(
-          "Y"
-        )
-      ) {
-        this.axisY = menuContent;
-      } else if (
-        event.target.parentElement.previousElementSibling.previousElementSibling.innerText.includes(
-          "X"
-        )
-      ) {
-        this.axisX = menuContent;
-      }
-      this.scatter();
-    },
-    dotMouseover(ev, d, i) {
-      // console.log(d);
-      d3.select(".tooltip")
-        .html(`${this.axisX} : ${d.AxisX} <br> ${this.axisY} : ${d.AxisY}`)
-        .style("display", "block")
-        .style("left", ev.layerX + 10 + "px")
-        .style("top", ev.layerY + 10 + "px");
-    },
-    dotMouseleave(ev, d, i) {
-      console.log(ev);
-      d3.select(".tooltip").style("display", "none");
-    },
-    dotMouseclick(ev, d, i) {
-      console.log(ev.target.style);
-      // ev.target.style.boxShadow = "rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px";
-    },
-    scatter() {
-      d3.selectAll(".graph > circle").remove();
-      // console.log(this.data[this.axisX][0]);
-      this.filtered_data = [];
-
-      for (let i = 0; i < Object.keys(this.data[this.axisX]).length; i++) {
-        this.filtered_data.push({
-          AxisX: this.data[this.axisX][i],
-          AxisY: this.data[this.axisY][i],
+    // 차트 업데이트
+    updateChart() {
+      if (this.selectedCluster) {
+        if (this.clusterList[this.selectedCluster].isTooVarious == false) {
+          const clusterList = [
+            ...new Set(this.lines.map((x) => x[this.selectedCluster])),
+          ];
+          var traces = [];
+          // cluster 개수만큼 traces 생성
+          for (let i = 0; i < clusterList.length; i++) {
+            traces.push({
+              x: [],
+              y: [],
+              text: [],
+              name: clusterList[i] ?? "Undefined",
+              type: this.chartType,
+              mode: this.chartMode,
+              marker: { size: this.markerSize },
+            });
+          }
+          // lines를 순회하며 cluster에 맞는 traces에 x,y,text 값을 기입
+          for (let i = 0; i < this.lines.length; i++) {
+            traces[
+              clusterList.indexOf(this.lines[i][this.selectedCluster])
+            ].x.push(this.lines[i][this.selectedX]);
+            traces[
+              clusterList.indexOf(this.lines[i][this.selectedCluster])
+            ].y.push(this.lines[i][this.selectedY]);
+            traces[
+              clusterList.indexOf(this.lines[i][this.selectedCluster])
+            ].text.push(this.lines[i][this.selectedName]);
+          }
+          Plotly.newPlot("plotly__scatter", {
+            data: traces,
+            layout: {
+              title: this.chartTitle,
+              width: 600, // !--조정필요
+              height: 570, // !--조정필요
+              xaxis: {
+                showgrid: this.showGrid,
+                showticklabels: this.showLabel,
+                zeroline: this.showZeroLine,
+                showline: this.showLine,
+              },
+              yaxis: {
+                showgrid: this.showGrid,
+                showticklabels: this.showLabel,
+                zeroline: this.showZeroLine,
+                showline: this.showLine,
+              },
+            },
+          });
+        } else {
+          console.log(this.clusterQuantile);
+          console.log(this.clusterContrast);
+          console.log(
+            this.lines.map(
+              (x) =>
+                x[this.selectedCluster] * this.clusterContrast +
+                this.clusterQuantile
+            )
+          );
+          Plotly.newPlot("plotly__scatter", {
+            data: [
+              {
+                x: this.lines.map((x) => x[this.selectedX]),
+                y: this.lines.map((x) => x[this.selectedY]),
+                text: this.lines.map((x) => x[this.selectedName]),
+                type: this.chartType,
+                mode: this.chartMode,
+                marker: {
+                  size: this.markerSize,
+                  color: this.lines.map(
+                    (x) =>
+                      x[this.selectedCluster] * this.clusterContrast +
+                      this.clusterQuantile
+                  ),
+                },
+              },
+            ],
+            layout: {
+              title: this.chartTitle,
+              width: 600, // !--조정필요
+              height: 570, // !--조정필요
+              xaxis: {
+                showgrid: this.showGrid,
+                showticklabels: this.showLabel,
+                zeroline: this.showZeroLine,
+                showline: this.showLine,
+              },
+              yaxis: {
+                showgrid: this.showGrid,
+                showticklabels: this.showLabel,
+                zeroline: this.showZeroLine,
+                showline: this.showLine,
+              },
+            },
+          });
+        }
+      } else {
+        Plotly.newPlot("plotly__scatter", {
+          data: [
+            {
+              x: this.lines.map((x) => x[this.selectedX]),
+              y: this.lines.map((x) => x[this.selectedY]),
+              text: this.lines.map((x) => x[this.selectedName]),
+              type: this.chartType,
+              mode: this.chartMode,
+              marker: { size: this.markerSize },
+            },
+          ],
+          layout: {
+            title: this.chartTitle,
+            width: 600, // !--조정필요
+            height: 570, // !--조정필요
+            xaxis: {
+              showgrid: this.showGrid,
+              showticklabels: this.showLabel,
+              zeroline: this.showZeroLine,
+              showline: this.showLine,
+            },
+            yaxis: {
+              showgrid: this.showGrid,
+              showticklabels: this.showLabel,
+              zeroline: this.showZeroLine,
+              showline: this.showLine,
+            },
+          },
         });
       }
-      const x = d3
-        .scaleLinear()
-        .domain([
-          d3.min(this.filtered_data, (d) => d.AxisX) - 10,
-          d3.max(this.filtered_data, (d) => d.AxisX) + 10,
-        ])
-        .range([0, this.graphWidth]);
-      const y = d3
-        .scaleLinear()
-        .domain([
-          d3.min(this.filtered_data, (d) => d.AxisY) - 10,
-          d3.max(this.filtered_data, (d) => d.AxisY) + 10,
-        ])
-        .range([this.graphHeight, 0]);
-      const xAxis = d3.axisBottom(x).ticks(5);
-      const yAxis = d3.axisLeft(y).ticks(5);
-      d3.select(".xAxisG").call(xAxis);
-      d3.select(".yAxisG").call(yAxis);
-      d3.select(".xLabel").text(this.axisX);
-      d3.select(".yLabel").text(this.axisY);
-      return d3
-        .select(".graph")
-        .selectAll("circle")
-        .data(this.filtered_data)
-        .enter()
-        .append("circle")
-        .attr("cx", (d) => x(d.AxisX))
-        .attr("cy", (d) => y(d.AxisY))
-        .attr("r", 10)
-        .on("mouseover", this.dotMouseover)
-        .on("mouseleave", this.dotMouseleave)
-        .on("click", this.dotMouseclick);
+    },
+    setSelectX(event) {
+      this.selectedX = event.target.value;
+      this.updateChart();
+    },
+    setSelectY(event) {
+      this.selectedY = event.target.value;
+      this.updateChart();
+    },
+    setSelectName(event) {
+      this.selectedName = event.target.value;
+      this.updateChart();
+    },
+    setSelectCluster(event) {
+      this.selectedCluster = event.target.value;
+      this.updateChart();
+    },
+    titleChangeFunc(event) {
+      this.chartTitle = event.target.value;
+      this.updateChart();
+    },
+    clusterQuantileMinus() {
+      this.clusterQuantile--;
+      this.updateChart();
+    },
+
+    clusterQuantilePlus() {
+      this.clusterQuantile++;
+      this.updateChart();
+    },
+    clusterQuantileReset() {
+      this.clusterQuantile = 0;
+      this.updateChart();
+    },
+    clusterContrastMinus() {
+      if (this.clusterContrast > 0) {
+        this.clusterContrast--;
+        this.updateChart();
+      }
+    },
+    clusterContrastPlus() {
+      this.clusterContrast++;
+      this.updateChart();
+    },
+    clusterContrastReset() {
+      this.clusterContrast = 1;
+      this.updateChart();
+    },
+    markerSizeMinus() {
+      if (this.markerSize > 1) {
+        this.markerSize--;
+        this.updateChart();
+      }
+    },
+    markerSizePlus() {
+      if (this.markerSize < 21) {
+        this.markerSize++;
+        this.updateChart();
+      }
+    },
+    markerSizeReset() {
+      this.markerSize = 2;
+      this.updateChart();
+    },
+    switchShowGrid() {
+      this.showGrid = !this.showGrid;
+      this.updateChart();
+    },
+    switchShowZeroLine() {
+      this.showZeroLine = !this.showZeroLine;
+      this.updateChart();
+    },
+    switchShowLine() {
+      this.showLine = !this.showLine;
+      this.updateChart();
+    },
+    switchShowLabel() {
+      this.showLabel = !this.showLabel;
+      this.updateChart();
     },
   },
-  async mounted() {
-    const filename = { filename: `${this.node_name}_${this.file_name}` };
-    // console.log(filename)
-    const PlotResult = await getResult(filename);
-    // console.log(PlotResult.data.club[0])
-    this.data = PlotResult.data;
-    console.log(this.data);
-    this.headers = Object.keys(PlotResult.data).slice(1);
-    this.headers.forEach((element) => {
-      console.log(typeof this.data[element][0]);
-      if (typeof this.data[element][0] === "number") {
-        this.num_headers.push(element);
-      } else if (typeof this.data[element][0] === "string") {
-        this.str_headers.push(element);
-      } else if (typeof this.data[element][0] === "boolean") {
-        this.bool_headers.push(element);
+  computed: {
+    checkCurrentNode() {
+      return this.$store.getters.getCurrentNode;
+    },
+  },
+  watch: {
+    async checkCurrentNode(val) {
+      const current_node = this.$store.getters.getNodeInfo(val);
+      this.current_file = this.$store.getters.getCurrentFile.file;
+      // console.log(current_node);
+      // console.log(this.current_file.file);
+      if (current_node.name === "scatterPlot") {
+        // const filename = {
+        //   filename: `${current_node.name}_${this.current_file.replace(
+        //     ".csv",
+        //     ""
+        //   )}`,
+        // };
+        // // adata.obs 받아오기
+        // const filename_obs = {
+        //   filename: `file_${this.current_file.replace(".h5ad", "")}_obs`,
+        // };
+        // console.log(filename_obs);
+        // const scatterResult_obs = await getResult(filename_obs);
+        // // adta.obsm['X_umap'] 받아오기
+        // const filename_obsm = {
+        //   filename: `file_${this.current_file.replace(".h5ad", "")}_obsm`,
+        // };
+        // console.log(filename_obsm);
+        // const scatterResult_obsm = await getResult(filename_obsm);
+        // // 받아온 데이터 출력
+        // console.log(scatterResult_obs.data);
+        // console.log(scatterResult_obsm.data);
+
+        // obs + X_umap 가져오기
+        const filename_obs_umap = {
+          filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
+        };
+        console.log(filename_obs_umap);
+        const scatterResult = await getResult(filename_obs_umap);
+
+        //백엔드에서 넘겨준 plot 데이터
+        // scatterResult.data;
+        // lines, keys, areNum 업데이트
+
+        // 잠깐 주석 처리
+        // this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
+
+        // this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
+        this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
+        this.keys = this.lines.splice(0, 1)[0];
+        this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
+        this.areNum = this.lines[0].map((x) => !isNaN(x));
+
+        this.numList = [{ name: "None", value: null }];
+        for (let i = 0; i < this.keys.length; i++) {
+          if (this.areNum[i] == true) {
+            this.numList.push({ name: this.keys[i], value: i });
+          }
+        }
+
+        this.keyList = [{ name: "None", value: null }];
+        for (let i = 0; i < this.keys.length; i++) {
+          this.keyList.push({ name: this.keys[i], value: i });
+        }
+
+        this.clusterList = [{ name: "None", value: null, isTooVarious: null }];
+        for (let i = 1; i < this.keys.length; i++) {
+          const countUnique = new Set(this.lines.map((x) => x[i])).size;
+          if (countUnique < this.numClusterConstraint) {
+            this.clusterList.push({
+              name: this.keys[i],
+              value: i,
+              isTooVarious: false,
+            });
+          } else {
+            this.clusterList.push({
+              name: this.keys[i],
+              value: i,
+              isTooVarious: true,
+            });
+          }
+        }
+
+        // // 초기 x,y축 세팅하기
+        // if (this.numList.length == 3) {
+        //   this.selectedX = this.numList[2].value;
+        //   this.selectedY = this.numList[2].value;
+        // } else if (this.numList.length > 3) {
+        //   this.selectedX = this.numList[2].value;
+        //   this.selectedY = this.numList[3].value;
+        // }
+        if (this.keys.indexOf("X") != -1) {
+          this.selectedX = this.keys.indexOf("X");
+        }
+        if (this.keys.indexOf("Y") != -1) {
+          this.selectedY = this.keys.indexOf("Y");
+        }
+
+        this.updateChart();
       }
-    });
-    console.log(this.num_headers);
-    this.axisX = this.num_headers[0];
-    this.axisY = this.num_headers[1];
-    // console.log(typeof(this.axisX));
-
-    this.graphWidth = this.width - this.margin.ml - this.margin.mr;
-    this.graphHeight = this.height - this.margin.mt - this.margin.mb;
-    console.log(this.graphWidth, this.graphHeight);
-    d3.select(".graph").attr(
-      "transform",
-      `translate(${this.margin.ml}, ${this.margin.mt})`
-    );
-    d3.select(".xAxisG").attr("transform", `translate(0, ${this.graphHeight})`);
-    d3.select(".xLabel")
-      .attr("text-anchor", "end")
-      .attr("x", this.width / 2 + this.margin.ml / 2)
-      .attr("y", this.height + this.margin.mt - 80);
-    d3.select(".yLabel")
-      .attr("text-anchor", "end")
-      .attr("transform", "rotate(-90)")
-      .attr("y", this.margin.ml / 2 - 5)
-      .attr("x", -this.height / 2 + 20);
-
-    for (let i = 0; i < Object.keys(this.data[this.axisX]).length; i++) {
-      this.filtered_data.push({
-        AxisX: this.data[this.axisX][i],
-        AxisY: this.data[this.axisY][i],
-      });
-    }
-
-    const x = d3
-      .scaleLinear()
-      .domain([
-        d3.min(this.filtered_data, (d) => d.AxisX) - 10,
-        d3.max(this.filtered_data, (d) => d.AxisX) + 10,
-      ])
-      .range([0, this.graphWidth]);
-    const y = d3
-      .scaleLinear()
-      .domain([
-        d3.min(this.filtered_data, (d) => d.AxisY) - 10,
-        d3.max(this.filtered_data, (d) => d.AxisY) + 10,
-      ])
-      .range([this.graphHeight, 0]);
-    const xAxis = d3.axisBottom(x).ticks(5);
-    const yAxis = d3.axisLeft(y).ticks(5);
-    d3.select(".xAxisG").call(xAxis);
-    d3.select(".yAxisG").call(yAxis);
-    d3.select(".xLabel").text(this.axisX);
-    d3.select(".yLabel").text(this.axisY);
-
-    //점 그리기
-    d3.select(".graph")
-      .selectAll("circle")
-      .data(this.filtered_data)
-      .enter()
-      .append("circle")
-      .attr("cx", (d) => x(d.AxisX))
-      .attr("cy", (d) => y(d.AxisY))
-      .attr("r", 10)
-      .on("mouseover", this.dotMouseover)
-      .on("mouseleave", this.dotMouseleave)
-      .on("click", this.dotMouseclick);
+    },
   },
 };
 </script>
 
 <style scoped>
-.layout {
+#layout {
   width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  position: relative;
+  flex-direction: row;
 }
-.options {
-  width: 40%;
-  height: 100%;
-  padding: 10px;
+.plotly-layout {
+  width: 70%;
+  height: 95%;
+  /* background-color: blue; */
   display: flex;
+  align-items: center;
+  justify-content: center;
   flex-direction: column;
-  align-items: center;
-  background: rgb(235, 235, 235);
-  position: absolute;
-  left: 0;
-}
-.options__column {
-  width: 100%;
-  height: 5%;
-  margin-bottom: 15px;
-  display: flex;
-  align-items: center;
-  position: relative;
-  background: rgb(210, 210, 210);
-}
-.options__name {
-  width: 35%;
-  height: 100%;
-  padding: 5px;
-  display: flex;
-  align-items: center;
-}
-.options__button,
-.options__menu {
-  width: 65%;
-  height: 100%;
-  padding: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  background: white;
-}
-.options__menu {
-  display: none;
-  height: auto;
-  flex-direction: column;
-  position: absolute;
+  padding: 1rem;
+  margin: 2.5%;
+  border-radius: 1rem;
   box-sizing: border-box;
-  border-radius: 7px;
-  top: 100%;
-  right: 0;
-  z-index: 1;
+  background-color: rgb(255, 255, 255);
 }
-.options__content {
-  margin-bottom: 4px;
-}
-.options__content:hover {
-  background: rgb(125, 125, 255);
-}
-.canvas {
-  width: 60%;
-  height: 100%;
-  position: absolute;
-  right: 0;
+.options-layout {
+  width: 25%;
+  height: 95%;
+  padding-right: 1%;
+  /* background-color: red; */
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
+  flex-direction: column;
 }
-.tooltip {
-  position: absolute;
-  display: none;
-  width: 100px;
-  height: 150px;
-  padding: 10px;
-  background: white;
-  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
-  border-radius: 20px;
+.options__textInput {
+  color: black;
+  /* padding: 2% 0; */
+  margin: 2%;
+}
+.options__item {
+  /* margin: auto; */
+  color: black;
+  /* padding: 2% 0; */
+  margin: 2%;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* .plotly-layout {
+    background-color: rgb(41, 43, 48);
+  } */
+  .options__item {
+    color: rgb(255, 255, 255);
+  }
 }
 </style>

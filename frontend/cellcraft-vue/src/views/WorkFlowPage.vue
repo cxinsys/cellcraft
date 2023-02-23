@@ -60,7 +60,12 @@
         <dataTableModal
           v-show="tabList[currentTab].name === 'DataTable'"
         ></dataTableModal>
-        <PlotModal v-show="tabList[currentTab].name === 'Plot'"></PlotModal>
+        <scatterPlotModal
+          v-show="tabList[currentTab].name === 'scatterPlot'"
+        ></scatterPlotModal>
+        <heatMapModal
+          v-show="tabList[currentTab].name === 'heatMap'"
+        ></heatMapModal>
       </div>
     </main>
   </div>
@@ -71,13 +76,18 @@ import Vue from "vue";
 /* eslint-disable */
 // import Drawflow from 'drawflow'
 // import styleDrawflow from 'drawflow/dist/drawflow.min.css' // eslint-disable-line no-use-before-define
-import Plot from "@/components/nodes/PlotNode.vue";
+
+//노드 import (3번)
+import scatterPlot from "@/components/nodes/scatterPlotNode.vue";
 import fileUpload from "@/components/nodes/fileUploadNode.vue";
 import dataTable from "@/components/nodes/dataTableNode.vue";
+import heatMap from "@/components/nodes/heatMapNode.vue";
+
+//노드 모달 컴포넌트 import (4번)
 import dataTableModal from "@/components/modals/datatable.vue";
 import fileuploadModal from "@/components/modals/fileupload.vue";
-import PlotModal from "@/components/modals/Plot.vue";
 import scatterPlotModal from "@/components/modals/scatterPlot.vue";
+import heatMapModal from "@/components/modals/heatMap.vue";
 import Fileupload from "../components/modals/fileupload.vue";
 import { exportData, findWorkflow } from "@/api/index";
 
@@ -85,9 +95,9 @@ export default {
   components: {
     dataTableModal,
     fileuploadModal,
-    PlotModal,
     scatterPlotModal,
     Fileupload,
+    heatMapModal,
   },
   data() {
     return {
@@ -95,31 +105,38 @@ export default {
       editor: null,
       exportValue: null,
       isTabView: true,
+      // 왼쪽에 보여지는 노드 목록 (1번)
       listNodes: [
         {
           name: "File",
-          name2: "File",
+          // name2: "File",
           img: require("@/assets/file-upload.png"),
           input: 0,
           output: 1,
         },
         {
           name: "DataTable",
-          name2: "DataTable",
+          // name2: "DataTable",
           img: require("@/assets/table.png"),
           input: 1,
           output: 1,
         },
         {
-          name: "Plot",
-          name2: "Plot",
+          name: "scatterPlot",
+          // name2: "Plot",
           img: require("@/assets/scatter-plot.png"),
           input: 1,
           output: 0,
         },
         {
+          name: "heatMap",
+          img: require("@/assets/heatMap.png"),
+          input: 1,
+          output: 0,
+        },
+        {
           name: "Algorithm",
-          name2: "Algorithm",
+          // name2: "Algorithm",
           img: require("@/assets/algorithm.png"),
           input: 1,
           output: 0,
@@ -149,9 +166,12 @@ export default {
     //this.$df == editor
     this.$df.start();
 
-    this.$df.registerNode("Plot", Plot, {}, {});
+    //노드 등록 (2번)
     this.$df.registerNode("File", fileUpload, {}, {});
     this.$df.registerNode("DataTable", dataTable, {}, {});
+    this.$df.registerNode("scatterPlot", scatterPlot, {}, {});
+    this.$df.registerNode("heatMap", heatMap, {}, {});
+
     // 노드 수직 연결선
     this.$df.curvature = 0.5;
     this.$df.reroute_curvature_start_end = 0;
@@ -226,54 +246,6 @@ export default {
       console.log(node);
       this.$df.updateConnectionNodes(ev);
     });
-    this.$df.on("nodeSelected", (ev) => {
-      // ev 값에 따라 기능 구분
-      const node = this.$df.getNodeFromId(ev);
-      console.log(node.inputs, node.outputs);
-      // this.node_info.name = node.name
-      //Plot 임시 코드
-      if (node.name != "Plot") {
-        this.node_info.name = node.name;
-      } else {
-        this.node_info.name = "Plot";
-      }
-
-      if (node.name == "File") {
-        this.node_info.desc = "Read data from an input file";
-      } else if (node.name == "DataTable") {
-        this.node_info.desc = "View the dataset in a spreadsheet";
-      } else if (node.name == "Plot") {
-        // this.node_info.desc = 'Interactive Plot visualization'
-        this.node_info.desc = "Interactive plot visualization";
-      }
-      if (this.connectionParsing(node.inputs)) {
-        const input_node = this.$df.getNodeFromId(
-          this.connectionParsing(node.inputs)
-        );
-        console.log(input_node.name);
-        this.node_info.input = `${input_node.name} -> `;
-      } else {
-        this.node_info.input = null;
-      }
-      if (this.connectionParsing(node.outputs)) {
-        const output_node = this.$df.getNodeFromId(
-          this.connectionParsing(node.outputs)
-        );
-        console.log(output_node.name);
-        // this.node_info.output = ` -> ${output_node.name}`
-        //Plot 임시 코드
-        if (output_node.name != "Plot") {
-          this.node_info.output = ` -> ${output_node.name}`;
-        } else {
-          this.node_info.output = " -> Plot";
-        }
-      } else {
-        this.node_info.output = null;
-      }
-    });
-    this.$df.on("nodeUnselected", (ev) => {
-      this.is_show_info = false;
-    });
     this.$df.on("clickEnd", (ev) => {
       // ev 값에 따라 기능 구분
       // console.log(ev);
@@ -292,7 +264,7 @@ export default {
           // console.log(connection)
           connection.forEach((node) => {
             // console.log(node)
-            if (node == node_id) {
+            if (node === node_id) {
               const node_info = this.$df.getNodeFromId(connection[0]);
               const file_name = node_info.data.file
                 .replace(/C:\\fakepath\\/, "")
@@ -302,19 +274,6 @@ export default {
             }
           });
         });
-        // 해당 노드 File 노드 아니면 modal 보여줌
-        console.dir(this.$df.node_selected.innerText.replace(/(\s*)/g, ""));
-        if (
-          (this.$df.node_selected.innerText.replace(/(\s*)/g, "") ==
-            "DataTable") |
-          (this.$df.node_selected.innerText.replace(/(\s*)/g, "") == "Plot")
-        ) {
-          this.is_show_modal = true;
-          this.show_modal = this.$df.node_selected.innerText.replace(
-            /(\s*)/g,
-            ""
-          );
-        }
       }
     });
 
@@ -572,7 +531,7 @@ export default {
   /* width: 8rem; */
   width: 4.5rem;
   /* height: 34rem; */
-  height: 20rem;
+  height: 25rem;
   border-radius: 1rem;
   background: rgb(244, 246, 251);
   box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 1);
@@ -618,8 +577,6 @@ export default {
   -khtml-user-drag: none;
   -moz-user-drag: none;
   -o-user-drag: none;
-  filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg) brightness(27%)
-    contrast(101%);
 }
 .run_button {
   width: 7rem;
@@ -785,16 +742,8 @@ export default {
       brightness(125%) contrast(111%);
   }
   .tab__item {
-    cursor: pointer;
-    width: 10rem;
-    height: 100%;
-    border-radius: 0.5rem 0.5rem 0 0;
-    display: flex;
-    align-items: center;
     background: rgb(32, 34, 39);
     color: rgb(255, 255, 255);
-    position: relative;
-    opacity: 1;
     box-shadow: 0px -6px 5px 0px rgba(0, 0, 0, 0.5);
   }
   .currentTab {
@@ -802,43 +751,16 @@ export default {
     box-shadow: 0px -6px 5px 0px rgba(0, 0, 0, 0.5);
   }
   .content-view {
-    width: 100%;
-    height: 39rem;
     background: rgb(53, 55, 60);
-    border-radius: 0 0 0 0.5rem;
     box-shadow: 0px -5px 5px 0px rgba(0, 0, 0, 0.5);
   }
   .node-bar {
-    /* width: 8rem; */
-    width: 4.5rem;
-    /* height: 34rem; */
-    height: 20rem;
-    border-radius: 1rem;
     background: rgb(53, 55, 60);
     box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 1);
-    position: absolute;
-    /* top: calc(50% - 17rem); */
-    top: calc(50% - 13rem);
-    left: 1rem;
-    z-index: 9998;
-    opacity: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
   .node-bar__drag-drawflow {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: move;
     background: rgb(32, 34, 39);
     color: rgb(245, 245, 245);
-    border-radius: 1rem;
-    /* width: 5rem;
-  height: 5rem; */
-    width: 4rem;
-    height: 4rem;
-    box-shadow: 0px 0px 8px 0px rgba(75, 119, 209, 1);
   }
 }
 </style>
