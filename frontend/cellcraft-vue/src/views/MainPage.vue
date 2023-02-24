@@ -175,6 +175,11 @@ export default {
 </script>
 
 <style scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
 .bold {
   font-weight: 400;
 }
@@ -193,12 +198,6 @@ export default {
   transform: translateX(2rem);
   opacity: 1;
 }
-.layout {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  overflow: hidden;
-}
 .main-component,
 .notice-component,
 .menu-component,
@@ -209,7 +208,6 @@ export default {
   margin-left: auto;
   position: relative;
 }
-
 .main-component {
   height: 20rem;
 }

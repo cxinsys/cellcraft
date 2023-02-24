@@ -47,12 +47,12 @@ export default {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 5rem;
   box-sizing: border-box;
 }
 .login-component {
   width: 26rem;
   height: 34rem;
+  margin-top: 5rem;
 }
 .login__logo {
   width: 100%;
