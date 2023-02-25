@@ -92,7 +92,7 @@ export default {
 <style>
 .app {
   width: 100vw;
-  height: 191vh;
+  /* height: 191vh; */
 }
 .loginPage__layout {
   height: 100vh;
@@ -139,7 +139,7 @@ export default {
 }
 .footer-component {
   width: 100%;
-  height: 5.5%;
+  height: 80px;
   background: #fff;
   border-top: 1px solid #e1e1e1;
 }
