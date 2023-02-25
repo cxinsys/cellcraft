@@ -3,7 +3,7 @@
     <main class="main-component">
       <img class="main__img" src="@/assets/main_bg.png" />
       <div class="main__textbox">
-        <p class="main__name">CELLCRAFT</p>
+        <img class="main__name" src="@/assets/cellcraft_logo_text_2.png" />
         <span class="main__desc">
           Platform for Reconstruction of Inter-cell Type Gene Regulatory Network
           Model
@@ -209,17 +209,18 @@ export default {
   position: relative;
 }
 .main-component {
+  top: 2rem;
   height: 20rem;
 }
 .notice-component {
-  height: 5rem;
-  margin-top: 2.5rem;
+  height: 4rem;
+  margin-top: 4rem;
   display: flex;
   align-items: center;
 }
 .notice-component:before {
   content: "";
-  background: rgb(31, 66, 154);
+  background: rgb(0, 85, 203);
   width: 1000%;
   height: 100%;
   position: absolute;
@@ -260,32 +261,32 @@ export default {
   border-radius: 1.5rem;
 }
 .main__textbox {
-  width: 50rem;
-  height: 8rem;
+  /* width: 60rem; */
+  /* flex-grow: 1; */
+  width: 90rem;
+  max-width: calc(99%);
+  height: 16rem;
   position: absolute;
-  top: calc(50% - 4rem);
-  left: 5rem;
+  top: 1.5rem;
+  left: 2rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 .main__name {
-  font-family: "Montserrat", sans-serif;
-  font-style: bold;
-  font-weight: 700;
-  font-size: 4rem;
-  line-height: 4rem;
-  text-align: left;
-  color: rgb(31, 66, 154);
+  height: auto;
+  /* object-fit: contain; */
+  width: 40%;
 }
 .main__desc {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 400;
+  font-weight: 500;
   font-size: 1.04rem;
   line-height: 1.6rem;
-  text-align: left;
-  color: rgb(40, 40, 40);
+  padding: 1rem 3rem 0rem 1rem;
+  text-align: right;
+  color: rgb(255, 255, 255);
 }
 .notice__title {
   width: 10%;
@@ -317,7 +318,7 @@ export default {
   line-height: 1rem;
   text-align: center;
   color: #fff;
-  opacity: 0.7;
+  opacity: 0.95;
   display: flex;
   align-items: center;
   justify-content: center;
