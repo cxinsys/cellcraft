@@ -1,12 +1,5 @@
 <template>
-  <div
-    class="app"
-    v-bind:class="{
-      loginPage__layout: loginPage,
-      workflowPage__layout: workflowPage,
-      filesPage__layout: filesPage,
-    }"
-  >
+  <div class="app">
     <header
       class="header-component"
       v-bind:class="{
@@ -94,48 +87,32 @@ export default {
   width: 100vw;
   /* height: 191vh; */
 }
-.loginPage__layout {
-  height: 100vh;
-}
-.workflowPage__layout {
-  height: 100vh;
-}
-.filesPage__layout {
-  height: 100vh;
-}
-.header-component {
+.header-component,
+.workflowPage__header,
+.filesPage__header {
   width: 100%;
-  /* height: 4%; */
-  height: 3%;
+  height: 3.5rem;
 }
 .loginPage__header {
   display: none;
 }
-.workflowPage__header {
-  /* height: 8.525%; */
-  height: 4.6%;
-  border-bottom: 1px;
-}
 .filesPage__header {
-  height: 4.5%;
   border-bottom: 1px solid #e1e1e1;
 }
 .main-component {
   width: 100%;
-  /* height: 89%; */
-  height: 91.5%;
+  height: 79rem;
 }
 .loginPage__main {
   width: 100%;
   height: 100%;
 }
 .workflowPage__main {
-  /* height: 91.475%; */
   border-top: 1px solid #e1e1e1;
-  height: 95.4%;
 }
+.workflowPage__main,
 .filesPage__main {
-  height: 95.3%;
+  height: 50rem;
 }
 .footer-component {
   width: 100%;
@@ -143,12 +120,8 @@ export default {
   background: #fff;
   border-top: 1px solid #e1e1e1;
 }
-.loginPage__footer {
-  display: none;
-}
-.workflowPage__footer {
-  display: none;
-}
+.loginPage__footer,
+.workflowPage__footer,
 .filesPage__footer {
   display: none;
 }
@@ -174,9 +147,7 @@ export default {
     background-color: rgb(53, 55, 60);
   }
   .workflowPage__main {
-    /* height: 91.475%; */
     border-top: 1px solid #404040;
-    height: 95.4%;
   }
 }
 </style>
