@@ -85,7 +85,6 @@ export default {
 <style>
 .app {
   width: 100vw;
-  /* height: 191vh; */
 }
 .header-component,
 .workflowPage__header,
@@ -116,7 +115,7 @@ export default {
 }
 .footer-component {
   width: 100%;
-  height: 80px;
+  height: 5rem;
   background: #fff;
   border-top: 1px solid #e1e1e1;
 }
