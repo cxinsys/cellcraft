@@ -1,7 +1,11 @@
 <template>
   <div class="layout">
     <main class="main-component">
-      <img class="main__img" src="@/assets/main_bg.png" />
+      <div>
+        <video class="main__video" autoplay loop muted>
+          <source src="@/assets/main_bg_light.mp4" type="video/mp4" />
+        </video>
+      </div>
       <div class="main__textbox">
         <img class="main__name" src="@/assets/cellcraft_logo_text_2.png" />
         <span class="main__desc">
@@ -258,6 +262,14 @@ export default {
   height: inherit;
   object-fit: cover;
   object-position: left;
+  border-radius: 1.5rem;
+}
+.main__video {
+  width: 88rem;
+  max-width: calc(99%);
+  height: 20rem;
+  object-fit: cover;
+  object-position: center;
   border-radius: 1.5rem;
 }
 .main__textbox {
