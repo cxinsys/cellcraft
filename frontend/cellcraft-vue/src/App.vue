@@ -87,12 +87,23 @@ export default {
   width: 100vw;
   /* height: 191vh; */
 }
-.header-component,
+
+.header-component {
+  width: 100%;
+  height: 3.5rem;
+  position: fixed;
+  z-index: 999;
+}
+
+/* .header-component, */
 .workflowPage__header,
 .filesPage__header {
   width: 100%;
   height: 3.5rem;
+  position: relative;
+  /* z-index: 999; */
 }
+
 .loginPage__header {
   display: none;
 }
@@ -101,7 +112,7 @@ export default {
 }
 .main-component {
   width: 100%;
-  height: 79rem;
+  height: 220rem;
 }
 .loginPage__main {
   width: 100%;
@@ -144,7 +155,7 @@ export default {
 
 @media (prefers-color-scheme: dark) {
   .header-component {
-    background-color: rgb(53, 55, 60);
+    background-color: rgba(0, 0, 0, 0.7);
   }
   .workflowPage__main {
     border-top: 1px solid #404040;
