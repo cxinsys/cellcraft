@@ -93,6 +93,7 @@ export default {
   height: 3.5rem;
   position: fixed;
   z-index: 999;
+  background-color: rgba(0, 0, 0, 0.7);
 }
 
 /* .header-component, */
@@ -154,9 +155,9 @@ export default {
 }
 
 @media (prefers-color-scheme: dark) {
-  .header-component {
+  /* .header-component {
     background-color: rgba(0, 0, 0, 0.7);
-  }
+  } */
   .workflowPage__main {
     border-top: 1px solid #404040;
   }

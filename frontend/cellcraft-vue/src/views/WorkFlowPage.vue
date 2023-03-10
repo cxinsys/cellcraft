@@ -565,7 +565,7 @@ export default {
   height: 5rem; */
   width: 4rem;
   height: 4rem;
-  box-shadow: 0px 0px 8px 0px rgba(75, 119, 209, 1);
+  box-shadow: 0px 0px 6px 0px rgb(99, 99, 99);
 }
 .node-bar__img {
   /* width: 3rem;

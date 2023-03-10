@@ -11,7 +11,7 @@
         @input="titleChangeFunc($event)"
       />
       <div class="options__item">
-        X - axis&nbsp;
+        X - axis&nbsp;<br />
         <select :value="selectedX" @change="setSelectX($event)">
           <option
             v-for="(item, index) in numList"
@@ -23,7 +23,7 @@
         </select>
       </div>
       <div class="options__item">
-        Y - axis&nbsp;
+        Y - axis&nbsp;<br />
         <select :value="selectedY" @change="setSelectY($event)">
           <option
             v-for="(item, index) in numList"
@@ -35,7 +35,7 @@
         </select>
       </div>
       <div class="options__item">
-        Name&nbsp;
+        Name&nbsp;<br />
         <select :value="selectedName" @change="setSelectName($event)">
           <option
             v-for="(item, index) in keyList"
@@ -47,7 +47,7 @@
         </select>
       </div>
       <div class="options__item">
-        Cluster&nbsp;
+        Cluster&nbsp;<br />
         <select :value="selectedCluster" @change="setSelectCluster($event)">
           <option
             v-for="(item, index) in clusterList"
@@ -59,7 +59,7 @@
         </select>
       </div>
       <div class="options__item">
-        Contrast&nbsp;
+        Contrast&nbsp;<br />
         <button v-on:click="clusterContrastMinus">-</button>
         &nbsp;
         <button v-on:click="clusterContrastPlus">+</button>
@@ -67,7 +67,7 @@
         <button v-on:click="clusterContrastReset">reset</button>
       </div>
       <div class="options__item">
-        Quantile&nbsp;
+        Quantile&nbsp;<br />
         <button v-on:click="clusterQuantileMinus">-</button>
         &nbsp;
         <button v-on:click="clusterQuantilePlus">+</button>
@@ -76,7 +76,7 @@
       </div>
 
       <div class="options__item">
-        Marker Size&nbsp;
+        Marker Size&nbsp;<br />
         <button v-on:click="markerSizeMinus">-</button>
         &nbsp;
         <button v-on:click="markerSizePlus">+</button>
@@ -84,19 +84,19 @@
         <button v-on:click="markerSizeReset">reset</button>
       </div>
       <div class="options__item">
-        Show Grid&nbsp;
+        Show Grid&nbsp;<br />
         <button v-on:click="switchShowGrid">ON / OFF</button>
       </div>
       <div class="options__item">
-        Show Line&nbsp;
+        Show Line&nbsp;<br />
         <button v-on:click="switchShowLine">ON / OFF</button>
       </div>
       <div class="options__item">
-        Show Zero Line&nbsp;
+        Show Zero Line&nbsp;<br />
         <button v-on:click="switchShowZeroLine">ON / OFF</button>
       </div>
       <div class="options__item">
-        Show Axes Label&nbsp;
+        Show Axes Label&nbsp;<br />
         <button v-on:click="switchShowLabel">ON / OFF</button>
       </div>
     </div>
@@ -499,7 +499,7 @@ export default {
   padding-right: 1%;
   /* background-color: red; */
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: center;
   flex-direction: column;
 }
@@ -514,7 +514,23 @@ export default {
   /* padding: 2% 0; */
   margin: 2%;
 }
+button {
+  background-color: #ffffff;
+  border: 1px solid #999999;
+  border-radius: 0.3rem;
+  color: #333333;
+  /* font-size: 1rem;
+  padding: 0.2rem 1rem; */
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+  margin: 0.2rem 0.1rem;
+}
 
+button:hover {
+  background-color: #e7eaff;
+  border-color: #b3b3b3;
+}
 @media (prefers-color-scheme: dark) {
   /* .plotly-layout {
     background-color: rgb(41, 43, 48);
