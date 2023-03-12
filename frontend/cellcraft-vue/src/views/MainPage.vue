@@ -345,6 +345,7 @@ export default {
   /* object-fit: contain; */
   width: 60%;
   min-width: 30rem;
+  max-width: 60rem;
 }
 .main__desc {
   font-family: "Montserrat", sans-serif;
