@@ -1,7 +1,11 @@
 <template>
   <div class="layout">
+    <div class="main__bg-video">
+      <video class="main-video" autoplay loop muted>
+        <source src="@/assets/main_bg_fantastic.mp4" type="video/mp4" />
+      </video>
+    </div>
     <main class="main-component">
-      <img class="main__img" src="@/assets/main_bg.png" />
       <div class="main__textbox">
         <img class="main__name" src="@/assets/cellcraft_logo_text_2.png" />
         <span class="main__desc">
@@ -11,6 +15,20 @@
           based on Integrative Analysis of Single Cell RNA-seq, ATAC-seq and
           Spatial Transcriptomics Data
         </span>
+        <div class="main__hotButtons">
+          <button
+            class="main__hotButtons-item"
+            @click="scrollToBottom('menuId')"
+          >
+            Menu >
+          </button>
+          <button
+            class="main__hotButtons-item"
+            @click="scrollToBottom('introId')"
+          >
+            About >
+          </button>
+        </div>
       </div>
     </main>
     <div class="notice-component">
@@ -27,7 +45,7 @@
       </div>
       <img class="notice__list" src="@/assets/menu.png" />
     </div>
-    <section class="menu-component">
+    <section class="menu-component" id="menuId">
       <ul class="menu-list">
         <li
           class="menu-list__card"
@@ -117,7 +135,7 @@
         </li>
       </ul>
     </section>
-    <div class="intro-component">
+    <div class="intro-component" id="introId">
       <div class="intro__textbox">
         <h1 class="intro__title">
           <span class="bold">ABOUT</span>
@@ -170,6 +188,28 @@ export default {
         ev.target.children[2].classList.remove("right-move");
       }
     },
+    scrollToBottom(sectionId) {
+      const section = document.querySelector(`#${sectionId}`);
+      window.scrollTo({
+        top: section.offsetTop,
+        behavior: "smooth",
+      });
+    },
+  },
+  mounted() {
+    const video = this.$refs.videoRef;
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    const ratio = Math.max(
+      window.innerWidth / videoWidth,
+      window.innerHeight / videoHeight
+    );
+    video.style.width = videoWidth * ratio + "px";
+    video.style.height = videoHeight * ratio + "px";
+  },
+  beforeDestroy() {
+    const video = this.$refs.videoRef;
+    video.pause();
   },
 };
 </script>
@@ -182,6 +222,7 @@ export default {
 }
 .bold {
   font-weight: 400;
+  /* color: rgb(70, 70, 70); */
 }
 .arrow {
   display: inline-block;
@@ -198,7 +239,7 @@ export default {
   transform: translateX(2rem);
   opacity: 1;
 }
-.main-component,
+/* .main-component, */
 .notice-component,
 .menu-component,
 .intro-component {
@@ -210,45 +251,48 @@ export default {
 }
 .main-component {
   top: 2rem;
-  height: 20rem;
+  height: 70rem;
+  background: linear-gradient(to bottom, #b7b7b75a, #000000d0);
+
+  /* background: #000000ac; */
 }
 .notice-component {
   height: 4rem;
-  margin-top: 4rem;
+  /* margin-top: 4rem; */
   display: flex;
   align-items: center;
 }
 .notice-component:before {
   content: "";
-  background: rgb(0, 85, 203);
-  width: 1000%;
+  background: rgba(0, 85, 203, 0.8);
+  width: 200vw;
   height: 100%;
   position: absolute;
   left: 0;
-  margin-left: -500%;
+  margin-left: -100vw;
   z-index: -1;
   top: 0;
 }
 .menu-component {
-  padding: 2rem 0;
+  padding: 6rem 0;
   display: flex;
   align-items: center;
   box-sizing: border-box;
 }
 .intro-component {
   /* height: 22.5rem; */
-  height: 24.5rem;
+  height: 55rem;
   display: flex;
   align-items: center;
 }
 .intro-component:before {
   content: "";
-  background: #f3f3f37a;
-  width: 1000%;
+  background: linear-gradient(to bottom, #ffffffa8, #ffffff);
+  width: 200vw;
   height: 100%;
   position: absolute;
   left: 0;
-  margin-left: -500%;
+  margin-left: -100vw;
   z-index: -1;
   top: 0;
 }
@@ -260,23 +304,48 @@ export default {
   object-position: left;
   border-radius: 1.5rem;
 }
+.main__bg-video {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: -1;
+}
+.main-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* width: 100rem; */
+  /* max-width: calc(99%); */
+  /* height: 20rem; */
+  /* object-fit: cover;
+  object-position: left; */
+  /* border-radius: 1.5rem; */
+}
 .main__textbox {
   /* width: 60rem; */
   /* flex-grow: 1; */
-  width: 90rem;
+  width: 100vw;
   max-width: calc(99%);
-  height: 16rem;
+  height: 70rem;
   position: absolute;
-  top: 1.5rem;
-  left: 2rem;
+  top: 0rem;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
+  align-items: center;
 }
 .main__name {
   height: auto;
   /* object-fit: contain; */
-  width: 40%;
+  width: 60%;
+  min-width: 30rem;
+  max-width: 60rem;
 }
 .main__desc {
   font-family: "Montserrat", sans-serif;
@@ -284,9 +353,28 @@ export default {
   font-weight: 500;
   font-size: 1.04rem;
   line-height: 1.6rem;
-  padding: 1rem 3rem 0rem 1rem;
-  text-align: right;
+  padding: 2rem 0;
+  text-align: center;
   color: rgb(255, 255, 255);
+}
+.main__hotButtons {
+  /* padding: 10rem; */
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+}
+.main__hotButtons-item {
+  border: none;
+  background-color: transparent;
+  color: rgb(109, 158, 235);
+  font-size: 1.2rem;
+  cursor: pointer;
+  text-decoration: none;
+  margin: 0.5rem 1rem;
+}
+
+.main__hotButtons-item:hover {
+  text-decoration: underline;
 }
 .notice__title {
   width: 10%;
@@ -351,27 +439,33 @@ export default {
   cursor: pointer;
   margin: 0 1.5rem;
   margin-bottom: 2rem;
-  width: 22.5rem;
-  max-width: calc(33% - 5rem);
-  height: 6.5rem;
+  width: 40rem;
+  max-width: calc(50% - 5rem);
+  height: 22rem;
   display: flex;
   align-items: center;
+  justify-content: center;
+  background: #f3f3f3d2;
+
   /* box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px; */
   box-shadow: rgba(0, 0, 0, 0.14) 0.5px 3px 5px;
   padding: 1rem;
-  border-radius: 1rem;
+  border-radius: 0.5rem;
   position: relative;
 }
 .menu-list__card:hover {
   box-shadow: rgba(0, 0, 0, 0.31) 0px 10px 20px, rgba(0, 0, 0, 0.35) 0px 6px 6px;
   transition: 0.5s;
+  background: #f3f3f3;
 }
 .menu-list__icon {
   pointer-events: none;
-  width: 2.5rem;
-  height: 2.5rem;
+  /* width: 2.5rem;
+  height: 2.5rem; */
+  width: 4rem;
+  height: 4rem;
   object-fit: cover;
-  margin-right: 1rem;
+  margin-right: 2rem;
   opacity: 0.8;
 }
 .menu-list__textbox {
@@ -388,11 +482,12 @@ export default {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 600;
-  font-size: 1.4rem;
-  line-height: 1.1rem;
+  font-size: 2rem;
+  line-height: 1.4rem;
   position: absolute;
   top: calc(100% - 5rem);
-  color: rgb(70, 70, 70);
+  /* color: rgb(70, 70, 70); */
+  color: rgb(0, 85, 203);
 }
 .menu-list__desc {
   pointer-events: none;
@@ -401,8 +496,9 @@ export default {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
-  font-size: 0.9rem;
-  line-height: 1.1rem;
+  font-size: 1rem;
+  line-height: 1.2rem;
+  margin-left: 0.1rem;
   position: absolute;
   top: calc(100% - 3rem);
   color: rgb(80, 80, 80);
@@ -424,6 +520,7 @@ export default {
   font-size: 2.3rem;
   line-height: 2.75rem;
   color: rgb(70, 70, 70);
+  /* color: rgb(0, 85, 203); */
 }
 .intro__list {
   width: 100%;
@@ -464,7 +561,8 @@ export default {
 }
 .intro__descbox {
   width: 70rem;
-  height: 80%;
+  margin-top: 8%;
+  height: 70%;
   display: flex;
   justify-content: center;
 }
@@ -472,11 +570,13 @@ export default {
   width: 45%;
   height: 100%;
   margin: 0 1rem;
+  margin-top: 10%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 .intro__descbox__column:last-child {
+  margin-top: 1%;
   align-items: center;
 }
 .intro__desc-title {
@@ -485,23 +585,23 @@ export default {
   font-weight: bold;
   font-size: 1.2rem;
   line-height: 1.4rem;
-  color: rgb(70, 70, 70);
+  color: rgb(50, 50, 50);
 }
 .intro__desc-text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 400;
+  font-weight: 500;
   font-size: 0.9rem;
   line-height: 1.5rem;
   margin-top: 1rem;
   opacity: 0.7;
-  color: rgb(70, 70, 70);
+  color: rgb(40, 40, 40);
 }
 .intro__desc-img {
   /* width: 28rem; */
-  width: 26rem;
-  height: 100%;
+  width: 28rem;
+  height: 80%;
   object-fit: cover;
-  border-radius: 2rem;
+  border-radius: 0.5rem;
 }
 </style>

@@ -108,7 +108,7 @@
       </ul>
       <div class="fileUpload">
         <div class="form-row">
-          <h1 class="form__name">Choose recently file</h1>
+          <h1 class="form__name">Choose Recent File</h1>
           <div class="form__selectFile">
             <ul class="form__fileList">
               <li
