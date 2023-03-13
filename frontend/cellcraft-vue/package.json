@@ -14,6 +14,7 @@
     "drawflow": "0.0.59",
     "plotly.js-dist-min": "^2.18.0",
     "vue": "^2.6.14",
+    "vue-drag-resize": "^1.5.4",
     "vue-good-table": "^2.21.11",
     "vue-plotly": "^1.1.0",
     "vue-router": "^3.5.1",

@@ -6,7 +6,7 @@
       </button>
     </div>
     <section class="node-bar">
-      <ul class="node-bar__nodelist">
+      <ul class="node-bar__nodelist" draggable="false">
         <li
           class="node-bar__drag-drawflow"
           v-for="(node, idx) in listNodes"
@@ -15,7 +15,7 @@
           :data-node="node.name"
           @dragstart="drag($event)"
         >
-          <img class="node-bar__img" :src="node.img" />
+          <img class="node-bar__img" :src="node.img" draggable="false" />
         </li>
       </ul>
       <!-- <div class="node-bar__row">
@@ -30,9 +30,18 @@
           </div>
         </div> -->
     </section>
-    <main
-      class="content-component"
-      v-bind:class="{ tab_actvie: tabList.length != 0 && isTabView }"
+    <VueDragResize
+      contentClass="content-component"
+      v-if="tabList.length != 0 && isTabView"
+      :isActive="true"
+      :x="600"
+      :y="64"
+      :w="880"
+      :h="672"
+      :minw="780"
+      :minh="540"
+      :stickSize="14"
+      :sticks="['tl']"
     >
       <ul class="content-tab" v-if="tabList.length != 0 && isTabView">
         <li
@@ -46,11 +55,7 @@
             <img class="tab__icon" :src="tab.img" />
             <p class="tab__text">{{ tab.name }}</p>
           </div>
-          <!-- <img
-            class="tab__close"
-            @click="isTabView = false"
-            src="@/assets/close.png"
-          /> -->
+          <img class="tab__close" @click="closeTab" src="@/assets/close.png" />
         </li>
       </ul>
       <div class="content-view" v-if="tabList.length != 0 && isTabView">
@@ -66,13 +71,17 @@
         <heatMapModal
           v-show="tabList[currentTab].name === 'heatMap'"
         ></heatMapModal>
+        <!-- <div class="content__handle" @mouseup="resizingContent">
+          <img class="handle--img" src="@/assets/lines.png" draggable="false" />
+        </div> -->
       </div>
-    </main>
+    </VueDragResize>
   </div>
 </template>
 
 <script>
 import Vue from "vue";
+import VueDragResize from "vue-drag-resize";
 /* eslint-disable */
 // import Drawflow from 'drawflow'
 // import styleDrawflow from 'drawflow/dist/drawflow.min.css' // eslint-disable-line no-use-before-define
@@ -98,10 +107,10 @@ export default {
     scatterPlotModal,
     Fileupload,
     heatMapModal,
+    VueDragResize,
   },
   data() {
     return {
-      rightSidebar_isActive: true,
       editor: null,
       exportValue: null,
       isTabView: true,
@@ -252,28 +261,26 @@ export default {
       if (ev.detail === 2 && this.$df.node_selected) {
         // 해당 노드와 연결되어 있는 File 정보 추출
         this.isTabView = true;
+
         const node_id = this.$df.node_selected.id.replace(/node-/g, "");
-        console.log(node_id);
+        console.log(typeof(node_id));
+        //Vuex 에서의 Current Node 변경
         this.$store.commit("changeNode", parseInt(node_id));
+        //this.tabList에 추가
+        const node = this.$store.getters.getNodeInfo(parseInt(node_id));
+        console.log(node);
+        this.tabList.push({
+          id: node.id,
+          name: node.name,
+          img: require(`@/assets/${node.name}.png`),
+        });
+        //this.currentTab 바꾸기
         this.tabList.forEach((ele, idx) => {
           if (ele.id === parseInt(node_id)) {
             this.currentTab = idx;
           }
         });
-        this.node_connection.forEach((connection) => {
-          // console.log(connection)
-          connection.forEach((node) => {
-            // console.log(node)
-            if (node === node_id) {
-              const node_info = this.$df.getNodeFromId(connection[0]);
-              const file_name = node_info.data.file
-                .replace(/C:\\fakepath\\/, "")
-                .replace(/.csv/, "");
-              this.file_name = file_name;
-              console.log(connection[0], file_name);
-            }
-          });
-        });
+        console.log(this.tabList);
       }
     });
 
@@ -397,6 +404,22 @@ export default {
       this.currentTab = idx;
       this.$store.commit("changeNode", this.tabList[idx].id);
     },
+    resizingContent(event) {
+      this.isResizing = !this.isResizing;
+      console.log(event);
+    },
+    moveResizing(event) {
+      console.log(event);
+    },
+    closeTab(event) {
+      setTimeout(() => {
+        console.log(this.tabList);
+        const currentNodeId = this.$store.getters.getCurrentNode;
+        this.tabList.splice(currentNodeId - 1, 1);
+        this.currentTab -= 1;
+        console.log(this.tabList);
+      }, "100");
+    },
   },
 };
 </script>
@@ -461,7 +484,6 @@ export default {
   position: absolute;
   right: -55rem;
   top: calc(50% - 21rem);
-  transition: all 0.8s;
 }
 .tab_actvie {
   right: 0;
@@ -470,23 +492,25 @@ export default {
   width: 100%;
   height: 2rem;
   display: flex;
+  z-index: 9998;
+  background: rgb(223, 225, 229);
+  border-radius: 0.5rem 0.5rem 0 0;
 }
 .tab__item {
   cursor: pointer;
   width: 10rem;
   height: 100%;
   border-radius: 0.5rem 0.5rem 0 0;
+  border-right: 1px solid #7f7f7f;
   display: flex;
   align-items: center;
   background: rgb(223, 225, 229);
   color: rgb(51, 51, 51);
   position: relative;
   opacity: 1;
-  box-shadow: 0px -6px 5px 0px rgba(0, 0, 0, 0.5);
 }
 .currentTab {
   background: rgb(244, 246, 251);
-  box-shadow: 0px -6px 5px 0px rgba(0, 0, 0, 0.5);
 }
 .tab__name {
   width: 8rem;
@@ -514,18 +538,43 @@ export default {
   margin-right: 0.5rem;
 }
 .tab__close {
-  width: 0.8rem;
-  height: 0.8rem;
+  width: 0.7rem;
+  height: 0.7rem;
   object-fit: contain;
   position: absolute;
   right: 1rem;
 }
 .content-view {
   width: 100%;
-  height: 39rem;
+  height: calc(100% - 2rem);
   background: rgb(244, 246, 251);
-  border-radius: 0 0 0 0.5rem;
-  box-shadow: 0px -5px 5px 0px rgba(0, 0, 0, 0.5);
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+.content__handle {
+  position: absolute;
+  left: -0.75rem;
+  top: calc(50% - 2rem);
+
+  cursor: col-resize;
+  width: 1.5rem;
+  height: 2rem;
+  border-radius: 3px;
+  box-shadow: rgba(6, 24, 44, 0.4) 0px 0px 0px 2px,
+    rgba(6, 24, 44, 0.65) 0px 4px 6px -1px,
+    rgba(255, 255, 255, 0.08) 0px 1px 0px inset;
+  background: rgb(255, 255, 255);
+  z-index: 9998;
+
+  display: flex;
+  align-items: center;
+}
+.handle--img {
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: contain;
+}
+.isResizing {
+  right: -55rem;
 }
 .node-bar {
   /* width: 8rem; */
