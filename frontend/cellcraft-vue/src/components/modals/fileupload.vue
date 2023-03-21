@@ -19,7 +19,7 @@
             </p>
           </div>
         </div>
-        <router-link
+        <!-- <router-link
           class="cloud-row"
           :to="{ path: '/files', query: { doUploadFile: 'upload' } }"
         >
@@ -29,7 +29,6 @@
                 class="form__button--foldericon"
                 src="@/assets/upload-file-black.png"
               />
-              <!-- <img class="form__button--plusicon" src="@/assets/plus.png" /> -->
             </div>
             <input
               df-file
@@ -46,21 +45,22 @@
               Upload file to CELLCRAFT files directory.
             </p>
           </div>
-        </router-link>
+        </router-link> -->
         <router-link class="cloud-row" to="/files">
-          <label class="form__button">
+          <!-- <label class="form__button">
             <div class="form__addfile">
               <img
                 class="form__button--foldericon"
                 src="@/assets/manage-file.png"
               />
-              <!-- <img class="form__button--plusicon" src="@/assets/plus.png" /> -->
             </div>
             <input df-file class="form__input" type="file" accept="text/csv" />
-          </label>
+          </label> -->
           <div class="cloud-textbox">
-            <h1 class="cloud-textbox__title">Files directory</h1>
-            <p class="cloud-textbox__desc">Open CELLCRAFT files directory.</p>
+            <h1 class="cloud-textbox__directory">Files directory ></h1>
+            <p class="cloud-textbox__directory__desc">
+              Open CELLCRAFT files directory.
+            </p>
           </div>
         </router-link>
       </div>
@@ -305,10 +305,10 @@ export default {
   height: 95%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  /* align-items: stretch; */
+  justify-content: space-evenly;
   margin: 1rem 0 1rem 1rem;
-  padding: 3rem 0 3rem 1rem;
+  padding: 8rem 3rem 3rem 3rem;
   border-radius: 1rem;
   box-sizing: border-box;
   background-color: rgb(255, 255, 255);
@@ -381,25 +381,36 @@ export default {
   width: 100%;
   padding: 5% 0;
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
   text-decoration: none;
 }
 .cloud-textbox {
   width: 17rem;
-  height: 3rem;
+  height: 5rem;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 0 0 0 1rem;
+  padding: 0 0 0 0rem;
 }
 .cloud-textbox__title {
   color: rgb(51, 51, 51);
-  font-size: 1rem;
+  font-size: 2rem;
   font-weight: 400;
 }
 .cloud-textbox__desc {
+  color: rgb(51, 51, 51);
+  font-size: 1rem;
+  font-weight: 200;
+  padding: 0.2rem 0 0 0;
+}
+.cloud-textbox__directory {
+  color: rgb(109, 158, 235);
+  font-size: 1.5rem;
+  font-weight: 400;
+}
+.cloud-textbox__directory__desc {
   color: rgb(51, 51, 51);
   font-size: 1rem;
   font-weight: 200;
@@ -488,15 +499,18 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 1rem;
 }
 .form__addfile {
-  width: 3rem;
-  height: 3rem;
+  width: 6rem;
+  min-width: 6rem;
+  height: 6rem;
   position: relative;
   cursor: pointer;
   background-color: rgb(241, 243, 244);
   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   border-radius: 1rem;
+  margin-top: -4rem;
 }
 .form__button--plusicon {
   width: 1rem;
@@ -511,8 +525,8 @@ export default {
   height: 70%;
   object-fit: contain;
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: 1rem;
+  right: 1rem;
 }
 .form__input {
   position: absolute;
@@ -594,7 +608,7 @@ export default {
 .form__button--apply:hover {
   background: rgb(40, 84, 197);
 }
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   .form__button--foldericon {
     filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg)
       brightness(107%) contrast(101%);
@@ -683,5 +697,5 @@ export default {
     line-height: 1.4rem;
     color: rgb(255, 255, 255);
   }
-}
+} */
 </style>

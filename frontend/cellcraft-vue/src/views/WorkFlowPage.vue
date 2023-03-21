@@ -1,5 +1,10 @@
 <template>
   <div class="layout__workflow">
+    <!-- <div class="main__bg-video">
+      <video class="main-video" autoplay loop muted>
+        <source src="@/assets/main_bg_fantastic.mp4" type="video/mp4" />
+      </video>
+    </div> -->
     <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)">
       <button class="run_button" @click="exportdf">
         <img class="run_button__icon" src="@/assets/run.png" />
@@ -119,34 +124,34 @@ export default {
         {
           name: "File",
           // name2: "File",
-          img: require("@/assets/file-upload.png"),
+          img: require("@/assets/file-upload2.png"),
           input: 0,
           output: 1,
         },
         {
           name: "DataTable",
           // name2: "DataTable",
-          img: require("@/assets/table.png"),
+          img: require("@/assets/table2.png"),
           input: 1,
           output: 1,
         },
         {
           name: "scatterPlot",
           // name2: "Plot",
-          img: require("@/assets/scatter-plot.png"),
+          img: require("@/assets/scatter-plot2.png"),
           input: 1,
           output: 0,
         },
         {
           name: "heatMap",
-          img: require("@/assets/heatMap.png"),
+          img: require("@/assets/heatMap2.png"),
           input: 1,
           output: 0,
         },
         {
           name: "Algorithm",
           // name2: "Algorithm",
-          img: require("@/assets/algorithm.png"),
+          img: require("@/assets/algorithm2.png"),
           input: 1,
           output: 0,
         },
@@ -263,7 +268,7 @@ export default {
         this.isTabView = true;
 
         const node_id = this.$df.node_selected.id.replace(/node-/g, "");
-        console.log(typeof(node_id));
+        console.log(typeof node_id);
         //Vuex 에서의 Current Node 변경
         this.$store.commit("changeNode", parseInt(node_id));
         //this.tabList에 추가
@@ -477,6 +482,32 @@ export default {
   height: 100%;
   position: relative;
   overflow: hidden;
+  background-image: url("@/assets/fantastic_background2.png");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+.main__bg-video {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: -1;
+}
+.main-video {
+  position: absolute;
+  top: 0;
+  right: 17px;
+  width: 100%;
+  /* max-width: 98vw; */
+  height: 120vh;
+  object-fit: cover;
+  /* width: 100rem; */
+  /* max-width: calc(99%); */
+  /* height: 20rem; */
+  /* object-fit: cover;
+  object-position: left; */
+  /* border-radius: 1.5rem; */
 }
 .content-component {
   width: 55rem;
@@ -493,7 +524,7 @@ export default {
   height: 2rem;
   display: flex;
   z-index: 9998;
-  background: rgb(223, 225, 229);
+  background: rgba(223, 225, 229, 0);
   border-radius: 0.5rem 0.5rem 0 0;
 }
 .tab__item {
@@ -504,13 +535,13 @@ export default {
   border-right: 1px solid #7f7f7f;
   display: flex;
   align-items: center;
-  background: rgb(223, 225, 229);
+  background: rgba(223, 225, 229, 0.6);
   color: rgb(51, 51, 51);
   position: relative;
   opacity: 1;
 }
 .currentTab {
-  background: rgb(244, 246, 251);
+  background: rgba(244, 246, 251, 0.6);
 }
 .tab__name {
   width: 8rem;
@@ -547,7 +578,7 @@ export default {
 .content-view {
   width: 100%;
   height: calc(100% - 2rem);
-  background: rgb(244, 246, 251);
+  background: rgba(244, 248, 251, 0.6);
   border-radius: 0 0 0.5rem 0.5rem;
 }
 .content__handle {
@@ -578,16 +609,16 @@ export default {
 }
 .node-bar {
   /* width: 8rem; */
-  width: 4.5rem;
+  width: 5rem;
   /* height: 34rem; */
   height: 25rem;
   border-radius: 1rem;
-  background: rgb(244, 246, 251);
+  background: rgba(244, 246, 251, 0.586);
   box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 1);
   position: absolute;
   /* top: calc(50% - 17rem); */
   top: calc(50% - 13rem);
-  left: 1rem;
+  left: 0.7rem;
   z-index: 9998;
   opacity: 1;
   display: flex;
@@ -596,8 +627,9 @@ export default {
 }
 .node-bar__nodelist {
   width: 80%;
-  height: 105%;
+  height: 100%;
   display: flex;
+  margin-left: 3px;
   flex-direction: column;
   justify-content: space-evenly;
   align-items: center;
@@ -607,7 +639,7 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: move;
-  background: rgb(255, 255, 255);
+  background: rgba(15, 19, 70, 0.868);
   color: rgb(245, 245, 245);
   border-radius: 1rem;
   /* width: 5rem;
@@ -655,9 +687,12 @@ export default {
     brightness(125%) contrast(111%);
 }
 #drawflow {
-  width: 100%;
-  height: 100%;
+  width: 92%;
+  height: 92%;
+  top: 4%;
+  left: 4%;
   position: relative;
+  border-radius: 0.8%;
 
   background: var(--dfBackgroundColor);
   background-size: var(--dfBackgroundSize) var(--dfBackgroundSize);
@@ -785,7 +820,7 @@ export default {
   border-radius: var(--dfDeleteHoverBorderRadius);
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   .node-bar__img {
     filter: invert(100%) sepia(3%) saturate(2008%) hue-rotate(348deg)
       brightness(125%) contrast(111%);
@@ -811,5 +846,5 @@ export default {
     background: rgb(32, 34, 39);
     color: rgb(245, 245, 245);
   }
-}
+} */
 </style>

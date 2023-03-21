@@ -352,7 +352,7 @@ export default {
   /* flex-grow: 1; */
   width: calc(100vw - 17px);
   max-width: calc(99%);
-  height: 70rem;
+  height: calc(100vh - 70px);
   position: absolute;
   top: 0rem;
   left: 0;

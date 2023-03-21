@@ -535,8 +535,8 @@ button:hover {
   /* .plotly-layout {
     background-color: rgb(41, 43, 48);
   } */
-  .options__item {
+  /* .options__item {
     color: rgb(255, 255, 255);
-  }
+  } */
 }
 </style>
