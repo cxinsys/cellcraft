@@ -84,7 +84,9 @@ export default {
 
 <style>
 .app {
-  width: calc(100vw - 17px);
+  width: 100vw;
+  height: 100vh;
+  overflow-x: hidden;
   /* height: 191vh; */
 }
 
@@ -99,10 +101,8 @@ export default {
 /* .header-component, */
 .workflowPage__header,
 .filesPage__header {
-  width: 100%;
-  height: 3.5rem;
   position: relative;
-  /* z-index: 999; */
+  background-color: rgba(0, 0, 0, 0.9);
 }
 
 .loginPage__header {
@@ -113,7 +113,6 @@ export default {
 }
 .main-component {
   width: 100%;
-  height: 252vh+150px;
 }
 .loginPage__main {
   width: 100%;
@@ -124,7 +123,7 @@ export default {
 }
 .workflowPage__main,
 .filesPage__main {
-  height: 50rem;
+  height: 100%;
 }
 .footer-component {
   width: 100%;

@@ -48,10 +48,12 @@ async def exportData(
         # print(workflow.nodes)
         print(workflow.linked_nodes)
         for nodes in workflow.linked_nodes:
-            fileName = nodes['file'].replace('.csv', '')
-            lastNode = nodes['lastNode']
+            # fileName = nodes['file'].replace('.csv', '')
+            fileName = nodes['file'].replace('.h5ad', '')
+            # lastNode = nodes['lastNode']
+            lastNode = "file"
             print(fileName, lastNode)
-            target = f'{lastNode}_{current_user.username}_{fileName[0]}'
+            target = f'{lastNode}_{current_user.username}_{fileName}'
             p = Pool(cpu_count())
             snakemake = p.apply_async(snakemakeProcess, (target,))
             print(snakemake.get())
@@ -125,7 +127,8 @@ def checkResult(filename: WorkflowResult, current_user: models.User = Depends(de
         if FILE_NAME in item_file:
             FILE_NAME = item_file
     print(FILE_NAME)
-    FILE_PATH = PATH_COMPILE_RESULT + '/' + FILE_NAME 
+    # FILE_PATH = PATH_COMPILE_RESULT + '/' + FILE_NAME 
+    FILE_PATH = PATH_COMPILE_RESULT + '/' + "file_pbmc3k_obs_umap.csv"
 
     # if FILE_NAME.find("Plot") != -1:
     #     # img = Image.open(FILE_PATH)

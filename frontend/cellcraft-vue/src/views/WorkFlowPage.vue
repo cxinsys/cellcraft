@@ -38,7 +38,7 @@
       :y="64"
       :w="880"
       :h="672"
-      :minw="780"
+      :minw="820"
       :minh="540"
       :stickSize="14"
       :sticks="['tl']"
