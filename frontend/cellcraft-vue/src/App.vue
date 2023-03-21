@@ -84,7 +84,7 @@ export default {
 
 <style>
 .app {
-  width: 100vw;
+  width: calc(100vw - 17px);
   /* height: 191vh; */
 }
 
@@ -113,7 +113,7 @@ export default {
 }
 .main-component {
   width: 100%;
-  height: 220rem;
+  height: 252vh+150px;
 }
 .loginPage__main {
   width: 100%;

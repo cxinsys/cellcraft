@@ -7,7 +7,7 @@
     </div>
     <main class="main-component">
       <div class="main__textbox">
-        <img class="main__name" src="@/assets/cellcraft_logo_text_2.png" />
+        <img class="main__name" :src="randomImage" alt="Random Image" />
         <span class="main__desc">
           Platform for Reconstruction of Inter-cell Type Gene Regulatory Network
           Model
@@ -176,6 +176,9 @@
 </template>
 
 <script>
+import logo1 from "@/assets/cellcraft_logo_text_5.png";
+import logo2 from "@/assets/cellcraft_logo_text_8.png";
+
 export default {
   methods: {
     mouseoverEvent(ev) {
@@ -211,13 +214,24 @@ export default {
     const video = this.$refs.videoRef;
     video.pause();
   },
+  data() {
+    return {
+      images: [logo1, logo2],
+    };
+  },
+  computed: {
+    randomImage() {
+      const index = Math.floor(Math.random() * this.images.length);
+      return this.images[index];
+    },
+  },
 };
 </script>
 
 <style scoped>
 .layout {
   width: 100%;
-  height: 100%;
+  /* height: 10%; */
   position: relative;
 }
 .bold {
@@ -240,10 +254,9 @@ export default {
   opacity: 1;
 }
 /* .main-component, */
-.notice-component,
-.menu-component,
-.intro-component {
-  width: 90rem;
+/* .notice-component, */
+.menu-component {
+  width: calc(100vw - 17px);
   max-width: calc(100% - 3rem);
   margin-right: auto;
   margin-left: auto;
@@ -251,25 +264,29 @@ export default {
 }
 .main-component {
   top: 2rem;
-  height: 70rem;
+  height: calc(100vh - 70px);
   background: linear-gradient(to bottom, #b7b7b75a, #000000d0);
 
   /* background: #000000ac; */
 }
 .notice-component {
-  height: 4rem;
+  height: 70px;
   /* margin-top: 4rem; */
+  padding: 0rem calc(50% - 43rem);
   display: flex;
   align-items: center;
+  margin-right: auto;
+  margin-left: auto;
+  position: relative;
 }
 .notice-component:before {
   content: "";
   background: rgba(0, 85, 203, 0.8);
-  width: 200vw;
+  width: calc(100vw - 17px);
   height: 100%;
   position: absolute;
   left: 0;
-  margin-left: -100vw;
+  /* margin-left: -100vw; */
   z-index: -1;
   top: 0;
 }
@@ -277,22 +294,27 @@ export default {
   padding: 6rem 0;
   display: flex;
   align-items: center;
+  height: 55vh;
   box-sizing: border-box;
 }
 .intro-component {
   /* height: 22.5rem; */
-  height: 55rem;
+  height: calc(45vh - 80px);
   display: flex;
   align-items: center;
+  justify-content: center;
+  margin-right: auto;
+  margin-left: auto;
+  position: relative;
 }
 .intro-component:before {
   content: "";
   background: linear-gradient(to bottom, #ffffffa8, #ffffff);
-  width: 200vw;
+  width: calc(100vw - 17px);
   height: 100%;
   position: absolute;
   left: 0;
-  margin-left: -100vw;
+  /* margin-left: -100vw; */
   z-index: -1;
   top: 0;
 }
@@ -328,7 +350,7 @@ export default {
 .main__textbox {
   /* width: 60rem; */
   /* flex-grow: 1; */
-  width: 100vw;
+  width: calc(100vw - 17px);
   max-width: calc(99%);
   height: 70rem;
   position: absolute;
@@ -437,11 +459,11 @@ export default {
 }
 .menu-list__card {
   cursor: pointer;
-  margin: 0 1.5rem;
+  margin: 1rem 2rem;
   margin-bottom: 2rem;
-  width: 40rem;
+  width: 24vw;
   max-width: calc(50% - 5rem);
-  height: 22rem;
+  height: 16vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -505,12 +527,13 @@ export default {
 }
 .intro__textbox {
   width: 20rem;
-  height: 80%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
   border-right: 1px solid rgba(0, 0, 0, 0.3);
+  margin-left: 2rem;
 }
 .intro__title {
   font-family: "Montserrat", sans-serif;
@@ -529,7 +552,7 @@ export default {
   list-style: none;
 }
 .intro__list-item {
-  width: 70%;
+  width: 100%;
   margin: 1rem 0;
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -561,22 +584,23 @@ export default {
 }
 .intro__descbox {
   width: 70rem;
-  margin-top: 8%;
-  height: 70%;
+  height: 100%;
   display: flex;
+  align-items: center;
   justify-content: center;
 }
 .intro__descbox__column {
   width: 45%;
   height: 100%;
   margin: 0 1rem;
-  margin-top: 10%;
+  /* margin-top: 10%; */
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
 }
 .intro__descbox__column:last-child {
-  margin-top: 1%;
+  /* margin-top: 1%; */
   align-items: center;
 }
 .intro__desc-title {
@@ -600,7 +624,7 @@ export default {
 .intro__desc-img {
   /* width: 28rem; */
   width: 28rem;
-  height: 80%;
+  height: 20rem;
   object-fit: cover;
   border-radius: 0.5rem;
 }
