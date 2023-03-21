@@ -533,6 +533,7 @@ export default {
   align-items: flex-start;
   justify-content: center;
   border-right: 1px solid rgba(0, 0, 0, 0.3);
+  margin-left: 2rem;
 }
 .intro__title {
   font-family: "Montserrat", sans-serif;
