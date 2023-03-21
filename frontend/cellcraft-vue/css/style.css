@@ -126,7 +126,7 @@ table {
 }
 
 :root {
-  --dfBackgroundColor: rgba(128, 224, 230, 0.28);
+  --dfBackgroundColor: rgba(128, 224, 230, 0.34);
   --dfBackgroundSize: 8px;
   --dfBackgroundImage: radial-gradient(
     rgba(255, 255, 255, 0.207) 1px,
@@ -135,7 +135,7 @@ table {
 
   --dfNodeType: flex;
   --dfNodeTypeFloat: none;
-  --dfNodeBackgroundColor: rgba(15, 19, 70, 0.868);
+  --dfNodeBackgroundColor: rgba(15, 19, 70, 0.94);
   --dfNodeTextColor: rgb(81, 81, 81);
   --dfNodeBorderSize: 0px;
   --dfNodeBorderColor: #000000;
@@ -147,8 +147,8 @@ table {
   --dfNodeBoxShadowHL: 0px;
   --dfNodeBoxShadowVL: 0px;
   --dfNodeBoxShadowBR: 6px;
-  --dfNodeBoxShadowS: 0px;
-  --dfNodeBoxShadowColor: rgba(75, 119, 209, 1);
+  --dfNodeBoxShadowS: 1px;
+  --dfNodeBoxShadowColor: rgb(203, 220, 255);
 
   --dfNodeHoverBackgroundColor: rgba(25, 29, 80, 0.868);
   --dfNodeHoverTextColor: rgb(81, 81, 81);
@@ -160,7 +160,7 @@ table {
   --dfNodeHoverBoxShadowVL: 0px;
   --dfNodeHoverBoxShadowBR: 6px;
   --dfNodeHoverBoxShadowS: 0px;
-  --dfNodeHoverBoxShadowColor: rgba(40, 84, 197, 1);
+  --dfNodeHoverBoxShadowColor: rgb(188, 206, 252);
 
   --dfNodeSelectedBackgroundColor: rgba(15, 19, 70, 0.868);
   --dfNodeSelectedTextColor: #ffffff;
@@ -175,12 +175,12 @@ table {
   --dfNodeSelectedBoxShadowColor: rgb(247, 247, 64);
 
   --dfInputBackgroundColor: rgba(204, 217, 245, 1);
-  --dfInputBorderSize: 1px;
+  --dfInputBorderSize: 0px;
   --dfInputBorderColor: rgba(170, 193, 240, 1);
   --dfInputBorderRadius: 50px;
-  --dfInputLeft: -17px;
-  --dfInputHeight: 11px;
-  --dfInputWidth: 11px;
+  --dfInputLeft: -16px;
+  --dfInputHeight: 15px;
+  --dfInputWidth: 15px;
 
   --dfInputHoverBackgroundColor: rgba(170, 193, 240, 1);
   --dfInputHoverBorderSize: 1px;
@@ -191,9 +191,9 @@ table {
   --dfOutputBorderSize: 0px;
   --dfOutputBorderColor: rgba(170, 193, 240, 1);
   --dfOutputBorderRadius: 50px;
-  --dfOutputRight: -14px;
-  --dfOutputHeight: 14px;
-  --dfOutputWidth: 14px;
+  --dfOutputRight: -16px;
+  --dfOutputHeight: 15px;
+  --dfOutputWidth: 15px;
 
   --dfOutputHoverBackgroundColor: rgba(170, 193, 240, 1);
   --dfOutputHoverBorderSize: 1px;

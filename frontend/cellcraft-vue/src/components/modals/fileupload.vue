@@ -596,7 +596,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(75, 119, 209);
+  background: rgb(16, 83, 217);
   /* background: rgb(40, 84, 197); */
   font-family: "Montserrat", sans-serif;
   font-style: normal;
