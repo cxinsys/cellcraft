@@ -92,7 +92,8 @@ export default {
 
 .header-component {
   width: 100%;
-  height: 3.5rem;
+  /* height: 3.5rem; */
+  height: 60px;
   position: fixed;
   z-index: 999;
   background-color: rgba(0, 0, 0, 0.7);
@@ -101,6 +102,8 @@ export default {
 /* .header-component, */
 .workflowPage__header,
 .filesPage__header {
+  width: 100%;
+  height: 60px;
   position: relative;
   background-color: rgba(0, 0, 0, 0.9);
 }
@@ -109,7 +112,7 @@ export default {
   display: none;
 }
 .filesPage__header {
-  border-bottom: 1px solid #e1e1e1;
+  /* border-bottom: 1px solid #e1e1e1; */
 }
 .main-component {
   width: 100%;
@@ -119,11 +122,11 @@ export default {
   height: 100%;
 }
 .workflowPage__main {
-  border-top: 1px solid #e1e1e1;
+  /* border-top: 1px solid #e1e1e1; */
 }
 .workflowPage__main,
 .filesPage__main {
-  height: 100%;
+  height: calc(100vh - 56px);
 }
 .footer-component {
   width: 100%;
@@ -157,8 +160,8 @@ export default {
   /* .header-component {
     background-color: rgba(0, 0, 0, 0.7);
   } */
-  .workflowPage__main {
+  /* .workflowPage__main {
     border-top: 1px solid #404040;
-  }
+  } */
 }
 </style>

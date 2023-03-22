@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="nodeBox">
-      <img class="nodeBox__icon" src="@/assets/table.png" />
+      <img class="nodeBox__icon" src="@/assets/table2.png" />
     </div>
   </div>
 </template>
@@ -35,14 +35,14 @@ export default {
   width: 70%;
   height: 70%;
   object-fit: contain;
-  filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg) brightness(27%)
-    contrast(101%);
+  /* filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg) brightness(27%)
+    contrast(101%); */
 }
 
 @media (prefers-color-scheme: dark) {
-  .nodeBox__icon {
+  /* .nodeBox__icon {
     filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg)
       brightness(107%) contrast(101%);
-  }
+  } */
 }
 </style>
