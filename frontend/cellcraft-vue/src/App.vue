@@ -84,7 +84,9 @@ export default {
 
 <style>
 .app {
-  width: calc(100vw - 17px);
+  width: 100vw;
+  height: 100vh;
+  overflow-x: hidden;
   /* height: 191vh; */
 }
 
@@ -103,7 +105,7 @@ export default {
   width: 100%;
   height: 60px;
   position: relative;
-  /* z-index: 999; */
+  background-color: rgba(0, 0, 0, 0.9);
 }
 
 .loginPage__header {
@@ -114,7 +116,6 @@ export default {
 }
 .main-component {
   width: 100%;
-  height: 252vh+150px;
 }
 .loginPage__main {
   width: 100%;
