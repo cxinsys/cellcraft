@@ -71,6 +71,14 @@ function findWorkflow(workflowInfo) {
   return instance.post("routes/workflow/find", workflowInfo);
 }
 
+function saveWorkflow(workflow) {
+  return instance.post("/routes/workflow/save", workflow);
+}
+
+function deleteWorkflow(workflow) {
+  return instance.post("/routes/workflow/delete", workflow);
+}
+
 export {
   registerUser,
   loginUser,
@@ -83,4 +91,6 @@ export {
   findFolder,
   getWorkflows,
   findWorkflow,
+  saveWorkflow,
+  deleteWorkflow,
 };

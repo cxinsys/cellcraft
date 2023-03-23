@@ -12,11 +12,11 @@ import io
 from PIL import Image
 
 from app.database.crud import crud_workflow
-from app.database.schemas.workflow import WorkflowCreate, WorkflowResult, WorkflowFind
+from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowResult, WorkflowFind
 from app.routes import dep
 from app.database import models
 
-router = APIRouter()
+router = APIRouter()                                                        
 
 def snakemakeProcess(filepath):
     print(filepath)
@@ -59,12 +59,53 @@ async def exportData(
             print(snakemake.get())
             p.close()
             p.join()
-        crud_workflow.create_workflow(db, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
+        user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflow.id)
+        if user_workflow:
+            # workflow 수정
+            crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes)
+        else :
+            # workflow 생성
+            crud_workflow.create_workflow(db, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
         message = "success"
     except json.JSONDecodeError:
         workflow = None
         message = "Received data is not a valid JSON"
     return {"message": message, "recived_data": workflow}
+
+#save workflow data
+@router.post("/save")
+def update_user_workflow(
+    *,
+    db: Session = Depends(dep.get_db),
+    workflow: WorkflowCreate, 
+    current_user: models.User = Depends(dep.get_current_active_user)
+    ):
+    user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflow.id)
+    if user_workflow:
+        # workflow 수정
+        return crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes)
+    else :
+        # workflow 생성
+        return crud_workflow.create_workflow(db, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
+
+#User workflow delete
+@router.post("/delete")
+def delete_user_workflow(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    workflowInfo: WorkflowDelete,
+    ) -> Any:
+    user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflowInfo.id)
+    if user_workflow:
+        delete_workflow = crud_workflow.delete_user_workflow(db, current_user.id, workflowInfo.id)
+        print(delete_workflow)
+        return delete_workflow
+    else:
+        raise HTTPException(
+                status_code=400,
+                detail="this workflow not exists in your workflows",
+                )
 
 #response workflow data
 @router.get("/me")
