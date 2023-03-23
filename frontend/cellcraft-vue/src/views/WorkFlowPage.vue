@@ -5,11 +5,7 @@
         <source src="@/assets/main_bg_fantastic.mp4" type="video/mp4" />
       </video>
     </div> -->
-    <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)">
-      <button class="run_button" @click="exportdf">
-        <img class="run_button__icon" src="@/assets/run.png" />
-      </button>
-    </div>
+    <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
     <section class="node-bar">
       <ul class="node-bar__nodelist" draggable="false">
         <li
@@ -23,17 +19,30 @@
           <img class="node-bar__img" :src="node.img" draggable="false" />
         </li>
       </ul>
-      <!-- <div class="node-bar__row">
-          <div class="loading_bg">
-            <h2 v-if="compile_check == 'loading'" class="loading_container">
-              <div class="loading"></div>
-              <div class="loading_text">Loading...</div>
-            </h2>
-            <div class="complete_container">
-              <h2 v-if="compile_check == 'complete'" class="complete">√</h2>
-            </div>
-          </div>
-        </div> -->
+    </section>
+    <section class="control-bar">
+      <ul class="control-bar__btnList">
+        <li class="control-bar__button">
+          <img class="control-bar__icon" src="" />
+        </li>
+        <li class="control-bar__button">
+          <img class="control-bar__icon" src="" />
+        </li>
+        <li class="control-bar__button">
+          <img class="control-bar__icon" src="" />
+        </li>
+        <li class="control-bar__button">
+          <img class="control-bar__icon" src="" />
+        </li>
+        <li class="control-bar__button">
+          <img class="control-bar__icon" src="" />
+        </li>
+        <li class="control-bar__button">
+          <button class="run_button" @click="exportdf">
+            <img class="run_button__icon" src="@/assets/run.png" />
+          </button>
+        </li>
+      </ul>
     </section>
     <VueDragResize
       contentClass="content-component"
@@ -659,24 +668,35 @@ export default {
   -moz-user-drag: none;
   -o-user-drag: none;
 }
-.run_button {
-  width: 7rem;
-  height: 3rem;
-  background: rgb(40, 84, 197);
+.control-bar {
+  height: 5rem;
+  width: 50rem;
   border-radius: 1rem;
-  border: none;
-
+  background: rgba(244, 246, 251, 0.586);
   position: absolute;
-  bottom: 2rem;
-  left: 1rem;
-
-  font-family: "Montserrat", sans-serif;
-  font-style: normal;
-  font-weight: 500;
-  font-size: 1rem;
-  line-height: 1rem;
-
-  z-index: 9997;
+  bottom: 1rem;
+  left: calc(50% - 25rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.control-bar__btnList {
+  width: 85%;
+  height: 100%;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+}
+.control-bar__button {
+  width: 4rem;
+  height: 4rem;
+  background: #7f7f7f;
+}
+.run_button {
+  width: 100%;
+  height: 100%;
+  background: rgb(40, 84, 197);
+  border: none;
   cursor: pointer;
 }
 .run_button__icon {
