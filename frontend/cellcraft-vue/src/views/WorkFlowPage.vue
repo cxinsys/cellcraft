@@ -23,18 +23,23 @@
     <section class="control-bar">
       <ul class="control-bar__btnList">
         <li class="control-bar__button">
+          저장 버튼
           <img class="control-bar__icon" src="" />
         </li>
         <li class="control-bar__button">
+          Files
           <img class="control-bar__icon" src="" />
         </li>
         <li class="control-bar__button">
+          Jobs
           <img class="control-bar__icon" src="" />
         </li>
         <li class="control-bar__button">
+          Zoom In / Out
           <img class="control-bar__icon" src="" />
         </li>
         <li class="control-bar__button">
+          Export
           <img class="control-bar__icon" src="" />
         </li>
         <li class="control-bar__button">
