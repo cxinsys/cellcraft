@@ -60,7 +60,7 @@
       :minw="820"
       :minh="540"
       :stickSize="14"
-      :sticks="['tl']"
+      :sticks="['tl', 'ml', 'tr', 'bl', 'br']"
     >
       <ul class="content-tab" v-if="tabList.length != 0 && isTabView">
         <li
@@ -538,7 +538,7 @@ export default {
   height: 2rem;
   display: flex;
   z-index: 9998;
-  background: rgba(223, 225, 229, 0);
+  background: rgba(223, 225, 229, 0.6);
   border-radius: 0.5rem 0.5rem 0 0;
 }
 .tab__item {
@@ -553,6 +553,9 @@ export default {
   color: rgb(51, 51, 51);
   position: relative;
   opacity: 1;
+}
+.tab__item:last-child{
+  border-right: none;
 }
 .currentTab {
   background: rgba(244, 246, 251, 0.6);
@@ -844,7 +847,13 @@ export default {
   border: var(--dfDeleteHoverBorderSize) solid var(--dfDeleteHoverBorderColor);
   border-radius: var(--dfDeleteHoverBorderRadius);
 }
-
+.vdr-stick{
+  opacity: 0;
+}
+.vdr.active:before{
+  border:none;
+  outline: none;
+}
 /* @media (prefers-color-scheme: dark) {
   .node-bar__img {
     filter: invert(100%) sepia(3%) saturate(2008%) hue-rotate(348deg)
