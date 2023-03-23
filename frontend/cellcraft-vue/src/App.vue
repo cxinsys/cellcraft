@@ -126,7 +126,7 @@ export default {
 }
 .workflowPage__main,
 .filesPage__main {
-  height: calc(100vh - 56px);
+  height: calc(100vh - 60px);
 }
 .footer-component {
   width: 100%;
