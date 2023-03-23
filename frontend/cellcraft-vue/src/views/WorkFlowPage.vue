@@ -23,29 +23,24 @@
     <section class="control-bar">
       <ul class="control-bar__btnList">
         <li class="control-bar__button">
-          저장 버튼
-          <img class="control-bar__icon" src="" />
+          <img class="control-bar__icon" src="@/assets/control_files.png" />
         </li>
         <li class="control-bar__button">
-          Files
-          <img class="control-bar__icon" src="" />
+          <img class="control-bar__icon" src="@/assets/control_zoom.png" />
         </li>
         <li class="control-bar__button">
-          Jobs
-          <img class="control-bar__icon" src="" />
-        </li>
-        <li class="control-bar__button">
-          Zoom In / Out
-          <img class="control-bar__icon" src="" />
-        </li>
-        <li class="control-bar__button">
-          Export
-          <img class="control-bar__icon" src="" />
+          <img class="control-bar__icon" src="@/assets/control_save.png" />
         </li>
         <li class="control-bar__button">
           <button class="run_button" @click="exportdf">
-            <img class="run_button__icon" src="@/assets/run.png" />
+            <img class="control-bar__icon" src="@/assets/control_run.png" />
           </button>
+        </li>
+        <li class="control-bar__button">
+          <img class="control-bar__icon" src="@/assets/control_jobs.png" />
+        </li>
+        <li class="control-bar__button">
+          <img class="control-bar__icon" src="@/assets/control_export.png" />
         </li>
       </ul>
     </section>
@@ -535,27 +530,31 @@ export default {
 }
 .content-tab {
   width: 100%;
-  height: 2rem;
+  height: 2.5rem;
   display: flex;
   z-index: 9998;
-  background: rgba(223, 225, 229, 0);
-  border-radius: 0.5rem 0.5rem 0 0;
+  background: rgba(223, 225, 229, 0.3);
+  /* border-radius: 0.5rem 0.5rem 0 0; */
 }
 .tab__item {
   cursor: pointer;
   width: 10rem;
-  height: 100%;
+  height: 2.2rem;
+  top: 0.3rem;
   border-radius: 0.5rem 0.5rem 0 0;
   border-right: 1px solid #7f7f7f;
   display: flex;
   align-items: center;
-  background: rgba(223, 225, 229, 0.6);
-  color: rgb(51, 51, 51);
+  background: rgba(149, 151, 154, 0.6);
+  color: rgb(255, 255, 255);
   position: relative;
   opacity: 1;
+  box-shadow: inset 0 -5px 10px -5px rgba(0, 0, 0, 0.3);
 }
 .currentTab {
-  background: rgba(244, 246, 251, 0.6);
+  background: rgba(244, 246, 251, 0.5);
+  color: rgb(51, 51, 51);
+  box-shadow: inset 0 -5px 10px -5px rgba(0, 0, 0, 0);
 }
 .tab__name {
   width: 8rem;
@@ -623,16 +622,16 @@ export default {
 }
 .node-bar {
   /* width: 8rem; */
-  width: 5rem;
+  width: 80px;
   /* height: 34rem; */
-  height: 25rem;
-  border-radius: 1rem;
+  height: 400px;
+  border-radius: 16px;
   background: rgba(244, 246, 251, 0.586);
   box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 1);
   position: absolute;
   /* top: calc(50% - 17rem); */
-  top: calc(50% - 13rem);
-  left: 0.7rem;
+  top: calc(50% - 208px);
+  left: 12px;
   z-index: 9998;
   opacity: 1;
   display: flex;
@@ -674,48 +673,56 @@ export default {
   -o-user-drag: none;
 }
 .control-bar {
-  height: 5rem;
-  width: 50rem;
-  border-radius: 1rem;
-  background: rgba(244, 246, 251, 0.586);
+  height: 50px;
+  width: 300px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.776);
   position: absolute;
-  bottom: 1rem;
-  left: calc(50% - 25rem);
+  bottom: 24px;
+  left: calc(50% - 150px);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .control-bar__btnList {
-  width: 85%;
+  width: 100%;
   height: 100%;
   display: flex;
-  justify-content: space-evenly;
+  justify-content: center;
   align-items: center;
 }
 .control-bar__button {
-  width: 4rem;
-  height: 4rem;
-  background: #7f7f7f;
+  width: 24px;
+  height: 24px;
+  padding: 8px;
 }
+
+.control-bar__icon {
+  max-width: 24px;
+  max-height: 24px;
+  object-fit: cover;
+  opacity: 0.72;
+}
+
 .run_button {
   width: 100%;
   height: 100%;
-  background: rgb(40, 84, 197);
+  background: none;
   border: none;
   cursor: pointer;
 }
-.run_button__icon {
+/* .run_button__icon {
   width: 1.5rem;
   height: 1.5rem;
   object-fit: contain;
   filter: invert(100%) sepia(3%) saturate(2008%) hue-rotate(348deg)
     brightness(125%) contrast(111%);
-}
+} */
 #drawflow {
-  width: 92%;
-  height: 92%;
-  top: 4%;
-  left: 4%;
+  width: calc(100% - 180px);
+  height: calc(100% - 50px);
+  top: 30px;
+  left: 101px;
   position: relative;
   border-radius: 0.8%;
 
