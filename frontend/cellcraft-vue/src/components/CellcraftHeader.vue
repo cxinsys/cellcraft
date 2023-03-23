@@ -6,7 +6,7 @@
         <!-- <p class="logo__text">CELLCRAFT</p> -->
       </router-link>
     </div>
-    <nav class="menu-component">
+    <nav class="menu-component" v-if="!isWorkflowPage">
       <ul class="header-menu">
         <li class="header-menu__item">
           <router-link class="header-menu__link" to="/projects">
@@ -25,6 +25,19 @@
         </li>
       </ul>
     </nav>
+    <div class="workflow-title" v-else>
+      <p class="workflow-title__text" v-if="!activeInput" @click="editTitle">
+        {{ setTitle }}
+      </p>
+      <input
+        type="text"
+        v-model="title"
+        class="workflow-title__input"
+        v-else
+        @keydown.enter="applyTitle"
+        @blur="applyTitle"
+      />
+    </div>
     <div class="login-component" v-if="isUserLogin">
       <p class="login__link" @click="logoutUser">LOGOUT</p>
     </div>
@@ -40,17 +53,18 @@ import { deleteCookie } from "@/utils/cookies";
 export default {
   data() {
     return {
-      profile: {
-        username: null,
-        email: null,
-        password: "********",
-      },
+      isWorkflowPage: false,
+      title: this.$store.getters.getTitle,
+      activeInput: false,
     };
   },
   computed: {
     isUserLogin() {
       console.log(this.$store.getters.isLogin);
       return this.$store.getters.isLogin;
+    },
+    setTitle() {
+      return this.$store.getters.getTitle;
     },
   },
   methods: {
@@ -61,6 +75,23 @@ export default {
       this.$store.commit("clearToken");
       deleteCookie();
       this.$router.push("/");
+    },
+    editTitle() {
+      this.activeInput = true;
+    },
+    applyTitle() {
+      this.activeInput = false;
+      this.$store.commit("setTitle", this.title);
+    },
+  },
+  watch: {
+    $route(to, from) {
+      console.log(to.path, from.path);
+      if (to.path === "/workflow") {
+        this.isWorkflowPage = true;
+      } else {
+        this.isWorkflowPage = false;
+      }
     },
   },
 };
@@ -128,24 +159,6 @@ a {
   justify-content: center;
   position: relative;
 }
-/* .header-menu__link {
-  font-family: "Montserrat", sans-serif;
-  font-style: normal;
-  font-weight: 400;
-  font-size: 1rem;
-  line-height: 1rem;
-  color: rgb(70, 70, 70);
-  position: relative;
-  transform: translateY(4px);
-}
-
-.header-menu__link:after {
-  display: block;
-  content: "";
-  border-bottom: solid 2px #575757;
-  transform: scaleX(0) translateY(4px);
-  transition: transform 250ms ease-in-out;
-} */
 .header-menu__link {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -172,7 +185,38 @@ a {
 .header-menu__link.fromLeft:after {
   transform-origin: 0% 50%;
 }
-
+.workflow-title {
+  width: 50%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.workflow-title__text {
+  color: white;
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1.5rem;
+  text-decoration: none;
+}
+.workflow-title__input {
+  color: white;
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1.5rem;
+  text-decoration: none;
+  text-align: center;
+  background: rgba(0, 0, 0, 0);
+  border: none;
+}
+.workflow-title__input:focus {
+  outline: none;
+  box-shadow: none;
+}
 .login-component {
   width: 25%;
   height: 100%;
@@ -181,16 +225,6 @@ a {
   align-items: center;
   /* transform: translateY(3px); */
 }
-/* .login__link {
-  display: flex;
-  align-items: center;
-  font-family: "Montserrat", sans-serif;
-  font-style: normal;
-  font-weight: 600;
-  font-size: 1.2rem;
-  line-height: 1.2rem;
-  color: rgba(51, 51, 51, 0.6);
-} */
 .login__link {
   display: flex;
   align-items: center;
@@ -201,6 +235,7 @@ a {
   line-height: 1.2rem;
   color: rgb(241, 243, 248);
 }
+
 /* @media (prefers-color-scheme: dark) {
   .header-menu__link {
     font-family: "Montserrat", sans-serif;

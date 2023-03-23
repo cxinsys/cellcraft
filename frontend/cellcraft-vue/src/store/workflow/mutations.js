@@ -1,4 +1,10 @@
 export default {
+  setTitle(state, title) {
+    state.title = title;
+  },
+  clearTitle(state) {
+    state.title = "Untitled";
+  },
   createNode(state, node) {
     state.nodes.push(node);
     console.log("yes");

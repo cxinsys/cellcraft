@@ -1,4 +1,7 @@
 export default {
+  getTitle(state) {
+    return state.title;
+  },
   getNodeInfo(state) {
     return (id) => {
       return state.nodes.find((node) => node.id === id);

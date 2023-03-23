@@ -7,12 +7,16 @@ class WorkflowBase(BaseModel):
     workflow_info: Optional[Dict] = None 
 
 class WorkflowCreate(WorkflowBase):
-    title: str
+    id: int = None
+    title: str = None
     workflow_info: Dict = None
     nodes: List = None
     linked_nodes: List = None
 
 class WorkflowFind(WorkflowBase):
+    id: int
+
+class WorkflowDelete(WorkflowBase):
     id: int
 
 class Workflow(WorkflowBase):

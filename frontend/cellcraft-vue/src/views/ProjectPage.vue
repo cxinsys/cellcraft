@@ -1,5 +1,5 @@
 <template>
-  <div class="layout">
+  <div class="layout" @click="ClickOut">
     <section class="side-panel">
       <div class="profile">
         <img class="profile__img" src="@/assets/user.png" />
@@ -32,7 +32,11 @@
         <p class="header__text">Recently Viewed</p>
       </header>
       <ul class="project-view__list">
-        <li class="project-component" @click="createProject">
+        <li
+          class="project-component"
+          @click="createProject"
+          @contextmenu.prevent
+        >
           <div class="project__content">
             <img class="project__thumnail--icon" src="@/assets/create.png" />
           </div>
@@ -41,7 +45,7 @@
             <p class="project__date">Data Analysis Pipeline</p>
           </div>
         </li>
-        <li class="project-component">
+        <li class="project-component" @contextmenu.prevent>
           <div class="project__content">
             <img
               class="project__thumnail"
@@ -53,7 +57,7 @@
             <p class="project__date">Just Template</p>
           </div>
         </li>
-        <li class="project-component">
+        <li class="project-component" @contextmenu.prevent>
           <div class="project__content">
             <img
               class="project__thumnail"
@@ -69,7 +73,9 @@
           class="project-component"
           v-for="(workflow, idx) in workflows"
           :key="idx"
+          @contextmenu.prevent
           @click="openWorkflow(workflow.id)"
+          @click.right="RMouseClick($event, workflow.id, idx)"
         >
           <div class="project__content">
             <img
@@ -83,12 +89,23 @@
           </div>
         </li>
       </ul>
+      <ul
+        ref="filesMenu"
+        class="files_menu"
+        v-bind:class="{ open: R_Mouse_isActive }"
+        :style="{ left: xPosition, top: yPosition }"
+      >
+        <li @click="openWorkflow">Open</li>
+        <li>Copy Link</li>
+        <li>Rename</li>
+        <li @click="removeWorkflow">Delete</li>
+      </ul>
     </div>
   </div>
 </template>
 
 <script>
-import { getUser, getWorkflows } from "@/api/index";
+import { getUser, getWorkflows, deleteWorkflow } from "@/api/index";
 
 export default {
   data() {
@@ -96,6 +113,9 @@ export default {
       toggleMenu: true,
       profile: {},
       workflows: null,
+      workflow_id: null,
+      list_idx: null,
+      R_Mouse_isActive: false,
     };
   },
   methods: {
@@ -103,10 +123,41 @@ export default {
       this.$router.push("/workflow");
     },
     openWorkflow(id) {
-      this.$router.push({
-        path: "/workflow",
-        query: { id: id },
-      });
+      if (id) {
+        this.$router.push({
+          path: "/workflow",
+          query: { id: id },
+        });
+      } else {
+        this.$router.push({
+          path: "/workflow",
+          query: { id: this.workflow_id },
+        });
+      }
+    },
+    RMouseClick(event, id, idx) {
+      this.R_Mouse_isActive = false;
+      this.xPosition = event.clientX + "px";
+      this.yPosition = event.clientY - 35 + "px";
+      this.R_Mouse_isActive = true;
+      this.workflow_id = id;
+      this.list_idx = idx;
+      console.log(event);
+    },
+    ClickOut() {
+      this.R_Mouse_isActive = false;
+    },
+    async removeWorkflow() {
+      try {
+        const workflow = {
+          id: this.workflow_id,
+        };
+        const targetWorkflow = await deleteWorkflow(workflow);
+        console.log(targetWorkflow);
+        this.workflows.splice(this.list_idx, 1);
+      } catch (error) {
+        console.error(error);
+      }
     },
   },
   async mounted() {
@@ -240,7 +291,7 @@ export default {
   height: calc(100% - 5rem);
   display: flex;
   flex-wrap: wrap;
-  overflow-y: scroll;
+  padding: 3rem;
 }
 .project-component {
   min-width: calc(33% - 3.85rem);
@@ -249,7 +300,7 @@ export default {
   flex-direction: column;
   border: 1px solid #e1e1e1;
   border-radius: 1rem;
-  margin: 3rem 0 0 3rem;
+  margin-right: 2.5rem;
   cursor: pointer;
 }
 .project-component:hover {
@@ -297,5 +348,31 @@ export default {
   line-height: 1rem;
   padding-left: 1rem;
   opacity: 0.6;
+}
+.files_menu {
+  display: none;
+  position: absolute;
+  width: 200px;
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  border-radius: 5px;
+  list-style: none;
+  box-shadow: 0 15px 35px rgba(50, 50, 90, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07);
+  overflow: hidden;
+  z-index: 999999;
+}
+.files_menu.open {
+  display: block;
+  opacity: 1;
+  position: absolute;
+}
+.files_menu > li {
+  border-left: 3px solid transparent;
+  transition: ease 0.2s;
+  padding: 10px;
+}
+.files_menu > li:hover {
+  background: #e5e5e5;
 }
 </style>

@@ -22,7 +22,7 @@
     </section>
     <section class="control-bar">
       <ul class="control-bar__btnList">
-        <li class="control-bar__button">
+        <li class="control-bar__button" @click="saveWorkflowProject">
           저장 버튼
           <img class="control-bar__icon" src="" />
         </li>
@@ -117,7 +117,7 @@ import fileuploadModal from "@/components/modals/fileupload.vue";
 import scatterPlotModal from "@/components/modals/scatterPlot.vue";
 import heatMapModal from "@/components/modals/heatMap.vue";
 import Fileupload from "../components/modals/fileupload.vue";
-import { exportData, findWorkflow } from "@/api/index";
+import { exportData, findWorkflow, saveWorkflow } from "@/api/index";
 
 export default {
   components: {
@@ -302,15 +302,21 @@ export default {
         console.log(this.tabList);
       }
     });
-
-    const workflowInfo = {
-      id: this.$route.query.id,
-    };
-    const workflow_data = await findWorkflow(workflowInfo);
-    console.log(workflow_data.data);
-    this.$df.import(workflow_data.data.workflow_info);
-    this.$store.commit("setNodes", workflow_data.data.nodes);
-    this.$store.commit("setLinkedNodes", workflow_data.data.linked_nodes);
+    try {
+      if (this.$route.query.id) {
+        const workflowInfo = {
+          id: this.$route.query.id,
+        };
+        const workflow_data = await findWorkflow(workflowInfo);
+        console.log(workflow_data.data);
+        this.$df.import(workflow_data.data.workflow_info);
+        this.$store.commit("setNodes", workflow_data.data.nodes);
+        this.$store.commit("setLinkedNodes", workflow_data.data.linked_nodes);
+        this.$store.commit("setTitle", workflow_data.data.title);
+      }
+    } catch (error) {
+      console.error(error);
+    }
   },
   methods: {
     connectionParsing(IO) {
@@ -337,6 +343,7 @@ export default {
         // console.log(JSON.stringify(this.exportValue));
         console.log(this.$df.drawflow.drawflow[this.$df.module]);
         const workflow = {
+          id: this.$route.query.id,
           title: "Untitled",
           workflow_info: this.exportValue,
           nodes: nodes,
@@ -365,26 +372,11 @@ export default {
         "node",
         event.target.getAttribute("data-node")
       );
-      // console.log(event.dataTransfer, event.target);
-      // 모바일
-      // if (event.type === 'touchstart') {
-      //   mobile_item_selec = event.target.closest('node-bar__drag-drawflow').getAttribute('data-node')
-      // }
     },
     drop(event) {
-      // 모바일
-      // if (event.type === 'touchend') {
-      //   var parentdrawflow = document.elementFromPoint(mobile_last_move.touches[0].clientX, mobile_last_move.touches[0].clientY).closest('#drawflow')
-      //   if (parentdrawflow != null) {
-      //     addNodeToDrawFlow(mobile_item_selec, mobile_last_move.touches[0].clientX, mobile_last_move.touches[0].clientY)
-      //   }
-      //   mobile_item_selec = ''
-      // }
-      // console.log(event);
       event.preventDefault();
       const data = event.dataTransfer.getData("node");
       this.addNodeToDrawFlow(data, event.clientX, event.clientY);
-      // console.log(data);
     },
     allowDrop(event) {
       event.preventDefault();
@@ -438,6 +430,27 @@ export default {
         this.currentTab -= 1;
         console.log(this.tabList);
       }, "100");
+    },
+    async saveWorkflowProject() {
+      try {
+        this.exportValue = this.$df.export();
+        const nodes = this.$store.getters.getNodes;
+        const linked_nodes = this.$store.getters.getLinkedNodes;
+        const title = this.$store.getters.getTitle;
+        console.log(title);
+        const workflow = {
+          id: this.$route.query.id,
+          title: title,
+          workflow_info: this.exportValue,
+          nodes: nodes,
+          linked_nodes: linked_nodes,
+        };
+        console.log(workflow);
+        const workflow_data = await saveWorkflow(workflow);
+        console.log(workflow_data);
+      } catch (error) {
+        console.error(error);
+      }
     },
   },
 };
@@ -554,7 +567,7 @@ export default {
   position: relative;
   opacity: 1;
 }
-.tab__item:last-child{
+.tab__item:last-child {
   border-right: none;
 }
 .currentTab {
@@ -847,11 +860,11 @@ export default {
   border: var(--dfDeleteHoverBorderSize) solid var(--dfDeleteHoverBorderColor);
   border-radius: var(--dfDeleteHoverBorderRadius);
 }
-.vdr-stick{
+.vdr-stick {
   opacity: 0;
 }
-.vdr.active:before{
-  border:none;
+.vdr.active:before {
+  border: none;
   outline: none;
 }
 /* @media (prefers-color-scheme: dark) {

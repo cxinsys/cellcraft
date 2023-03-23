@@ -54,6 +54,7 @@ export default {
       if (from.path === "/workflow") {
         this.$store.commit("clearNodes");
         this.$store.commit("clearLinkedNodes");
+        this.$store.commit("clearTitle");
       }
 
       if (to.path === "/main") {
@@ -84,8 +85,7 @@ export default {
 
 <style>
 .app {
-  width: 100vw;
-  height: 100vh;
+  width: calc(100vw - 17px);
   overflow-x: hidden;
   /* height: 191vh; */
 }
