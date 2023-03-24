@@ -2,6 +2,7 @@ import Vue from "vue";
 import Vuex from "vuex";
 import { getAuthFromCookie, saveAuthToCookie } from "@/utils/cookies";
 import { loginUser } from "@/api/index";
+import createPersistedState from "vuex-persistedstate";
 import workflow from "./workflow/workflow";
 
 Vue.use(Vuex);
@@ -10,6 +11,11 @@ export default new Vuex.Store({
   modules: {
     workflow,
   },
+  plugins: [
+    createPersistedState({
+      paths: ["workflow"],
+    }),
+  ],
   state: {
     token: getAuthFromCookie() || "",
     userInfo: "",

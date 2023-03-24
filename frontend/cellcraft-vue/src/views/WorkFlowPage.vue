@@ -22,14 +22,13 @@
     </section>
     <section class="control-bar">
       <ul class="control-bar__btnList">
-        <li class="control-bar__button" @click="saveWorkflowProject">
-          저장 버튼
-          <img class="control-bar__icon" src="" />
+        <li class="control-bar__button">
+          <img class="control-bar__icon" src="@/assets/control_files.png" />
         </li>
         <li class="control-bar__button">
           <img class="control-bar__icon" src="@/assets/control_zoom.png" />
         </li>
-        <li class="control-bar__button">
+        <li class="control-bar__button" @click="saveWorkflowProject">
           <img class="control-bar__icon" src="@/assets/control_save.png" />
         </li>
         <li class="control-bar__button">
@@ -86,8 +85,12 @@
         <heatMapModal
           v-show="tabList[currentTab].name === 'heatMap'"
         ></heatMapModal>
-        <!-- <div class="content__handle" @mouseup="resizingContent">
-          <img class="handle--img" src="@/assets/lines.png" draggable="false" />
+        <!-- <div class="content__handle" @click="hideContent">
+          <img
+            class="handle--img"
+            src="@/assets/arrow-right.png"
+            draggable="false"
+          />
         </div> -->
       </div>
     </VueDragResize>
@@ -182,6 +185,7 @@ export default {
       selected_file: null,
       file_name: null,
       currentTab: 0,
+      isHide: false,
     };
   },
   async mounted() {
@@ -218,6 +222,8 @@ export default {
       if (this.tabList.length != 1) {
         this.currentTab = this.tabList.length - 1;
       }
+      this.exportValue = this.$df.export();
+      this.$store.commit("setWorkflow", this.exportValue);
     });
     this.$df.on("nodeRemoved", (ev) => {
       this.tabList.forEach((ele, idx) => {
@@ -236,6 +242,8 @@ export default {
       this.$store.commit("deleteNode", {
         id: parseInt(ev),
       });
+      this.exportValue = this.$df.export();
+      this.$store.commit("setWorkflow", this.exportValue);
     });
     this.$df.on("connectionCreated", (ev) => {
       // ev 값에 따라 기능 구분
@@ -252,6 +260,8 @@ export default {
         lastNode: lastNodeInfo.name,
       });
       this.$store.commit("shareConnectionFile");
+      this.exportValue = this.$df.export();
+      this.$store.commit("setWorkflow", this.exportValue);
     });
     this.$df.on("connectionRemoved", (ev) => {
       // ev 값에 따라 기능 구분
@@ -262,6 +272,8 @@ export default {
         parseInt(ev.output_id),
         parseInt(ev.input_id),
       ]);
+      this.exportValue = this.$df.export();
+      this.$store.commit("setWorkflow", this.exportValue);
     });
     this.$df.on("nodeDataChanged", (ev) => {
       // nodeData 바뀌게 되면 Connection Update
@@ -312,6 +324,21 @@ export default {
       }
     } catch (error) {
       console.error(error);
+    }
+
+    const storeItem = localStorage.getItem("vuex");
+    if (storeItem) {
+      const workflow_data = JSON.parse(storeItem);
+      console.log(workflow_data);
+      if (workflow_data.workflow.workflow_info) {
+        this.$df.import(workflow_data.workflow.workflow_info);
+        this.$store.commit("setNodes", workflow_data.workflow.nodes);
+        this.$store.commit(
+          "setLinkedNodes",
+          workflow_data.workflow.linked_nodes
+        );
+        this.$store.commit("setTitle", workflow_data.workflow.title);
+      }
     }
   },
   methods: {
@@ -411,8 +438,8 @@ export default {
       this.currentTab = idx;
       this.$store.commit("changeNode", this.tabList[idx].id);
     },
-    resizingContent(event) {
-      this.isResizing = !this.isResizing;
+    hideContent(event) {
+      this.isHide = !this.isHide;
       console.log(event);
     },
     moveResizing(event) {
@@ -542,6 +569,9 @@ export default {
 .tab_actvie {
   right: 0;
 }
+.tab_hide {
+  left: 100%;
+}
 .content-tab {
   width: 100%;
   height: 2.5rem;
@@ -616,7 +646,7 @@ export default {
   left: -0.75rem;
   top: calc(50% - 2rem);
 
-  cursor: col-resize;
+  cursor: pointer;
   width: 1.5rem;
   height: 2rem;
   border-radius: 3px;

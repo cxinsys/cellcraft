@@ -5,6 +5,12 @@ export default {
   clearTitle(state) {
     state.title = "Untitled";
   },
+  setWorkflow(state, workflow_info) {
+    state.workflow_info = workflow_info;
+  },
+  clearWorkflow(state) {
+    state.workflow_info = null;
+  },
   createNode(state, node) {
     state.nodes.push(node);
     console.log("yes");

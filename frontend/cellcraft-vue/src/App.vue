@@ -1,5 +1,10 @@
 <template>
-  <div class="app">
+  <div
+    class="app"
+    v-bind:class="{
+      main__app: mainPage,
+    }"
+  >
     <header
       class="header-component"
       v-bind:class="{
@@ -52,6 +57,7 @@ export default {
     $route(to, from) {
       console.log(to.path, from.path);
       if (from.path === "/workflow") {
+        this.$store.commit("clearWorkflow");
         this.$store.commit("clearNodes");
         this.$store.commit("clearLinkedNodes");
         this.$store.commit("clearTitle");
@@ -85,11 +91,13 @@ export default {
 
 <style>
 .app {
-  width: calc(100vw - 17px);
+  width: 100vw;
   overflow-x: hidden;
   /* height: 191vh; */
 }
-
+.main__app {
+  width: calc(100vw - 17px);
+}
 .header-component {
   width: 100%;
   /* height: 3.5rem; */
