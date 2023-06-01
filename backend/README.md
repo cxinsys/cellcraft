@@ -24,3 +24,8 @@ create database cellcraft;
 ``` bash
 uvicorn app.main:app
 ```
+
+5. celery worker run
+```bash
+celery -A app.main.celery worker --loglevel=info -Q workflow_task,workflow_db_task
+```
