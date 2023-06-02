@@ -11,8 +11,12 @@
         @input="titleChangeFunc($event)"
       />
       <div class="options__item">
-        X - axis&nbsp;<br />
-        <select :value="selectedX" @change="setSelectX($event)">
+        X - axis&nbsp;
+        <select
+          class="options__item__select"
+          :value="selectedX"
+          @change="setSelectX($event)"
+        >
           <option
             v-for="(item, index) in numList"
             :key="index"
@@ -23,8 +27,12 @@
         </select>
       </div>
       <div class="options__item">
-        Y - axis&nbsp;<br />
-        <select :value="selectedY" @change="setSelectY($event)">
+        Y - axis&nbsp;
+        <select
+          class="options__item__select"
+          :value="selectedY"
+          @change="setSelectY($event)"
+        >
           <option
             v-for="(item, index) in numList"
             :key="index"
@@ -35,8 +43,12 @@
         </select>
       </div>
       <div class="options__item">
-        Name&nbsp;<br />
-        <select :value="selectedName" @change="setSelectName($event)">
+        Name&nbsp;
+        <select
+          class="options__item__select"
+          :value="selectedName"
+          @change="setSelectName($event)"
+        >
           <option
             v-for="(item, index) in keyList"
             :key="index"
@@ -47,8 +59,12 @@
         </select>
       </div>
       <div class="options__item">
-        Cluster&nbsp;<br />
-        <select :value="selectedCluster" @change="setSelectCluster($event)">
+        Cluster&nbsp;
+        <select
+          class="options__item__select"
+          :value="selectedCluster"
+          @change="setSelectCluster($event)"
+        >
           <option
             v-for="(item, index) in clusterList"
             :key="index"
@@ -59,45 +75,81 @@
         </select>
       </div>
       <div class="options__item">
-        Contrast&nbsp;<br />
-        <button v-on:click="clusterContrastMinus">-</button>
-        &nbsp;
-        <button v-on:click="clusterContrastPlus">+</button>
-        &nbsp;
-        <button v-on:click="clusterContrastReset">reset</button>
+        Contrast&nbsp;
+        <img
+          class="options__item__button__minus"
+          src="@/assets/button_minus.png"
+          alt="-"
+          v-on:click="clusterContrastMinus"
+        />
+        <label class="options__item__degree">{{ clusterContrast }}</label>
+        <img
+          class="options__item__button__plus"
+          src="@/assets/button_plus.png"
+          alt="-"
+          v-on:click="clusterContrastPlus"
+        />
       </div>
       <div class="options__item">
-        Quantile&nbsp;<br />
-        <button v-on:click="clusterQuantileMinus">-</button>
-        &nbsp;
-        <button v-on:click="clusterQuantilePlus">+</button>
-        &nbsp;
-        <button v-on:click="clusterQuantileReset">reset</button>
+        Quantile&nbsp;
+        <img
+          class="options__item__button__minus"
+          src="@/assets/button_minus.png"
+          alt="-"
+          v-on:click="clusterQuantileMinus"
+        />
+        <label class="options__item__degree">{{ clusterQuantile }}</label>
+        <img
+          class="options__item__button__plus"
+          src="@/assets/button_plus.png"
+          alt="-"
+          v-on:click="clusterQuantilePlus"
+        />
       </div>
 
       <div class="options__item">
-        Marker Size&nbsp;<br />
-        <button v-on:click="markerSizeMinus">-</button>
-        &nbsp;
-        <button v-on:click="markerSizePlus">+</button>
-        &nbsp;
-        <button v-on:click="markerSizeReset">reset</button>
+        Marker Size&nbsp;
+        <img
+          class="options__item__button__minus"
+          src="@/assets/button_minus.png"
+          alt="-"
+          v-on:click="markerSizeMinus"
+        />
+        <label class="options__item__degree">{{ markerSize }}</label>
+        <img
+          class="options__item__button__plus"
+          src="@/assets/button_plus.png"
+          alt="-"
+          v-on:click="markerSizePlus"
+        />
       </div>
       <div class="options__item">
-        Show Grid&nbsp;<br />
-        <button v-on:click="switchShowGrid">ON / OFF</button>
+        Show Grid&nbsp;
+        <label class="switch" v-on:click="switchShowGrid">
+          <input type="checkbox" />
+          <span class="slider_button round"></span>
+        </label>
       </div>
       <div class="options__item">
-        Show Line&nbsp;<br />
-        <button v-on:click="switchShowLine">ON / OFF</button>
+        Show Line&nbsp;
+        <label class="switch" v-on:click="switchShowLine">
+          <input type="checkbox" />
+          <span class="slider_button round"></span>
+        </label>
       </div>
       <div class="options__item">
-        Show Zero Line&nbsp;<br />
-        <button v-on:click="switchShowZeroLine">ON / OFF</button>
+        Show Zero Line&nbsp;
+        <label class="switch" v-on:click="switchShowZeroLine">
+          <input type="checkbox" />
+          <span class="slider_button round"></span>
+        </label>
       </div>
       <div class="options__item">
-        Show Axes Label&nbsp;<br />
-        <button v-on:click="switchShowLabel">ON / OFF</button>
+        Show Axes Label&nbsp;
+        <label class="switch" v-on:click="switchShowLabel">
+          <input type="checkbox" />
+          <span class="slider_button round"></span>
+        </label>
       </div>
     </div>
   </div>
@@ -505,14 +557,49 @@ export default {
 }
 .options__textInput {
   color: black;
-  /* padding: 2% 0; */
-  margin: 2%;
+  padding: 5px;
+  left: 10px;
+  border-radius: 10px;
+  border-color: #e7eaff;
+  font-size: medium;
+  text-align: center;
+  margin-bottom: 5px;
 }
 .options__item {
   /* margin: auto; */
-  color: black;
+  font-weight: 600;
+  color: rgb(55, 55, 55);
   /* padding: 2% 0; */
-  margin: 2%;
+  left: 10px;
+  margin-top: 20px;
+}
+.options__item__select {
+  position: absolute;
+  margin-top: -10px;
+  right: 10px;
+  padding: 5px;
+  border-radius: 8px;
+  width: 140px;
+  border-color: #e7eaff;
+  color: #545454;
+}
+.options__item__button__minus {
+  position: absolute;
+  margin-top: -5px;
+  right: 80px;
+  width: 20px;
+  height: 20px;
+}
+.options__item__button__plus {
+  position: absolute;
+  margin-top: -5px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+}
+.options__item__degree {
+  position: absolute;
+  right: 50px;
 }
 button {
   background-color: #ffffff;
@@ -530,6 +617,70 @@ button {
 button:hover {
   background-color: #e7eaff;
   border-color: #b3b3b3;
+}
+/* The switch - the box around the slider_button */
+.switch {
+  position: absolute;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+  margin-top: -5px;
+  right: 10px;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider_button */
+.slider_button {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: 0.4s;
+  transition: 0.4s;
+}
+
+.slider_button:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  -webkit-transition: 0.4s;
+  transition: 0.4s;
+}
+
+input:checked + .slider_button {
+  background-color: #53b2ff;
+}
+
+input:focus + .slider_button {
+  box-shadow: 0 0 1px #53b2ff;
+}
+
+input:checked + .slider_button:before {
+  -webkit-transform: translateX(26px);
+  -ms-transform: translateX(26px);
+  transform: translateX(26px);
+}
+
+/* Rounded slider_buttons */
+.slider_button.round {
+  border-radius: 34px;
+}
+
+.slider_button.round:before {
+  border-radius: 50%;
 }
 @media (prefers-color-scheme: dark) {
   /* .plotly-layout {
