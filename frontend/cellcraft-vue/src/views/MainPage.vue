@@ -256,7 +256,7 @@ export default {
 /* .main-component, */
 /* .notice-component, */
 .menu-component {
-  width: calc(100vw - 17px);
+  width: calc(100vw - 0px);
   max-width: calc(100% - 3rem);
   margin-right: auto;
   margin-left: auto;
@@ -282,7 +282,7 @@ export default {
 .notice-component:before {
   content: "";
   background: rgba(0, 85, 203, 0.8);
-  width: calc(100vw - 17px);
+  width: calc(100vw - 0px);
   height: 100%;
   position: absolute;
   left: 0;
@@ -310,7 +310,7 @@ export default {
 .intro-component:before {
   content: "";
   background: linear-gradient(to bottom, #ffffffa8, #ffffff);
-  width: calc(100vw - 17px);
+  width: calc(100vw - 0px);
   height: 100%;
   position: absolute;
   left: 0;
@@ -350,7 +350,7 @@ export default {
 .main__textbox {
   /* width: 60rem; */
   /* flex-grow: 1; */
-  width: calc(100vw - 17px);
+  width: calc(100vw - 0px);
   max-width: calc(99%);
   height: calc(100vh - 70px);
   position: absolute;
@@ -459,11 +459,12 @@ export default {
 }
 .menu-list__card {
   cursor: pointer;
-  margin: 1rem 2rem;
+  margin: 2rem 1rem;
   margin-bottom: 2rem;
   width: 24vw;
   max-width: calc(50% - 5rem);
-  height: 16vh;
+  height: 16vw;
+  max-height: 16vh;
   display: flex;
   align-items: center;
   justify-content: center;

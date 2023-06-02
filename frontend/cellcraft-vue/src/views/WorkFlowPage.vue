@@ -20,14 +20,73 @@
         </li>
       </ul>
     </section>
+    <div class="control-popup__files" v-if="show_files">
+      <img
+        class="control-popup__close"
+        src="@/assets/close.png"
+        alt="X"
+        @click="show_files = !show_files"
+      />
+      <table class="control-popup__table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Size</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{ "name" }}</td>
+            <td>{{ "date" }}</td>
+            <td>{{ "type" }}</td>
+            <td>{{ "size" }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="control-popup__jobs" v-if="show_jobs">
+      <img
+        class="control-popup__close"
+        src="@/assets/close.png"
+        alt="X"
+        @click="show_files = !show_jobs"
+      />
+      <table class="control-popup__table">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Data</th>
+            <th>Progress</th>
+            <th>%</th>
+            <th>State</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{ "1" }}</td>
+            <td>{{ "data" }}</td>
+            <td class="control-popup__table__progress">
+              <!-- <progress :value="66" max="100"></progress> -->
+              <div class="progress-bar">
+                <div class="progress" :style="{ width: 66 + '%' }"></div>
+              </div>
+            </td>
+            <td>{{ 66 }}</td>
+            <td>{{ "Done" }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <section class="control-bar">
       <ul class="control-bar__btnList">
-        <li class="control-bar__button">
+        <li class="control-bar__button" @click="show_files = !show_files">
           <img class="control-bar__icon" src="@/assets/control_files.png" />
         </li>
-        <li class="control-bar__button">
+        <!-- <li class="control-bar__button">
           <img class="control-bar__icon" src="@/assets/control_zoom.png" />
-        </li>
+        </li> -->
         <li class="control-bar__button" @click="saveWorkflowProject">
           <img class="control-bar__icon" src="@/assets/control_save.png" />
         </li>
@@ -36,9 +95,28 @@
             <img class="control-bar__icon" src="@/assets/control_run.png" />
           </button>
         </li>
-        <li class="control-bar__button">
+        <li>
+          <div
+            class="loader"
+            @click="show_jobs = !show_jobs"
+            v-if="on_progress == true"
+          ></div>
+          <div class="loader_done" @click="show_jobs = !show_jobs" v-else></div>
+        </li>
+        <!-- <li
+          class="control-bar__button"
+          @click="show_jobs = !show_jobs"
+          v-if="on_progress == false"
+        >
           <img class="control-bar__icon" src="@/assets/control_jobs.png" />
         </li>
+        <li
+          class="control-bar__button"
+          @click="show_jobs = !show_jobs"
+          v-if="on_progress == true"
+        >
+          <img class="control-bar__icon" src="@/assets/control_jobs2.png" />
+        </li> -->
         <li class="control-bar__button">
           <img class="control-bar__icon" src="@/assets/control_export.png" />
         </li>
@@ -186,6 +264,9 @@ export default {
       file_name: null,
       currentTab: 0,
       isHide: false,
+      show_files: false,
+      show_jobs: false,
+      on_progress: true, // 나중에 false로 바꾸기
     };
   },
   async mounted() {
@@ -719,6 +800,79 @@ export default {
   -moz-user-drag: none;
   -o-user-drag: none;
 }
+.control-popup__files,
+.control-popup__jobs {
+  /* width: 8rem; */
+  width: 40vw;
+  max-width: 400px;
+  /* height: 34rem; */
+  height: 30vh;
+  max-height: 300px;
+  border-radius: 16px;
+  background: rgba(244, 246, 251, 0.586);
+  box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 1);
+  position: absolute;
+  bottom: 98px;
+  z-index: 9998;
+  opacity: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.control-popup__files {
+  right: calc(50% + 1vw);
+}
+.control-popup__table {
+  width: 95%;
+  height: auto;
+  margin: auto;
+  border-collapse: collapse;
+  position: absolute;
+  top: 20px;
+}
+.control-popup__table thead {
+  height: 26px;
+  font-weight: 500;
+  color: rgb(49, 49, 49);
+  border-bottom: 1px solid #6767678c;
+}
+.control-popup__table td {
+  vertical-align: middle;
+  font-weight: 400;
+  text-align: center;
+  color: rgb(68, 68, 68);
+  padding: 1rem;
+  margin: 1rem;
+}
+.control-popup__jobs {
+  left: calc(50% + 1vw);
+}
+.control-popup__close {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  top: 10px;
+  right: 10px;
+}
+.control-popup__table__progress {
+  width: 40%;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 5px;
+  background-color: #eee;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress {
+  height: 100%;
+  background-color: #3a98fc;
+  transition: width 0.3s;
+  border-radius: 10px;
+}
+
 .control-bar {
   height: 50px;
   width: 300px;
@@ -749,6 +903,28 @@ export default {
   max-height: 24px;
   object-fit: cover;
   opacity: 0.72;
+}
+.loader,
+.loader_done {
+  border: 4px solid #f3f3f3bf;
+  border-radius: 50%;
+  margin-left: 8px;
+  margin-right: 6px;
+  width: 20px;
+  height: 20px;
+}
+.loader {
+  border-top: 4px solid #41b3ff;
+  animation: spin 3s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .run_button {
@@ -898,6 +1074,7 @@ export default {
   border: var(--dfDeleteHoverBorderSize) solid var(--dfDeleteHoverBorderColor);
   border-radius: var(--dfDeleteHoverBorderRadius);
 }
+
 .vdr-stick {
   opacity: 0;
 }

@@ -96,7 +96,7 @@ export default {
   /* height: 191vh; */
 }
 .main__app {
-  width: calc(100vw - 17px);
+  width: calc(100vw - 0px);
 }
 .header-component {
   width: 100%;
