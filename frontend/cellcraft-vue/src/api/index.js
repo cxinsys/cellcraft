@@ -79,6 +79,10 @@ function deleteWorkflow(workflow) {
   return instance.post("/routes/workflow/delete", workflow);
 }
 
+function taskMonitoring(taskId) {
+  return instance.get(`/routes/workflow/task/${taskId}`);
+}
+
 export {
   registerUser,
   loginUser,
@@ -93,4 +97,5 @@ export {
   findWorkflow,
   saveWorkflow,
   deleteWorkflow,
+  taskMonitoring,
 };

@@ -33,12 +33,12 @@ def exportData(
         else:
             crud_workflow.create_workflow(db, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
         message = "Tasks added to queue"
-        task_ids = {"process_task_id": process_task.id}
+        task_id = {"process_task_id": process_task.id}
     except json.JSONDecodeError:
         workflow = None
         message = "Received data is not a valid JSON"
         task_ids = {}
-    return {"message": message, "recived_data": workflow, "task_ids": task_ids}
+    return {"message": message, "recived_data": workflow, "task_id": task_id}
 
 
 #save workflow data
