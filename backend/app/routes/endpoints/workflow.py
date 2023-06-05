@@ -1,12 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from typing import Any
-from multiprocessing import Pool, cpu_count
 from sqlalchemy.orm import Session
 import os
 import json
-import base64
-import io
 
 from app.common.celery_utils import get_task_info
 from app.database.crud import crud_workflow
@@ -26,19 +23,24 @@ def exportData(
     current_user: models.User = Depends(dep.get_current_active_user)
     ):
     try:
-        process_task = process_data_task.apply_async(args=[current_user.username, workflow.linked_nodes])
+        process_task = process_data_task.apply_async(
+            (current_user.username, workflow.linked_nodes),
+            kwargs={'user_id': current_user.id}
+        )
         user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflow.id)
         if user_workflow:
             crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes)
         else:
             crud_workflow.create_workflow(db, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
         message = "Tasks added to queue"
-        task_id = {"process_task_id": process_task.id}
+        task_id = process_task.id
+        result = get_task_info(process_task.id)
+
     except json.JSONDecodeError:
         workflow = None
         message = "Received data is not a valid JSON"
-        task_ids = {}
-    return {"message": message, "recived_data": workflow, "task_id": task_id}
+        task_id = {}
+    return {"message": message, "recived_data": workflow, "task_id": task_id, "result": result}
 
 
 #save workflow data

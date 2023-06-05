@@ -455,12 +455,12 @@ export default {
         // this.compile_check = "loading";
         const workflow_data = await exportData(workflow);
         const taskMonitoring_result = await taskMonitoring(
-          workflow_data.data.task_id.process_task_id
+          workflow_data.data.task_id
         );
         console.log(workflow_data.data);
         console.log(taskMonitoring_result.data);
         if (taskMonitoring_result.data.task_result === null) {
-          this.pollWorkflowStatus(workflow_data.data.task_id.process_task_id);
+          this.pollWorkflowStatus(workflow_data.data.task_id);
         }
       } catch (error) {
         console.error(error);
