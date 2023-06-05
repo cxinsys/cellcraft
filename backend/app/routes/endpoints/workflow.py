@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from sse_starlette.sse import EventSourceResponse
 from typing import Any
 from sqlalchemy.orm import Session
 import os
 import json
+import asyncio
 
 from app.common.celery_utils import get_task_info
 from app.database.crud import crud_workflow
@@ -159,4 +161,16 @@ async def get_task_status(task_id: str) -> dict:
     """
     Return the status of the submitted Task
     """
-    return get_task_info(task_id)
+    async def event_generator():
+        while True:
+            if task_id:
+                task = get_task_info(task_id)
+                if task['task_status'] == 'SUCCESS' or task['task_status'] == 'FAILURE':
+                    yield f"{task['task_status']}"
+                    break
+                print(task['task_status'])
+                yield f"{task['task_status']}"
+                await asyncio.sleep(5)
+            else:
+                break
+    return EventSourceResponse(event_generator())

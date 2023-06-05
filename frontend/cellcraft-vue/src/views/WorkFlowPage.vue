@@ -189,12 +189,7 @@ import fileuploadModal from "@/components/modals/fileupload.vue";
 import scatterPlotModal from "@/components/modals/scatterPlot.vue";
 import heatMapModal from "@/components/modals/heatMap.vue";
 import Fileupload from "../components/modals/fileupload.vue";
-import {
-  exportData,
-  findWorkflow,
-  saveWorkflow,
-  taskMonitoring,
-} from "@/api/index";
+import { exportData, findWorkflow, saveWorkflow } from "@/api/index";
 
 export default {
   components: {
@@ -266,7 +261,8 @@ export default {
       isHide: false,
       show_files: false,
       show_jobs: false,
-      on_progress: true, // 나중에 false로 바꾸기
+      on_progress: false, // 나중에 false로 바꾸기
+      eventSources: {}, // Use an object to manage multiple event sources
     };
   },
   async mounted() {
@@ -423,22 +419,35 @@ export default {
     }
   },
   methods: {
-    connectionParsing(IO) {
-      if (Object.keys(IO)[0] == null) {
-        return null;
-      } else {
-        if (Object.values(Object.values(Object.values(IO)[0])[0])[0]) {
-          const node_id = Object.entries(
-            Object.values(Object.values(Object.values(IO)[0])[0])[0]
-          )[0][1];
-          return node_id;
+    // Define a function that returns a task_id and creates a new EventSource instance
+    createEventSource(task_id) {
+      this.on_progress = true;
+      // Initialize a new event source with the provided URL
+      this.eventSources[task_id] = new EventSource(
+        `http://127.0.0.1:8000/routes/workflow/task/${task_id}`
+      );
+
+      // Event handler for the 'onmessage' event
+      this.eventSources[task_id].onmessage = (event) => {
+        // Log the received event data
+        console.log("Received update: ", event.data);
+        if (event.data === "SUCCESS" || event.data === "FAILURE") {
+          console.log("close");
+          this.on_progress = false;
+          this.closeEventSource(task_id);
         }
-        return null;
+      };
+    },
+    // Define a function to close a specific event source
+    closeEventSource(task_id) {
+      // If the event source exists, close it
+      if (this.eventSources[task_id]) {
+        this.eventSources[task_id].close();
+        delete this.eventSources[task_id];
       }
     },
     async exportdf() {
       try {
-        //원래 코드
         this.exportValue = this.$df.export();
         const nodes = this.$store.getters.getNodes;
         const linked_nodes = this.$store.getters.getLinkedNodes;
@@ -454,37 +463,9 @@ export default {
         console.log(workflow);
         // this.compile_check = "loading";
         const workflow_data = await exportData(workflow);
-        const taskMonitoring_result = await taskMonitoring(
-          workflow_data.data.task_id
-        );
-        console.log(workflow_data.data);
-        console.log(taskMonitoring_result.data);
-        if (taskMonitoring_result.data.task_result === null) {
-          this.pollWorkflowStatus(workflow_data.data.task_id);
-        }
+        this.createEventSource(workflow_data.data.task_id);
       } catch (error) {
         console.error(error);
-      }
-    },
-    async pollWorkflowStatus(taskId) {
-      let isCompleted = false;
-
-      while (!isCompleted) {
-        try {
-          const taskMonitoring_result = await taskMonitoring(taskId);
-          console.log(taskMonitoring_result.data);
-          if (taskMonitoring_result.data.task_result !== null) {
-            isCompleted = true;
-            this.handleCompletedWorkflow(
-              taskMonitoring_result.data.task_result
-            );
-          }
-        } catch (error) {
-          console.error(error);
-        }
-
-        // wait for 5 seconds before polling again
-        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     },
     handleCompletedWorkflow(workflowData) {
@@ -578,6 +559,12 @@ export default {
         console.error(error);
       }
     },
+  },
+  beforeDestroy() {
+    // Close all the event source connections before the component is destroyed
+    for (let task_id in this.eventSources) {
+      this.closeEventSource(task_id);
+    }
   },
 };
 </script>
