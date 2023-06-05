@@ -1,10 +1,5 @@
 <template>
   <div class="layout__workflow">
-    <!-- <div class="main__bg-video">
-      <video class="main-video" autoplay loop muted>
-        <source src="@/assets/main_bg_fantastic.mp4" type="video/mp4" />
-      </video>
-    </div> -->
     <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
     <section class="node-bar">
       <ul class="node-bar__nodelist" draggable="false">
@@ -194,7 +189,12 @@ import fileuploadModal from "@/components/modals/fileupload.vue";
 import scatterPlotModal from "@/components/modals/scatterPlot.vue";
 import heatMapModal from "@/components/modals/heatMap.vue";
 import Fileupload from "../components/modals/fileupload.vue";
-import { exportData, findWorkflow, saveWorkflow } from "@/api/index";
+import {
+  exportData,
+  findWorkflow,
+  saveWorkflow,
+  taskMonitoring,
+} from "@/api/index";
 
 export default {
   components: {
@@ -439,8 +439,6 @@ export default {
     async exportdf() {
       try {
         //원래 코드
-        // const result = await this.$store.dispatch("compileNodes");
-        // console.log(result);
         this.exportValue = this.$df.export();
         const nodes = this.$store.getters.getNodes;
         const linked_nodes = this.$store.getters.getLinkedNodes;
@@ -456,17 +454,41 @@ export default {
         console.log(workflow);
         // this.compile_check = "loading";
         const workflow_data = await exportData(workflow);
-        console.log(workflow_data);
-        // console.log(JSON.stringify(this.exportValue.drawflow.Home.data))
-        // this.compile_check = "complete";
-        // console.log(
-        //   typeof JsonData.data.recived_data,
-        //   JsonData.data.recived_data
-        // );
-        // this.node_connection = JsonData.data.recived_data;
+        const taskMonitoring_result = await taskMonitoring(
+          workflow_data.data.task_id.process_task_id
+        );
+        console.log(workflow_data.data);
+        console.log(taskMonitoring_result.data);
+        if (taskMonitoring_result.data.task_result === null) {
+          this.pollWorkflowStatus(workflow_data.data.task_id.process_task_id);
+        }
       } catch (error) {
         console.error(error);
       }
+    },
+    async pollWorkflowStatus(taskId) {
+      let isCompleted = false;
+
+      while (!isCompleted) {
+        try {
+          const taskMonitoring_result = await taskMonitoring(taskId);
+          console.log(taskMonitoring_result.data);
+          if (taskMonitoring_result.data.task_result !== null) {
+            isCompleted = true;
+            this.handleCompletedWorkflow(
+              taskMonitoring_result.data.task_result
+            );
+          }
+        } catch (error) {
+          console.error(error);
+        }
+
+        // wait for 5 seconds before polling again
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    },
+    handleCompletedWorkflow(workflowData) {
+      console.log("Workflow completed!", workflowData);
     },
     importdf() {
       this.$df.import(this.exportValue);

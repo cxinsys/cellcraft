@@ -4,6 +4,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.routes.api import api_router
 from app.common.config import settings
+from app.common.celery_utils import create_celery
 from app.database import models
 from app.database.conn import engine
 
@@ -32,4 +33,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.celery_app = create_celery()
 app.include_router(api_router, prefix=settings.ROUTES_STR)
+
+celery = app.celery_app

@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from typing import Any
-from subprocess import Popen,PIPE
 from multiprocessing import Pool, cpu_count
 from sqlalchemy.orm import Session
 import os
@@ -9,66 +8,38 @@ import json
 import base64
 import io
 
+from app.common.celery_utils import get_task_info
 from app.database.crud import crud_workflow
 from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowResult, WorkflowFind
 from app.routes import dep
 from app.database import models
+from app.routes.celery_tasks import process_data_task
 
 router = APIRouter()                                                        
 
-def snakemakeProcess(filepath):
-    print(filepath)
-    process = Popen(['snakemake',f'workflow/data/{filepath}.csv','-j'], stdout=PIPE, stderr=PIPE)
-    stdout, stderr = process.communicate()
-
-# 이미지 base64 변환
-def from_image_to_bytes(img):
-    # Pillow 이미지 객체를 Bytes로 변환
-    imgByteArr = io.BytesIO()
-    img.save(imgByteArr, format=img.format)
-    imgByteArr = imgByteArr.getvalue()
-    # Base64로 Bytes를 인코딩
-    encoded = base64.b64encode(imgByteArr)
-    # Base64로 ascii로 디코딩
-    decoded = encoded.decode('ascii')
-    return decoded
-
 #export workflow data
 @router.post("/compile")
-async def exportData(
+def exportData(
     *,
     db: Session = Depends(dep.get_db),
     workflow: WorkflowCreate, 
     current_user: models.User = Depends(dep.get_current_active_user)
     ):
     try:
-        # print(workflow.workflow_info)
-        # print(workflow.nodes)
-        print(workflow.linked_nodes)
-        for nodes in workflow.linked_nodes:
-            # fileName = nodes['file'].replace('.csv', '')
-            fileName = nodes['file'].replace('.h5ad', '')
-            # lastNode = nodes['lastNode']
-            lastNode = "file"
-            print(fileName, lastNode)
-            target = f'{lastNode}_{current_user.username}_{fileName}'
-            p = Pool(cpu_count())
-            snakemake = p.apply_async(snakemakeProcess, (target,))
-            print(snakemake.get())
-            p.close()
-            p.join()
+        process_task = process_data_task.apply_async(args=[current_user.username, workflow.linked_nodes])
         user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflow.id)
         if user_workflow:
-            # workflow 수정
             crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes)
-        else :
-            # workflow 생성
+        else:
             crud_workflow.create_workflow(db, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
-        message = "success"
+        message = "Tasks added to queue"
+        task_id = {"process_task_id": process_task.id}
     except json.JSONDecodeError:
         workflow = None
         message = "Received data is not a valid JSON"
-    return {"message": message, "recived_data": workflow}
+        task_ids = {}
+    return {"message": message, "recived_data": workflow, "task_id": task_id}
+
 
 #save workflow data
 @router.post("/save")
@@ -180,3 +151,10 @@ def checkResult(filename: WorkflowResult, current_user: models.User = Depends(de
     # else:
     #     return FileResponse(FILE_PATH)
     return FileResponse(FILE_PATH)
+
+@router.get("/task/{task_id}")
+async def get_task_status(task_id: str) -> dict:
+    """
+    Return the status of the submitted Task
+    """
+    return get_task_info(task_id)

@@ -2,10 +2,17 @@ import secrets
 from typing import Any, Dict, List, Optional, Union
 from os import environ
 from dotenv import load_dotenv
-
+from functools import lru_cache
+from kombu import Queue
 from pydantic import AnyHttpUrl, BaseSettings, EmailStr, HttpUrl, PostgresDsn, validator
 
 load_dotenv(verbose=True)
+
+def route_task(name, args, kwargs, options, task=None, **kw):
+    if ":" in name:
+        queue, _ = name.split(":")
+        return {"queue": queue}
+    return {"queue": "celery"}
 
 class Settings(BaseSettings):
     ROUTES_STR: str = "/routes"
@@ -35,4 +42,29 @@ class Settings(BaseSettings):
 
     SQLALCHEMY_DATABASE_URI: str = f"postgresql://{POSTGRES_USERNAME}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
-settings = Settings()
+    CELERY_BROKER_URL: str = environ.get("CELERY_BROKER_URL", "amqp://guest:guest@localhost:5672//")
+    CELERY_RESULT_BACKEND: str = environ.get("CELERY_RESULT_BACKEND", "rpc://")
+
+    CELERY_TASK_QUEUES: list = (
+        # default queue
+        Queue("celery"),
+        # custom queue
+        Queue("workflow_task"),
+        Queue("workflow_db_task"),
+    )
+
+    CELERY_TASK_ROUTES = (route_task,)
+
+class DevelopmentConfig(Settings):
+    pass
+
+@lru_cache()
+def get_settings():
+    config_cls_dict = {
+        "development": DevelopmentConfig,
+    }
+    config_name = environ.get("CELERY_CONFIG", "development")
+    config_cls = config_cls_dict[config_name]
+    return config_cls()
+
+settings = get_settings()
