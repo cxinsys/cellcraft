@@ -6,7 +6,10 @@
         <!-- <p class="logo__text">CELLCRAFT</p> -->
       </router-link>
     </div>
-    <nav class="menu-component" v-if="!isWorkflowPage">
+    <nav class="menu-component" v-if="!isWorkflowPage && !isUserLogin">
+      <ul class="header-menu"></ul>
+    </nav>
+    <nav class="menu-component" v-else-if="!isWorkflowPage && isUserLogin">
       <ul class="header-menu">
         <li class="header-menu__item">
           <router-link class="header-menu__link" to="/projects">
