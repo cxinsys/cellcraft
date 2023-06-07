@@ -16,12 +16,6 @@
       </ul>
     </section>
     <div class="control-popup__files" v-if="show_files">
-      <img
-        class="control-popup__close"
-        src="@/assets/close.png"
-        alt="X"
-        @click="show_files = !show_files"
-      />
       <table class="control-popup__table">
         <thead>
           <tr>
@@ -42,34 +36,21 @@
       </table>
     </div>
     <div class="control-popup__jobs" v-if="show_jobs">
-      <img
-        class="control-popup__close"
-        src="@/assets/close.png"
-        alt="X"
-        @click="show_files = !show_jobs"
-      />
       <table class="control-popup__table">
         <thead>
           <tr>
             <th>No.</th>
-            <th>Data</th>
-            <th>Progress</th>
-            <th>%</th>
-            <th>State</th>
+            <th>Name</th>
+            <th>Running time</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>{{ "1" }}</td>
-            <td>{{ "data" }}</td>
-            <td class="control-popup__table__progress">
-              <!-- <progress :value="66" max="100"></progress> -->
-              <div class="progress-bar">
-                <div class="progress" :style="{ width: 66 + '%' }"></div>
-              </div>
-            </td>
-            <td>{{ 66 }}</td>
-            <td>{{ "Done" }}</td>
+          <tr v-for="(task, index) in taskList" :key="index">
+            <td>{{ index + 1 }}</td>
+            <td>{{ task.title }}</td>
+            <td>{{ task.running_time }}</td>
+            <td>{{ task.status }}</td>
           </tr>
         </tbody>
       </table>
@@ -79,9 +60,6 @@
         <li class="control-bar__button" @click="show_files = !show_files">
           <img class="control-bar__icon" src="@/assets/control_files.png" />
         </li>
-        <!-- <li class="control-bar__button">
-          <img class="control-bar__icon" src="@/assets/control_zoom.png" />
-        </li> -->
         <li class="control-bar__button" @click="saveWorkflowProject">
           <img class="control-bar__icon" src="@/assets/control_save.png" />
         </li>
@@ -93,25 +71,11 @@
         <li>
           <div
             class="loader"
-            @click="show_jobs = !show_jobs"
+            @click="toggleTask"
             v-if="on_progress == true"
           ></div>
-          <div class="loader_done" @click="show_jobs = !show_jobs" v-else></div>
+          <div class="loader_done" @click="toggleTask" v-else></div>
         </li>
-        <!-- <li
-          class="control-bar__button"
-          @click="show_jobs = !show_jobs"
-          v-if="on_progress == false"
-        >
-          <img class="control-bar__icon" src="@/assets/control_jobs.png" />
-        </li>
-        <li
-          class="control-bar__button"
-          @click="show_jobs = !show_jobs"
-          v-if="on_progress == true"
-        >
-          <img class="control-bar__icon" src="@/assets/control_jobs2.png" />
-        </li> -->
         <li class="control-bar__button">
           <img class="control-bar__icon" src="@/assets/control_export.png" />
         </li>
@@ -189,7 +153,12 @@ import fileuploadModal from "@/components/modals/fileupload.vue";
 import scatterPlotModal from "@/components/modals/scatterPlot.vue";
 import heatMapModal from "@/components/modals/heatMap.vue";
 import Fileupload from "../components/modals/fileupload.vue";
-import { exportData, findWorkflow, saveWorkflow } from "@/api/index";
+import {
+  exportData,
+  findWorkflow,
+  saveWorkflow,
+  userTaskMonitoring,
+} from "@/api/index";
 
 export default {
   components: {
@@ -263,6 +232,10 @@ export default {
       show_jobs: false,
       on_progress: false, // 나중에 false로 바꾸기
       eventSources: {}, // Use an object to manage multiple event sources
+      taskList: [],
+      taskTitleList: [],
+      currentTime: new Date(),
+      timeInterval: null,
     };
   },
   async mounted() {
@@ -451,11 +424,12 @@ export default {
         this.exportValue = this.$df.export();
         const nodes = this.$store.getters.getNodes;
         const linked_nodes = this.$store.getters.getLinkedNodes;
+        const title = this.$store.getters.getTitle;
         // console.log(JSON.stringify(this.exportValue));
         console.log(this.$df.drawflow.drawflow[this.$df.module]);
         const workflow = {
           id: this.$route.query.id,
-          title: "Untitled",
+          title: title,
           workflow_info: this.exportValue,
           nodes: nodes,
           linked_nodes: linked_nodes,
@@ -464,6 +438,10 @@ export default {
         // this.compile_check = "loading";
         const workflow_data = await exportData(workflow);
         this.createEventSource(workflow_data.data.task_id);
+        if (this.show_jobs) {
+          this.show_jobs = false;
+          this.toggleTask();
+        }
       } catch (error) {
         console.error(error);
       }
@@ -558,6 +536,102 @@ export default {
       } catch (error) {
         console.error(error);
       }
+    },
+    async toggleTask() {
+      if (!this.show_jobs) {
+        const user_tasks = await userTaskMonitoring();
+        console.log(user_tasks);
+        this.taskList = user_tasks.data;
+        this.taskList.forEach(async (task, idx) => {
+          if (task.status === "SUCCESS" || task.status === "FAILURE") {
+            this.taskList[idx].running_time = this.getTimeDifference(
+              task.start_time,
+              task.end_time
+            );
+          } else {
+            this.timeInterval = this.startTimer(idx);
+          }
+          const workflow = await findWorkflow({
+            id: task.workflow_id,
+          });
+          this.taskList[idx].title = workflow.data.title;
+        });
+      }
+      //stop interval
+      else {
+        clearInterval(this.timeInterval);
+      }
+      console.log(this.taskList);
+      setTimeout(() => {
+        this.show_jobs = !this.show_jobs;
+      }, 100);
+    },
+    startTimer(idx) {
+      const interval = setInterval(() => {
+        if (!this.on_progress) {
+          this.show_jobs = false;
+          clearInterval(interval);
+          this.toggleTask();
+        }
+        let currentTime = new Date();
+        let running_time = this.getRunningTime(
+          this.taskList[idx].start_time,
+          currentTime
+        );
+        // this.taskList[idx].running_time = running_time;
+        this.$set(this.taskList, idx, {
+          ...this.taskList[idx],
+          running_time: running_time,
+        });
+      }, 1000);
+      return interval;
+    },
+    getTimeDifference(start_time, end_time) {
+      const start = new Date(start_time);
+      const end = new Date(end_time);
+      let diff = Math.abs(end - start); // Difference in milliseconds
+
+      const hours = Math.floor(diff / 3600000);
+      diff -= hours * 3600000;
+
+      const minutes = Math.floor(diff / 60000);
+      diff -= minutes * 60000;
+
+      const seconds = Math.floor(diff / 1000);
+
+      return `${hours.toString().padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    },
+    getRunningTime(startTime, currentTime) {
+      const start = new Date(startTime);
+      let diff = Math.abs(currentTime - start); // Difference in milliseconds
+
+      const hours = Math.floor(diff / 3600000);
+      diff -= hours * 3600000;
+
+      const minutes = Math.floor(diff / 60000);
+      diff -= minutes * 60000;
+
+      const seconds = Math.floor(diff / 1000);
+
+      console.log(
+        `${hours.toString().padStart(2, "0")}:${minutes
+          .toString()
+          .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+      );
+
+      return `${hours.toString().padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    },
+    async getWorkflowTitle(id) {
+      const workflow_id = {
+        id: id,
+      };
+      const user_workflow = await findWorkflow(workflow_id);
+      console.log(user_workflow.data.title);
+      return user_workflow.data.title;
     },
   },
   beforeDestroy() {
@@ -850,19 +924,33 @@ export default {
   font-weight: 400;
   text-align: center;
   color: rgb(68, 68, 68);
-  padding: 1rem;
+  padding: 0.7rem;
   margin: 1rem;
 }
 .control-popup__jobs {
   left: calc(50% + 1vw);
+  overflow-y: scroll;
+  border-radius: 16px; /* or whatever radius you prefer */
 }
-.control-popup__close {
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  top: 10px;
-  right: 10px;
+
+.control-popup__jobs::-webkit-scrollbar {
+  width: 10px; /* width of the entire scrollbar */
 }
+
+.control-popup__jobs::-webkit-scrollbar-track {
+  background: #f1f1f1; /* color of the tracking area */
+  border-radius: 16px; /* keep the same radius as the container */
+}
+
+.control-popup__jobs::-webkit-scrollbar-thumb {
+  background: #888; /* color of the scroll thumb */
+  border-radius: 16px; /* keep the same radius as the container */
+}
+
+.control-popup__jobs::-webkit-scrollbar-thumb:hover {
+  background: #555; /* color of the scroll thumb on hover */
+}
+
 .control-popup__table__progress {
   width: 40%;
 }

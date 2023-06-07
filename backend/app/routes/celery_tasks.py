@@ -21,7 +21,8 @@ class MyTask(Task):
         start_time = datetime.now()
         print(f'Task {self.request.id} started at {start_time}')
         user_id = kwargs.get('user_id')
-        start_task(user_id, self.request.id, start_time)
+        workflow_id = kwargs.get('workflow_id')
+        start_task(user_id, self.request.id, workflow_id, start_time)
         super(MyTask, self).__call__(*args, **kwargs)
 
 def snakemakeProcess(filepath):
@@ -31,7 +32,7 @@ def snakemakeProcess(filepath):
     stdout, stderr = process.communicate()
 
 @shared_task(bind=True, base=MyTask, autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5}, name="workflow_task:process_data_task")
-def process_data_task(self, username: str, linked_nodes: List[dict], user_id: int):
+def process_data_task(self, username: str, linked_nodes: List[dict], user_id: int, workflow_id: int):
     # from multiprocessing import Pool, cpu_count
     from billiard import Pool, cpu_count
     print(f'Processing data for user {username}...')

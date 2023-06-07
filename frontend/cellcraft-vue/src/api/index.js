@@ -83,6 +83,10 @@ function taskMonitoring(taskId) {
   return instance.get(`/routes/workflow/task/${taskId}`);
 }
 
+function userTaskMonitoring() {
+  return instance.get("/routes/workflow/monitoring");
+}
+
 export {
   registerUser,
   loginUser,
@@ -98,4 +102,5 @@ export {
   saveWorkflow,
   deleteWorkflow,
   taskMonitoring,
+  userTaskMonitoring,
 };

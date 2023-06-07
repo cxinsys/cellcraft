@@ -3,12 +3,13 @@ from sqlalchemy.orm import Session
 from app.database import models
 from app.database.conn import get_new_engine_and_session
 
-def start_task(user_id: int, task_id: str, start_time: datetime):
+def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetime):
     db = get_new_engine_and_session()
     try:
         db_task = models.Task(
             user_id=user_id,
             task_id=task_id,
+            workflow_id=workflow_id,
             start_time=start_time,
             status='STARTED'
         )
@@ -34,5 +35,8 @@ def end_task(user_id: int, task_id: str, end_time: datetime, status: str):
         raise e
     finally:
         db.close()
+
+def get_user_task(db: Session, id: int):
+    return db.query(models.Task).filter(models.Task.user_id == id).all()
 
 
