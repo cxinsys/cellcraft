@@ -11,6 +11,8 @@ from app.database.conn import engine
 
 models.Base.metadata.create_all(bind=engine)
 
+global_engine = engine
+
 app = FastAPI(
     title=settings.PROJECT_NAME
 )

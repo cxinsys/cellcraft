@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB, JSON, ARRAY
 
@@ -17,6 +17,7 @@ class User(Base):
 
     files = relationship("File", back_populates="user")
     workflows = relationship("Workflow", back_populates="user")
+    tasks = relationship("Task", back_populates="user")
 
 class File(Base):
     __tablename__ = "files"
@@ -32,6 +33,8 @@ class File(Base):
 
 class Workflow(Base):
     __tablename__ = "workflows"
+    __table_args__ = (UniqueConstraint('user_id', 'title', name='uix_1'), )
+
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
@@ -41,3 +44,18 @@ class Workflow(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
 
     user = relationship("User", back_populates="workflows")
+    tasks = relationship("Task", back_populates="workflows")
+
+class Task(Base):
+    __tablename__ = 'tasks'
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(String, nullable=False)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=True)
+    status = Column(String, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    workflow_id = Column(Integer, ForeignKey("workflows.id"))
+
+    user = relationship("User", back_populates="tasks")
+    workflows = relationship("Workflow", back_populates="tasks")

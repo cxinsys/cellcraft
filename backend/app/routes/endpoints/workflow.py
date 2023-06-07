@@ -1,15 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from sse_starlette.sse import EventSourceResponse
 from typing import Any
-from multiprocessing import Pool, cpu_count
 from sqlalchemy.orm import Session
 import os
 import json
-import base64
-import io
+import asyncio
 
 from app.common.celery_utils import get_task_info
-from app.database.crud import crud_workflow
+from app.database.crud import crud_workflow, crud_task
 from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowResult, WorkflowFind
 from app.routes import dep
 from app.database import models
@@ -26,19 +25,29 @@ def exportData(
     current_user: models.User = Depends(dep.get_current_active_user)
     ):
     try:
-        process_task = process_data_task.apply_async(args=[current_user.username, workflow.linked_nodes])
         user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflow.id)
         if user_workflow:
             crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes)
+            process_task = process_data_task.apply_async(
+                (current_user.username, workflow.linked_nodes),
+                kwargs={'user_id': current_user.id, 'workflow_id': workflow.id }
+            )
         else:
-            crud_workflow.create_workflow(db, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
+            workflow_info = crud_workflow.create_workflow(db, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
+            print(workflow_info.id)
+            process_task = process_data_task.apply_async(
+                (current_user.username, workflow.linked_nodes),
+                kwargs={'user_id': current_user.id, 'workflow_id': workflow_info.id }
+            )
         message = "Tasks added to queue"
-        task_id = {"process_task_id": process_task.id}
+        task_id = process_task.id
+        result = get_task_info(process_task.id)
+
     except json.JSONDecodeError:
         workflow = None
         message = "Received data is not a valid JSON"
-        task_ids = {}
-    return {"message": message, "recived_data": workflow, "task_id": task_id}
+        task_id = {}
+    return {"message": message, "recived_data": workflow, "task_id": task_id, "result": result}
 
 
 #save workflow data
@@ -157,4 +166,34 @@ async def get_task_status(task_id: str) -> dict:
     """
     Return the status of the submitted Task
     """
-    return get_task_info(task_id)
+    async def event_generator():
+        while True:
+            if task_id:
+                task = get_task_info(task_id)
+                if task['task_status'] == 'SUCCESS' or task['task_status'] == 'FAILURE':
+                    yield f"{task['task_status']}"
+                    break
+                print(task['task_status'])
+                yield f"{task['task_status']}"
+                await asyncio.sleep(5)
+            else:
+                break
+    return EventSourceResponse(event_generator())
+
+@router.get("/monitoring")
+async def get_task_monitoring(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user)
+    ) -> Any :
+    """
+    Return the status of the all User Task
+    """
+    user_task = crud_task.get_user_task(db, current_user.id)
+    if user_task:
+        return user_task
+    else:
+        raise HTTPException(
+                status_code=400,
+                detail="this user not exists task",
+                )
