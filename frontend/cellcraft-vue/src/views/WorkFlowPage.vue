@@ -26,11 +26,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>{{ "name" }}</td>
-            <td>{{ "date" }}</td>
-            <td>{{ "type" }}</td>
-            <td>{{ "size" }}</td>
+          <tr v-for="(file, index) in files_list" :key="index">
+            <td>{{ file.file_name | cutFromDotName }}</td>
+            <td>{{ file.created_at | cutFromT }}</td>
+            <td>{{ file.file_name | cutFromDotType }}</td>
+            <td>{{ file.file_size | formatBytes }}</td>
           </tr>
         </tbody>
       </table>
@@ -57,7 +57,7 @@
     </div>
     <section class="control-bar">
       <ul class="control-bar__btnList">
-        <li class="control-bar__button" @click="show_files = !show_files">
+        <li class="control-bar__button" @click="toggleFile">
           <img class="control-bar__icon" src="@/assets/control_files.png" />
         </li>
         <li class="control-bar__button" @click="saveWorkflowProject">
@@ -158,6 +158,7 @@ import {
   findWorkflow,
   saveWorkflow,
   userTaskMonitoring,
+  findFolder,
 } from "@/api/index";
 
 export default {
@@ -236,6 +237,7 @@ export default {
       taskTitleList: [],
       currentTime: new Date(),
       timeInterval: null,
+      files_list: [],
     };
   },
   async mounted() {
@@ -566,6 +568,20 @@ export default {
         this.show_jobs = !this.show_jobs;
       }, 100);
     },
+    async toggleFile() {
+      if (!this.show_files) {
+        try {
+          const filesList = await findFolder({
+            folder_name: "data",
+          });
+          console.log(filesList.data);
+          this.files_list = filesList.data;
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      this.show_files = !this.show_files;
+    },
     startTimer(idx) {
       const interval = setInterval(() => {
         if (!this.on_progress) {
@@ -639,6 +655,26 @@ export default {
     for (let task_id in this.eventSources) {
       this.closeEventSource(task_id);
     }
+  },
+  filters: {
+    formatBytes(a, b) {
+      if (a === 0) return "0 Bytes";
+      const c = 1024;
+      const d = b || 2;
+      const e = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+      const f = Math.floor(Math.log(a) / Math.log(c));
+
+      return parseFloat((a / Math.pow(c, f)).toFixed(d)) + " " + e[f];
+    },
+    cutFromT(value) {
+      return value.split("T")[0];
+    },
+    cutFromDotName(value) {
+      return value.split(".")[0];
+    },
+    cutFromDotType(value) {
+      return value.split(".")[1];
+    },
   },
 };
 </script>
@@ -929,7 +965,7 @@ export default {
 }
 .control-popup__jobs {
   left: calc(50% + 1vw);
-  overflow-y: scroll;
+  overflow-y: auto;
   border-radius: 16px; /* or whatever radius you prefer */
 }
 
