@@ -11,7 +11,7 @@ def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetim
             task_id=task_id,
             workflow_id=workflow_id,
             start_time=start_time,
-            status='STARTED'
+            status='RUNNING'
         )
         db.add(db_task)
         db.commit()

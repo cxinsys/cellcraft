@@ -554,6 +554,7 @@ export default {
   align-items: flex-start;
   justify-content: center;
   flex-direction: column;
+  z-index: 9997;
 }
 .options__textInput {
   color: black;
