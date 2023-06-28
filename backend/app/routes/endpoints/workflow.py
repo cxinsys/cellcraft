@@ -146,19 +146,8 @@ def checkResult(filename: WorkflowResult, current_user: models.User = Depends(de
         if FILE_NAME in item_file:
             FILE_NAME = item_file
     print(FILE_NAME)
-    # FILE_PATH = PATH_COMPILE_RESULT + '/' + FILE_NAME 
     FILE_PATH = PATH_COMPILE_RESULT + '/' + "file_pbmc3k_obs_umap.csv"
 
-    # if FILE_NAME.find("Plot") != -1:
-    #     # img = Image.open(FILE_PATH)
-    #     # img_converted = from_image_to_bytes(img)
-    #     # return JSONResponse(img_converted)
-    #     with open(FILE_PATH, 'r') as file:
-    #         data = json.load(file)
-    #         print(data)
-    #         return JSONResponse(data)
-    # else:
-    #     return FileResponse(FILE_PATH)
     return FileResponse(FILE_PATH)
 
 @router.get("/task/{task_id}")
