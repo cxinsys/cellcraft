@@ -19,43 +19,7 @@
             </p>
           </div>
         </div>
-        <!-- <router-link
-          class="cloud-row"
-          :to="{ path: '/files', query: { doUploadFile: 'upload' } }"
-        >
-          <label class="form__button">
-            <div class="form__addfile">
-              <img
-                class="form__button--foldericon"
-                src="@/assets/upload-file-black.png"
-              />
-            </div>
-            <input
-              df-file
-              class="form__input"
-              type="file"
-              ref="selectFile"
-              @change.prevent="previewFile"
-              accept="text/csv"
-            />
-          </label>
-          <div class="cloud-textbox">
-            <h1 class="cloud-textbox__title">Upload file</h1>
-            <p class="cloud-textbox__desc">
-              Upload file to CELLCRAFT files directory.
-            </p>
-          </div>
-        </router-link> -->
         <router-link class="cloud-row" to="/files">
-          <!-- <label class="form__button">
-            <div class="form__addfile">
-              <img
-                class="form__button--foldericon"
-                src="@/assets/manage-file.png"
-              />
-            </div>
-            <input df-file class="form__input" type="file" accept="text/csv" />
-          </label> -->
           <div class="cloud-textbox">
             <h1 class="cloud-textbox__directory">Files directory ></h1>
             <p class="cloud-textbox__directory__desc">
@@ -131,7 +95,7 @@
         <div class="form-row">
           <ul class="form__info" v-if="selectFile">
             <li class="form__info--type">
-              <img class="form__info--img" src="@/assets/csv.png" />
+              <img class="form__info--img" src="@/assets/file-icon.png" />
             </li>
             <li class="form__info--name">
               {{ selectFile.file_name }}&nbsp;&nbsp;&nbsp;{{

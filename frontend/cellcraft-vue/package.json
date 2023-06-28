@@ -12,6 +12,7 @@
     "core-js": "^3.8.3",
     "d3": "^7.8.2",
     "drawflow": "0.0.59",
+    "moment": "^2.29.4",
     "plotly.js-dist-min": "^2.18.0",
     "vue": "^2.6.14",
     "vue-drag-resize": "^1.5.4",

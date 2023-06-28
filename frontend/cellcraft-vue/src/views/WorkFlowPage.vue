@@ -26,11 +26,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>{{ "name" }}</td>
-            <td>{{ "date" }}</td>
-            <td>{{ "type" }}</td>
-            <td>{{ "size" }}</td>
+          <tr v-for="(file, index) in files_list" :key="index">
+            <td>{{ file.file_name | cutFromDotName }}</td>
+            <td>{{ file.created_at | cutFromT }}</td>
+            <td>{{ file.file_name | cutFromDotType }}</td>
+            <td>{{ file.file_size | formatBytes }}</td>
           </tr>
         </tbody>
       </table>
@@ -41,6 +41,8 @@
           <tr>
             <th>No.</th>
             <th>Name</th>
+            <th>Start</th>
+            <th>End</th>
             <th>Running time</th>
             <th>Status</th>
           </tr>
@@ -49,15 +51,34 @@
           <tr v-for="(task, index) in taskList" :key="index">
             <td>{{ index + 1 }}</td>
             <td>{{ task.title }}</td>
+            <td>{{ task.start_time | formatDateTime }}</td>
+            <td>{{ task.end_time | formatDateTime }}</td>
             <td>{{ task.running_time }}</td>
-            <td>{{ task.status }}</td>
+            <td class="task-status">
+              <div
+                class="status-box__red"
+                v-if="task.status === 'FAILURE'"
+              ></div>
+              <div
+                class="status-box__yellow"
+                v-if="task.status === 'RUNNING'"
+              ></div>
+              <div
+                class="status-box__green"
+                v-if="task.status === 'SUCCESS'"
+              ></div>
+              {{ task.status }}
+            </td>
+            <td>
+              <img class="control-bar__icon" src="@/assets/multiply.png" />
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
     <section class="control-bar">
       <ul class="control-bar__btnList">
-        <li class="control-bar__button" @click="show_files = !show_files">
+        <li class="control-bar__button" @click="toggleFile">
           <img class="control-bar__icon" src="@/assets/control_files.png" />
         </li>
         <li class="control-bar__button" @click="saveWorkflowProject">
@@ -78,6 +99,20 @@
         </li>
         <li class="control-bar__button">
           <img class="control-bar__icon" src="@/assets/control_export.png" />
+        </li>
+        <li class="control-bar__button">
+          <img
+            class="control-bar__icon white"
+            v-if="isTabView"
+            src="@/assets/view.png"
+            @click="isTabView = !isTabView"
+          />
+          <img
+            class="control-bar__icon white"
+            v-else
+            src="@/assets/view_hide.png"
+            @click="isTabView = !isTabView"
+          />
         </li>
       </ul>
     </section>
@@ -108,8 +143,13 @@
           </div>
           <img class="tab__close" @click="closeTab" src="@/assets/close.png" />
         </li>
+        <div class="tab__hide" @click="isTabView = false"></div>
       </ul>
-      <div class="content-view" v-if="tabList.length != 0 && isTabView">
+      <div
+        class="content-view"
+        v-if="tabList.length != 0 && isTabView"
+        @mousedown.stop
+      >
         <fileuploadModal
           v-show="tabList[currentTab].name === 'File'"
         ></fileuploadModal>
@@ -122,13 +162,6 @@
         <heatMapModal
           v-show="tabList[currentTab].name === 'heatMap'"
         ></heatMapModal>
-        <!-- <div class="content__handle" @click="hideContent">
-          <img
-            class="handle--img"
-            src="@/assets/arrow-right.png"
-            draggable="false"
-          />
-        </div> -->
       </div>
     </VueDragResize>
   </div>
@@ -137,6 +170,7 @@
 <script>
 import Vue from "vue";
 import VueDragResize from "vue-drag-resize";
+import moment from "moment";
 /* eslint-disable */
 // import Drawflow from 'drawflow'
 // import styleDrawflow from 'drawflow/dist/drawflow.min.css' // eslint-disable-line no-use-before-define
@@ -158,6 +192,7 @@ import {
   findWorkflow,
   saveWorkflow,
   userTaskMonitoring,
+  findFolder,
 } from "@/api/index";
 
 export default {
@@ -236,6 +271,7 @@ export default {
       taskTitleList: [],
       currentTime: new Date(),
       timeInterval: null,
+      files_list: [],
     };
   },
   async mounted() {
@@ -566,6 +602,20 @@ export default {
         this.show_jobs = !this.show_jobs;
       }, 100);
     },
+    async toggleFile() {
+      if (!this.show_files) {
+        try {
+          const filesList = await findFolder({
+            folder_name: "data",
+          });
+          console.log(filesList.data);
+          this.files_list = filesList.data;
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      this.show_files = !this.show_files;
+    },
     startTimer(idx) {
       const interval = setInterval(() => {
         if (!this.on_progress) {
@@ -639,6 +689,31 @@ export default {
     for (let task_id in this.eventSources) {
       this.closeEventSource(task_id);
     }
+  },
+  filters: {
+    formatBytes(a, b) {
+      if (a === 0) return "0 Bytes";
+      const c = 1024;
+      const d = b || 2;
+      const e = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+      const f = Math.floor(Math.log(a) / Math.log(c));
+
+      return parseFloat((a / Math.pow(c, f)).toFixed(d)) + " " + e[f];
+    },
+    cutFromT(value) {
+      return value.split("T")[0];
+    },
+    cutFromDotName(value) {
+      return value.split(".")[0];
+    },
+    cutFromDotType(value) {
+      return value.split(".")[1];
+    },
+    formatDateTime(dateTime) {
+      const date = moment(dateTime).format("MMMM Do, HH:mm");
+      if (date === "Invalid date") return "Not yet completed";
+      return date
+    },
   },
 };
 </script>
@@ -742,6 +817,7 @@ export default {
   display: flex;
   z-index: 9998;
   background: rgba(223, 225, 229, 0.3);
+  position: relative;
   /* border-radius: 0.5rem 0.5rem 0 0; */
 }
 .tab__item {
@@ -798,6 +874,21 @@ export default {
   object-fit: contain;
   position: absolute;
   right: 1rem;
+}
+.tab__hide{
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  position: absolute;
+  right: 1rem;
+  top: calc(1.1rem - 0.5rem);
+  background: rgb(255, 60, 60);
+  border: 1px solid rgb(255, 60, 60);
+  opacity: 0.5;
+  cursor: pointer;
+}
+.tab__hide:hover{
+  opacity: 1;
 }
 .content-view {
   width: 100%;
@@ -891,6 +982,7 @@ export default {
   /* height: 34rem; */
   height: 30vh;
   max-height: 300px;
+
   border-radius: 16px;
   background: rgba(244, 246, 251, 0.586);
   box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 1);
@@ -919,6 +1011,11 @@ export default {
   color: rgb(49, 49, 49);
   border-bottom: 1px solid #6767678c;
 }
+.control-popup__table td.task-status {
+  display: flex; /* align items horizontally */
+  align-items: center; /* center items vertically */
+  justify-content: center; /* center items horizontally */
+}
 .control-popup__table td {
   vertical-align: middle;
   font-weight: 400;
@@ -927,9 +1024,14 @@ export default {
   padding: 0.7rem;
   margin: 1rem;
 }
+
 .control-popup__jobs {
+  max-width: 720px;
+  max-height: 540px;
+  width: 720px;
+  height: 540px;
   left: calc(50% + 1vw);
-  overflow-y: scroll;
+  overflow-y: auto;
   border-radius: 16px; /* or whatever radius you prefer */
 }
 
@@ -953,6 +1055,26 @@ export default {
 
 .control-popup__table__progress {
   width: 40%;
+}
+.status-box__red,
+.status-box__green,
+.status-box__yellow {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.status-box__red {
+  background-color: red;
+}
+
+.status-box__green {
+  background-color: green;
+}
+
+.status-box__yellow {
+  background-color: yellow;
 }
 
 .progress-bar {
@@ -999,7 +1121,11 @@ export default {
   max-width: 24px;
   max-height: 24px;
   object-fit: cover;
-  opacity: 0.72;
+  opacity: 0.6;
+}
+.white {
+  filter: invert(100%) sepia(75%) saturate(0%) hue-rotate(51deg)
+    brightness(115%) contrast(101%);
 }
 .loader,
 .loader_done {
@@ -1009,10 +1135,17 @@ export default {
   margin-right: 6px;
   width: 20px;
   height: 20px;
+  opacity: 0.5;
 }
 .loader {
   border-top: 4px solid #41b3ff;
   animation: spin 3s linear infinite;
+}
+.control-bar__icon:hover,
+.loader.drawflow-node:hover,
+.loader_done:hover {
+  opacity: 0.7; /* You can adjust this value to your liking */
+  transform: scale(1.1);
 }
 
 @keyframes spin {

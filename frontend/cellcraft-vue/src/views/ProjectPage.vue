@@ -270,6 +270,7 @@ export default {
 .project-view {
   width: calc(100% - 20rem);
   height: 100%;
+  overflow-y: auto;
 }
 .project-view__header {
   width: 100%;
@@ -287,22 +288,24 @@ export default {
   padding-left: 2rem;
 }
 .project-view__list {
-  width: 100%;
-  height: calc(100% - 5rem);
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-between; /* for space between items */
+  align-items: center; /* for vertical alignment */
   padding: 3rem;
+  gap: 3rem; /* for space around items */
 }
+
 .project-component {
-  min-width: calc(33% - 3.85rem);
+  flex: 1 0 calc(33% - 6rem); /* Adjusting the size calculation to take into account both the margins and the gap. */
   height: 16rem;
   display: flex;
   flex-direction: column;
   border: 1px solid #e1e1e1;
   border-radius: 1rem;
-  margin-right: 2.5rem;
   cursor: pointer;
 }
+
 .project-component:hover {
   box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 12px;
 }
