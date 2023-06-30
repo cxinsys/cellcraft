@@ -299,6 +299,7 @@ export default {
 .project-component {
   flex: 1 0 calc(33% - 6rem); /* Adjusting the size calculation to take into account both the margins and the gap. */
   height: 16rem;
+  max-width: 19.5rem;
   display: flex;
   flex-direction: column;
   border: 1px solid #e1e1e1;
