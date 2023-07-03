@@ -1,11 +1,9 @@
 from typing import Any
 from venv import create
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile, File
-from fastapi.encoders import jsonable_encoder
 from typing import List, Union
 from sqlalchemy.orm import Session
 import os
-from json import JSONDecodeError
 
 from app.routes import dep
 from app.database.crud import crud_file

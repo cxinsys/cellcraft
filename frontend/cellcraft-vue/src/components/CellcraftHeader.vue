@@ -1,7 +1,11 @@
 <template>
   <div class="layout">
     <div class="logo-component">
-      <router-link class="logo" to="/main">
+      <router-link class="logo" to="/main" v-if="!isWorkflowPage">
+        <img class="logo__img" src="@/assets/cellcraft_logo.png" />
+        <!-- <p class="logo__text">CELLCRAFT</p> -->
+      </router-link>
+      <router-link class="logo" to="/projects" v-else>
         <img class="logo__img" src="@/assets/cellcraft_logo.png" />
         <!-- <p class="logo__text">CELLCRAFT</p> -->
       </router-link>
@@ -124,8 +128,8 @@ a {
   /* transform: translateY(3px); */
 }
 .logo {
-  width: 100%;
-  height: 100%;
+  width: 2.25rem;
+  height: 2.25rem;
   display: flex;
   align-items: center;
   justify-content: left;

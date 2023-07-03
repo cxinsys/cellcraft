@@ -272,6 +272,7 @@ export default {
       currentTime: new Date(),
       timeInterval: null,
       files_list: [],
+      currentId: this.$route.query.id,
     };
   },
   async mounted() {
@@ -397,9 +398,9 @@ export default {
       }
     });
     try {
-      if (this.$route.query.id) {
+      if (this.currentId) {
         const workflowInfo = {
-          id: this.$route.query.id,
+          id: this.currentId,
         };
         const workflow_data = await findWorkflow(workflowInfo);
         console.log(workflow_data.data);
@@ -464,7 +465,7 @@ export default {
         // console.log(JSON.stringify(this.exportValue));
         console.log(this.$df.drawflow.drawflow[this.$df.module]);
         const workflow = {
-          id: this.$route.query.id,
+          id: this.currentId,
           title: title,
           workflow_info: this.exportValue,
           nodes: nodes,
@@ -560,7 +561,7 @@ export default {
         const title = this.$store.getters.getTitle;
         console.log(title);
         const workflow = {
-          id: this.$route.query.id,
+          id: this.currentId,
           title: title,
           workflow_info: this.exportValue,
           nodes: nodes,
@@ -569,6 +570,7 @@ export default {
         console.log(workflow);
         const workflow_data = await saveWorkflow(workflow);
         console.log(workflow_data);
+        this.currentId = workflow_data.data.id;
       } catch (error) {
         console.error(error);
       }
@@ -712,7 +714,7 @@ export default {
     formatDateTime(dateTime) {
       const date = moment(dateTime).format("MMMM Do, HH:mm");
       if (date === "Invalid date") return "Not yet completed";
-      return date
+      return date;
     },
   },
 };
@@ -875,7 +877,7 @@ export default {
   position: absolute;
   right: 1rem;
 }
-.tab__hide{
+.tab__hide {
   width: 1rem;
   height: 1rem;
   border-radius: 50%;
@@ -887,7 +889,7 @@ export default {
   opacity: 0.5;
   cursor: pointer;
 }
-.tab__hide:hover{
+.tab__hide:hover {
   opacity: 1;
 }
 .content-view {

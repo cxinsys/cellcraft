@@ -91,7 +91,7 @@
             v-for="(file, idx) in files_list"
             :key="idx"
             @contextmenu.prevent
-            @click.right="RMouseClick($event)"
+            @click.right="RMouseClick($event, file.file_name, idx)"
             v-bind:class="{ select: R_Mouse_isActive }"
           >
             <td>{{ file.file_name | cutFromDotName }}</td>
@@ -110,14 +110,23 @@
         <li>view</li>
         <li>plot</li>
         <li>rename</li>
-        <li>delete</li>
+        <li @click="removeFile">delete</li>
       </ul>
     </main>
+    <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
+      <p class="message__text">{{ messageContent }}</p>
+      <p class="message__undo" @click="undoDeletion">undo</p>
+      <img
+        class="message__close"
+        @click="toggleMessage = !toggleMessage"
+        src="@/assets/close.png"
+      />
+    </div>
   </div>
 </template>
 
 <script>
-import { uploadForm, getFiles, findFolder } from "@/api/index";
+import { uploadForm, getFiles, findFolder, deleteFile } from "@/api/index";
 
 export default {
   props: {
@@ -138,15 +147,24 @@ export default {
       xPosition: 0,
       yPosition: 0,
       selectFile: null,
+      file_name: null,
+      list_idx: null,
+      toggleMessage: false,
+      deletionTimer: null,
+      messageContent: "",
+      targetFile: null,
     };
   },
 
   methods: {
-    RMouseClick(event) {
+    RMouseClick(event, file_name, idx) {
       this.R_Mouse_isActive = false;
       this.xPosition = event.clientX + "px";
-      this.yPosition = event.clientY - 35 + "px";
+      this.yPosition = event.clientY - 55 + "px";
       this.R_Mouse_isActive = true;
+      this.file_name = file_name;
+      this.list_idx = idx;
+      console.log(event);
     },
     ClickOut() {
       this.R_Mouse_isActive = false;
@@ -179,6 +197,32 @@ export default {
           console.error(error);
         }
       }
+    },
+    removeFile() {
+      this.targetFile = this.files_list[this.list_idx];
+      this.files_list.splice(this.list_idx, 1);
+      console.log(this.targetFile);
+      this.toggleMessage = true;
+      // 10초 안에 toggleMessage가 false로 바뀌면 deleteFile 실행 안 함, 안 바뀌면 실행
+      this.messageContent = `${this.targetFile.file_name} is deleted`;
+      this.deletionTimer = setTimeout(async () => {
+        try {
+          const file = {
+            file_name: this.file_name,
+          };
+          console.log(file);
+          const targetFile = await deleteFile(file);
+          console.log(targetFile);
+        } catch (error) {
+          console.error(error);
+        }
+        this.toggleMessage = false;
+      }, 10000);
+    },
+    undoDeletion() {
+      this.files_list.push(this.targetFile);
+      this.toggleMessage = false;
+      clearTimeout(this.deletionTimer);
     },
   },
 
@@ -463,5 +507,50 @@ export default {
 }
 .files_menu > li:hover {
   background: #e5e5e5;
+}
+
+.message {
+  width: 20rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  position: absolute;
+  bottom: 1rem;
+  left: calc(50% - 10rem);
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 1rem;
+  padding: 0 1rem;
+}
+.message__text {
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1rem;
+  color: #ffffff;
+}
+.message__undo {
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1rem;
+  color: #9196ff;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.message__close {
+  cursor: pointer;
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  margin: 0 0.5rem;
+  opacity: 0.5;
+  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%)
+    contrast(100%);
+}
+.toggleMessage {
+  display: none;
 }
 </style>
