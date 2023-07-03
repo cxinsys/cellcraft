@@ -160,7 +160,7 @@ export default {
     RMouseClick(event, file_name, idx) {
       this.R_Mouse_isActive = false;
       this.xPosition = event.clientX + "px";
-      this.yPosition = event.clientY - 35 + "px";
+      this.yPosition = event.clientY - 55 + "px";
       this.R_Mouse_isActive = true;
       this.file_name = file_name;
       this.list_idx = idx;
