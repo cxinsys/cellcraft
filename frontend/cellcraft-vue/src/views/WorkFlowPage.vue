@@ -164,6 +164,33 @@
         ></heatMapModal>
       </div>
     </VueDragResize>
+    <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
+      <!-- <p class="message__text">{{ messageContent }}</p> -->
+      <img
+        class="message__status"
+        src="@/assets/succes.png"
+        v-if="messageStatus === 'success'"
+      />
+      <img
+        class="message__status"
+        src="@/assets/error.png"
+        v-else-if="messageStatus === 'error'"
+      />
+      <div class="message__box">
+        <p
+          class="message__text"
+          v-for="(content, index) in filteredMessageContent"
+          :key="index"
+        >
+          {{ content }}
+        </p>
+      </div>
+      <img
+        class="message__close"
+        @click="toggleMessage = !toggleMessage"
+        src="@/assets/close.png"
+      />
+    </div>
   </div>
 </template>
 
@@ -273,6 +300,9 @@ export default {
       timeInterval: null,
       files_list: [],
       currentId: this.$route.query.id,
+      toggleMessage: false,
+      messageContent: "",
+      messageStatus: "",
     };
   },
   async mounted() {
@@ -571,38 +601,44 @@ export default {
         const workflow_data = await saveWorkflow(workflow);
         console.log(workflow_data);
         this.currentId = workflow_data.data.id;
+        this.setMessage("success", "Save workflow successfully!");
       } catch (error) {
         console.error(error);
       }
     },
     async toggleTask() {
-      if (!this.show_jobs) {
-        const user_tasks = await userTaskMonitoring();
-        console.log(user_tasks);
-        this.taskList = user_tasks.data;
-        this.taskList.forEach(async (task, idx) => {
-          if (task.status === "SUCCESS" || task.status === "FAILURE") {
-            this.taskList[idx].running_time = this.getTimeDifference(
-              task.start_time,
-              task.end_time
-            );
-          } else {
-            this.timeInterval = this.startTimer(idx);
-          }
-          const workflow = await findWorkflow({
-            id: task.workflow_id,
+      try {
+        if (!this.show_jobs) {
+          const user_tasks = await userTaskMonitoring();
+          console.log(user_tasks);
+          this.taskList = user_tasks.data;
+          this.taskList.forEach(async (task, idx) => {
+            if (task.status === "SUCCESS" || task.status === "FAILURE") {
+              this.taskList[idx].running_time = this.getTimeDifference(
+                task.start_time,
+                task.end_time
+              );
+            } else {
+              this.timeInterval = this.startTimer(idx);
+            }
+            const workflow = await findWorkflow({
+              id: task.workflow_id,
+            });
+            this.taskList[idx].title = workflow.data.title;
           });
-          this.taskList[idx].title = workflow.data.title;
-        });
+        }
+        //stop interval
+        else {
+          clearInterval(this.timeInterval);
+        }
+        console.log(this.taskList);
+        setTimeout(() => {
+          this.show_jobs = !this.show_jobs;
+        }, 100);
+      } catch (error) {
+        console.error(error);
+        this.setMessage("error", "No tasks have been executed yet. Please run workflow")
       }
-      //stop interval
-      else {
-        clearInterval(this.timeInterval);
-      }
-      console.log(this.taskList);
-      setTimeout(() => {
-        this.show_jobs = !this.show_jobs;
-      }, 100);
     },
     async toggleFile() {
       if (!this.show_files) {
@@ -613,7 +649,9 @@ export default {
           console.log(filesList.data);
           this.files_list = filesList.data;
         } catch (error) {
+          this.show_files = !this.show_files;
           console.error(error);
+          this.setMessage("error", "No files have been uploaded yet. Please upload files")
         }
       }
       this.show_files = !this.show_files;
@@ -685,6 +723,14 @@ export default {
       console.log(user_workflow.data.title);
       return user_workflow.data.title;
     },
+    setMessage(status, content) {
+      this.toggleMessage = true;
+      this.messageStatus = status;
+      this.messageContent = content;
+      setTimeout(() => {
+        this.toggleMessage = false;
+      }, 5000);
+    },
   },
   beforeDestroy() {
     // Close all the event source connections before the component is destroyed
@@ -715,6 +761,13 @@ export default {
       const date = moment(dateTime).format("MMMM Do, HH:mm");
       if (date === "Invalid date") return "Not yet completed";
       return date;
+    },
+  },
+  computed: {
+    filteredMessageContent() {
+      // The split() function is used to divide the messageContent string into an array of substrings,
+      // using the dot character as the delimiter.
+      return this.messageContent.split(".").filter(Boolean);
     },
   },
 };
@@ -1313,6 +1366,54 @@ export default {
 .vdr.active:before {
   border: none;
   outline: none;
+}
+
+.message {
+  width: 25rem;
+  height: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  position: absolute;
+  bottom: 5rem;
+  left: calc(50% - 13.5rem);
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 1rem;
+  padding: 0 1rem;
+}
+.message__status{
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+  margin: 0 1rem;
+}
+.message__box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.message__text {
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 1.1rem;
+  line-height: 1.4rem;
+  color: #ffffff;
+}
+.message__close {
+  cursor: pointer;
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  margin: 0 0.5rem;
+  opacity: 0.5;
+  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%)
+    contrast(100%);
+}
+.toggleMessage {
+  display: none;
 }
 /* @media (prefers-color-scheme: dark) {
   .node-bar__img {
