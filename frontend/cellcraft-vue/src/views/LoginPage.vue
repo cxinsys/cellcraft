@@ -80,7 +80,7 @@ export default {
 }
 .login-box {
   width: 100%;
-  height: 20rem;
+  height: 22rem;
 }
 .login-help {
   width: 100%;

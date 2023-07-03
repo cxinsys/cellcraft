@@ -22,6 +22,8 @@
         />
       </div>
 
+      <div class="login__error" v-if="isError">{{ errorMessage }}</div>
+
       <div class="login__login">
         <button
           class="login__button"
@@ -41,6 +43,8 @@ export default {
     return {
       email: "",
       password: "",
+      errorMessage: "",
+      isError: false,
     };
   },
   methods: {
@@ -55,6 +59,8 @@ export default {
         this.$router.push("/projects");
       } catch (error) {
         console.error(error.response.data.detail);
+        this.errorMessage = error.response.data.detail;
+        this.isError = true;
       } finally {
         this.initForm();
       }
@@ -80,7 +86,7 @@ export default {
 }
 .login-header {
   width: 90%;
-  height: 20%;
+  height: 15%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -128,6 +134,19 @@ export default {
   background: rgb(75, 119, 209);
   color: white;
 
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1rem;
+  text-decoration: none;
+}
+.login__error {
+  width: 100%;
+  margin: 1rem 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  color: red;
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 500;
