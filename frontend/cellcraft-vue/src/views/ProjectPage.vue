@@ -101,6 +101,15 @@
         <li @click="removeWorkflow">Delete</li>
       </ul>
     </div>
+    <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
+      <p class="message__text">{{ messageContent }}</p>
+      <p class="message__undo" @click="undoDeletion">undo</p>
+      <img
+        class="message__close"
+        @click="toggleMessage = !toggleMessage"
+        src="@/assets/close.png"
+      />
+    </div>
   </div>
 </template>
 
@@ -116,6 +125,10 @@ export default {
       workflow_id: null,
       list_idx: null,
       R_Mouse_isActive: false,
+      toggleMessage: false,
+      deletionTimer: null,
+      messageContent: "",
+      targetWorkflow: null,
     };
   },
   methods: {
@@ -138,7 +151,7 @@ export default {
     RMouseClick(event, id, idx) {
       this.R_Mouse_isActive = false;
       this.xPosition = event.clientX + "px";
-      this.yPosition = event.clientY - 35 + "px";
+      this.yPosition = event.clientY + "px";
       this.R_Mouse_isActive = true;
       this.workflow_id = id;
       this.list_idx = idx;
@@ -148,16 +161,30 @@ export default {
       this.R_Mouse_isActive = false;
     },
     async removeWorkflow() {
-      try {
-        const workflow = {
-          id: this.workflow_id,
-        };
-        const targetWorkflow = await deleteWorkflow(workflow);
-        console.log(targetWorkflow);
-        this.workflows.splice(this.list_idx, 1);
-      } catch (error) {
-        console.error(error);
-      }
+      this.targetWorkflow = this.workflows[this.list_idx];
+      this.workflows.splice(this.list_idx, 1);
+      console.log(this.targetWorkflow);
+      this.toggleMessage = true;
+      // 10초 안에 toggleMessage가 false로 바뀌면 deleteFile 실행 안 함, 안 바뀌면 실행
+      this.messageContent = `${this.targetWorkflow.title} is deleted`;
+      this.deletionTimer = setTimeout(async () => {
+        try {
+          const workflow = {
+            id: this.workflow_id,
+          };
+          const targetWorkflow = await deleteWorkflow(workflow);
+          console.log(targetWorkflow);
+          this.workflows.splice(this.list_idx, 1);
+        } catch (error) {
+          console.error(error);
+        }
+        this.toggleMessage = false;
+      }, 10000);
+    },
+    undoDeletion() {
+      this.workflows.push(this.targetWorkflow);
+      this.toggleMessage = false;
+      clearTimeout(this.deletionTimer);
     },
   },
   async mounted() {
@@ -378,5 +405,50 @@ export default {
 }
 .files_menu > li:hover {
   background: #e5e5e5;
+}
+
+.message {
+  width: 20rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  position: absolute;
+  bottom: 1rem;
+  left: calc(50% - 10rem);
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 1rem;
+  padding: 0 1rem;
+}
+.message__text {
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1rem;
+  color: #ffffff;
+}
+.message__undo {
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1rem;
+  color: #9196ff;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.message__close {
+  cursor: pointer;
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  margin: 0 0.5rem;
+  opacity: 0.5;
+  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%)
+    contrast(100%);
+}
+.toggleMessage {
+  display: none;
 }
 </style>
