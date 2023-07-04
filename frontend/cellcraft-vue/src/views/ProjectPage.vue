@@ -179,7 +179,7 @@ export default {
           console.error(error);
         }
         this.toggleMessage = false;
-      }, 10000);
+      }, 3000);
     },
     undoDeletion() {
       this.workflows.push(this.targetWorkflow);

@@ -225,6 +225,7 @@ export default {
       if (recentFiles_list.data[1]) {
         this.files_list = recentFiles_list.data[1];
       }
+      console.log(this.selectFile);
     } catch (error) {
       console.error(error);
     }
@@ -239,6 +240,7 @@ export default {
       const current_node = this.$store.getters.getNodeInfo(val);
       this.current_file = this.$store.getters.getCurrentFile.file;
       console.log(current_node, this.current_file);
+      console.log(this.selectFile);
       this.files_list.forEach((ele) => {
         if (ele.file_name === this.current_file) {
           this.selectFile = {

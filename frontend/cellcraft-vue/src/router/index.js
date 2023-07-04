@@ -25,6 +25,24 @@ export default new Router({
     {
       path: "/workflow",
       component: () => import("@/views/WorkFlowPage.vue"),
+      children: [
+        {
+          path: "dataTable",
+          component: () => import("@/components/modals/datatable.vue"),
+        },
+        {
+          path: "file",
+          component: () => import("@/components/modals/fileupload.vue"),
+        },
+        {
+          path: "scatterPlot",
+          component: () => import("@/components/modals/scatterPlot.vue"),
+        },
+        {
+          path: "heatmap",
+          component: () => import("@/components/modals/heatMap.vue"),
+        },
+      ],
     },
     {
       path: "/files",

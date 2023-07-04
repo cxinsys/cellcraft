@@ -217,7 +217,7 @@ export default {
           console.error(error);
         }
         this.toggleMessage = false;
-      }, 5000);
+      }, 3000);
     },
     undoDeletion() {
       this.files_list.push(this.targetFile);

@@ -24,13 +24,11 @@ create database cellcraft;
 ``` bash
 uvicorn app.main:app
 ```
-
 5. rabbitMQ server install & start
 ```bash
 brew install rabbitmq
 brew services start rabbitmq
 ```
-
 6. celery worker run
 ```bash
 celery -A app.main.celery worker --loglevel=info -E -Q workflow_task

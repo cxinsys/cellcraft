@@ -150,18 +150,7 @@
         v-if="tabList.length != 0 && isTabView"
         @mousedown.stop
       >
-        <fileuploadModal
-          v-show="tabList[currentTab].name === 'File'"
-        ></fileuploadModal>
-        <dataTableModal
-          v-show="tabList[currentTab].name === 'DataTable'"
-        ></dataTableModal>
-        <scatterPlotModal
-          v-show="tabList[currentTab].name === 'scatterPlot'"
-        ></scatterPlotModal>
-        <heatMapModal
-          v-show="tabList[currentTab].name === 'heatMap'"
-        ></heatMapModal>
+        <router-view></router-view>
       </div>
     </VueDragResize>
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
@@ -207,13 +196,6 @@ import scatterPlot from "@/components/nodes/scatterPlotNode.vue";
 import fileUpload from "@/components/nodes/fileUploadNode.vue";
 import dataTable from "@/components/nodes/dataTableNode.vue";
 import heatMap from "@/components/nodes/heatMapNode.vue";
-
-//노드 모달 컴포넌트 import (4번)
-import dataTableModal from "@/components/modals/datatable.vue";
-import fileuploadModal from "@/components/modals/fileupload.vue";
-import scatterPlotModal from "@/components/modals/scatterPlot.vue";
-import heatMapModal from "@/components/modals/heatMap.vue";
-import Fileupload from "../components/modals/fileupload.vue";
 import {
   exportData,
   findWorkflow,
@@ -224,11 +206,6 @@ import {
 
 export default {
   components: {
-    dataTableModal,
-    fileuploadModal,
-    scatterPlotModal,
-    Fileupload,
-    heatMapModal,
     VueDragResize,
   },
   data() {
@@ -299,6 +276,7 @@ export default {
       currentTime: new Date(),
       timeInterval: null,
       files_list: [],
+      //쿼리 데이터 currentId로 관리
       currentId: this.$route.query.id,
       toggleMessage: false,
       messageContent: "",
@@ -321,7 +299,9 @@ export default {
     this.$df.curvature = 0.5;
     this.$df.reroute_curvature_start_end = 0;
     this.$df.reroute_curvature = 0;
-    this.$df.on("nodeCreated", (ev) => {
+
+    this.$df.on("nodeCreated", async (ev) => {
+      // 노드 생성시 탭 생성
       const node = this.$df.getNodeFromId(ev);
       this.tabList.push({
         id: node.id,
@@ -329,20 +309,30 @@ export default {
         img: require(`@/assets/${node.name}.png`),
       });
       console.log(node);
+      console.log(this.currentTab);
+
+      //TabList가 1개 이상일 때, 현재 탭을 마지막 탭으로 설정
+      if (this.tabList.length !== 1) {
+        this.currentTab = this.tabList.length - 1;
+      }
+      this.componentChange(node.name);
+
+      //노드 생성시 노드 상태 업데이트
       this.$store.commit("createNode", {
         id: node.id,
         name: node.name,
         file: "",
       });
       this.$store.commit("changeNode", node.id);
-      console.log(this.currentTab);
-      if (this.tabList.length != 1) {
-        this.currentTab = this.tabList.length - 1;
-      }
-      this.exportValue = this.$df.export();
-      this.$store.commit("setWorkflow", this.exportValue);
+
+      //노드 생성시 현재 워크플로우의 상태 업데이트
+
+      const currentWorkflow = await this.setCurrentWorkflow();
+      console.log(currentWorkflow);
     });
-    this.$df.on("nodeRemoved", (ev) => {
+
+    this.$df.on("nodeRemoved", async (ev) => {
+      //forEach 말고 다른 방법으로 findIndex를 사용해보자
       this.tabList.forEach((ele, idx) => {
         if (ele.id === parseInt(ev)) {
           this.tabList.splice(idx, 1);
@@ -356,13 +346,16 @@ export default {
           }
         }
       });
+
+      //노드 삭제시 노드 상태 업데이트
       this.$store.commit("deleteNode", {
         id: parseInt(ev),
       });
-      this.exportValue = this.$df.export();
-      this.$store.commit("setWorkflow", this.exportValue);
+
+      const currentWorkflow = awaitthis.setCurrentWorkflow();
+      console.log(currentWorkflow);
     });
-    this.$df.on("connectionCreated", (ev) => {
+    this.$df.on("connectionCreated", async (ev) => {
       // ev 값에 따라 기능 구분
       console.log(ev);
       // const input_id = this.$df.getNodeFromId(ev.input_id);
@@ -377,10 +370,11 @@ export default {
         lastNode: lastNodeInfo.name,
       });
       this.$store.commit("shareConnectionFile");
-      this.exportValue = this.$df.export();
-      this.$store.commit("setWorkflow", this.exportValue);
+
+      const currentWorkflow = await this.setCurrentWorkflow();
+      console.log(currentWorkflow);
     });
-    this.$df.on("connectionRemoved", (ev) => {
+    this.$df.on("connectionRemoved", async (ev) => {
       // ev 값에 따라 기능 구분
       console.log(ev);
       // const input_id = this.$df.getNodeFromId(ev.input_id);
@@ -389,8 +383,9 @@ export default {
         parseInt(ev.output_id),
         parseInt(ev.input_id),
       ]);
-      this.exportValue = this.$df.export();
-      this.$store.commit("setWorkflow", this.exportValue);
+
+      const currentWorkflow = await this.setCurrentWorkflow();
+      console.log(currentWorkflow);
     });
     this.$df.on("nodeDataChanged", (ev) => {
       // nodeData 바뀌게 되면 Connection Update
@@ -399,6 +394,7 @@ export default {
       console.log(node);
       this.$df.updateConnectionNodes(ev);
     });
+
     this.$df.on("clickEnd", (ev) => {
       // ev 값에 따라 기능 구분
       // console.log(ev);
@@ -413,20 +409,29 @@ export default {
         //this.tabList에 추가
         const node = this.$store.getters.getNodeInfo(parseInt(node_id));
         console.log(node);
-        this.tabList.push({
-          id: node.id,
-          name: node.name,
-          img: require(`@/assets/${node.name}.png`),
-        });
-        //this.currentTab 바꾸기
-        this.tabList.forEach((ele, idx) => {
-          if (ele.id === parseInt(node_id)) {
-            this.currentTab = idx;
-          }
-        });
+
+        const index = this.tabList.findIndex(
+          (listItem) => listItem.id === node.id
+        );
+
+        // If index is -1, it means node.id is not in tabList, so we add it
+        if (index === -1) {
+          this.tabList.push({
+            id: node.id,
+            name: node.name,
+            img: require(`@/assets/${node.name}.png`),
+          });
+          this.currentTab = this.tabList.length - 1;
+        } else {
+          // If the node.id is already in tabList, set currentTab to its index
+          this.currentTab = index;
+        }
+
+        this.componentChange(node.name);
         console.log(this.tabList);
       }
     });
+
     try {
       if (this.currentId) {
         const workflowInfo = {
@@ -457,6 +462,10 @@ export default {
         this.$store.commit("setTitle", workflow_data.workflow.title);
       }
     }
+
+    //workflow 들어오자마자 저장
+    const currentWorkflow = await this.setCurrentWorkflow();
+    console.log(currentWorkflow);
   },
   methods: {
     // Define a function that returns a task_id and creates a new EventSource instance
@@ -513,9 +522,6 @@ export default {
         console.error(error);
       }
     },
-    handleCompletedWorkflow(workflowData) {
-      console.log("Workflow completed!", workflowData);
-    },
     importdf() {
       this.$df.import(this.exportValue);
     },
@@ -566,6 +572,30 @@ export default {
     tabClick(idx) {
       this.currentTab = idx;
       this.$store.commit("changeNode", this.tabList[idx].id);
+      this.componentChange(this.tabList[idx].name);
+    },
+    componentChange(name) {
+      if (name === "File") {
+        this.$router.push({
+          path: "/workflow/file",
+          query: { id: this.currentId },
+        });
+      } else if (name === "DataTable") {
+        this.$router.push({
+          path: "/workflow/dataTable",
+          query: { id: this.currentId },
+        });
+      } else if (name === "scatterPlot") {
+        this.$router.push({
+          path: "/workflow/scatterPlot",
+          query: { id: this.currentId },
+        });
+      } else if (name === "heatMap") {
+        this.$router.push({
+          path: "/workflow/heatMap",
+          query: { id: his.currentId },
+        });
+      }
     },
     hideContent(event) {
       this.isHide = !this.isHide;
@@ -578,29 +608,36 @@ export default {
       setTimeout(() => {
         console.log(this.tabList);
         const currentNodeId = this.$store.getters.getCurrentNode;
-        this.tabList.splice(currentNodeId - 1, 1);
-        this.currentTab -= 1;
+        console.log(currentNodeId);
+        const index = this.tabList.findIndex(
+          (listItem) => listItem.id === currentNodeId
+        );
+
+        // If index is -1, it means node.id is not in tabList
+        if (index !== -1) {
+          this.tabList.splice(index, 1);
+          this.currentTab -= 1;
+        } else {
+          console.log("Node is not in tabList");
+        }
+
         console.log(this.tabList);
+        // If tabList is empty, redirect to workflow page
+        if (this.tabList.length === 0) {
+          this.$router.push({
+            path: "/workflow",
+            query: { id: this.currentId.id },
+          });
+        } else {
+          this.$store.commit("changeNode", this.tabList[this.currentTab].id);
+          this.componentChange(this.tabList[this.currentTab].name);
+        }
       }, "100");
     },
     async saveWorkflowProject() {
       try {
-        this.exportValue = this.$df.export();
-        const nodes = this.$store.getters.getNodes;
-        const linked_nodes = this.$store.getters.getLinkedNodes;
-        const title = this.$store.getters.getTitle;
-        console.log(title);
-        const workflow = {
-          id: this.currentId,
-          title: title,
-          workflow_info: this.exportValue,
-          nodes: nodes,
-          linked_nodes: linked_nodes,
-        };
-        console.log(workflow);
-        const workflow_data = await saveWorkflow(workflow);
-        console.log(workflow_data);
-        this.currentId = workflow_data.data.id;
+        const currentWorkflow = await this.setCurrentWorkflow();
+        console.log(currentWorkflow);
         this.setMessage("success", "Save workflow successfully!");
       } catch (error) {
         console.error(error);
@@ -637,7 +674,10 @@ export default {
         }, 100);
       } catch (error) {
         console.error(error);
-        this.setMessage("error", "No tasks have been executed yet. Please run workflow")
+        this.setMessage(
+          "error",
+          "No tasks have been executed yet. Please run workflow"
+        );
       }
     },
     async toggleFile() {
@@ -651,7 +691,10 @@ export default {
         } catch (error) {
           this.show_files = !this.show_files;
           console.error(error);
-          this.setMessage("error", "No files have been uploaded yet. Please upload files")
+          this.setMessage(
+            "error",
+            "No files have been uploaded yet. Please upload files"
+          );
         }
       }
       this.show_files = !this.show_files;
@@ -730,6 +773,26 @@ export default {
       setTimeout(() => {
         this.toggleMessage = false;
       }, 5000);
+    },
+    async setCurrentWorkflow() {
+      this.exportValue = this.$df.export();
+      this.$store.commit("setWorkflow", this.exportValue);
+      const nodes = this.$store.getters.getNodes;
+      const linked_nodes = this.$store.getters.getLinkedNodes;
+      const title = this.$store.getters.getTitle;
+      console.log(title);
+      const workflow = {
+        id: this.currentId,
+        title: title,
+        workflow_info: this.exportValue,
+        nodes: nodes,
+        linked_nodes: linked_nodes,
+      };
+      console.log(workflow);
+      const workflow_data = await saveWorkflow(workflow);
+      console.log(workflow_data);
+      this.currentId = workflow_data.data.id;
+      return workflow_data.data;
     },
   },
   beforeDestroy() {
@@ -1381,7 +1444,7 @@ export default {
   border-radius: 1rem;
   padding: 0 1rem;
 }
-.message__status{
+.message__status {
   width: 2rem;
   height: 2rem;
   object-fit: contain;
