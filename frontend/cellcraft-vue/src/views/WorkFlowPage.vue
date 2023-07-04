@@ -150,7 +150,7 @@
         v-if="tabList.length != 0 && isTabView"
         @mousedown.stop
       >
-        <router-view></router-view>
+        <router-view :key="$route.fullPath"></router-view>
       </div>
     </VueDragResize>
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
@@ -570,30 +570,30 @@ export default {
       );
     },
     tabClick(idx) {
-      this.currentTab = idx;
-      this.$store.commit("changeNode", this.tabList[idx].id);
-      this.componentChange(this.tabList[idx].name);
+      if (this.currentTab !== idx) {
+        this.currentTab = idx;
+        this.$store.commit("changeNode", this.tabList[idx].id);
+        this.componentChange(this.tabList[idx].name);
+      }
     },
     componentChange(name) {
-      if (name === "File") {
+      let newPath = `/workflow/${name.toLowerCase()}`;
+
+      // If the path is the same as the current path, we can change the query parameter to force the component to reload
+      if (this.$route.path === newPath) {
         this.$router.push({
-          path: "/workflow/file",
-          query: { id: this.currentId },
+          path: newPath,
+          query: {
+            id: this.currentId,
+            // Include a random number in the query to force the component to reload
+            forceReload: Date.now(),
+          },
         });
-      } else if (name === "DataTable") {
+      } else {
+        // Otherwise, navigate to the new path
         this.$router.push({
-          path: "/workflow/dataTable",
+          path: newPath,
           query: { id: this.currentId },
-        });
-      } else if (name === "scatterPlot") {
-        this.$router.push({
-          path: "/workflow/scatterPlot",
-          query: { id: this.currentId },
-        });
-      } else if (name === "heatMap") {
-        this.$router.push({
-          path: "/workflow/heatMap",
-          query: { id: his.currentId },
         });
       }
     },

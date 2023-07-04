@@ -77,11 +77,11 @@
             <ul class="form__fileList">
               <li
                 class="fileList__item"
-                v-for="(file, idx) in recentFiles_list"
+                v-for="(file, idx) in recentFiles_list.data"
                 :key="idx"
                 @click="fileSelect"
               >
-                <p class="fileList__text">{{ file[1] }}</p>
+                <p class="fileList__text">{{ file.file_name }}</p>
               </li>
               <li class="fileList__item" v-if="recentFiles_list.length === 0">
                 <p class="fileList__text--blank">Please upload a new file</p>
@@ -186,26 +186,20 @@ export default {
         console.error(error);
       }
     },
-    fileSelect(ev) {
-      console.dir(ev.target.innerText);
-      // const fileInfo = {
-      //   file_name: ev.target.innerText,
-      // };
-      // const selectFile = await findFile(fileInfo);
-      // this.selectFile = {
-      //   name: selectFile.data.file_name,
-      //   size: selectFile.data.file_size,
-      // };
-      // console.log(selectFile.data);
-      this.recentFiles_list.forEach((ele) => {
-        if (ele.file_name === ev.target.innerText) {
-          this.selectFile = {
-            name: ele.file_name,
-            size: ele.file_size,
-          };
-        }
-      });
-    },
+  },
+  async mounted() {
+    const currentFile = this.$store.getters.getCurrentFile;
+    if (currentFile.file !== "") {
+      try {
+        const file = await findFile({
+          file_name: currentFile.file,
+        });
+        this.selectFile = file.data;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    console.log(this.selectFile);
   },
   filters: {
     formatBytes(a, b) {
@@ -217,18 +211,6 @@ export default {
 
       return parseFloat((a / Math.pow(c, f)).toFixed(d)) + " " + e[f];
     },
-  },
-  async mounted() {
-    try {
-      const recentFiles_list = await getFiles();
-      console.log(recentFiles_list.data[1]);
-      if (recentFiles_list.data[1]) {
-        this.files_list = recentFiles_list.data[1];
-      }
-      console.log(this.selectFile);
-    } catch (error) {
-      console.error(error);
-    }
   },
   computed: {
     checkCurrentNode() {
