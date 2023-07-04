@@ -94,11 +94,7 @@ export default {
   watch: {
     $route(to, from) {
       console.log(to.path, from.path);
-      if (to.path === "/workflow") {
-        this.isWorkflowPage = true;
-      } else {
-        this.isWorkflowPage = false;
-      }
+      this.isWorkflowPage = to.path.includes("/workflow");
     },
   },
 };

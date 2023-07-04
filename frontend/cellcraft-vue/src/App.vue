@@ -56,29 +56,31 @@ export default {
   watch: {
     $route(to, from) {
       console.log(to.path, from.path);
-      if (from.path === "/workflow") {
+      if (from.path.includes("/workflow") && !to.path.includes("/workflow")) {
+        console.log("store cleared");
         this.$store.commit("clearWorkflow");
         this.$store.commit("clearNodes");
         this.$store.commit("clearLinkedNodes");
         this.$store.commit("clearTitle");
+        this.$store.commit("clearCurrentNode");
       }
 
-      if (to.path === "/main") {
+      if (to.path.includes("/main")) {
         this.mainPage = true;
         this.loginPage = false;
         this.workflowPage = false;
         this.filesPage = false;
-      } else if (to.path === "/login" || to.path === "/signup") {
+      } else if (to.path.includes("/login") || to.path.includes("/signup")) {
         this.mainPage = false;
         this.loginPage = true;
         this.workflowPage = false;
         this.filesPage = false;
-      } else if (to.path === "/workflow") {
+      } else if (to.path.includes("/workflow")) {
         this.mainPage = false;
         this.loginPage = false;
         this.workflowPage = true;
         this.filesPage = false;
-      } else if (to.path === "/files" || to.path === "/projects") {
+      } else if (to.path.includes("/files") || to.path.includes("/projects")) {
         this.mainPage = false;
         this.loginPage = false;
         this.workflowPage = false;

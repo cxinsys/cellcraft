@@ -191,7 +191,7 @@ export default {
       clusterList: [{ name: "None", value: null, isTooVarious: null }], // cluster가 되기 적합한 list, unique한 자료수가 적은 column의 list
     };
   },
-  mounted() {
+  async mounted() {
     Plotly.newPlot("plotly__scatter", {
       data: [{ type: this.chartType }],
       layout: {
@@ -203,6 +203,91 @@ export default {
         // plot_bgcolor: rgb(1, 255, 255),
       },
     });
+    this.current_file = this.$store.getters.getCurrentFile.file;
+    if (this.current_file !== "") {
+      // // adata.obs 받아오기
+      // const filename_obs = {
+      //   filename: `file_${this.current_file.replace(".h5ad", "")}_obs`,
+      // };
+      // console.log(filename_obs);
+      // const scatterResult_obs = await getResult(filename_obs);
+      // // adta.obsm['X_umap'] 받아오기
+      // const filename_obsm = {
+      //   filename: `file_${this.current_file.replace(".h5ad", "")}_obsm`,
+      // };
+      // console.log(filename_obsm);
+      // const scatterResult_obsm = await getResult(filename_obsm);
+      // // 받아온 데이터 출력
+      // console.log(scatterResult_obs.data);
+      // console.log(scatterResult_obsm.data);
+
+      // obs + X_umap 가져오기
+      const filename_obs_umap = {
+        filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
+      };
+      console.log(filename_obs_umap);
+      const scatterResult = await getResult(filename_obs_umap);
+
+      //백엔드에서 넘겨준 plot 데이터
+      // scatterResult.data;
+      // lines, keys, areNum 업데이트
+
+      // 잠깐 주석 처리
+      // this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
+
+      // this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
+      this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
+      this.keys = this.lines.splice(0, 1)[0];
+      this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
+      this.areNum = this.lines[0].map((x) => !isNaN(x));
+
+      this.numList = [{ name: "None", value: null }];
+      for (let i = 0; i < this.keys.length; i++) {
+        if (this.areNum[i] == true) {
+          this.numList.push({ name: this.keys[i], value: i });
+        }
+      }
+
+      this.keyList = [{ name: "None", value: null }];
+      for (let i = 0; i < this.keys.length; i++) {
+        this.keyList.push({ name: this.keys[i], value: i });
+      }
+
+      this.clusterList = [{ name: "None", value: null, isTooVarious: null }];
+      for (let i = 1; i < this.keys.length; i++) {
+        const countUnique = new Set(this.lines.map((x) => x[i])).size;
+        if (countUnique < this.numClusterConstraint) {
+          this.clusterList.push({
+            name: this.keys[i],
+            value: i,
+            isTooVarious: false,
+          });
+        } else {
+          this.clusterList.push({
+            name: this.keys[i],
+            value: i,
+            isTooVarious: true,
+          });
+        }
+      }
+
+      // // 초기 x,y축 세팅하기
+      // if (this.numList.length == 3) {
+      //   this.selectedX = this.numList[2].value;
+      //   this.selectedY = this.numList[2].value;
+      // } else if (this.numList.length > 3) {
+      //   this.selectedX = this.numList[2].value;
+      //   this.selectedY = this.numList[3].value;
+      // }
+      if (this.keys.indexOf("X") != -1) {
+        this.selectedX = this.keys.indexOf("X");
+      }
+      if (this.keys.indexOf("Y") != -1) {
+        this.selectedY = this.keys.indexOf("Y");
+      }
+
+      this.updateChart();
+    }
   },
   methods: {
     // 차트 업데이트
@@ -427,7 +512,7 @@ export default {
       this.current_file = this.$store.getters.getCurrentFile.file;
       // console.log(current_node);
       // console.log(this.current_file.file);
-      if (current_node.name === "scatterPlot") {
+      if (current_node.name === "scatterPlot" && this.current_file !== "") {
         // const filename = {
         //   filename: `${current_node.name}_${this.current_file.replace(
         //     ".csv",
