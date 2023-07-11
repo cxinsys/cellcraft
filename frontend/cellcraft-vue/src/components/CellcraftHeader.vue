@@ -1,7 +1,11 @@
 <template>
   <div class="layout">
     <div class="logo-component">
-      <router-link class="logo" to="/main">
+      <router-link class="logo" to="/main" v-if="!isWorkflowPage">
+        <img class="logo__img" src="@/assets/cellcraft_logo.png" />
+        <!-- <p class="logo__text">CELLCRAFT</p> -->
+      </router-link>
+      <router-link class="logo" to="/projects" v-else>
         <img class="logo__img" src="@/assets/cellcraft_logo.png" />
         <!-- <p class="logo__text">CELLCRAFT</p> -->
       </router-link>
@@ -90,11 +94,7 @@ export default {
   watch: {
     $route(to, from) {
       console.log(to.path, from.path);
-      if (to.path === "/workflow") {
-        this.isWorkflowPage = true;
-      } else {
-        this.isWorkflowPage = false;
-      }
+      this.isWorkflowPage = to.path.includes("/workflow");
     },
   },
 };
@@ -124,8 +124,8 @@ a {
   /* transform: translateY(3px); */
 }
 .logo {
-  width: 100%;
-  height: 100%;
+  width: 2.25rem;
+  height: 2.25rem;
   display: flex;
   align-items: center;
   justify-content: left;

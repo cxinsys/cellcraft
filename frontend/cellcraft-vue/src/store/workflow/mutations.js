@@ -122,4 +122,7 @@ export default {
   changeNode(state, id) {
     state.current_node = id;
   },
+  clearCurrentNode(state) {
+    state.current_node = 0;
+  },
 };

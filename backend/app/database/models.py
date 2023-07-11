@@ -33,7 +33,7 @@ class File(Base):
 
 class Workflow(Base):
     __tablename__ = "workflows"
-    __table_args__ = (UniqueConstraint('user_id', 'title', name='uix_1'), )
+    # __table_args__ = (UniqueConstraint('user_id', 'title', name='uix_1'), )
 
 
     id = Column(Integer, primary_key=True, index=True)

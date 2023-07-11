@@ -150,23 +150,36 @@
         v-if="tabList.length != 0 && isTabView"
         @mousedown.stop
       >
-        <fileuploadModal
-          v-show="tabList[currentTab].name === 'File'"
-        ></fileuploadModal>
-        <dataTableModal
-          v-show="tabList[currentTab].name === 'DataTable'"
-        ></dataTableModal>
-        <scatterPlotModal
-          v-show="tabList[currentTab].name === 'scatterPlot'"
-        ></scatterPlotModal>
-        <heatMapModal
-          v-show="tabList[currentTab].name === 'heatMap'"
-        ></heatMapModal>
-        <algorithmModal
-          v-show="tabList[currentTab].name === 'algorithm'"
-        ></algorithmModal>
+        <router-view :key="$route.fullPath"></router-view>
       </div>
     </VueDragResize>
+    <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
+      <!-- <p class="message__text">{{ messageContent }}</p> -->
+      <img
+        class="message__status"
+        src="@/assets/succes.png"
+        v-if="messageStatus === 'success'"
+      />
+      <img
+        class="message__status"
+        src="@/assets/error.png"
+        v-else-if="messageStatus === 'error'"
+      />
+      <div class="message__box">
+        <p
+          class="message__text"
+          v-for="(content, index) in filteredMessageContent"
+          :key="index"
+        >
+          {{ content }}
+        </p>
+      </div>
+      <img
+        class="message__close"
+        @click="toggleMessage = !toggleMessage"
+        src="@/assets/close.png"
+      />
+    </div>
   </div>
 </template>
 
@@ -184,15 +197,6 @@ import fileUpload from "@/components/nodes/fileUploadNode.vue";
 import dataTable from "@/components/nodes/dataTableNode.vue";
 import heatMap from "@/components/nodes/heatMapNode.vue";
 import algorithm from "@/components/nodes/algorithmNode.vue";
-
-//노드 모달 컴포넌트 import (4번)
-import dataTableModal from "@/components/modals/datatable.vue";
-import fileuploadModal from "@/components/modals/fileupload.vue";
-import scatterPlotModal from "@/components/modals/scatterPlot.vue";
-import heatMapModal from "@/components/modals/heatMap.vue";
-import Fileupload from "../components/modals/fileupload.vue";
-import algorithmModal from "@/components/modals/algorithm.vue";
-
 import {
   exportData,
   findWorkflow,
@@ -204,12 +208,6 @@ import {
 
 export default {
   components: {
-    dataTableModal,
-    fileuploadModal,
-    scatterPlotModal,
-    Fileupload,
-    heatMapModal,
-    algorithmModal,
     VueDragResize,
   },
   data() {
@@ -280,6 +278,11 @@ export default {
       currentTime: new Date(),
       timeInterval: null,
       files_list: [],
+      //쿼리 데이터 currentId로 관리
+      currentId: this.$route.query.id,
+      toggleMessage: false,
+      messageContent: "",
+      messageStatus: "",
     };
   },
   async mounted() {
@@ -299,7 +302,9 @@ export default {
     this.$df.curvature = 0.5;
     this.$df.reroute_curvature_start_end = 0;
     this.$df.reroute_curvature = 0;
-    this.$df.on("nodeCreated", (ev) => {
+
+    this.$df.on("nodeCreated", async (ev) => {
+      // 노드 생성시 탭 생성
       const node = this.$df.getNodeFromId(ev);
       this.tabList.push({
         id: node.id,
@@ -307,20 +312,30 @@ export default {
         img: require(`@/assets/${node.name}.png`),
       });
       console.log(node);
+      console.log(this.currentTab);
+
+      //TabList가 1개 이상일 때, 현재 탭을 마지막 탭으로 설정
+      if (this.tabList.length !== 1) {
+        this.currentTab = this.tabList.length - 1;
+      }
+      this.componentChange(node.name);
+
+      //노드 생성시 노드 상태 업데이트
       this.$store.commit("createNode", {
         id: node.id,
         name: node.name,
         file: "",
       });
       this.$store.commit("changeNode", node.id);
-      console.log(this.currentTab);
-      if (this.tabList.length != 1) {
-        this.currentTab = this.tabList.length - 1;
-      }
-      this.exportValue = this.$df.export();
-      this.$store.commit("setWorkflow", this.exportValue);
+
+      //노드 생성시 현재 워크플로우의 상태 업데이트
+
+      const currentWorkflow = await this.setCurrentWorkflow();
+      console.log(currentWorkflow);
     });
-    this.$df.on("nodeRemoved", (ev) => {
+
+    this.$df.on("nodeRemoved", async (ev) => {
+      //forEach 말고 다른 방법으로 findIndex를 사용해보자
       this.tabList.forEach((ele, idx) => {
         if (ele.id === parseInt(ev)) {
           this.tabList.splice(idx, 1);
@@ -334,13 +349,16 @@ export default {
           }
         }
       });
+
+      //노드 삭제시 노드 상태 업데이트
       this.$store.commit("deleteNode", {
         id: parseInt(ev),
       });
-      this.exportValue = this.$df.export();
-      this.$store.commit("setWorkflow", this.exportValue);
+
+      const currentWorkflow = awaitthis.setCurrentWorkflow();
+      console.log(currentWorkflow);
     });
-    this.$df.on("connectionCreated", (ev) => {
+    this.$df.on("connectionCreated", async (ev) => {
       // ev 값에 따라 기능 구분
       console.log(ev);
       // const input_id = this.$df.getNodeFromId(ev.input_id);
@@ -355,10 +373,11 @@ export default {
         lastNode: lastNodeInfo.name,
       });
       this.$store.commit("shareConnectionFile");
-      this.exportValue = this.$df.export();
-      this.$store.commit("setWorkflow", this.exportValue);
+
+      const currentWorkflow = await this.setCurrentWorkflow();
+      console.log(currentWorkflow);
     });
-    this.$df.on("connectionRemoved", (ev) => {
+    this.$df.on("connectionRemoved", async (ev) => {
       // ev 값에 따라 기능 구분
       console.log(ev);
       // const input_id = this.$df.getNodeFromId(ev.input_id);
@@ -367,8 +386,9 @@ export default {
         parseInt(ev.output_id),
         parseInt(ev.input_id),
       ]);
-      this.exportValue = this.$df.export();
-      this.$store.commit("setWorkflow", this.exportValue);
+
+      const currentWorkflow = await this.setCurrentWorkflow();
+      console.log(currentWorkflow);
     });
     this.$df.on("nodeDataChanged", (ev) => {
       // nodeData 바뀌게 되면 Connection Update
@@ -377,6 +397,7 @@ export default {
       console.log(node);
       this.$df.updateConnectionNodes(ev);
     });
+
     this.$df.on("clickEnd", (ev) => {
       // ev 값에 따라 기능 구분
       // console.log(ev);
@@ -391,24 +412,33 @@ export default {
         //this.tabList에 추가
         const node = this.$store.getters.getNodeInfo(parseInt(node_id));
         console.log(node);
-        this.tabList.push({
-          id: node.id,
-          name: node.name,
-          img: require(`@/assets/${node.name}.png`),
-        });
-        //this.currentTab 바꾸기
-        this.tabList.forEach((ele, idx) => {
-          if (ele.id === parseInt(node_id)) {
-            this.currentTab = idx;
-          }
-        });
+
+        const index = this.tabList.findIndex(
+          (listItem) => listItem.id === node.id
+        );
+
+        // If index is -1, it means node.id is not in tabList, so we add it
+        if (index === -1) {
+          this.tabList.push({
+            id: node.id,
+            name: node.name,
+            img: require(`@/assets/${node.name}.png`),
+          });
+          this.currentTab = this.tabList.length - 1;
+        } else {
+          // If the node.id is already in tabList, set currentTab to its index
+          this.currentTab = index;
+        }
+
+        this.componentChange(node.name);
         console.log(this.tabList);
       }
     });
+
     try {
-      if (this.$route.query.id) {
+      if (this.currentId) {
         const workflowInfo = {
-          id: this.$route.query.id,
+          id: this.currentId,
         };
         const workflow_data = await findWorkflow(workflowInfo);
         console.log(workflow_data.data);
@@ -435,6 +465,10 @@ export default {
         this.$store.commit("setTitle", workflow_data.workflow.title);
       }
     }
+
+    //workflow 들어오자마자 저장
+    const currentWorkflow = await this.setCurrentWorkflow();
+    console.log(currentWorkflow);
   },
   methods: {
     // Define a function that returns a task_id and creates a new EventSource instance
@@ -473,7 +507,7 @@ export default {
         // console.log(JSON.stringify(this.exportValue));
         console.log(this.$df.drawflow.drawflow[this.$df.module]);
         const workflow = {
-          id: this.$route.query.id,
+          id: this.currentId,
           title: title,
           workflow_info: this.exportValue,
           nodes: nodes,
@@ -490,9 +524,6 @@ export default {
       } catch (error) {
         console.error(error);
       }
-    },
-    handleCompletedWorkflow(workflowData) {
-      console.log("Workflow completed!", workflowData);
     },
     importdf() {
       this.$df.import(this.exportValue);
@@ -542,8 +573,32 @@ export default {
       );
     },
     tabClick(idx) {
-      this.currentTab = idx;
-      this.$store.commit("changeNode", this.tabList[idx].id);
+      if (this.currentTab !== idx) {
+        this.currentTab = idx;
+        this.$store.commit("changeNode", this.tabList[idx].id);
+        this.componentChange(this.tabList[idx].name);
+      }
+    },
+    componentChange(name) {
+      let newPath = `/workflow/${name.toLowerCase()}`;
+
+      // If the path is the same as the current path, we can change the query parameter to force the component to reload
+      if (this.$route.path === newPath) {
+        this.$router.push({
+          path: newPath,
+          query: {
+            id: this.currentId,
+            // Include a random number in the query to force the component to reload
+            forceReload: Date.now(),
+          },
+        });
+      } else {
+        // Otherwise, navigate to the new path
+        this.$router.push({
+          path: newPath,
+          query: { id: this.currentId },
+        });
+      }
     },
     hideContent(event) {
       this.isHide = !this.isHide;
@@ -556,60 +611,77 @@ export default {
       setTimeout(() => {
         console.log(this.tabList);
         const currentNodeId = this.$store.getters.getCurrentNode;
-        this.tabList.splice(currentNodeId - 1, 1);
-        this.currentTab -= 1;
+        console.log(currentNodeId);
+        const index = this.tabList.findIndex(
+          (listItem) => listItem.id === currentNodeId
+        );
+
+        // If index is -1, it means node.id is not in tabList
+        if (index !== -1) {
+          this.tabList.splice(index, 1);
+          this.currentTab -= 1;
+        } else {
+          console.log("Node is not in tabList");
+        }
+
         console.log(this.tabList);
+        // If tabList is empty, redirect to workflow page
+        if (this.tabList.length === 0) {
+          this.$router.push({
+            path: "/workflow",
+            query: { id: this.currentId.id },
+          });
+        } else {
+          this.$store.commit("changeNode", this.tabList[this.currentTab].id);
+          this.componentChange(this.tabList[this.currentTab].name);
+        }
       }, "100");
     },
     async saveWorkflowProject() {
       try {
-        this.exportValue = this.$df.export();
-        const nodes = this.$store.getters.getNodes;
-        const linked_nodes = this.$store.getters.getLinkedNodes;
-        const title = this.$store.getters.getTitle;
-        console.log(title);
-        const workflow = {
-          id: this.$route.query.id,
-          title: title,
-          workflow_info: this.exportValue,
-          nodes: nodes,
-          linked_nodes: linked_nodes,
-        };
-        console.log(workflow);
-        const workflow_data = await saveWorkflow(workflow);
-        console.log(workflow_data);
+        const currentWorkflow = await this.setCurrentWorkflow();
+        console.log(currentWorkflow);
+        this.setMessage("success", "Save workflow successfully!");
       } catch (error) {
         console.error(error);
       }
     },
     async toggleTask() {
-      if (!this.show_jobs) {
-        const user_tasks = await userTaskMonitoring();
-        console.log(user_tasks);
-        this.taskList = user_tasks.data;
-        this.taskList.forEach(async (task, idx) => {
-          if (task.status === "SUCCESS" || task.status === "FAILURE") {
-            this.taskList[idx].running_time = this.getTimeDifference(
-              task.start_time,
-              task.end_time
-            );
-          } else {
-            this.timeInterval = this.startTimer(idx);
-          }
-          const workflow = await findWorkflow({
-            id: task.workflow_id,
+      try {
+        if (!this.show_jobs) {
+          const user_tasks = await userTaskMonitoring();
+          console.log(user_tasks);
+          this.taskList = user_tasks.data;
+          this.taskList.forEach(async (task, idx) => {
+            if (task.status === "SUCCESS" || task.status === "FAILURE") {
+              this.taskList[idx].running_time = this.getTimeDifference(
+                task.start_time,
+                task.end_time
+              );
+            } else {
+              this.timeInterval = this.startTimer(idx);
+            }
+            const workflow = await findWorkflow({
+              id: task.workflow_id,
+            });
+            this.taskList[idx].title = workflow.data.title;
           });
-          this.taskList[idx].title = workflow.data.title;
-        });
+        }
+        //stop interval
+        else {
+          clearInterval(this.timeInterval);
+        }
+        console.log(this.taskList);
+        setTimeout(() => {
+          this.show_jobs = !this.show_jobs;
+        }, 100);
+      } catch (error) {
+        console.error(error);
+        this.setMessage(
+          "error",
+          "No tasks have been executed yet. Please run workflow"
+        );
       }
-      //stop interval
-      else {
-        clearInterval(this.timeInterval);
-      }
-      console.log(this.taskList);
-      setTimeout(() => {
-        this.show_jobs = !this.show_jobs;
-      }, 100);
     },
     async toggleFile() {
       if (!this.show_files) {
@@ -620,7 +692,12 @@ export default {
           console.log(filesList.data);
           this.files_list = filesList.data;
         } catch (error) {
+          this.show_files = !this.show_files;
           console.error(error);
+          this.setMessage(
+            "error",
+            "No files have been uploaded yet. Please upload files"
+          );
         }
       }
       this.show_files = !this.show_files;
@@ -692,6 +769,34 @@ export default {
       console.log(user_workflow.data.title);
       return user_workflow.data.title;
     },
+    setMessage(status, content) {
+      this.toggleMessage = true;
+      this.messageStatus = status;
+      this.messageContent = content;
+      setTimeout(() => {
+        this.toggleMessage = false;
+      }, 5000);
+    },
+    async setCurrentWorkflow() {
+      this.exportValue = this.$df.export();
+      this.$store.commit("setWorkflow", this.exportValue);
+      const nodes = this.$store.getters.getNodes;
+      const linked_nodes = this.$store.getters.getLinkedNodes;
+      const title = this.$store.getters.getTitle;
+      console.log(title);
+      const workflow = {
+        id: this.currentId,
+        title: title,
+        workflow_info: this.exportValue,
+        nodes: nodes,
+        linked_nodes: linked_nodes,
+      };
+      console.log(workflow);
+      const workflow_data = await saveWorkflow(workflow);
+      console.log(workflow_data);
+      this.currentId = workflow_data.data.id;
+      return workflow_data.data;
+    },
   },
   beforeDestroy() {
     // Close all the event source connections before the component is destroyed
@@ -722,6 +827,11 @@ export default {
       const date = moment(dateTime).format("MMMM Do, HH:mm");
       if (date === "Invalid date") return "Not yet completed";
       return date;
+  computed: {
+    filteredMessageContent() {
+      // The split() function is used to divide the messageContent string into an array of substrings,
+      // using the dot character as the delimiter.
+      return this.messageContent.split(".").filter(Boolean);
     },
   },
 };
@@ -1320,6 +1430,54 @@ export default {
 .vdr.active:before {
   border: none;
   outline: none;
+}
+
+.message {
+  width: 25rem;
+  height: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  position: absolute;
+  bottom: 5rem;
+  left: calc(50% - 13.5rem);
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 1rem;
+  padding: 0 1rem;
+}
+.message__status {
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+  margin: 0 1rem;
+}
+.message__box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.message__text {
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 1.1rem;
+  line-height: 1.4rem;
+  color: #ffffff;
+}
+.message__close {
+  cursor: pointer;
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  margin: 0 0.5rem;
+  opacity: 0.5;
+  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%)
+    contrast(100%);
+}
+.toggleMessage {
+  display: none;
 }
 /* @media (prefers-color-scheme: dark) {
   .node-bar__img {

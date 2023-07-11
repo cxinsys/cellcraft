@@ -63,6 +63,10 @@ function findFolder(folder) {
   return instance.post("routes/files/folder", folder);
 }
 
+function deleteFile(file) {
+  return instance.post("routes/files/delete", file);
+}
+
 function getWorkflows() {
   return instance.get("routes/workflow/me");
 }
@@ -103,4 +107,5 @@ export {
   deleteWorkflow,
   taskMonitoring,
   userTaskMonitoring,
+  deleteFile,
 };

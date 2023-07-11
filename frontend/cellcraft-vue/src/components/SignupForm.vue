@@ -44,6 +44,8 @@
         />
       </div>
 
+      <div class="signup__error" v-if="isError">{{ errorMessage }}</div>
+
       <div class="signup__signup">
         <button
           class="signup__button"
@@ -68,6 +70,8 @@ export default {
       username: "",
       re_password: "",
       modal: false,
+      errorMessage: "",
+      isError: false,
     };
   },
   computed: {
@@ -90,6 +94,8 @@ export default {
         this.$router.push("/login");
       } catch (error) {
         console.error(error.response.data.detail);
+        this.errorMessage = error.response.data.detail;
+        this.isError = true;
       } finally {
         this.initForm();
       }
@@ -179,5 +185,18 @@ export default {
   font-weight: 400;
   font-size: 0.75rem;
   line-height: 0.75rem;
+}
+.signup__error {
+  width: 100%;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  color: red;
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1rem;
+  text-decoration: none;
 }
 </style>
