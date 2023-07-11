@@ -196,6 +196,7 @@ import scatterPlot from "@/components/nodes/scatterPlotNode.vue";
 import fileUpload from "@/components/nodes/fileUploadNode.vue";
 import dataTable from "@/components/nodes/dataTableNode.vue";
 import heatMap from "@/components/nodes/heatMapNode.vue";
+import algorithm from "@/components/nodes/algorithmNode.vue";
 import {
   exportData,
   findWorkflow,
@@ -203,6 +204,7 @@ import {
   userTaskMonitoring,
   findFolder,
 } from "@/api/index";
+// import Algorithm from "../components/algorithm.vue";
 
 export default {
   components: {
@@ -243,11 +245,11 @@ export default {
           output: 0,
         },
         {
-          name: "Algorithm",
+          name: "algorithm",
           // name2: "Algorithm",
           img: require("@/assets/algorithm2.png"),
-          input: 1,
-          output: 0,
+          input: 4,
+          output: 3,
         },
       ],
       tabList: [],
@@ -294,6 +296,7 @@ export default {
     this.$df.registerNode("DataTable", dataTable, {}, {});
     this.$df.registerNode("scatterPlot", scatterPlot, {}, {});
     this.$df.registerNode("heatMap", heatMap, {}, {});
+    this.$df.registerNode("algorithm", algorithm, {}, {});
 
     // 노드 수직 연결선
     this.$df.curvature = 0.5;
@@ -824,8 +827,6 @@ export default {
       const date = moment(dateTime).format("MMMM Do, HH:mm");
       if (date === "Invalid date") return "Not yet completed";
       return date;
-    },
-  },
   computed: {
     filteredMessageContent() {
       // The split() function is used to divide the messageContent string into an array of substrings,
