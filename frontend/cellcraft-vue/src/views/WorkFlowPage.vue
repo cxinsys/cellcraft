@@ -162,6 +162,9 @@
         <heatMapModal
           v-show="tabList[currentTab].name === 'heatMap'"
         ></heatMapModal>
+        <algorithmModal
+          v-show="tabList[currentTab].name === 'algorithm'"
+        ></algorithmModal>
       </div>
     </VueDragResize>
   </div>
@@ -180,6 +183,7 @@ import scatterPlot from "@/components/nodes/scatterPlotNode.vue";
 import fileUpload from "@/components/nodes/fileUploadNode.vue";
 import dataTable from "@/components/nodes/dataTableNode.vue";
 import heatMap from "@/components/nodes/heatMapNode.vue";
+import algorithm from "@/components/nodes/algorithmNode.vue";
 
 //노드 모달 컴포넌트 import (4번)
 import dataTableModal from "@/components/modals/datatable.vue";
@@ -187,6 +191,8 @@ import fileuploadModal from "@/components/modals/fileupload.vue";
 import scatterPlotModal from "@/components/modals/scatterPlot.vue";
 import heatMapModal from "@/components/modals/heatMap.vue";
 import Fileupload from "../components/modals/fileupload.vue";
+import algorithmModal from "@/components/modals/algorithm.vue";
+
 import {
   exportData,
   findWorkflow,
@@ -194,6 +200,7 @@ import {
   userTaskMonitoring,
   findFolder,
 } from "@/api/index";
+// import Algorithm from "../components/algorithm.vue";
 
 export default {
   components: {
@@ -202,6 +209,7 @@ export default {
     scatterPlotModal,
     Fileupload,
     heatMapModal,
+    algorithmModal,
     VueDragResize,
   },
   data() {
@@ -239,11 +247,11 @@ export default {
           output: 0,
         },
         {
-          name: "Algorithm",
+          name: "algorithm",
           // name2: "Algorithm",
           img: require("@/assets/algorithm2.png"),
-          input: 1,
-          output: 0,
+          input: 4,
+          output: 3,
         },
       ],
       tabList: [],
@@ -285,6 +293,7 @@ export default {
     this.$df.registerNode("DataTable", dataTable, {}, {});
     this.$df.registerNode("scatterPlot", scatterPlot, {}, {});
     this.$df.registerNode("heatMap", heatMap, {}, {});
+    this.$df.registerNode("algorithm", algorithm, {}, {});
 
     // 노드 수직 연결선
     this.$df.curvature = 0.5;
@@ -712,7 +721,7 @@ export default {
     formatDateTime(dateTime) {
       const date = moment(dateTime).format("MMMM Do, HH:mm");
       if (date === "Invalid date") return "Not yet completed";
-      return date
+      return date;
     },
   },
 };
@@ -875,7 +884,7 @@ export default {
   position: absolute;
   right: 1rem;
 }
-.tab__hide{
+.tab__hide {
   width: 1rem;
   height: 1rem;
   border-radius: 50%;
@@ -887,7 +896,7 @@ export default {
   opacity: 0.5;
   cursor: pointer;
 }
-.tab__hide:hover{
+.tab__hide:hover {
   opacity: 1;
 }
 .content-view {

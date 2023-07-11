@@ -34,5 +34,31 @@ export default new Router({
       path: "/projects",
       component: () => import("@/views/ProjectPage.vue"),
     },
+    {
+      path: "/admin",
+      component: () => import("@/views/AdminPage.vue"),
+      children: [
+        {
+          path: "/",
+          redirect: "/admin/user",
+        },
+        {
+          path: "user",
+          component: () => import("@/components/UserAdmin.vue"),
+        },
+        {
+          path: "job",
+          component: () => import("@/components/JobAdmin.vue"),
+        },
+        {
+          path: "dataset",
+          component: () => import("@/components/DatasetBoardAdmin.vue"),
+        },
+        {
+          path: "algorithm",
+          component: () => import("@/components/AlgorithmAdmin.vue"),
+        },
+      ],
+    },
   ],
 });
