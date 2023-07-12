@@ -827,6 +827,8 @@ export default {
       const date = moment(dateTime).format("MMMM Do, HH:mm");
       if (date === "Invalid date") return "Not yet completed";
       return date;
+    },
+  },
   computed: {
     filteredMessageContent() {
       // The split() function is used to divide the messageContent string into an array of substrings,
