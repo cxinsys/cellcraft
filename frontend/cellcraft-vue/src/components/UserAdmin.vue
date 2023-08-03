@@ -2,7 +2,11 @@
   <div>
     <div class="first-line">
       <div class="search">
-        <input type="text" v-model="searchTerm" placeholder="Search by id..." />
+        <input
+          type="text"
+          v-model="searchTerm"
+          placeholder="Enter keyword for search..."
+        />
         <img
           class="reset-button"
           src="@/assets/reset.png"
@@ -64,137 +68,31 @@
 </template>
 
 <script>
+import { getFilteredUsers } from "@/api/index";
+
 export default {
   data() {
     return {
-      users: [
-        {
-          id: "johndoe",
-          name: "John Doe",
-          email: "johndoe@example.com",
-          password: "1234",
-        },
-        {
-          id: "janesmith",
-          name: "Jane Smith",
-          email: "janesmith@example.com",
-          password: "1234",
-        },
-        {
-          id: "bobjohnson",
-          name: "Bob Johnson",
-          email: "bobjohnson@example.com",
-          password: "1234",
-        },
-        {
-          id: "alicebrown",
-          name: "Alice Brown",
-          email: "alicebrown@example.com",
-          password: "1234",
-        },
-        {
-          id: "samwilson",
-          name: "Sam Wilson",
-          email: "samwilson@example.com",
-          password: "1234",
-        },
-        {
-          id: "emilydavis",
-          name: "Emily Davis",
-          email: "emilydavis@example.com",
-          password: "1234",
-        },
-        {
-          id: "michaelwilson",
-          name: "Michael Wilson",
-          email: "michaelwilson@example.com",
-          password: "1234",
-        },
-        {
-          id: "oliviajohnson",
-          name: "Olivia Johnson",
-          email: "oliviajohnson@example.com",
-          password: "1234",
-        },
-        {
-          id: "sophiamiller",
-          name: "Sophia Miller",
-          email: "sophiamiller@example.com",
-          password: "1234",
-        },
-        {
-          id: "williamanderson",
-          name: "William Anderson",
-          email: "williamanderson@example.com",
-          password: "1234",
-        },
-        {
-          id: "benjamingarcia",
-          name: "Benjamin Garcia",
-          email: "benjamingarcia@example.com",
-          password: "1234",
-        },
-        {
-          id: "avamartinez",
-          name: "Ava Martinez",
-          email: "avamartinez@example.com",
-          password: "1234",
-        },
-        {
-          id: "miathompson",
-          name: "Mia Thompson",
-          email: "miathompson@example.com",
-          password: "1234",
-        },
-        {
-          id: "ethanlopez",
-          name: "Ethan Lopez",
-          email: "ethanlopez@example.com",
-          password: "1234",
-        },
-        {
-          id: "jameswilson",
-          name: "James Wilson",
-          email: "jameswilson@example.com",
-          password: "1234",
-        },
-        {
-          id: "liamwhite",
-          name: "Liam White",
-          email: "liamwhite@example.com",
-          password: "1234",
-        },
-        {
-          id: "sophiabrown",
-          name: "Sophia Brown",
-          email: "sophiabrown@example.com",
-          password: "1234",
-        },
-        {
-          id: "charlottedavis",
-          name: "Charlotte Davis",
-          email: "charlottedavis@example.com",
-          password: "1234",
-        },
-        {
-          id: "alexanderjohnson",
-          name: "Alexander Johnson",
-          email: "alexanderjohnson@example.com",
-          password: "1234",
-        },
-        {
-          id: "emmamiller",
-          name: "Emma Miller",
-          email: "emmamiller@example.com",
-          password: "1234",
-        },
-      ],
+      users: [],
       sortKey: "id", // Set initial sort key to 'id'
       sortDirection: "asc", // Set initial sort direction to 'asc'
       pageSize: 20,
       currentPage: 1,
       searchTerm: "",
     };
+  },
+  async mounted() {
+    console.log("!");
+    const conditionsExample = {
+      amount: 20,
+      page_num: 1,
+      sort: "username",
+      order: "asc", // "asc" or "desc"
+      searchTerm: "",
+    };
+    const filteredUsers = await getFilteredUsers(conditionsExample);
+    console.log(filteredUsers.data);
+    this.users = filteredUsers.data;
   },
   computed: {
     sortedUsers() {
