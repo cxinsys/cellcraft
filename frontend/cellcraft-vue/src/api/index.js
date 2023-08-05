@@ -39,6 +39,10 @@ function getFilteredUsers(conditions) {
   return instance.get("/routes/admin/users", { params: conditions });
 }
 
+function getUsersCount() {
+  return instance.get("/routes/admin/users_count");
+}
+
 function exportData(data) {
   return instance.post("/routes/workflow/compile", data);
 }
@@ -103,6 +107,7 @@ export {
   registerUser,
   loginUser,
   getUser,
+  getUsersCount,
   getFilteredUsers,
   exportData,
   getResult,

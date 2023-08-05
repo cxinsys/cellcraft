@@ -36,6 +36,9 @@ def get_filtered_users(db: Session, conditions: Conditions) -> List[models.User]
     order_func = asc if order == 'asc' else desc
     return query.order_by(order_func(sort_column)).offset(amount * (page_num - 1)).limit(amount).all()
 
+def get_users_count(db: Session) -> int:
+    return db.query(models.User).count()
+
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 

@@ -7,16 +7,11 @@
           v-model="searchTerm"
           placeholder="Enter keyword for search..."
         />
-        <img
-          class="reset-button"
-          src="@/assets/reset.png"
-          alt="reset"
-          @click="resetSearch"
-        />
+        <button @click="updateUsers">search</button>
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>
-        <select id="pageSize" v-model="pageSize" @change="updatePage">
+        <select id="pageSize" v-model="pageSize" @change="resetPageNum">
           <option value="5">5</option>
           <option value="10">10</option>
           <option value="15">15</option>
@@ -31,28 +26,23 @@
           <th @click="sortTable('id')">
             id <span class="sort-icon">{{ sortIcon("id") }}</span>
           </th>
-          <th @click="sortTable('name')">
-            name <span class="sort-icon">{{ sortIcon("name") }}</span>
+          <th @click="sortTable('username')">
+            name <span class="sort-icon">{{ sortIcon("username") }}</span>
           </th>
           <th @click="sortTable('email')">
             e-mail <span class="sort-icon">{{ sortIcon("email") }}</span>
           </th>
           <th>password</th>
-          <th></th>
-          <th></th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="user in displayedUsers" :key="user.id">
+        <tr v-for="user in users" :key="user.id">
           <td>{{ user.id }}</td>
-          <td>{{ user.name }}</td>
+          <td>{{ user.username }}</td>
           <td>{{ user.email }}</td>
-          <td><span class="blind-password">****</span>{{ user.password }}</td>
           <td>
-            <button @click="resetPassword(user)">Reset Password</button>
-          </td>
-          <td>
-            <button @click="deleteUser(user)">Delete User</button>
+            <span class="blind-password">****</span>
+            <!-- {{ user.hashed_password }} -->
           </td>
         </tr>
       </tbody>
@@ -68,7 +58,7 @@
 </template>
 
 <script>
-import { getFilteredUsers } from "@/api/index";
+import { getUsersCount, getFilteredUsers } from "@/api/index";
 
 export default {
   data() {
@@ -79,62 +69,42 @@ export default {
       pageSize: 20,
       currentPage: 1,
       searchTerm: "",
+      usersCount: 0,
     };
   },
   async mounted() {
-    console.log("!");
-    const conditionsExample = {
-      amount: 20,
-      page_num: 1,
-      sort: "username",
-      order: "asc", // "asc" or "desc"
-      searchTerm: "",
-    };
-    const filteredUsers = await getFilteredUsers(conditionsExample);
-    console.log(filteredUsers.data);
-    this.users = filteredUsers.data;
+    await this.updateUsers();
   },
   computed: {
-    sortedUsers() {
-      const usersCopy = [...this.users];
-      if (this.sortKey) {
-        usersCopy.sort((a, b) => {
-          const aValue = a[this.sortKey];
-          const bValue = b[this.sortKey];
-          if (aValue < bValue) return this.sortDirection === "asc" ? -1 : 1;
-          if (aValue > bValue) return this.sortDirection === "asc" ? 1 : -1;
-          return 0;
-        });
-      }
-      return usersCopy;
-    },
     totalPages() {
-      return Math.ceil(this.filteredUsers.length / this.pageSize);
-    },
-    displayedUsers() {
-      const startIndex = (this.currentPage - 1) * this.pageSize;
-      const endIndex = startIndex + this.pageSize;
-      return this.filteredUsers.slice(startIndex, endIndex);
-    },
-    filteredUsers() {
-      if (this.searchTerm) {
-        const searchTermLower = this.searchTerm.toLowerCase();
-        return this.sortedUsers.filter((user) =>
-          user.id.toLowerCase().includes(searchTermLower)
-        );
-      } else {
-        return this.sortedUsers;
-      }
+      return Math.ceil(this.usersCount / this.pageSize);
     },
   },
   methods: {
-    sortTable(key) {
+    async updateUsers() {
+      const response = await getUsersCount();
+      this.usersCount = response.data;
+      console.log(this.usersCount);
+
+      const conditions = {
+        amount: this.pageSize,
+        page_num: this.currentPage,
+        sort: this.sortKey,
+        order: this.sortDirection,
+        searchTerm: this.searchTerm,
+      };
+      const filteredUsers = await getFilteredUsers(conditions);
+      console.log(filteredUsers.data);
+      this.users = filteredUsers.data;
+    },
+    async sortTable(key) {
       if (this.sortKey === key) {
         this.sortDirection = this.sortDirection === "asc" ? "desc" : "asc";
       } else {
         this.sortKey = key;
         this.sortDirection = "asc";
       }
+      await this.updateUsers();
     },
     sortIcon(key) {
       if (this.sortKey === key) {
@@ -142,19 +112,7 @@ export default {
       }
       return "▽△";
     },
-    resetSearch() {
-      this.searchTerm = "";
-    },
-    resetPassword(user) {
-      user.password = "0000";
-    },
-    deleteUser(user) {
-      const index = this.users.findIndex((u) => u.id === user.id);
-      if (index !== -1) {
-        this.users.splice(index, 1);
-      }
-    },
-    updatePage() {
+    resetPageNum() {
       this.currentPage = 1; // Reset to first page when page size changes
     },
   },
@@ -198,15 +156,9 @@ button {
   margin-bottom: 5px;
   text-transform: capitalize;
 }
-.reset-button {
-  margin-top: -7px;
-  width: 1.5rem;
-  height: 1.5rem;
-  opacity: 1;
-}
-.reset-button:hover {
-  opacity: 0.8;
-  cursor: pointer;
+button:disabled {
+  color: #ccc;
+  border-color: #ccc;
 }
 .sort-icon {
   color: rgb(34, 34, 34);

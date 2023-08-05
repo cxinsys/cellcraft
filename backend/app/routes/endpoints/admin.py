@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List,Optional
+from typing import List,Optional,Any
 from sqlalchemy.orm import Session
 
 from app.routes import dep  # get_db를 정의한 python 파일을 import
@@ -36,3 +36,10 @@ def get_filtered_users(
         raise HTTPException(status_code=404, detail="Users not found")
     return users
 
+@router.get("/users_count", response_model=Any)
+def get_users_count(
+    *,
+    db: Session = Depends(dep.get_db),
+):
+    users_num = crud_user.get_users_count(db)
+    return users_num
