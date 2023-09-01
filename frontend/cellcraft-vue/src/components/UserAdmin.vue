@@ -2,17 +2,16 @@
   <div>
     <div class="first-line">
       <div class="search">
-        <input type="text" v-model="searchTerm" placeholder="Search by id..." />
-        <img
-          class="reset-button"
-          src="@/assets/reset.png"
-          alt="reset"
-          @click="resetSearch"
+        <input
+          type="text"
+          v-model="searchTerm"
+          placeholder="Enter keyword for search..."
         />
+        <button @click="updateUsers">search</button>
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>
-        <select id="pageSize" v-model="pageSize" @change="updatePage">
+        <select id="pageSize" v-model="pageSize" @change="resetPageNum">
           <option value="5">5</option>
           <option value="10">10</option>
           <option value="15">15</option>
@@ -27,28 +26,23 @@
           <th @click="sortTable('id')">
             id <span class="sort-icon">{{ sortIcon("id") }}</span>
           </th>
-          <th @click="sortTable('name')">
-            name <span class="sort-icon">{{ sortIcon("name") }}</span>
+          <th @click="sortTable('username')">
+            name <span class="sort-icon">{{ sortIcon("username") }}</span>
           </th>
           <th @click="sortTable('email')">
             e-mail <span class="sort-icon">{{ sortIcon("email") }}</span>
           </th>
           <th>password</th>
-          <th></th>
-          <th></th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="user in displayedUsers" :key="user.id">
+        <tr v-for="user in users" :key="user.id">
           <td>{{ user.id }}</td>
-          <td>{{ user.name }}</td>
+          <td>{{ user.username }}</td>
           <td>{{ user.email }}</td>
-          <td><span class="blind-password">****</span>{{ user.password }}</td>
           <td>
-            <button @click="resetPassword(user)">Reset Password</button>
-          </td>
-          <td>
-            <button @click="deleteUser(user)">Delete User</button>
+            <span class="blind-password">****</span>
+            <!-- {{ user.hashed_password }} -->
           </td>
         </tr>
       </tbody>
@@ -64,179 +58,53 @@
 </template>
 
 <script>
+import { getUsersCount, getFilteredUsers } from "@/api/index";
+
 export default {
   data() {
     return {
-      users: [
-        {
-          id: "johndoe",
-          name: "John Doe",
-          email: "johndoe@example.com",
-          password: "1234",
-        },
-        {
-          id: "janesmith",
-          name: "Jane Smith",
-          email: "janesmith@example.com",
-          password: "1234",
-        },
-        {
-          id: "bobjohnson",
-          name: "Bob Johnson",
-          email: "bobjohnson@example.com",
-          password: "1234",
-        },
-        {
-          id: "alicebrown",
-          name: "Alice Brown",
-          email: "alicebrown@example.com",
-          password: "1234",
-        },
-        {
-          id: "samwilson",
-          name: "Sam Wilson",
-          email: "samwilson@example.com",
-          password: "1234",
-        },
-        {
-          id: "emilydavis",
-          name: "Emily Davis",
-          email: "emilydavis@example.com",
-          password: "1234",
-        },
-        {
-          id: "michaelwilson",
-          name: "Michael Wilson",
-          email: "michaelwilson@example.com",
-          password: "1234",
-        },
-        {
-          id: "oliviajohnson",
-          name: "Olivia Johnson",
-          email: "oliviajohnson@example.com",
-          password: "1234",
-        },
-        {
-          id: "sophiamiller",
-          name: "Sophia Miller",
-          email: "sophiamiller@example.com",
-          password: "1234",
-        },
-        {
-          id: "williamanderson",
-          name: "William Anderson",
-          email: "williamanderson@example.com",
-          password: "1234",
-        },
-        {
-          id: "benjamingarcia",
-          name: "Benjamin Garcia",
-          email: "benjamingarcia@example.com",
-          password: "1234",
-        },
-        {
-          id: "avamartinez",
-          name: "Ava Martinez",
-          email: "avamartinez@example.com",
-          password: "1234",
-        },
-        {
-          id: "miathompson",
-          name: "Mia Thompson",
-          email: "miathompson@example.com",
-          password: "1234",
-        },
-        {
-          id: "ethanlopez",
-          name: "Ethan Lopez",
-          email: "ethanlopez@example.com",
-          password: "1234",
-        },
-        {
-          id: "jameswilson",
-          name: "James Wilson",
-          email: "jameswilson@example.com",
-          password: "1234",
-        },
-        {
-          id: "liamwhite",
-          name: "Liam White",
-          email: "liamwhite@example.com",
-          password: "1234",
-        },
-        {
-          id: "sophiabrown",
-          name: "Sophia Brown",
-          email: "sophiabrown@example.com",
-          password: "1234",
-        },
-        {
-          id: "charlottedavis",
-          name: "Charlotte Davis",
-          email: "charlottedavis@example.com",
-          password: "1234",
-        },
-        {
-          id: "alexanderjohnson",
-          name: "Alexander Johnson",
-          email: "alexanderjohnson@example.com",
-          password: "1234",
-        },
-        {
-          id: "emmamiller",
-          name: "Emma Miller",
-          email: "emmamiller@example.com",
-          password: "1234",
-        },
-      ],
+      users: [],
       sortKey: "id", // Set initial sort key to 'id'
       sortDirection: "asc", // Set initial sort direction to 'asc'
       pageSize: 20,
       currentPage: 1,
       searchTerm: "",
+      usersCount: 0,
     };
   },
+  async mounted() {
+    await this.updateUsers();
+  },
   computed: {
-    sortedUsers() {
-      const usersCopy = [...this.users];
-      if (this.sortKey) {
-        usersCopy.sort((a, b) => {
-          const aValue = a[this.sortKey];
-          const bValue = b[this.sortKey];
-          if (aValue < bValue) return this.sortDirection === "asc" ? -1 : 1;
-          if (aValue > bValue) return this.sortDirection === "asc" ? 1 : -1;
-          return 0;
-        });
-      }
-      return usersCopy;
-    },
     totalPages() {
-      return Math.ceil(this.filteredUsers.length / this.pageSize);
-    },
-    displayedUsers() {
-      const startIndex = (this.currentPage - 1) * this.pageSize;
-      const endIndex = startIndex + this.pageSize;
-      return this.filteredUsers.slice(startIndex, endIndex);
-    },
-    filteredUsers() {
-      if (this.searchTerm) {
-        const searchTermLower = this.searchTerm.toLowerCase();
-        return this.sortedUsers.filter((user) =>
-          user.id.toLowerCase().includes(searchTermLower)
-        );
-      } else {
-        return this.sortedUsers;
-      }
+      return Math.ceil(this.usersCount / this.pageSize);
     },
   },
   methods: {
-    sortTable(key) {
+    async updateUsers() {
+      const response = await getUsersCount();
+      this.usersCount = response.data;
+      console.log(this.usersCount);
+
+      const conditions = {
+        amount: this.pageSize,
+        page_num: this.currentPage,
+        sort: this.sortKey,
+        order: this.sortDirection,
+        searchTerm: this.searchTerm,
+      };
+      const filteredUsers = await getFilteredUsers(conditions);
+      console.log(filteredUsers.data);
+      this.users = filteredUsers.data;
+    },
+    async sortTable(key) {
       if (this.sortKey === key) {
         this.sortDirection = this.sortDirection === "asc" ? "desc" : "asc";
       } else {
         this.sortKey = key;
         this.sortDirection = "asc";
       }
+      await this.updateUsers();
     },
     sortIcon(key) {
       if (this.sortKey === key) {
@@ -244,19 +112,7 @@ export default {
       }
       return "▽△";
     },
-    resetSearch() {
-      this.searchTerm = "";
-    },
-    resetPassword(user) {
-      user.password = "0000";
-    },
-    deleteUser(user) {
-      const index = this.users.findIndex((u) => u.id === user.id);
-      if (index !== -1) {
-        this.users.splice(index, 1);
-      }
-    },
-    updatePage() {
+    resetPageNum() {
       this.currentPage = 1; // Reset to first page when page size changes
     },
   },
@@ -300,15 +156,9 @@ button {
   margin-bottom: 5px;
   text-transform: capitalize;
 }
-.reset-button {
-  margin-top: -7px;
-  width: 1.5rem;
-  height: 1.5rem;
-  opacity: 1;
-}
-.reset-button:hover {
-  opacity: 0.8;
-  cursor: pointer;
+button:disabled {
+  color: #ccc;
+  border-color: #ccc;
 }
 .sort-icon {
   color: rgb(34, 34, 34);
