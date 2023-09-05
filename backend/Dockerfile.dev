@@ -1,0 +1,11 @@
+FROM continuumio/miniconda3
+
+WORKDIR /app
+
+COPY environment.yml ./
+RUN conda env create -f environment.yml
+
+COPY . .
+
+# Activate the conda environment and run FastAPI
+CMD ["/bin/bash", "-c", "source activate snakemake && uvicorn app.main"]
