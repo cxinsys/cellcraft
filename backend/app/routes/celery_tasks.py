@@ -2,6 +2,9 @@ from celery import shared_task, Task
 from typing import List
 from datetime import datetime
 import time
+import os
+from celery.signals import worker_process_init
+
 from app.database.crud.crud_task import start_task, end_task
 
 class MyTask(Task):
@@ -28,14 +31,76 @@ class MyTask(Task):
 def snakemakeProcess(filepath):
     from subprocess import Popen, PIPE
     print(filepath)
-    process = Popen(['snakemake',f'workflow/data/{filepath}.csv','-j'], stdout=PIPE, stderr=PIPE)
+    print(os.environ["PATH"])
+
+    process = Popen(['/opt/conda/envs/snakemake/bin/snakemake', f'workflow/data/{filepath}.csv', '-j'], stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
+    print("STDOUT:", stdout)
+    print("STDERR:", stderr)
+
+
+def is_snakemake_installed() -> bool:
+    import subprocess
+    try:
+        # Try running `snakemake --version`
+        subprocess.run(["snakemake", "--version"], check=True, capture_output=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+    except FileNotFoundError:
+        return False
+    
+def list_conda_libraries():
+    import subprocess
+    try:
+        result = subprocess.run(["conda", "list"], check=True, capture_output=True, text=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        print(f"Error fetching installed libraries: {e}")
+        return None
+    
+def list_pip_libraries():
+    import subprocess
+    try:
+        result = subprocess.run(["pip", "list"], check=True, capture_output=True, text=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        print(f"Error fetching installed libraries: {e}")
+        return None
+
+def get_conda_environment_name():
+    import sys
+    print(sys.executable)
+    stat_info = os.stat('/app')
+    owner_uid = stat_info.st_uid
+    owner_gid = stat_info.st_gid
+
+    print(f"Owner UID: {owner_uid}")
+    print(f"Owner GID: {owner_gid}")
+
+    return os.environ.get('CONDA_DEFAULT_ENV', None)
+
+
+@worker_process_init.connect
+def configure_worker(conf=None, **kwargs):
+    os.environ['CONDA_DEFAULT_ENV'] = 'snakemake'
 
 @shared_task(bind=True, base=MyTask, autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5}, name="workflow_task:process_data_task")
 def process_data_task(self, username: str, linked_nodes: List[dict], user_id: int, workflow_id: int):
     # from multiprocessing import Pool, cpu_count
     from billiard import Pool, cpu_count
     print(f'Processing data for user {username}...')
+    conda_libraries = list_conda_libraries()
+    if conda_libraries:
+        print(conda_libraries)
+    pip_libraries = list_pip_libraries()
+    if pip_libraries:
+        print(pip_libraries)
+    env_name = get_conda_environment_name()
+    if env_name:
+        print(f"Current conda environment: {env_name}")
+    else:
+        print("Not in a conda environment or environment name not found.")
     for nodes in linked_nodes:
         fileName = nodes['file'].replace('.h5ad', '')
         lastNode = "file"
@@ -45,6 +110,5 @@ def process_data_task(self, username: str, linked_nodes: List[dict], user_id: in
         print(snakemake.get())
         p.close()
         p.join()
-    time.sleep(10)
     print('Data processing complete.')
     return {"status": "Processing complete"}

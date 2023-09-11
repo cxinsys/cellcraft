@@ -7,5 +7,10 @@ RUN conda env create -f environment.yml
 
 COPY . .
 
+RUN apt-get update && apt-get install -y gosu && apt-get install acl && rm -rf /var/lib/apt/lists/*
+
 # Activate the conda environment and run FastAPI
-CMD ["/bin/bash", "-c", "source activate snakemake && uvicorn app.main"]
+CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0"]
+
+# Create a non-root user
+RUN adduser --disabled-password --gecos '' celeryuser

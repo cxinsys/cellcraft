@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   frontend:
@@ -6,45 +6,59 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     ports:
-      - "8081:8080"  # Changed from "8080:8080"
+      - "8082:8080" # Changed from "8080:8080"
     volumes:
       - ./frontend:/app
       - /app/node_modules
 
   backend:
+    environment:
+      - CONDA_DEFAULT_ENV=snakemake
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
     ports:
-      - "8001:8000"  # Changed from "8000:8000"
+      - "8002:8000" # Changed from "8000:8000"
     volumes:
       - ./backend:/app
-    depends_on:
-      - db
-      - rabbitmq
 
   db:
-    image: postgres:16
+    image: postgres:latest
     environment:
       POSTGRES_DB: cellcraft
       POSTGRES_USER: testdb
       POSTGRES_PASSWORD: testdb
     ports:
-      - "5433:5432"  # Changed to an alternate port
+      - "5432:5432" # Changed to an alternate port
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   rabbitmq:
     image: "rabbitmq:management"
     ports:
-      - "15673:15672"  # Changed to an alternate port
-      - "5673:5672"    # Changed to an alternate port
+      - "15672:15672" # Changed to an alternate port
+      - "5672:5672" # Changed to an alternate port
 
   celery:
+    environment:
+      - CONDA_DEFAULT_ENV=snakemake
+      - C_FORCE_ROOT=true
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
-    command: ["celery", "-A", "app.main.celery", "worker", "--loglevel=info", "-E", "-Q", "workflow_task"]
+    command:
+      [
+        "/opt/conda/envs/snakemake/bin/python",
+        "-m",
+        "celery",
+        "-A",
+        "app.main.celery",
+        "worker",
+        "--loglevel=info",
+        "-E",
+        "-Q",
+        "workflow_task",
+      ]
     volumes:
       - ./backend:/app
     depends_on:
