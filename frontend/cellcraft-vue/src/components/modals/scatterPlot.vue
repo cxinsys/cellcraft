@@ -199,28 +199,10 @@ export default {
         automargin: true,
         width: 600, // !--조정필요
         height: 570, // !--조정필요
-        // paper_bgcolor: rgb(255, 1, 255),
-        // plot_bgcolor: rgb(1, 255, 255),
       },
     });
     this.current_file = this.$store.getters.getCurrentFile.file;
     if (this.current_file !== "") {
-      // // adata.obs 받아오기
-      // const filename_obs = {
-      //   filename: `file_${this.current_file.replace(".h5ad", "")}_obs`,
-      // };
-      // console.log(filename_obs);
-      // const scatterResult_obs = await getResult(filename_obs);
-      // // adta.obsm['X_umap'] 받아오기
-      // const filename_obsm = {
-      //   filename: `file_${this.current_file.replace(".h5ad", "")}_obsm`,
-      // };
-      // console.log(filename_obsm);
-      // const scatterResult_obsm = await getResult(filename_obsm);
-      // // 받아온 데이터 출력
-      // console.log(scatterResult_obs.data);
-      // console.log(scatterResult_obsm.data);
-
       // obs + X_umap 가져오기
       const filename_obs_umap = {
         filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
@@ -232,10 +214,6 @@ export default {
       // scatterResult.data;
       // lines, keys, areNum 업데이트
 
-      // 잠깐 주석 처리
-      // this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
-
-      // this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
       this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
       this.keys = this.lines.splice(0, 1)[0];
       this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
@@ -272,13 +250,6 @@ export default {
       }
 
       // // 초기 x,y축 세팅하기
-      // if (this.numList.length == 3) {
-      //   this.selectedX = this.numList[2].value;
-      //   this.selectedY = this.numList[2].value;
-      // } else if (this.numList.length > 3) {
-      //   this.selectedX = this.numList[2].value;
-      //   this.selectedY = this.numList[3].value;
-      // }
       if (this.keys.indexOf("X") != -1) {
         this.selectedX = this.keys.indexOf("X");
       }
@@ -420,6 +391,36 @@ export default {
           },
         });
       }
+      var graphDiv = document.getElementById("plotly__scatter");
+      var N = 1000;
+      var color1 = "#7b3294";
+      var color1Light = "#c2a5cf";
+      graphDiv.on("plotly_selected", function (eventData) {
+        var x = [];
+        var y = [];
+
+        var colors = [];
+        for (var i = 0; i < N; i++) colors.push(color1Light);
+
+        console.log(eventData.points);
+
+        eventData.points.forEach(function (pt) {
+          x.push(pt.x);
+          y.push(pt.y);
+          colors[pt.pointNumber] = color1;
+        });
+
+        Plotly.restyle(
+          graphDiv,
+          {
+            x: [x, y],
+            xbins: {},
+          },
+          [1, 2]
+        );
+
+        Plotly.restyle(graphDiv, "marker.color", [colors], [0]);
+      });
     },
     setSelectX(event) {
       this.selectedX = event.target.value;
@@ -513,28 +514,6 @@ export default {
       // console.log(current_node);
       // console.log(this.current_file.file);
       if (current_node.name === "scatterPlot" && this.current_file !== "") {
-        // const filename = {
-        //   filename: `${current_node.name}_${this.current_file.replace(
-        //     ".csv",
-        //     ""
-        //   )}`,
-        // };
-        // // adata.obs 받아오기
-        // const filename_obs = {
-        //   filename: `file_${this.current_file.replace(".h5ad", "")}_obs`,
-        // };
-        // console.log(filename_obs);
-        // const scatterResult_obs = await getResult(filename_obs);
-        // // adta.obsm['X_umap'] 받아오기
-        // const filename_obsm = {
-        //   filename: `file_${this.current_file.replace(".h5ad", "")}_obsm`,
-        // };
-        // console.log(filename_obsm);
-        // const scatterResult_obsm = await getResult(filename_obsm);
-        // // 받아온 데이터 출력
-        // console.log(scatterResult_obs.data);
-        // console.log(scatterResult_obsm.data);
-
         // obs + X_umap 가져오기
         const filename_obs_umap = {
           filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
@@ -585,14 +564,6 @@ export default {
           }
         }
 
-        // // 초기 x,y축 세팅하기
-        // if (this.numList.length == 3) {
-        //   this.selectedX = this.numList[2].value;
-        //   this.selectedY = this.numList[2].value;
-        // } else if (this.numList.length > 3) {
-        //   this.selectedX = this.numList[2].value;
-        //   this.selectedY = this.numList[3].value;
-        // }
         if (this.keys.indexOf("X") != -1) {
           this.selectedX = this.keys.indexOf("X");
         }
@@ -767,13 +738,5 @@ input:checked + .slider_button:before {
 
 .slider_button.round:before {
   border-radius: 50%;
-}
-@media (prefers-color-scheme: dark) {
-  /* .plotly-layout {
-    background-color: rgb(41, 43, 48);
-  } */
-  /* .options__item {
-    color: rgb(255, 255, 255);
-  } */
 }
 </style>
