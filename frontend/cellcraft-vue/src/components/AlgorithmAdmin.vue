@@ -655,14 +655,16 @@ button {
 
 .search input {
   margin-right: 10px;
+  width: 200px;
   color: black;
-  padding: 2px;
+  padding: 5px;
   left: 10px;
-  border-radius: 5px;
+  border-radius: 10px;
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-bottom: 5px;
+  margin-top: 10px;
+  margin-bottom: 15px;
 }
 .upload-button {
   border-radius: 5px;

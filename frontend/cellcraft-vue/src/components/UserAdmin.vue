@@ -120,6 +120,43 @@ export default {
 </script>
 
 <style scoped>
+/* table {
+  width: 100%;
+  height: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  background-color: #f9f9f9;
+  transition: all 0.3s ease;
+}
+
+thead th,
+td {
+  padding: 20px;
+  text-align: center;
+  border-radius: 12px;
+}
+
+th {
+  background-color: #eee;
+  color: #333;
+}
+
+td {
+  background-color: #fff;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+tr:hover td {
+  background-color: #f2f2f2;
+  box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+td:hover {
+  background-color: #e6e6e6;
+  box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.25);
+} */
+
 table {
   width: 100%;
   height: 100%;
@@ -139,9 +176,9 @@ thead th {
 tbody td {
   max-width: 30px;
   padding: 10px;
-  white-space: nowrap; /* 텍스트 줄 바꿈 비활성화 */
-  overflow: hidden; /* 텍스트가 넘칠 경우 숨김 처리 */
-  text-overflow: ellipsis; /* 텍스트가 넘칠 경우 ...으로 표시 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   border-bottom: 1px solid #ccc;
 }
 button {
@@ -181,14 +218,16 @@ button:disabled {
 
 .search input {
   margin-right: 10px;
+  width: 200px;
   color: black;
-  padding: 2px;
+  padding: 5px;
   left: 10px;
-  border-radius: 5px;
+  border-radius: 10px;
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-bottom: 5px;
+  margin-top: 10px;
+  margin-bottom: 15px;
 }
 .blind-password {
   position: absolute;
