@@ -120,90 +120,64 @@ export default {
 </script>
 
 <style scoped>
-/* table {
+table {
   width: 100%;
   height: 100%;
-  border-collapse: collapse;
-  border-spacing: 0;
-  background-color: #f9f9f9;
+  border-collapse: separate;
+  border-spacing: 10px;
+  background-color: #c9c9c9;
   transition: all 0.3s ease;
+  border-radius: 15px;
+  color: #ffffff;
 }
 
 thead th,
 td {
-  padding: 20px;
-  text-align: center;
-  border-radius: 12px;
+  padding: 10px;
+  padding-left: 25px;
+  text-align: left;
+  border-radius: 10px;
+  box-shadow: 0px 8px 20px rgba(176, 169, 255, 0.25);
 }
 
 th {
-  background-color: #eee;
-  color: #333;
+  text-transform: capitalize;
+  background-color: #323232;
+  color: #ffffff;
 }
 
 td {
-  background-color: #fff;
-  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  background-color: #535353;
   transition: all 0.3s ease;
 }
 
-tr:hover td {
-  background-color: #f2f2f2;
-  box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.2);
+th:hover {
+  background-color: #616161;
 }
 
-td:hover {
-  background-color: #e6e6e6;
-  box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.25);
-} */
-
-table {
-  width: 100%;
-  height: 100%;
-  border-collapse: collapse;
-}
-
-thead th {
-  background-color: #f5f5f5;
-  font-weight: bold;
-  text-align: left;
-  padding: 10px;
-  border-bottom: 1px solid #ccc;
-  cursor: pointer;
-  text-transform: capitalize;
-}
-
-tbody td {
-  max-width: 30px;
-  padding: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  border-bottom: 1px solid #ccc;
-}
 button {
   margin-right: 10px;
   color: black;
-  padding: 2px;
+  padding: 5px;
   left: 10px;
-  border-radius: 5px;
+  border-radius: 10px;
+  background-color: #eaecff;
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-bottom: 5px;
   text-transform: capitalize;
 }
 button:disabled {
   color: #ccc;
-  border-color: #ccc;
 }
 .sort-icon {
-  color: rgb(34, 34, 34);
+  color: rgb(199, 199, 199);
   font-weight: normal;
   font-size: small;
 }
 .first-line {
   height: 40px;
+  margin-bottom: 10px;
   width: calc(100% - 10px);
   padding: 5px 5px 0px 5px;
   display: flex;
@@ -226,10 +200,10 @@ button:disabled {
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-top: 10px;
-  margin-bottom: 15px;
+  margin-top: 11px;
+  margin-bottom: 10px;
 }
-.blind-password {
+/* .blind-password {
   position: absolute;
   padding-left: 10px;
   padding-right: 100px;
@@ -237,7 +211,7 @@ button:disabled {
 }
 .blind-password:hover {
   opacity: 0;
-}
+} */
 #pageSize {
   padding: 2px;
   border-radius: 5px;

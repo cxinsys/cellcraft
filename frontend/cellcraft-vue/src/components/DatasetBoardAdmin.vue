@@ -214,50 +214,83 @@ export default {
 table {
   width: 100%;
   height: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 10px;
+  background-color: #c9c9c9;
+  transition: all 0.3s ease;
+  border-radius: 15px;
+  color: #ffffff;
 }
 
-thead th {
-  background-color: #f5f5f5;
-  font-weight: bold;
+thead th,
+td {
+  padding: 10px;
+  padding-left: 25px;
   text-align: left;
-  padding: 10px;
-  border-bottom: 1px solid #ccc;
-  cursor: pointer;
-  text-transform: capitalize;
+  border-radius: 10px;
+  box-shadow: 0px 8px 20px rgba(176, 169, 255, 0.25);
 }
 
-tbody td {
-  max-width: 30px;
-  padding: 10px;
-  white-space: nowrap; /* 텍스트 줄 바꿈 비활성화 */
-  overflow: hidden; /* 텍스트가 넘칠 경우 숨김 처리 */
-  text-overflow: ellipsis; /* 텍스트가 넘칠 경우 ...으로 표시 */
-  border-bottom: 1px solid #ccc;
+th {
+  text-transform: capitalize;
+  background-color: #323232;
+  color: #ffffff;
 }
+
+td {
+  background-color: #535353;
+  transition: all 0.3s ease;
+}
+
+th:hover {
+  background-color: #616161;
+}
+
 button {
   margin-right: 10px;
   color: black;
-  padding: 2px;
+  padding: 5px;
   left: 10px;
-  border-radius: 5px;
+  border-radius: 10px;
+  background-color: #eaecff;
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-bottom: 5px;
   text-transform: capitalize;
 }
+button:disabled {
+  color: #ccc;
+}
+
+.table-button {
+  color: rgb(255, 255, 255);
+  width: 100%;
+  height: 100%;
+  background-color: #323232;
+  border-color: #e7eaff;
+  font-size: small;
+  text-align: center;
+  text-transform: capitalize;
+}
+.table-button:hover {
+  background-color: #616161;
+}
+
 .sort-icon {
-  color: rgb(34, 34, 34);
+  color: rgb(199, 199, 199);
   font-weight: normal;
   font-size: small;
 }
 
+a {
+  color: #f0f1fb;
+}
+
 .first-line {
   height: 40px;
-
   width: calc(100% - 10px);
   padding: 5px 5px 0px 5px;
+  /* margin-bottom: 10px; */
   display: flex;
   justify-content: space-between;
   flex-direction: row;
@@ -265,6 +298,7 @@ button {
 .second-line {
   width: calc(100% - 10px);
   padding: 0px 5px 5px 5px;
+  margin-bottom: 10px;
   display: flex;
   justify-content: flex-end;
   flex-direction: row;
@@ -290,32 +324,33 @@ button {
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-top: 10px;
-  margin-bottom: 15px;
+  margin-top: 5px;
+  margin-bottom: 10px;
 }
 .upload-button {
   border-radius: 5px;
-  padding: 5px 10px;
+  padding: 7px 10px;
   font-weight: 500;
-  border: 1px solid #ccc;
-  background-color: #f0f1fd;
+  /* background-color: #eaecff; */
+  background-color: #5a5a5a;
+  /* border-color: #e7eaff; */
+  border: 2px solid #e7eaff;
+  border-radius: 10px;
   text-decoration: none;
-  color: black;
+  color: rgb(255, 255, 255);
 }
 .upload-button:hover {
   cursor: pointer;
-  padding: 4px;
-  background-color: #fbfcff;
-  border: 2px solid #ccc;
+  background-color: #7d7d7d;
 }
 .reset-button {
   margin-top: -7px;
   width: 1.5rem;
   height: 1.5rem;
-  opacity: 1;
+  opacity: 0.7;
 }
 .reset-button:hover {
-  opacity: 0.8;
+  opacity: 0.5;
   cursor: pointer;
 }
 

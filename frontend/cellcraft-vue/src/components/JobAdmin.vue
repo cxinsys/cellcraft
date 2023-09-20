@@ -64,9 +64,11 @@
             {{ job.status }}
           </td>
           <td>{{ job.time }}</td>
-          <td>
-            <button @click="dismissJob(job)">Dismiss Job</button>
-          </td>
+          <!-- <td> -->
+          <button class="table-button" @click="dismissJob(job)">
+            Dismiss Job
+          </button>
+          <!-- </td> -->
         </tr>
       </tbody>
     </table>
@@ -313,38 +315,71 @@ export default {
 table {
   width: 100%;
   height: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 10px;
+  background-color: #c9c9c9;
+  transition: all 0.3s ease;
+  border-radius: 15px;
+  color: #ffffff;
 }
 
-thead th {
-  background-color: #f5f5f5;
-  font-weight: bold;
+thead th,
+td {
+  padding: 10px;
+  padding-left: 25px;
   text-align: left;
-  padding: 10px;
-  border-bottom: 1px solid #ccc;
-  cursor: pointer;
-  text-transform: capitalize;
+  border-radius: 10px;
+  box-shadow: 0px 8px 20px rgba(176, 169, 255, 0.25);
 }
 
-tbody td {
-  max-width: 30px;
-  padding: 10px;
-  white-space: nowrap; /* 텍스트 줄 바꿈 비활성화 */
-  overflow: hidden; /* 텍스트가 넘칠 경우 숨김 처리 */
-  text-overflow: ellipsis; /* 텍스트가 넘칠 경우 ...으로 표시 */
-  border-bottom: 1px solid #ccc;
+th {
+  text-transform: capitalize;
+  background-color: #323232;
+  color: #ffffff;
 }
+
+td {
+  background-color: #535353;
+  transition: all 0.3s ease;
+}
+
+th:hover {
+  background-color: #616161;
+}
+
 button {
   margin-right: 10px;
   color: black;
-  padding: 2px;
+  padding: 5px;
   left: 10px;
-  border-radius: 5px;
+  border-radius: 10px;
+  background-color: #eaecff;
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-bottom: 5px;
   text-transform: capitalize;
+}
+button:disabled {
+  color: #ccc;
+}
+
+.table-button {
+  color: rgb(255, 255, 255);
+  width: 100%;
+  height: 100%;
+  background-color: #323232;
+  border-color: #e7eaff;
+  font-size: small;
+  text-align: center;
+  text-transform: capitalize;
+}
+.table-button:hover {
+  background-color: #616161;
+}
+.sort-icon {
+  color: rgb(199, 199, 199);
+  font-weight: normal;
+  font-size: small;
 }
 .first-line {
   height: 40px;
@@ -355,20 +390,14 @@ button {
   flex-direction: row;
   align-items: center;
 }
-.sort-icon {
-  color: rgb(34, 34, 34);
-  font-weight: normal;
-  font-size: small;
-}
 .reset-button {
   margin-top: -7px;
-
   width: 1.5rem;
   height: 1.5rem;
-  opacity: 1;
+  opacity: 0.7;
 }
 .reset-button:hover {
-  opacity: 0.8;
+  opacity: 0.5;
   cursor: pointer;
 }
 #pageSize {
@@ -407,8 +436,8 @@ button {
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-top: 10px;
-  margin-bottom: 15px;
+  margin-top: 5px;
+  margin-bottom: 10px;
 }
 
 .pagination {
@@ -421,13 +450,13 @@ button {
   margin: -5px 10px 0px 10px;
 }
 .success {
-  color: green;
+  color: rgb(0, 201, 0);
 }
 .running {
-  color: rgb(255, 142, 29);
+  color: rgb(254, 151, 49);
 }
 .failure {
-  color: red;
+  color: rgb(255, 57, 57);
 }
 .wait {
   color: gray;
