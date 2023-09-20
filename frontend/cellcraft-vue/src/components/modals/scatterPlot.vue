@@ -3,7 +3,7 @@
     <div class="plotly-layout">
       <div id="plotly__scatter"></div>
     </div>
-    <div class="options-layout">
+    <div class="options-layout" v-if="!refreshOptionsLayout">
       <input
         type="text"
         placeholder="Title"
@@ -151,6 +151,15 @@
           <span class="slider_button round"></span>
         </label>
       </div>
+      <div class="options__item">
+        Download Plot Image&nbsp;
+        <img
+          class="downloadPlot_button"
+          src="@/assets/download.png"
+          alt="Save Plot"
+          @click="downloadPlot"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -189,6 +198,9 @@ export default {
       numList: [{ name: "None", value: null }], // number type으로 x,y축에 들어가기 적합한 자료들의 option list
       keyList: [{ name: "None", value: null }], // key list
       clusterList: [{ name: "None", value: null, isTooVarious: null }], // cluster가 되기 적합한 list, unique한 자료수가 적은 column의 list
+      refreshOptionsLayout: true,
+      outputX: [],
+      outputY: [],
     };
   },
   async mounted() {
@@ -207,7 +219,7 @@ export default {
       const filename_obs_umap = {
         filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
       };
-      console.log(filename_obs_umap);
+      // console.log(filename_obs_umap);
       const scatterResult = await getResult(filename_obs_umap);
 
       //백엔드에서 넘겨준 plot 데이터
@@ -256,13 +268,19 @@ export default {
       if (this.keys.indexOf("Y") != -1) {
         this.selectedY = this.keys.indexOf("Y");
       }
+      if (this.keys.indexOf("leiden") != -1) {
+        this.selectedCluster = this.keys.indexOf("leiden");
+      }
 
       this.updateChart();
+      this.refreshOptionsLayout = false;
     }
   },
   methods: {
     // 차트 업데이트
     updateChart() {
+      this.outputX = this.lines.map((x) => x[this.selectedX]);
+      this.outputY = this.lines.map((x) => x[this.selectedY]);
       if (this.selectedCluster) {
         if (this.clusterList[this.selectedCluster].isTooVarious == false) {
           const clusterList = [
@@ -314,15 +332,15 @@ export default {
             },
           });
         } else {
-          console.log(this.clusterQuantile);
-          console.log(this.clusterContrast);
-          console.log(
-            this.lines.map(
-              (x) =>
-                x[this.selectedCluster] * this.clusterContrast +
-                this.clusterQuantile
-            )
-          );
+          // console.log(this.clusterQuantile);
+          // console.log(this.clusterContrast);
+          // console.log(
+          //   this.lines.map(
+          //     (x) =>
+          //       x[this.selectedCluster] * this.clusterContrast +
+          //       this.clusterQuantile
+          //   )
+          // );
           Plotly.newPlot("plotly__scatter", {
             data: [
               {
@@ -392,34 +410,12 @@ export default {
         });
       }
       var graphDiv = document.getElementById("plotly__scatter");
-      var N = 1000;
-      var color1 = "#7b3294";
-      var color1Light = "#c2a5cf";
       graphDiv.on("plotly_selected", function (eventData) {
-        var x = [];
-        var y = [];
-
-        var colors = [];
-        for (var i = 0; i < N; i++) colors.push(color1Light);
-
         console.log(eventData.points);
-
-        eventData.points.forEach(function (pt) {
-          x.push(pt.x);
-          y.push(pt.y);
-          colors[pt.pointNumber] = color1;
-        });
-
-        Plotly.restyle(
-          graphDiv,
-          {
-            x: [x, y],
-            xbins: {},
-          },
-          [1, 2]
-        );
-
-        Plotly.restyle(graphDiv, "marker.color", [colors], [0]);
+        if (eventData.points.length > 0) {
+          this.outputX = eventData.points.map((x) => x.x);
+          this.outputY = eventData.points.map((x) => x.y);
+        }
       });
     },
     setSelectX(event) {
@@ -500,6 +496,14 @@ export default {
     switchShowLabel() {
       this.showLabel = !this.showLabel;
       this.updateChart();
+    },
+    downloadPlot() {
+      Plotly.downloadImage("plotly__scatter", {
+        format: "png",
+        width: 600,
+        height: 570,
+        filename: "CELLCRAFT_Plot",
+      });
     },
   },
   computed: {
@@ -738,5 +742,19 @@ input:checked + .slider_button:before {
 
 .slider_button.round:before {
   border-radius: 50%;
+}
+
+.downloadPlot_button {
+  position: absolute;
+  /* top: -0.2rem; */
+  right: 1.5rem;
+  margin-top: -0.2rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  opacity: 0.8;
+}
+.downloadPlot_button:hover {
+  opacity: 1;
+  cursor: pointer;
 }
 </style>
