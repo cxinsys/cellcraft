@@ -57,7 +57,11 @@
             <td class="task-status">
               <div
                 class="status-box__red"
-                v-if="task.status === 'FAILURE'"
+                v-if="
+                  task.status === 'FAILURE' ||
+                  task.status === 'REVOKED' ||
+                  task.status === 'RETRY'
+                "
               ></div>
               <div
                 class="status-box__yellow"
@@ -70,7 +74,12 @@
               {{ task.status }}
             </td>
             <td>
-              <img class="control-bar__icon" src="@/assets/multiply.png" />
+              <img
+                v-if="task.status === 'RUNNING'"
+                @click="cancelTask(task.task_id)"
+                class="control-bar__icon"
+                src="@/assets/multiply.png"
+              />
             </td>
           </tr>
         </tbody>
@@ -203,6 +212,7 @@ import {
   saveWorkflow,
   userTaskMonitoring,
   findFolder,
+  revokeTask,
 } from "@/api/index";
 // import Algorithm from "../components/algorithm.vue";
 
@@ -473,20 +483,23 @@ export default {
   methods: {
     // Define a function that returns a task_id and creates a new EventSource instance
     createEventSource(task_id) {
+      // backend로부터 지속적으로 event가 발생하면 task가 실행 중이므로 on_progress를 true로 변경
       this.on_progress = true;
       // Initialize a new event source with the provided URL
       this.eventSources[task_id] = new EventSource(
-        `http://127.0.0.1:8000/routes/workflow/task/${task_id}`
+        `http://localhost:8002/routes/workflow/task/${task_id}`
       );
 
       // Event handler for the 'onmessage' event
       this.eventSources[task_id].onmessage = (event) => {
         // Log the received event data
         console.log("Received update: ", event.data);
-        if (event.data === "SUCCESS" || event.data === "FAILURE") {
+        if (event.data === "SUCCESS" || event.data === "FAILURE" || event.data === "REVOKED") {
           console.log("close");
+          // backend로부터 event가 발생했을 때, data 상태에 따라 task가 완료되었다고 판단하여 on_progress를 false로 변경
           this.on_progress = false;
           this.closeEventSource(task_id);
+          clearInterval(this.timeInterval);
         }
       };
     },
@@ -648,30 +661,37 @@ export default {
     },
     async toggleTask() {
       try {
+        // 모니터링 탭이 닫혀있을 때
         if (!this.show_jobs) {
+          //유저 Task 가져오기
           const user_tasks = await userTaskMonitoring();
           console.log(user_tasks);
           this.taskList = user_tasks.data;
+
+          //유저 Task가 있을 때 Task 상태에 따라 running_time 계산하거나 interval 시작
           this.taskList.forEach(async (task, idx) => {
-            if (task.status === "SUCCESS" || task.status === "FAILURE") {
+            if (task.status === "SUCCESS" || task.status === "FAILURE" || task.status === "REVOKED" || task.status === "RETRY") {
               this.taskList[idx].running_time = this.getTimeDifference(
                 task.start_time,
                 task.end_time
               );
             } else {
+              // 해당 Task가 실행되고 있다는 가정하에 running_time 계산하는 interval 시작
               this.timeInterval = this.startTimer(idx);
             }
+            // Task의 workflow title 가져오기
             const workflow = await findWorkflow({
               id: task.workflow_id,
             });
             this.taskList[idx].title = workflow.data.title;
           });
         }
-        //stop interval
         else {
+          // 모니터링 탭 닫힐 때, interval 종료
           clearInterval(this.timeInterval);
         }
         console.log(this.taskList);
+        // 모니터링 탭 활성화 여부 토글
         setTimeout(() => {
           this.show_jobs = !this.show_jobs;
         }, 100);
@@ -681,6 +701,15 @@ export default {
           "error",
           "No tasks have been executed yet. Please run workflow"
         );
+      }
+    },
+    async cancelTask(task_id) {
+      try {
+        const revoke_task = await revokeTask(task_id);
+        console.log(revoke_task);
+        this.setMessage("success", "Cancel task successfully!");
+      } catch (error) {
+        console.error(error);
       }
     },
     async toggleFile() {
@@ -704,16 +733,22 @@ export default {
     },
     startTimer(idx) {
       const interval = setInterval(() => {
+        //on_progress가 false일 때(=Task가 완료되었다고 판단할 때) interval 종료
         if (!this.on_progress) {
+          // Task가 완료되었다고 판단할 때, 상태 업데이트 (모니터링 탭 on/off + interval 종료)
           this.show_jobs = false;
           clearInterval(interval);
+
+          // 근데 Task 완료되었다고 판단했는데, Task 상태가 RUNNING으로 잡혀서 interval 종료되지 않았을 때 오류 발생
           this.toggleTask();
         }
+        // Task가 진행 중이므로 running_time 계산
         let currentTime = new Date();
         let running_time = this.getRunningTime(
           this.taskList[idx].start_time,
           currentTime
         );
+        // task running_time 상태 업데이트
         // this.taskList[idx].running_time = running_time;
         this.$set(this.taskList, idx, {
           ...this.taskList[idx],
@@ -726,8 +761,7 @@ export default {
       const start = new Date(start_time);
       const end = new Date(end_time);
       let diff = Math.abs(end - start); // Difference in milliseconds
-
-      const hours = Math.floor(diff / 3600000);
+      let hours = Math.floor(diff / 3600000);
       diff -= hours * 3600000;
 
       const minutes = Math.floor(diff / 60000);
@@ -742,8 +776,7 @@ export default {
     getRunningTime(startTime, currentTime) {
       const start = new Date(startTime);
       let diff = Math.abs(currentTime - start); // Difference in milliseconds
-
-      const hours = Math.floor(diff / 3600000);
+      let hours = Math.floor(diff / 3600000);
       diff -= hours * 3600000;
 
       const minutes = Math.floor(diff / 60000);
@@ -751,6 +784,7 @@ export default {
 
       const seconds = Math.floor(diff / 1000);
 
+      hours = hours - 9;
       console.log(
         `${hours.toString().padStart(2, "0")}:${minutes
           .toString()

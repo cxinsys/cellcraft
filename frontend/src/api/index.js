@@ -8,7 +8,9 @@ import { setInterceptors } from "@/api/common/interceptors";
 
 function createInstance() {
   const instance = axios.create({
-    baseURL: "http://127.0.0.1:8000",
+    baseURL: "http://localhost:8002",
+    // baseURL: "http://backend:8000",
+    // baseURL: "http://127.0.0.1:8000",
   });
   return setInterceptors(instance);
 }
@@ -79,6 +81,11 @@ function deleteFile(file) {
   return instance.post("routes/files/delete", file);
 }
 
+
+function convertFile(file) {
+  return instance.post("routes/files/convert", file);
+}
+
 function getWorkflows() {
   return instance.get("routes/workflow/me");
 }
@@ -103,6 +110,12 @@ function userTaskMonitoring() {
   return instance.get("/routes/workflow/monitoring");
 }
 
+
+function revokeTask(taskId) {
+  return instance.delete(`/routes/workflow/revoke/${taskId}`);
+}
+
+
 export {
   registerUser,
   loginUser,
@@ -122,4 +135,6 @@ export {
   taskMonitoring,
   userTaskMonitoring,
   deleteFile,
+  revokeTask,
+  convertFile,
 };

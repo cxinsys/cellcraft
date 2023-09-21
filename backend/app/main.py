@@ -10,21 +10,11 @@ from app.database.conn import engine
 
 
 models.Base.metadata.create_all(bind=engine)
-
 global_engine = engine
 
 app = FastAPI(
     title=settings.PROJECT_NAME
 )
-
-origins = [
-    "http://localhost.tiangolo.com",
-    "https://localhost.tiangolo.com",
-    "http://localhost",
-    "http://localhost:8080",
-]
-
-# if settings.BACKEND_CORS_ORIGINS:
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,3 +29,6 @@ app.celery_app = create_celery()
 app.include_router(api_router, prefix=settings.ROUTES_STR)
 
 celery = app.celery_app
+
+def get_celery_app():
+    return celery

@@ -42,7 +42,7 @@ class Settings(BaseSettings):
 
     SQLALCHEMY_DATABASE_URI: str = f"postgresql://{POSTGRES_USERNAME}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
-    CELERY_BROKER_URL: str = environ.get("CELERY_BROKER_URL", "amqp://guest:guest@localhost:5672//")
+    CELERY_BROKER_URL: str = environ.get("CELERY_BROKER_URL", "amqp://guest:guest@rabbitmq:5672//")
     CELERY_RESULT_BACKEND: str = environ.get("CELERY_RESULT_BACKEND", f"db+{SQLALCHEMY_DATABASE_URI}")
 
     CELERY_TASK_QUEUES: list = (

@@ -215,13 +215,30 @@ export default {
     });
     this.current_file = this.$store.getters.getCurrentFile.file;
     if (this.current_file !== "") {
-      // obs + X_umap 가져오기
-      const filename_obs_umap = {
-        filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
-      };
-      // console.log(filename_obs_umap);
-      const scatterResult = await getResult(filename_obs_umap);
+      // // adata.obs 받아오기
+      // const filename_obs = {
+      //   filename: `file_${this.current_file.replace(".h5ad", "")}_obs`,
+      // };
+      // console.log(filename_obs);
+      // const scatterResult_obs = await getResult(filename_obs);
+      // // adta.obsm['X_umap'] 받아오기
+      // const filename_obsm = {
+      //   filename: `file_${this.current_file.replace(".h5ad", "")}_obsm`,
+      // };
+      // console.log(filename_obsm);
+      // const scatterResult_obsm = await getResult(filename_obsm);
+      // // 받아온 데이터 출력
+      // console.log(scatterResult_obs.data);
+      // console.log(scatterResult_obsm.data);
 
+      // obs + X_umap 가져오기
+      // const filename_obs_umap = {
+      //   filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
+      // };
+      console.log(this.current_file);
+      const scatterResult = await getResult({
+        filename: this.current_file,
+      });
       //백엔드에서 넘겨준 plot 데이터
       // scatterResult.data;
       // lines, keys, areNum 업데이트
@@ -261,7 +278,6 @@ export default {
         }
       }
 
-      // // 초기 x,y축 세팅하기
       if (this.keys.indexOf("X") != -1) {
         this.selectedX = this.keys.indexOf("X");
       }
@@ -570,7 +586,6 @@ export default {
             });
           }
         }
-
         if (this.keys.indexOf("X") != -1) {
           this.selectedX = this.keys.indexOf("X");
         }

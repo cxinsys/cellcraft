@@ -173,7 +173,7 @@ table {
   --dfNodeSelectedBoxShadowBR: 8px;
   --dfNodeSelectedBoxShadowS: 0px;
   --dfNodeSelectedBoxShadowColor: rgb(247, 247, 64);
-
+  
   --dfInputBackgroundColor: rgba(255, 0, 0, 0);
   --dfInputBorderSize: 0px;
   --dfInputBorderColor: rgba(170, 193, 240, 0);
@@ -199,6 +199,7 @@ table {
   --dfOutputHoverBorderSize: 0px;
   --dfOutputHoverBorderColor: rgba(120, 157, 229, 1);
   --dfOutputHoverBorderRadius: 20px 0px 0px 20px;
+
 
   --dfLineWidth: 4px;
   --dfLineColor: rgb(255, 255, 255);

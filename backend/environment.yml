@@ -87,7 +87,6 @@ dependencies:
   - libdeflate=1.8
   - libedit=3.1.20191231
   - libffi=3.4.2
-  - libgfortran=5.0.0
   - libgfortran5=11.3.0
   - liblapack=3.9.0
   - liblapacke=3.9.0

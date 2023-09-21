@@ -81,7 +81,6 @@ export default {
   min-height: 100vh;
   height: 100%;
   display: flex;
-  /* background-color: rgb(182, 182, 182); */
 }
 .side_nav {
   left: 0.3rem;

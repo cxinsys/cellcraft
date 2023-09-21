@@ -1,7 +1,12 @@
 from celery import shared_task, Task
 from typing import List
 from datetime import datetime
+from celery.signals import worker_process_init
 import time
+import os
+import signal
+
+
 from app.database.crud.crud_task import start_task, end_task
 
 class MyTask(Task):
@@ -17,6 +22,18 @@ class MyTask(Task):
         user_id = kwargs.get('user_id')
         end_task(user_id, task_id, end_time, status='FAILURE')
 
+    def on_revoke(self, task_id: str, kwargs, terminated, signum, expired):
+        end_time = datetime.now()
+        print(f'Task {task_id} revoked at {end_time}')
+        user_id = kwargs.get('user_id')
+        end_task(user_id, task_id, end_time, status='REVOKED')
+
+    def on_retry(self, exc, task_id: str, args, kwargs, einfo):
+        end_time = datetime.now()
+        print(f'Task {task_id} retried at {end_time}, error: {exc}')
+        user_id = kwargs.get('user_id')
+        end_task(user_id, task_id, end_time, status='RETRY')
+
     def __call__(self, *args, **kwargs):
         start_time = datetime.now()
         print(f'Task {self.request.id} started at {start_time}')
@@ -28,23 +45,95 @@ class MyTask(Task):
 def snakemakeProcess(filepath):
     from subprocess import Popen, PIPE
     print(filepath)
-    process = Popen(['snakemake',f'workflow/data/{filepath}.csv','-j'], stdout=PIPE, stderr=PIPE)
+    print(os.environ["PATH"])
+
+    process = Popen(['/opt/conda/envs/snakemake/bin/snakemake', f'workflow/data/{filepath}.csv', '-j'], stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
+    print("STDOUT:", stdout)
+    print("STDERR:", stderr)
+
+
+def is_snakemake_installed() -> bool:
+    import subprocess
+    try:
+        # Try running `snakemake --version`
+        subprocess.run(["snakemake", "--version"], check=True, capture_output=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+    except FileNotFoundError:
+        return False
+    
+def list_conda_libraries():
+    import subprocess
+    try:
+        result = subprocess.run(["conda", "list"], check=True, capture_output=True, text=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        print(f"Error fetching installed libraries: {e}")
+        return None
+    
+def list_pip_libraries():
+    import subprocess
+    try:
+        result = subprocess.run(["pip", "list"], check=True, capture_output=True, text=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        print(f"Error fetching installed libraries: {e}")
+        return None
+
+def get_conda_environment_name():
+    import sys
+    print(sys.executable)
+    stat_info = os.stat('/app')
+    owner_uid = stat_info.st_uid
+    owner_gid = stat_info.st_gid
+
+    print(f"Owner UID: {owner_uid}")
+    print(f"Owner GID: {owner_gid}")
+
+    return os.environ.get('CONDA_DEFAULT_ENV', None)
+
+
+@worker_process_init.connect
+def configure_worker(conf=None, **kwargs):
+    os.environ['CONDA_DEFAULT_ENV'] = 'snakemake'
 
 @shared_task(bind=True, base=MyTask, autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5}, name="workflow_task:process_data_task")
 def process_data_task(self, username: str, linked_nodes: List[dict], user_id: int, workflow_id: int):
     # from multiprocessing import Pool, cpu_count
     from billiard import Pool, cpu_count
     print(f'Processing data for user {username}...')
+    # conda_libraries = list_conda_libraries()
+    # if conda_libraries:
+    #     print(conda_libraries)
+    # pip_libraries = list_pip_libraries()
+    # if pip_libraries:
+    #     print(pip_libraries)
+    # env_name = get_conda_environment_name()
+    # if env_name:
+    #     print(f"Current conda environment: {env_name}")
+    # else:
+    #     print("Not in a conda environment or environment name not found.")
     for nodes in linked_nodes:
         fileName = nodes['file'].replace('.h5ad', '')
         lastNode = "file"
+        print(nodes)
         target = f'{lastNode}_{username}_{fileName}'
         p = Pool(cpu_count())
-        snakemake = p.apply_async(snakemakeProcess, (target,))
-        print(snakemake.get())
+        snakemake_process = p.apply_async(snakemakeProcess, (target,))
+        process = snakemake_process.get()
+
+        # Monitor for task termination request
+        while process.poll() is None:  # While the process is running
+            if self.request.called_directly:  # This checks if the task is being called directly, not by a worker.
+                break
+            if self.request.terminate:  # Check for termination request
+                # If termination is requested, send SIGTERM to snakemake process
+                process.send_signal(signal.SIGTERM)
+                break
+
         p.close()
         p.join()
-    time.sleep(10)
     print('Data processing complete.')
     return {"status": "Processing complete"}
