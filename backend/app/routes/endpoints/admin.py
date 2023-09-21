@@ -15,8 +15,21 @@ router = APIRouter()
 def get_filtered_users(
     *,
     db: Session = Depends(dep.get_db),
-    conditions = Conditions,
+    # conditions: Conditions, # 이거 안됨
+    amount: int,
+    page_num: int,
+    sort: str,
+    order: str,
+    searchTerm: str,
     ):
+
+    conditions = Conditions(
+        amount=amount,
+        page_num=page_num,
+        sort=sort,
+        order=order,
+        searchTerm=searchTerm
+    )
 
     users = crud_user.get_filtered_users(db, conditions)
 

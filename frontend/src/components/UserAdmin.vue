@@ -23,7 +23,7 @@
     <table>
       <thead>
         <tr>
-          <th @click="sortTable('id')">
+          <th @click="sortTable('id')" style="width: 70px">
             id <span class="sort-icon">{{ sortIcon("id") }}</span>
           </th>
           <th @click="sortTable('username')">
@@ -123,50 +123,62 @@ export default {
 table {
   width: 100%;
   height: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 5px;
+  /* background-color: #c9c9c9; */
+  transition: all 0.3s ease;
+  border-radius: 15px;
+  /* color: #ffffff; */
 }
 
-thead th {
-  background-color: #f5f5f5;
-  font-weight: bold;
+thead th,
+td {
+  padding: 10px;
+  padding-left: 25px;
   text-align: left;
-  padding: 10px;
-  border-bottom: 1px solid #ccc;
-  cursor: pointer;
-  text-transform: capitalize;
+  border-radius: 10px;
+  border: 1px solid #a8a8a8;
+  /* box-shadow: 0px 4px 4px rgba(176, 169, 255, 0.25); */
 }
 
-tbody td {
-  max-width: 30px;
-  padding: 10px;
-  white-space: nowrap; /* 텍스트 줄 바꿈 비활성화 */
-  overflow: hidden; /* 텍스트가 넘칠 경우 숨김 처리 */
-  text-overflow: ellipsis; /* 텍스트가 넘칠 경우 ...으로 표시 */
-  border-bottom: 1px solid #ccc;
+th {
+  text-transform: capitalize;
+  background-color: #474747;
+  color: #ffffff;
 }
+
+td {
+  /* background-color: #535353; */
+  transition: all 0.3s ease;
+}
+
+th:hover {
+  background-color: #616161;
+}
+
 button {
   margin-right: 10px;
   color: black;
-  padding: 2px;
+  padding: 5px;
   left: 10px;
-  border-radius: 5px;
+  border-radius: 10px;
+  background-color: #eaecff;
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-bottom: 5px;
   text-transform: capitalize;
 }
 button:disabled {
   color: #ccc;
-  border-color: #ccc;
 }
 .sort-icon {
-  color: rgb(34, 34, 34);
+  color: rgb(199, 199, 199);
   font-weight: normal;
   font-size: small;
 }
 .first-line {
   height: 40px;
+  margin-bottom: 10px;
   width: calc(100% - 10px);
   padding: 5px 5px 0px 5px;
   display: flex;
@@ -181,16 +193,18 @@ button:disabled {
 
 .search input {
   margin-right: 10px;
+  width: 200px;
   color: black;
-  padding: 2px;
+  padding: 5px;
   left: 10px;
-  border-radius: 5px;
+  border-radius: 10px;
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-bottom: 5px;
+  margin-top: 11px;
+  margin-bottom: 10px;
 }
-.blind-password {
+/* .blind-password {
   position: absolute;
   padding-left: 10px;
   padding-right: 100px;
@@ -198,7 +212,7 @@ button:disabled {
 }
 .blind-password:hover {
   opacity: 0;
-}
+} */
 #pageSize {
   padding: 2px;
   border-radius: 5px;

@@ -160,7 +160,7 @@ table {
   --dfNodeHoverBoxShadowVL: 0px;
   --dfNodeHoverBoxShadowBR: 6px;
   --dfNodeHoverBoxShadowS: 0px;
-  --dfNodeHoverBoxShadowColor: rgb(188, 206, 252);
+  --dfNodeHoverBoxShadowColor: rgb(247, 247, 64);
 
   --dfNodeSelectedBackgroundColor: rgba(15, 19, 70, 0.868);
   --dfNodeSelectedTextColor: #ffffff;
@@ -173,32 +173,33 @@ table {
   --dfNodeSelectedBoxShadowBR: 8px;
   --dfNodeSelectedBoxShadowS: 0px;
   --dfNodeSelectedBoxShadowColor: rgb(247, 247, 64);
-
-  --dfInputBackgroundColor: rgba(204, 217, 245, 1);
+  
+  --dfInputBackgroundColor: rgba(255, 0, 0, 0);
   --dfInputBorderSize: 0px;
-  --dfInputBorderColor: rgba(170, 193, 240, 1);
-  --dfInputBorderRadius: 50px;
-  --dfInputLeft: -16px;
-  --dfInputHeight: 15px;
-  --dfInputWidth: 15px;
+  --dfInputBorderColor: rgba(170, 193, 240, 0);
+  --dfInputBorderRadius: 0px 20px 20px 0px;
+  --dfInputLeft: -15px;
+  --dfInputHeight: 40px;
+  --dfInputWidth: 20px;
 
-  --dfInputHoverBackgroundColor: rgba(170, 193, 240, 1);
-  --dfInputHoverBorderSize: 1px;
-  --dfInputHoverBorderColor: rgba(120, 157, 229, 1);
-  --dfInputHoverBorderRadius: 50px;
+  --dfInputHoverBackgroundColor: rgba(255, 0, 0, 0.377);
+  --dfInputHoverBorderSize: 0px;
+  --dfInputHoverBorderColor: rgba(120, 156, 229, 0);
+  --dfInputHoverBorderRadius: 0px 20px 20px 0px;
 
-  --dfOutputBackgroundColor: rgba(204, 217, 245, 1);
+  --dfOutputBackgroundColor: rgba(0, 147, 24, 0);
   --dfOutputBorderSize: 0px;
   --dfOutputBorderColor: rgba(170, 193, 240, 1);
-  --dfOutputBorderRadius: 50px;
-  --dfOutputRight: -16px;
-  --dfOutputHeight: 15px;
-  --dfOutputWidth: 15px;
+  --dfOutputBorderRadius: 20px 0px 0px 20px;
+  --dfOutputRight: 5px;
+  --dfOutputHeight: 40px;
+  --dfOutputWidth: 20px;
 
-  --dfOutputHoverBackgroundColor: rgba(170, 193, 240, 1);
-  --dfOutputHoverBorderSize: 1px;
+  --dfOutputHoverBackgroundColor: rgba(0, 147, 24, 0.379);
+  --dfOutputHoverBorderSize: 0px;
   --dfOutputHoverBorderColor: rgba(120, 157, 229, 1);
-  --dfOutputHoverBorderRadius: 50px;
+  --dfOutputHoverBorderRadius: 20px 0px 0px 20px;
+
 
   --dfLineWidth: 4px;
   --dfLineColor: rgb(255, 255, 255);

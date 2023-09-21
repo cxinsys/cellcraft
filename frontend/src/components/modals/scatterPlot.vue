@@ -3,7 +3,7 @@
     <div class="plotly-layout">
       <div id="plotly__scatter"></div>
     </div>
-    <div class="options-layout">
+    <div class="options-layout" v-if="!refreshOptionsLayout">
       <input
         type="text"
         placeholder="Title"
@@ -151,6 +151,15 @@
           <span class="slider_button round"></span>
         </label>
       </div>
+      <div class="options__item">
+        Download Plot Image&nbsp;
+        <img
+          class="downloadPlot_button"
+          src="@/assets/download.png"
+          alt="Save Plot"
+          @click="downloadPlot"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -174,8 +183,8 @@ export default {
       chartType: "scattergl",
       chartMode: "markers",
       chartTitle: "",
-      selectedX: null, // 선택된 X축의 column index
-      selectedY: null, // 선택된 Y축의 column index
+      selectedX: null, // 선택된 X축의 column index "string"
+      selectedY: null, // 선택된 Y축의 column index "string"
       selectedName: null, // 선택된 Name의 column index
       selectedCluster: null, // 선택된 Cluster의 column index
       numClusterConstraint: 200, // Cluster가 너무 다양하면 성능에 저하가 생기므로 제한을 둠
@@ -189,6 +198,9 @@ export default {
       numList: [{ name: "None", value: null }], // number type으로 x,y축에 들어가기 적합한 자료들의 option list
       keyList: [{ name: "None", value: null }], // key list
       clusterList: [{ name: "None", value: null, isTooVarious: null }], // cluster가 되기 적합한 list, unique한 자료수가 적은 column의 list
+      refreshOptionsLayout: true,
+      outputX: [],
+      outputY: [],
     };
   },
   async mounted() {
@@ -199,8 +211,6 @@ export default {
         automargin: true,
         width: 600, // !--조정필요
         height: 570, // !--조정필요
-        // paper_bgcolor: rgb(255, 1, 255),
-        // plot_bgcolor: rgb(1, 255, 255),
       },
     });
     this.current_file = this.$store.getters.getCurrentFile.file;
@@ -233,10 +243,6 @@ export default {
       // scatterResult.data;
       // lines, keys, areNum 업데이트
 
-      // 잠깐 주석 처리
-      // this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
-
-      // this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
       this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
       this.keys = this.lines.splice(0, 1)[0];
       this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
@@ -272,27 +278,25 @@ export default {
         }
       }
 
-      // // 초기 x,y축 세팅하기
-      // if (this.numList.length == 3) {
-      //   this.selectedX = this.numList[2].value;
-      //   this.selectedY = this.numList[2].value;
-      // } else if (this.numList.length > 3) {
-      //   this.selectedX = this.numList[2].value;
-      //   this.selectedY = this.numList[3].value;
-      // }
       if (this.keys.indexOf("X") != -1) {
         this.selectedX = this.keys.indexOf("X");
       }
       if (this.keys.indexOf("Y") != -1) {
         this.selectedY = this.keys.indexOf("Y");
       }
+      if (this.keys.indexOf("leiden") != -1) {
+        this.selectedCluster = this.keys.indexOf("leiden");
+      }
 
       this.updateChart();
+      this.refreshOptionsLayout = false;
     }
   },
   methods: {
     // 차트 업데이트
     updateChart() {
+      this.outputX = this.lines.map((x) => x[this.selectedX]);
+      this.outputY = this.lines.map((x) => x[this.selectedY]);
       if (this.selectedCluster) {
         if (this.clusterList[this.selectedCluster].isTooVarious == false) {
           const clusterList = [
@@ -344,15 +348,15 @@ export default {
             },
           });
         } else {
-          console.log(this.clusterQuantile);
-          console.log(this.clusterContrast);
-          console.log(
-            this.lines.map(
-              (x) =>
-                x[this.selectedCluster] * this.clusterContrast +
-                this.clusterQuantile
-            )
-          );
+          // console.log(this.clusterQuantile);
+          // console.log(this.clusterContrast);
+          // console.log(
+          //   this.lines.map(
+          //     (x) =>
+          //       x[this.selectedCluster] * this.clusterContrast +
+          //       this.clusterQuantile
+          //   )
+          // );
           Plotly.newPlot("plotly__scatter", {
             data: [
               {
@@ -421,6 +425,17 @@ export default {
           },
         });
       }
+      var graphDiv = document.getElementById("plotly__scatter");
+      graphDiv.on("plotly_selected", (eventData) => {
+        if (eventData.points.length > 0) {
+          this.outputX = eventData.points.map((x) => x.x);
+          this.outputY = eventData.points.map((x) => x.y);
+          console.log(this.keys[this.selectedX], this.outputX); // lasso 고르면
+          console.log(this.keys[this.selectedY], this.outputY); // lasso 고르면
+        }
+      });
+      console.log(this.keys[this.selectedX], this.outputX); // 처음 or plot설정 바뀔때
+      console.log(this.keys[this.selectedY], this.outputY); // 처음 or plot설정 바뀔때
     },
     setSelectX(event) {
       this.selectedX = event.target.value;
@@ -501,6 +516,14 @@ export default {
       this.showLabel = !this.showLabel;
       this.updateChart();
     },
+    downloadPlot() {
+      Plotly.downloadImage("plotly__scatter", {
+        format: "png",
+        width: 600,
+        height: 570,
+        filename: "CELLCRAFT_Plot",
+      });
+    },
   },
   computed: {
     checkCurrentNode() {
@@ -514,28 +537,6 @@ export default {
       // console.log(current_node);
       // console.log(this.current_file.file);
       if (current_node.name === "scatterPlot" && this.current_file !== "") {
-        // const filename = {
-        //   filename: `${current_node.name}_${this.current_file.replace(
-        //     ".csv",
-        //     ""
-        //   )}`,
-        // };
-        // // adata.obs 받아오기
-        // const filename_obs = {
-        //   filename: `file_${this.current_file.replace(".h5ad", "")}_obs`,
-        // };
-        // console.log(filename_obs);
-        // const scatterResult_obs = await getResult(filename_obs);
-        // // adta.obsm['X_umap'] 받아오기
-        // const filename_obsm = {
-        //   filename: `file_${this.current_file.replace(".h5ad", "")}_obsm`,
-        // };
-        // console.log(filename_obsm);
-        // const scatterResult_obsm = await getResult(filename_obsm);
-        // // 받아온 데이터 출력
-        // console.log(scatterResult_obs.data);
-        // console.log(scatterResult_obsm.data);
-
         // obs + X_umap 가져오기
         const filename_obs_umap = {
           filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
@@ -585,15 +586,6 @@ export default {
             });
           }
         }
-
-        // // 초기 x,y축 세팅하기
-        // if (this.numList.length == 3) {
-        //   this.selectedX = this.numList[2].value;
-        //   this.selectedY = this.numList[2].value;
-        // } else if (this.numList.length > 3) {
-        //   this.selectedX = this.numList[2].value;
-        //   this.selectedY = this.numList[3].value;
-        // }
         if (this.keys.indexOf("X") != -1) {
           this.selectedX = this.keys.indexOf("X");
         }
@@ -769,12 +761,18 @@ input:checked + .slider_button:before {
 .slider_button.round:before {
   border-radius: 50%;
 }
-@media (prefers-color-scheme: dark) {
-  /* .plotly-layout {
-    background-color: rgb(41, 43, 48);
-  } */
-  /* .options__item {
-    color: rgb(255, 255, 255);
-  } */
+
+.downloadPlot_button {
+  position: absolute;
+  /* top: -0.2rem; */
+  right: 1.5rem;
+  margin-top: -0.2rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  opacity: 0.8;
+}
+.downloadPlot_button:hover {
+  opacity: 1;
+  cursor: pointer;
 }
 </style>

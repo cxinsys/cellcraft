@@ -26,69 +26,32 @@
       </div>
     </div>
     <div class="second-line">
-      <div class="search">
-        <input
-          type="text"
-          v-model="searchTag"
-          placeholder="Search by tags..."
-        />
-        <img
-          class="reset-button"
-          src="@/assets/reset.png"
-          alt="reset"
-          @click="resetTagSearch"
-        />
-      </div>
-      <label class="upload-button">
+      <a
+        class="upload-button"
+        href="https://github.com/chxhyxn/TmpCellcraftBoard"
+      >
         ⇪ UPLOAD NEW DATASET
-        <input
-          type="file"
-          ref="fileInput"
-          style="display: none"
-          @change="uploadFile"
-        />
-      </label>
+      </a>
     </div>
     <table>
       <thead>
         <tr>
-          <th @click="sortTable('no')">
-            No. <span class="sort-icon">{{ sortIcon("no") }}</span>
-          </th>
-          <th>tags</th>
+          <th>types</th>
           <th @click="sortTable('title')">
             title <span class="sort-icon">{{ sortIcon("title") }}</span>
           </th>
-          <th>description</th>
-          <th @click="sortTable('userId')">
-            Uploader id <span class="sort-icon">{{ sortIcon("userId") }}</span>
-          </th>
-          <th @click="sortTable('time')">
-            uploaded date <span class="sort-icon">{{ sortIcon("time") }}</span>
-          </th>
-          <th>view post</th>
-          <th></th>
+          <th>size</th>
+          <th>File URL</th>
+          <th>Post URL</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="dataset in displayeddatasets" :key="dataset.no">
-          <td>{{ dataset.no }}</td>
-          <td class="td_tag">
-            <span
-              v-for="tag in dataset.tags"
-              :key="tag"
-              :class="[getTagClass(tag), 'tags']"
-              >{{ tag }}</span
-            >
-          </td>
-          <td>{{ dataset.title }}</td>
-          <td class="description-cell">{{ dataset.description }}</td>
-          <td>{{ dataset.userId }}</td>
-          <td>{{ dataset.time }}</td>
-          <td><a :href="getLinkUrl(dataset)">Link</a></td>
-          <td>
-            <button @click="deleteDataset(dataset)">delete dataset</button>
-          </td>
+          <td>{{ dataset.type }}</td>
+          <td>{{ dataset.path }}</td>
+          <td>{{ dataset.size }}</td>
+          <td><a :href="dataset.url">View File</a></td>
+          <td><a :href="dataset.posturl">View Post</a></td>
         </tr>
       </tbody>
     </table>
@@ -103,178 +66,87 @@
 </template>
 
 <script>
+import axios from "axios";
+
+function formatBytes(bytes, decimals = 2) {
+  if (bytes === 0) return "0 Bytes";
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+}
+
+async function checkFileExists(repo, path) {
+  try {
+    const { data } = await axios.get(
+      `https://api.github.com/repos/${repo}/contents/${path}`
+    );
+    if (data && data.sha) {
+      return true;
+    }
+  } catch (e) {
+    return false;
+  }
+  return false;
+}
+
 export default {
   data() {
     return {
-      datasets: [
-        {
-          no: 1,
-          userId: "johndoe",
-          title: "dataset1",
-          time: "2023-06-29",
-          tags: ["xml"],
-          description: "temporary description",
-        },
-        {
-          no: 2,
-          userId: "janesmith",
-          title: "dataset1",
-          time: "2023-06-30",
-          tags: ["xml"],
-          description: "temporary description",
-        },
-        {
-          no: 3,
-          userId: "bobjohnson",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["xml"],
-          description: "temporary description",
-        },
-        {
-          no: 4,
-          userId: "alicebrown",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["xml"],
-          description: "temporary description",
-        },
-        {
-          no: 5,
-          userId: "samwilson",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["xml"],
-          description: "temporary description",
-        },
-        {
-          no: 6,
-          userId: "emilydavis",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["xml"],
-          description: "temporary description",
-        },
-        {
-          no: 7,
-          userId: "michaelwilson",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["xml"],
-          description: "temporary description",
-        },
-        {
-          no: 8,
-          userId: "oliviajohnson",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["xml"],
-          description: "temporary description",
-        },
-        {
-          no: 9,
-          userId: "sophiamiller",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["xml"],
-          description: "temporary description",
-        },
-        {
-          no: 10,
-          userId: "williamanderson",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["xml"],
-          description: "temporary description",
-        },
-        {
-          no: 11,
-          userId: "benjamingarcia",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["csv"],
-          description: "temporary description",
-        },
-        {
-          no: 12,
-          userId: "avamartinez",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["csv"],
-          description: "temporary description",
-        },
-        {
-          no: 13,
-          userId: "miathompson",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["csv"],
-          description: "temporary description",
-        },
-        {
-          no: 14,
-          userId: "ethanlopez",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["csv"],
-          description: "temporary description",
-        },
-        {
-          no: 15,
-          userId: "jameswilson",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["csv"],
-          description: "temporary description",
-        },
-        {
-          no: 16,
-          userId: "liamwhite",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["csv"],
-          description: "temporary description",
-        },
-        {
-          no: 17,
-          userId: "sophiabrown",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["csv"],
-          description: "temporary description",
-        },
-        {
-          no: 18,
-          userId: "charlottedavis",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["csv"],
-          description: "temporary description",
-        },
-        {
-          no: 19,
-          userId: "alexanderjohnson",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["csv"],
-          description: "temporary description",
-        },
-        {
-          no: 20,
-          userId: "emmamiller",
-          title: "dataset1",
-          time: "2023-07-01",
-          tags: ["csv", "xml"],
-          description: "temporary description",
-        },
-      ],
+      datasets: [],
       sortKey: "no",
       sortDirection: "dsc", // Set initial sort direction to 'asc'
       pageSize: 20,
       currentPage: 1,
       searchTerm: "",
-      searchTag: "",
     };
+  },
+  async mounted() {
+    try {
+      const { data: repoData } = await axios.get(
+        "https://api.github.com/repos/chxhyxn/TmpCellcraftBoard/git/trees/main?recursive=1"
+      );
+      const dirSha = repoData.tree.find(
+        (item) => item.path === "datasets" && item.type === "tree"
+      ).sha;
+
+      const { data: dirData } = await axios.get(
+        `https://api.github.com/repos/chxhyxn/TmpCellcraftBoard/git/trees/${dirSha}`
+      );
+      this.datasets = dirData.tree.filter((item) => item.type === "blob");
+
+      const repo = "chxhyxn/TmpCellcraftBoard";
+
+      for (const dataset of this.datasets) {
+        const lastIndex = dataset.path.lastIndexOf(".");
+        dataset.type =
+          lastIndex !== -1 ? dataset.path.substring(lastIndex + 1) : "";
+        dataset.size = formatBytes(dataset.size);
+        dataset.url = `https://github.com/${repo}/blob/main/datasets/${dataset.path}`;
+
+        const baseName = dataset.path.substring(0, lastIndex);
+        const possibleExtensions = ["ipynb", "md", "txt"];
+
+        for (const ext of possibleExtensions) {
+          const exists = await checkFileExists(
+            repo,
+            `posts/${baseName}.${ext}`
+          );
+          if (exists) {
+            dataset.posturl = `https://github.com/${repo}/blob/main/posts/${baseName}.${ext}`;
+            console.log(dataset.posturl);
+            break;
+          }
+        }
+      }
+      this.sortTable();
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
   },
   computed: {
     sorteddatasets() {
@@ -300,17 +172,10 @@ export default {
     },
     filtereddatasets() {
       // 이전 filtereddatasets 메서드 내용에 태그 검색 기능 추가
-      if (this.searchTerm || this.searchTag) {
+      if (this.searchTerm) {
         const searchTermLower = this.searchTerm.toLowerCase();
-        const searchTagLower = this.searchTag.toLowerCase();
         return this.sorteddatasets.filter((dataset) => {
-          const titleMatch = dataset.title
-            .toLowerCase()
-            .includes(searchTermLower);
-          const tagMatch = dataset.tags.some((tag) =>
-            tag.toLowerCase().includes(searchTagLower)
-          );
-          return titleMatch && tagMatch;
+          return dataset.path.toLowerCase().includes(searchTermLower);
         });
       } else {
         return this.sorteddatasets;
@@ -332,41 +197,14 @@ export default {
       }
       return "▽△";
     },
-    getTagClass(tag) {
-      if (tag === "xml") {
-        return "tag-red";
-      } else if (tag === "csv") {
-        return "tag-green";
-      } else {
-        return "tag-blue";
-      }
-    },
     resetSearch() {
       this.searchTerm = "";
     },
-    resetTagSearch() {
-      this.searchTag = ""; // 태그 검색어 초기화
-    },
-    deleteDataset(dataset) {
-      const index = this.datasets.findIndex((j) => j.id === dataset.id);
-      if (index !== -1) {
-        this.datasets.splice(index, 1);
-      }
+    resetTypeSearch() {
+      this.searchType = ""; // 태그 검색어 초기화
     },
     updatePage() {
       this.currentPage = 1; // Reset to first page when page size changes
-    },
-    getLinkUrl(dataset) {
-      console.log(dataset);
-      // 데이터셋에 따른 링크 URL을 반환하는 메서드
-      // 예시로 데이터셋의 no 값을 링크 URL에 사용
-      return `https://singlecell.broadinstitute.org/single_cell/study/SCP2221/primary-nasal-viral-infection-rewires-the-tissue-scale-memory-response-rechallenge-rm`;
-    },
-    uploadFile(event) {
-      const file = event.target.files[0]; // Get the selected file
-      // Perform the necessary operations with the file, such as uploading to a server or processing it
-      // You can access the file using the 'file' variable
-      console.log(file);
     },
   },
 };
@@ -376,50 +214,85 @@ export default {
 table {
   width: 100%;
   height: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 5px;
+  /* background-color: #c9c9c9; */
+  transition: all 0.3s ease;
+  border-radius: 15px;
+  /* color: #ffffff; */
 }
 
-thead th {
-  background-color: #f5f5f5;
-  font-weight: bold;
+thead th,
+td {
+  padding: 10px;
+  padding-left: 25px;
   text-align: left;
-  padding: 10px;
-  border-bottom: 1px solid #ccc;
-  cursor: pointer;
-  text-transform: capitalize;
+  border-radius: 10px;
+  border: 1px solid #a8a8a8;
+
+  /* box-shadow: 0px 8px 20px rgba(176, 169, 255, 0.25); */
 }
 
-tbody td {
-  max-width: 30px;
-  padding: 10px;
-  white-space: nowrap; /* 텍스트 줄 바꿈 비활성화 */
-  overflow: hidden; /* 텍스트가 넘칠 경우 숨김 처리 */
-  text-overflow: ellipsis; /* 텍스트가 넘칠 경우 ...으로 표시 */
-  border-bottom: 1px solid #ccc;
+th {
+  text-transform: capitalize;
+  background-color: #474747;
+  color: #ffffff;
 }
+
+td {
+  /* background-color: #535353; */
+  transition: all 0.3s ease;
+}
+
+th:hover {
+  background-color: #616161;
+}
+
 button {
   margin-right: 10px;
   color: black;
-  padding: 2px;
+  padding: 5px;
   left: 10px;
-  border-radius: 5px;
+  border-radius: 10px;
+  background-color: #eaecff;
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-bottom: 5px;
   text-transform: capitalize;
 }
+button:disabled {
+  color: #ccc;
+}
+
+.table-button {
+  color: rgb(255, 255, 255);
+  width: 100%;
+  height: 100%;
+  background-color: #323232;
+  border-color: #e7eaff;
+  font-size: small;
+  text-align: center;
+  text-transform: capitalize;
+}
+.table-button:hover {
+  background-color: #616161;
+}
+
 .sort-icon {
-  color: rgb(34, 34, 34);
+  color: rgb(199, 199, 199);
   font-weight: normal;
   font-size: small;
 }
 
+a {
+  /* color: #f0f1fb; */
+}
+
 .first-line {
   height: 40px;
-
   width: calc(100% - 10px);
   padding: 5px 5px 0px 5px;
+  /* margin-bottom: 10px; */
   display: flex;
   justify-content: space-between;
   flex-direction: row;
@@ -427,8 +300,9 @@ button {
 .second-line {
   width: calc(100% - 10px);
   padding: 0px 5px 5px 5px;
+  margin-bottom: 10px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-direction: row;
 }
 #pageSize {
@@ -444,41 +318,42 @@ button {
 
 .search input {
   margin-right: 10px;
+  width: 200px;
   color: black;
-  padding: 2px;
+  padding: 5px;
   left: 10px;
-  border-radius: 5px;
+  border-radius: 10px;
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  margin-bottom: 5px;
+  margin-top: 5px;
+  margin-bottom: 10px;
 }
 .upload-button {
   border-radius: 5px;
-  padding: 5px 10px;
+  padding: 7px 10px;
   font-weight: 500;
-  border: 1px solid #ccc;
-  background-color: #f0f1fd;
+  /* background-color: #eaecff; */
+  background-color: #5a5a5a;
+  /* border-color: #e7eaff; */
+  border: 2px solid #e7eaff;
+  border-radius: 10px;
+  text-decoration: none;
+  color: rgb(255, 255, 255);
 }
 .upload-button:hover {
   cursor: pointer;
-  padding: 4px;
-  background-color: #fbfcff;
-  border: 2px solid #ccc;
+  background-color: #7d7d7d;
 }
 .reset-button {
   margin-top: -7px;
   width: 1.5rem;
   height: 1.5rem;
-  opacity: 1;
+  opacity: 0.7;
 }
 .reset-button:hover {
-  opacity: 0.8;
+  opacity: 0.5;
   cursor: pointer;
-}
-
-.description-cell {
-  max-width: 200px; /* 텍스트의 최대 너비 설정 */
 }
 
 .pagination {
@@ -490,27 +365,9 @@ button {
 .pagination button {
   margin: -5px 10px 0px 10px;
 }
-.td_tag {
-  overflow: scroll;
-  text-overflow: clip;
-  max-width: 60px;
-}
-.tags {
-  color: white;
-  font-weight: bold;
-  border-radius: 5px;
-  padding: 2px 8px;
-  margin: 0px 1px;
-}
-.tag-red {
-  background-color: rgb(255, 57, 57);
-}
 
-.tag-green {
-  background-color: rgb(6, 152, 6);
-}
-
-.tag-blue {
-  background-color: blue;
+button:disabled {
+  color: #ccc;
+  border-color: #ccc;
 }
 </style>

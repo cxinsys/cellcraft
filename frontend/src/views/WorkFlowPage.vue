@@ -258,8 +258,8 @@ export default {
           name: "algorithm",
           // name2: "Algorithm",
           img: require("@/assets/algorithm2.png"),
-          input: 4,
-          output: 3,
+          input: 1,
+          output: 1,
         },
       ],
       tabList: [],
@@ -761,7 +761,6 @@ export default {
       const start = new Date(start_time);
       const end = new Date(end_time);
       let diff = Math.abs(end - start); // Difference in milliseconds
-
       let hours = Math.floor(diff / 3600000);
       diff -= hours * 3600000;
 
@@ -777,7 +776,6 @@ export default {
     getRunningTime(startTime, currentTime) {
       const start = new Date(startTime);
       let diff = Math.abs(currentTime - start); // Difference in milliseconds
-
       let hours = Math.floor(diff / 3600000);
       diff -= hours * 3600000;
 
@@ -787,7 +785,6 @@ export default {
       const seconds = Math.floor(diff / 1000);
 
       hours = hours - 9;
-      
       console.log(
         `${hours.toString().padStart(2, "0")}:${minutes
           .toString()
