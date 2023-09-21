@@ -4,6 +4,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile
 from typing import List, Union
 from sqlalchemy.orm import Session
 import os
+import pandas as pd
+import scanpy as sc
 
 from app.routes import dep
 from app.database.crud import crud_file
@@ -122,6 +124,44 @@ def update_user_file(
         update_file = crud_file.update_user_file(db, current_user.id, fileInfo)
         print(update_file)
         return update_file
+    else:
+        raise HTTPException(
+                status_code=400,
+                detail="this file not exists in your files",
+                )
+    
+@router.post("/convert")
+def user_file_convert(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    fileInfo: FileFind,
+    ) -> Any:
+    user_file = crud_file.get_user_file(db, current_user.id, fileInfo.file_name)
+    if user_file:
+        # 해당 유저의 폴더에 있는 파일을 가져와서 csv로 변환
+        # 변환된 파일을 해당 유저의 폴더에 저장
+        # 변환된 파일의 정보를 db에 저장
+        # 유저 폴더 내 파일 경로 "user/{username}/data/{filename}.h5ad"
+        # 변환된 파일 경로 "user/{username}/result/{filename}.csv"
+        folder_path = './user' + '/' + current_user.username
+        input_filename = fileInfo.file_name
+        output_filename = fileInfo.file_name.replace('.h5ad', '') + '_obs_umap.csv'
+        input_filepath = f"{folder_path}/data/{input_filename}"
+        output_filepath = f"{folder_path}/result/{output_filename}"
+
+        # Check if directory exists, if not, create it
+        if not os.path.exists(folder_path + '/result'):
+            os.makedirs(folder_path + '/result')
+
+        adata = sc.read_h5ad(input_filepath)
+
+        # Process and combine data to form the desired dataframe structure
+        df = pd.concat([adata.obs, pd.DataFrame(adata.obsm['X_umap'], columns=['X', 'Y'], index=adata.obs.index)], axis=1)
+
+        # Save the dataframe to a specific folder
+        df.to_csv(output_filepath, index=False)
+        return {'file_name': output_filename}
     else:
         raise HTTPException(
                 status_code=400,

@@ -3,9 +3,12 @@ from fastapi.responses import FileResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 from typing import Any
 from sqlalchemy.orm import Session
+from celery.result import AsyncResult
+from celery.states import REVOKED
 import os
 import json
 import asyncio
+import subprocess
 
 from app.common.celery_utils import get_task_info
 from app.database.crud import crud_workflow, crud_task
@@ -14,7 +17,7 @@ from app.routes import dep
 from app.database import models
 from app.routes.celery_tasks import process_data_task
 
-router = APIRouter()                                                        
+router = APIRouter()                                
 
 #export workflow data
 @router.post("/compile")
@@ -146,7 +149,8 @@ def checkResult(filename: WorkflowResult, current_user: models.User = Depends(de
         if FILE_NAME in item_file:
             FILE_NAME = item_file
     print(FILE_NAME)
-    FILE_PATH = PATH_COMPILE_RESULT + '/' + "file_pbmc3k_obs_umap.csv"
+    FILE_PATH = PATH_COMPILE_RESULT + '/' + FILE_NAME
+    print(FILE_PATH)
 
     return FileResponse(FILE_PATH)
 
@@ -159,7 +163,7 @@ async def get_task_status(task_id: str) -> dict:
         while True:
             if task_id:
                 task = get_task_info(task_id)
-                if task['task_status'] == 'SUCCESS' or task['task_status'] == 'FAILURE':
+                if task['task_status'] == 'SUCCESS' or task['task_status'] == 'FAILURE' or task['task_status'] == 'REVOKED' or task['task_status'] == 'RETRY':
                     yield f"{task['task_status']}"
                     break
                 print(task['task_status'])
@@ -186,3 +190,24 @@ async def get_task_monitoring(
                 status_code=400,
                 detail="this user not exists task",
                 )
+
+@router.delete("/revoke/{task_id}")
+def revoke_task(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    task_id: str
+    ) -> dict:
+    """
+    Revoke the task
+    """
+    from app.main import get_celery_app
+    celery = get_celery_app()
+    celery.control.revoke(task_id, terminate=True, signal='SIGTERM')
+    task = get_task_info(task_id)
+    print(task.status)
+    if task.status == 'REVOKED':
+        target_task = crud_task.delete_user_task(db, current_user.id, task_id)
+        return {"message": "Task Revoked", "task_id": target_task.task_id}
+    else:
+        return {"message": "Task Not Revoked"}

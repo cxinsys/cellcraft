@@ -117,7 +117,7 @@
 </template>
 
 <script>
-import { getFiles, findFolder, findFile } from "@/api/index";
+import { getFiles, findFolder, findFile, convertFile } from "@/api/index";
 
 export default {
   data() {
@@ -180,7 +180,11 @@ export default {
     },
     async uploadFile() {
       try {
-        this.$store.commit("changeFile", this.selectFile.file_name);
+        const file = await convertFile({
+          file_name: this.selectFile.file_name,
+        });
+        console.log(file.data);
+        this.$store.commit("changeFile", file.data.file_name);
         this.$store.commit("shareConnectionFile");
       } catch (error) {
         console.error(error);

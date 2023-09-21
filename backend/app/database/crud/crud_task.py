@@ -39,4 +39,10 @@ def end_task(user_id: int, task_id: str, end_time: datetime, status: str):
 def get_user_task(db: Session, id: int):
     return db.query(models.Task).filter(models.Task.user_id == id).all()
 
+def delete_user_task(db: Session, user_id: int, task_id: str):
+    target_task = db.query(models.Task).filter(models.Task.task_id == task_id, models.Task.user_id == user_id).first()
+    db.delete(target_task)
+    db.commit()
+    return target_task
+
 

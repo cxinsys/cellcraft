@@ -80,6 +80,10 @@ function deleteFile(file) {
   return instance.post("routes/files/delete", file);
 }
 
+function convertFile(file) {
+  return instance.post("routes/files/convert", file);
+}
+
 function getWorkflows() {
   return instance.get("routes/workflow/me");
 }
@@ -104,6 +108,10 @@ function userTaskMonitoring() {
   return instance.get("/routes/workflow/monitoring");
 }
 
+function revokeTask(taskId) {
+  return instance.delete(`/routes/workflow/revoke/${taskId}`);
+}
+
 export {
   registerUser,
   loginUser,
@@ -123,4 +131,6 @@ export {
   taskMonitoring,
   userTaskMonitoring,
   deleteFile,
+  revokeTask,
+  convertFile,
 };

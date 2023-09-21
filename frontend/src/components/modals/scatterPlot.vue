@@ -222,12 +222,13 @@ export default {
       // console.log(scatterResult_obsm.data);
 
       // obs + X_umap 가져오기
-      const filename_obs_umap = {
-        filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
-      };
-      console.log(filename_obs_umap);
-      const scatterResult = await getResult(filename_obs_umap);
-
+      // const filename_obs_umap = {
+      //   filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
+      // };
+      console.log(this.current_file);
+      const scatterResult = await getResult({
+        filename: this.current_file,
+      });
       //백엔드에서 넘겨준 plot 데이터
       // scatterResult.data;
       // lines, keys, areNum 업데이트
