@@ -39,7 +39,7 @@
     <table>
       <thead>
         <tr>
-          <th @click="sortTable('no')">
+          <th @click="sortTable('no')" style="width: 70px">
             No. <span class="sort-icon">{{ sortIcon("no") }}</span>
           </th>
           <th @click="sortTable('userId')">
@@ -316,11 +316,11 @@ table {
   width: 100%;
   height: 100%;
   border-collapse: separate;
-  border-spacing: 10px;
-  background-color: #c9c9c9;
+  border-spacing: 5px;
+  /* background-color: #c9c9c9; */
   transition: all 0.3s ease;
   border-radius: 15px;
-  color: #ffffff;
+  /* color: #ffffff; */
 }
 
 thead th,
@@ -329,17 +329,18 @@ td {
   padding-left: 25px;
   text-align: left;
   border-radius: 10px;
-  box-shadow: 0px 8px 20px rgba(176, 169, 255, 0.25);
+  border: 1px solid #a8a8a8;
+  /* box-shadow: 0px 8px 20px rgba(176, 169, 255, 0.25); */
 }
 
 th {
   text-transform: capitalize;
-  background-color: #323232;
+  background-color: #474747;
   color: #ffffff;
 }
 
 td {
-  background-color: #535353;
+  /* background-color: #535353; */
   transition: all 0.3s ease;
 }
 
@@ -367,7 +368,7 @@ button:disabled {
   color: rgb(255, 255, 255);
   width: 100%;
   height: 100%;
-  background-color: #323232;
+  background-color: #474747;
   border-color: #e7eaff;
   font-size: small;
   text-align: center;

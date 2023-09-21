@@ -183,8 +183,8 @@ export default {
       chartType: "scattergl",
       chartMode: "markers",
       chartTitle: "",
-      selectedX: null, // 선택된 X축의 column index
-      selectedY: null, // 선택된 Y축의 column index
+      selectedX: null, // 선택된 X축의 column index "string"
+      selectedY: null, // 선택된 Y축의 column index "string"
       selectedName: null, // 선택된 Name의 column index
       selectedCluster: null, // 선택된 Cluster의 column index
       numClusterConstraint: 200, // Cluster가 너무 다양하면 성능에 저하가 생기므로 제한을 둠
@@ -410,13 +410,16 @@ export default {
         });
       }
       var graphDiv = document.getElementById("plotly__scatter");
-      graphDiv.on("plotly_selected", function (eventData) {
-        console.log(eventData.points);
+      graphDiv.on("plotly_selected", (eventData) => {
         if (eventData.points.length > 0) {
           this.outputX = eventData.points.map((x) => x.x);
           this.outputY = eventData.points.map((x) => x.y);
+          console.log(this.keys[this.selectedX], this.outputX); // lasso 고르면
+          console.log(this.keys[this.selectedY], this.outputY); // lasso 고르면
         }
       });
+      console.log(this.keys[this.selectedX], this.outputX); // 처음 or plot설정 바뀔때
+      console.log(this.keys[this.selectedY], this.outputY); // 처음 or plot설정 바뀔때
     },
     setSelectX(event) {
       this.selectedX = event.target.value;
