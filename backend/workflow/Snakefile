@@ -1,49 +1,23 @@
+rule TenetInput:
+    input:
+        "user/{username}/data/{filename}",
+        "user/{username}/data/{filename}_option.json"
+    output:
+        "workflow/data/TenetInput_{username}_{filename}.txt",
+        "user/{username}/result/TenetInput_{filename}_expMatrix.csv",
+        "user/{username}/result/TenetInput_{filename}_pseudotime.csv",
+        "user/{username}/result/TenetInput_{filename}_cellSelect.csv"
+    script:
+        "script/TenetInput.py"
+
 rule FastTenet:
     input:
-        "user/{username}/data/{filename}.h5ad"
+        "user/{username}/data/{filename}_option.json",
+        "user/{username}/result/TenetInput_{filename}_expMatrix.csv",
+        "user/{username}/result/TenetInput_{filename}_pseudotime.csv",
+        "user/{username}/result/TenetInput_{filename}_cellSelect.csv"
     output:
-        "workflow/data/file_{username}_{filename}.csv",
-        "user/{username}/result/file_{filename}_obs_umap.csv"
-        # "user/{username}/result/file_{filename}_obs.csv",
-        # "user/{username}/result/file_{filename}_obsm.csv"
+        "workflow/data/FastTenet_{username}_{filename}.txt",
+        "user/{username}/result/FastTenet_{filename}_resultMatrix.csv"
     script:
         "script/FastTenet.py"
-
-
-rule h5ad:
-    input:
-        "user/{username}/data/{filename}.h5ad"
-    output:
-        "workflow/data/file_{username}_{filename}.csv",
-        "user/{username}/result/file_{filename}_obs_umap.csv"
-        # "user/{username}/result/file_{filename}_obs.csv",
-        # "user/{username}/result/file_{filename}_obsm.csv"
-    script:
-        "script/h5ad.py"
-
-rule dataTable:
-    input:
-        "user/{username}/data/{filename}.csv"
-    output:
-        "workflow/data/DataTable_{username}_{filename}.csv",
-        "user/{username}/result/DataTable_{filename}.csv"
-    script:
-        "script/dataTable.py"
-
-rule scatterPlot:
-    input:
-        "workflow/data/DataTable_{username}_{filename}.csv"
-    output:
-        "workflow/data/scatterPlot_{username}_{filename}.csv",
-        "user/{username}/result/scatterPlot_{filename}.csv"
-    script:
-        "script/scatterPlot.py"
-
-rule heatMap:
-    input:
-        "workflow/data/DataTable_{username}_{filename}.csv"
-    output:
-        "workflow/data/heatMap_{username}_{filename}.csv",
-        "user/{username}/result/heatMap_{filename}.csv"
-    script:
-        "script/heatMap.py"

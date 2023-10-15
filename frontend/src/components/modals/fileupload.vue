@@ -106,7 +106,7 @@
           <ul class="form__info" v-else>
             <li class="form__info--blank">Please add data file</li>
           </ul>
-          <label class="form__button--apply">
+          <label class="form__button--apply" v-bind:class="{ activate: apply }">
             Apply
             <input class="form__input" type="submit" value="업로드" />
           </label>
@@ -132,6 +132,7 @@ export default {
       folders_list: [],
       files_list: [],
       recentFiles_list: [],
+      apply: false,
     };
   },
   methods: {
@@ -140,6 +141,20 @@ export default {
         this.selectFile = this.$refs.selectFile.files[0];
         console.log(this.selectFile.name);
       }
+    },
+    filterAndAddSuffix(inputString) {
+      // Check if the inputString contains an underscore
+      if (inputString.includes("_")) {
+        // Find the position of the first underscore
+        let underscorePosition = inputString.indexOf("_");
+        // Add ".h5ad" before the first underscore and exclude everything after underscore
+        let modifiedString =
+          inputString.substring(0, underscorePosition) + ".h5ad";
+        // Return the modified string
+        return modifiedString;
+      }
+      // If no underscore found, return the original string
+      return inputString;
     },
     async getFinder() {
       this.getFile = true;
@@ -183,6 +198,7 @@ export default {
         const file = await convertFile({
           file_name: this.selectFile.file_name,
         });
+        this.apply = true;
         console.log(file.data);
         this.$store.commit("changeFile", file.data.file_name);
         this.$store.commit("shareConnectionFile");
@@ -196,7 +212,8 @@ export default {
     if (currentFile.file !== "") {
       try {
         const file = await findFile({
-          file_name: currentFile.file,
+          file_name: this.filterAndAddSuffix(currentFile.file),
+          // file_name: "pbmc3k.h5ad",
         });
         this.selectFile = file.data;
       } catch (error) {
@@ -219,22 +236,6 @@ export default {
   computed: {
     checkCurrentNode() {
       return this.$store.getters.getCurrentNode;
-    },
-  },
-  watch: {
-    checkCurrentNode(val) {
-      const current_node = this.$store.getters.getNodeInfo(val);
-      this.current_file = this.$store.getters.getCurrentFile.file;
-      console.log(current_node, this.current_file);
-      console.log(this.selectFile);
-      this.files_list.forEach((ele) => {
-        if (ele.file_name === this.current_file) {
-          this.selectFile = {
-            name: ele.file_name,
-            size: ele.file_size,
-          };
-        }
-      });
     },
   },
 };
@@ -548,7 +549,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(16, 83, 217);
+  background: rgba(16, 83, 217, 0.377);
   /* background: rgb(40, 84, 197); */
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -558,6 +559,9 @@ export default {
   color: rgb(244, 246, 251);
 }
 .form__button--apply:hover {
+  background: rgb(40, 84, 197);
+}
+.activate {
   background: rgb(40, 84, 197);
 }
 /* @media (prefers-color-scheme: dark) {

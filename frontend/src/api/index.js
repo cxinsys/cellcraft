@@ -33,10 +33,6 @@ function getUser() {
   return instance.get("/routes/auth/me");
 }
 
-// function getFilteredUsers(conditions) {
-//   return instance.get("/routes/admin/users", conditions);
-// }
-
 function getFilteredUsers(conditions) {
   return instance.get("/routes/admin/users", { params: conditions });
 }
@@ -81,9 +77,20 @@ function deleteFile(file) {
   return instance.post("routes/files/delete", file);
 }
 
-
 function convertFile(file) {
   return instance.post("routes/files/convert", file);
+}
+
+function getColumns(fileInfo) {
+  return instance.post("/routes/files/columns", fileInfo);
+}
+
+function getClusters(fileInfo, annotation) {
+  return instance.post("/routes/files/clusters", fileInfo, annotation);
+}
+
+function setupAlgorithm(options) {
+  return instance.post("/routes/files/setup", options);
 }
 
 function getWorkflows() {
@@ -110,11 +117,9 @@ function userTaskMonitoring() {
   return instance.get("/routes/workflow/monitoring");
 }
 
-
 function revokeTask(taskId) {
   return instance.delete(`/routes/workflow/revoke/${taskId}`);
 }
-
 
 export {
   registerUser,
@@ -137,4 +142,7 @@ export {
   deleteFile,
   revokeTask,
   convertFile,
+  getColumns,
+  getClusters,
+  setupAlgorithm,
 };

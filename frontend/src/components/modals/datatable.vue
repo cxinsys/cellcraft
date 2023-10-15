@@ -75,57 +75,6 @@ export default {
       return this.$store.getters.getCurrentNode;
     },
   },
-  watch: {
-    async checkCurrentNode(val) {
-      const current_node = this.$store.getters.getNodeInfo(val);
-      this.current_file = this.$store.getters.getCurrentFile.file;
-      console.log(current_node);
-      console.log(this.current_file.file);
-      if (current_node.name === "DataTable") {
-        const filename = {
-          filename: `${this.node_name}_${this.current_file.replace(
-            ".csv",
-            ""
-          )}`,
-        };
-        console.log(filename);
-        const dataTableResult = await getResult(filename);
-        console.log(dataTableResult.data);
-
-        //백엔드에서 넘겨준 dataTable 데이터
-        this.lines = dataTableResult.data.split("\n").map((x) => x.split(","));
-        this.firstLine = this.lines.splice(0, 1)[0];
-        this.columns = this.firstLine.slice(1).map((x) => {
-          return { label: x, field: x };
-        });
-        this.rows = this.lines.map((x) => {
-          return Object.assign(
-            ...this.firstLine.map((k, i) => ({ [k]: x[i] }))
-          );
-        });
-        //dataTable 데이터 추가
-        // this.columns = [];
-        // this.rows = [];
-        // Object.keys(this.dataTable).forEach((column) => {
-        //   this.columns.push({
-        //     label: column,
-        //     field: column,
-        //   });
-        // });
-        // console.log(Object.entries(Object.values(this.dataTable)[0]).length);
-        // const rowLength = Object.entries(
-        //   Object.values(this.dataTable)[0]
-        // ).length;
-        // for (let i = 0; i < rowLength / 10; i++) {
-        //   let row = [];
-        //   Object.keys(this.dataTable).forEach((column) => {
-        //     row.push([column, this.dataTable[column][i]]);
-        //   });
-        //   this.rows.push(Object.fromEntries(row));
-        // }
-      }
-    },
-  },
 };
 </script>
 

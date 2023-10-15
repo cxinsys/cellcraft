@@ -17,6 +17,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
+      args:
+        - GITHUB_TOKEN
     ports:
       - "8002:8000" # Changed from "8000:8000"
     volumes:
@@ -43,9 +45,12 @@ services:
     environment:
       - CONDA_DEFAULT_ENV=snakemake
       - C_FORCE_ROOT=true
+      - NVIDIA_VISIBLE_DEVICES=all
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
+      args:
+        - GITHUB_TOKEN
     command:
       [
         "/opt/conda/envs/snakemake/bin/python",
@@ -64,6 +69,13 @@ services:
     depends_on:
       - rabbitmq
       - db
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            count: 8
+            capabilities: [gpu, utility]
 
 volumes:
   postgres_data:

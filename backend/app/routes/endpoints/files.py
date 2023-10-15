@@ -6,12 +6,13 @@ from sqlalchemy.orm import Session
 import os
 import pandas as pd
 import scanpy as sc
+import json
 
 from app.routes import dep
 from app.database.crud import crud_file
 from app.database import models
-from app.database.schemas.file import FileCreate, FileDelete, FileUpdate, FileFind, FolderFind
-
+from app.database.schemas.file import FileCreate, FileDelete, FileUpdate, FileFind, FolderFind, FileSetup
+from app.routes.h5ad_utils import organize_column_dtypes, get_annotation_columns, get_pseudotime_columns
 
 router = APIRouter()
 
@@ -167,3 +168,104 @@ def user_file_convert(
                 status_code=400,
                 detail="this file not exists in your files",
                 )
+    
+@router.post("/columns")
+def h5ad_columns (
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    fileInfo: FileFind,
+    ) -> Any:
+    user_file = crud_file.get_user_file(db, current_user.id, fileInfo.file_name)
+    if user_file:
+        # 해당 유저의 폴더에 있는 파일을 가져와서 csv로 변환
+        # 변환된 파일을 해당 유저의 폴더에 저장
+        # 변환된 파일의 정보를 db에 저장
+        # 유저 폴더 내 파일 경로 "user/{username}/data/{filename}.h5ad"
+        # 변환된 파일 경로 "user/{username}/result/{filename}.csv"
+        folder_path = './user' + '/' + current_user.username
+        input_filename = fileInfo.file_name
+        input_filepath = f"{folder_path}/data/{input_filename}"
+
+        adata = sc.read_h5ad(input_filepath)
+        adata.obs = organize_column_dtypes(adata.obs)
+        anno_columns = get_annotation_columns(adata.obs)
+        pseudo_columns = get_pseudotime_columns(adata.obs)
+        return {'anno_columns': anno_columns, 'pseudo_columns': pseudo_columns}
+    else:
+        raise HTTPException(
+                status_code=400,
+                detail="this file not exists in your files",
+        )
+    
+@router.post("/clusters")
+def h5ad_cluster (
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    fileInfo: FileFind,
+    ) -> Any:
+    user_file = crud_file.get_user_file(db, current_user.id, fileInfo.file_name)
+    if user_file:
+        folder_path = './user' + '/' + current_user.username
+        input_filename = fileInfo.file_name
+        input_filepath = f"{folder_path}/data/{input_filename}"
+
+        adata = sc.read_h5ad(input_filepath)
+        adata.obs = organize_column_dtypes(adata.obs)
+        clusters = map(str, adata.obs[fileInfo.anno_column].value_counts().index)
+        print(clusters)
+        return {'clusters': list(clusters)}
+    else:
+        raise HTTPException(
+                status_code=400,
+                detail="this file not exists in your files",
+        )
+    
+@router.post("/setup")
+def algorithm_setup (
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    options: FileSetup,
+    ) -> Any:
+    user_file = crud_file.get_user_file(db, current_user.id, options.file_name)
+    if user_file:
+        folder_path = './user' + '/' + current_user.username
+        input_filename = options.file_name
+        input_filepath = f"{folder_path}/data/{input_filename}"
+
+        # folder_path에 input_filename + '_option.json' 파일을 만들어서 저장
+        # option 파일에는 anno_of_interest, pseudo_of_interest, clusters_of_interest, make_binary, device, device_ids, batch_size 정보를 저장
+        # option 파일의 경로 "user/{username}/data/{filename}_option.json"
+
+        options = {
+            "anno_of_interest": options.anno_of_interest,
+            "pseudo_of_interest": options.pseudo_of_interest,
+            "clusters_of_interest": options.clusters_of_interest,
+            "make_binary": options.make_binary,
+            "device": options.device,
+            "device_ids": options.device_ids,
+            "batch_size": options.batch_size,
+            "kp": options.kp,
+            "percentile": options.percentile,
+            "win_length": options.win_length,
+            "polyorder": options.polyorder
+        }
+
+        with open(input_filepath + '_option.json', 'w', encoding='utf-8') as f:
+            json.dump(options, f, ensure_ascii=False, indent=4)
+
+        # 파일 생성 되었는지 확인
+        if os.path.isfile(input_filepath + '_option.json'):
+            return {'file_name': input_filename + '_option.json'}
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="option file not created",
+            )
+    else:
+        raise HTTPException(
+                status_code=400,
+                detail="this file not exists in your files",
+        )

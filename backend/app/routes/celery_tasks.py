@@ -47,7 +47,7 @@ def snakemakeProcess(filepath):
     print(filepath)
     print(os.environ["PATH"])
 
-    process = Popen(['/opt/conda/envs/snakemake/bin/snakemake', f'workflow/data/{filepath}.csv', '-j'], stdout=PIPE, stderr=PIPE)
+    process = Popen(['/opt/conda/envs/snakemake/bin/snakemake', f'workflow/data/{filepath}.txt', '-j'], stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
     print("STDOUT:", stdout)
     print("STDERR:", stderr)
@@ -94,6 +94,17 @@ def get_conda_environment_name():
 
     return os.environ.get('CONDA_DEFAULT_ENV', None)
 
+def filter_and_add_suffix(input_string):
+    # Check if the input_string contains an underscore
+    if "_" in input_string:
+        # Find the position of the first underscore
+        underscore_position = input_string.index("_")
+        # Add ".h5ad" before the first underscore and exclude everything after underscore
+        modified_string = input_string[:underscore_position] + ".h5ad"
+        # Return the modified string
+        return modified_string
+    # If no underscore found, return the original string
+    return input_string
 
 @worker_process_init.connect
 def configure_worker(conf=None, **kwargs):
@@ -116,8 +127,9 @@ def process_data_task(self, username: str, linked_nodes: List[dict], user_id: in
     # else:
     #     print("Not in a conda environment or environment name not found.")
     for nodes in linked_nodes:
-        fileName = nodes['file'].replace('.h5ad', '')
-        lastNode = "file"
+        fileName = filter_and_add_suffix(nodes['file'])
+        # lastNode = nodes['lastNode']
+        lastNode = "FastTenet"
         print(nodes)
         target = f'{lastNode}_{username}_{fileName}'
         p = Pool(cpu_count())

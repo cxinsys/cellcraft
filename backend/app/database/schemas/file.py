@@ -14,6 +14,7 @@ class FileCreate(FileBase):
 
 class FileFind(FileBase):
     file_name: str
+    anno_column: Optional[str] = None
 
 class FolderFind(FileBase):
     folder_name: str
@@ -24,6 +25,20 @@ class FileDelete(FileBase):
 class FileUpdate(FileBase):
     file_name: str
     update_name: str
+
+class FileSetup(FileBase):
+    file_name: str
+    anno_of_interest: str
+    pseudo_of_interest: str
+    clusters_of_interest: List[str]
+    make_binary: Optional[bool] = None
+    device: Optional[str] = None
+    device_ids: Optional[List] = None
+    batch_size: Optional[int] = None
+    kp: Optional[float] = None
+    percentile: Optional[int] = None
+    win_length: Optional[int] = None
+    polyorder: Optional[int] = None
 
 class File(FileBase):
     id: int

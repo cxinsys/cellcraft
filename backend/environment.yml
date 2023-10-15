@@ -210,7 +210,7 @@ dependencies:
     - dnspython==2.2.1
     - ecdsa==0.17.0
     - email-validator==1.2.1
-    - fastapi==0.78.0
+    - fastapi==0.92.0
     - flower==1.2.0
     - greenlet==1.1.2
     - h11==0.13.0
@@ -221,6 +221,7 @@ dependencies:
     - jose==1.0.0
     - kombu==5.2.4
     - llvmlite==0.39.1
+    - lightning==2.0.9
     - natsort==8.2.0
     - networkx==3.0
     - numba==0.56.4
@@ -247,7 +248,7 @@ dependencies:
     - sniffio==1.2.0
     - sqlalchemy==1.4.36
     - sse-starlette==1.6.1
-    - starlette==0.19.1
+    - starlette==0.25.0
     - statsmodels==0.13.5
     - stdlib-list==0.8.0
     - text-unidecode==1.3

@@ -1,4 +1,19 @@
-FROM continuumio/miniconda3
+# FROM continuumio/miniconda3
+FROM ubuntu:20.04
+
+# 기본 패키지 및 Miniconda3 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    bzip2 \
+    && apt-get update && apt-get install --reinstall -y ca-certificates \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
+    && rm Miniconda3-latest-Linux-x86_64.sh
+
+ENV PATH /opt/conda/bin:$PATH
 
 WORKDIR /app
 
@@ -7,7 +22,63 @@ RUN conda env create -f environment.yml
 
 COPY . .
 
-RUN apt-get update && apt-get install -y gosu && apt-get install acl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git
+
+# 필요한 패키지 설치
+# RUN apt-get update && apt-get install -y gnupg2 curl ca-certificates
+
+# NVIDIA CUDA 리포지터리의 GPG 키 추가
+# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC
+
+# NVIDIA CUDA 리포지터리 추가
+# RUN echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64 /" > /etc/apt/sources.list.d/cuda.list
+
+# CUDA 컴파일러 툴만 설치 (nvidia-settings 패키지는 설치되지 않음)
+# RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests cuda-compiler-12-0
+
+# Avoid tzdata asking for geographic location
+ENV DEBIAN_FRONTEND=noninteractive
+
+# CUDA Toolkit 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        software-properties-common
+
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin \
+    && mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600 \
+    && wget https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda-repo-ubuntu2004-12-1-local_12.1.0-530.30.02-1_amd64.deb \
+    && dpkg -i cuda-repo-ubuntu2004-12-1-local_12.1.0-530.30.02-1_amd64.deb \
+    && cp /var/cuda-repo-ubuntu2004-12-1-local/cuda-*-keyring.gpg /usr/share/keyrings/ \
+    && apt-get update \
+    && apt-get -y install cuda
+
+ENV PATH /usr/local/cuda/bin:$PATH
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+# RUN conda install -n snakemake -c conda-forge cupy
+RUN /opt/conda/envs/snakemake/bin/pip install cupy-cuda12x
+
+# Jax 설치
+RUN /opt/conda/envs/snakemake/bin/pip install --upgrade pip && \
+    /opt/conda/envs/snakemake/bin/pip install "jax[cuda11_cudnn86]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+RUN git config --global user.email "min1125@cau.ac.kr"
+RUN git config --global user.name "mindongdong"
+
+ARG GITHUB_TOKEN
+
+# Mate 설치
+RUN if [ ! -d "mate" ]; then git clone https://${GITHUB_TOKEN}@github.com/cxinsys/mate.git; fi
+RUN cd mate && \
+    /opt/conda/envs/snakemake/bin/pip install -e .
+    # python setup.py install
+
+# FastTENET 설치
+RUN if [ ! -d "fasttenet" ]; then git clone https://${GITHUB_TOKEN}@github.com/cxinsys/fasttenet.git; fi
+RUN cd fasttenet && \
+    /opt/conda/envs/snakemake/bin/pip install -e .
+    # python setup.py install
 
 # Activate the conda environment and run FastAPI
 CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0"]

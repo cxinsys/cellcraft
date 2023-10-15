@@ -246,14 +246,14 @@ export default {
           // name2: "Plot",
           img: require("@/assets/scatter-plot2.png"),
           input: 1,
-          output: 0,
+          output: 1,
         },
-        {
-          name: "heatMap",
-          img: require("@/assets/heatMap2.png"),
-          input: 1,
-          output: 0,
-        },
+        // {
+        //   name: "heatMap",
+        //   img: require("@/assets/heatMap2.png"),
+        //   input: 1,
+        //   output: 0,
+        // },
         {
           name: "algorithm",
           // name2: "Algorithm",
