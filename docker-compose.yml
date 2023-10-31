@@ -6,7 +6,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     ports:
-      - "8083:8080" # Changed from "8080:8080"
+      - "8082:8080" # Changed from "8080:8080"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -20,7 +20,7 @@ services:
       args:
         - GITHUB_TOKEN
     ports:
-      - "8003:8000" # Changed from "8000:8000"
+      - "8002:8000" # Changed from "8000:8000"
     volumes:
       - ./backend:/app
 
@@ -31,15 +31,15 @@ services:
       POSTGRES_USER: testdb
       POSTGRES_PASSWORD: testdb
     ports:
-      - "5433:5432" # Changed to an alternate port
+      - "5432:5432" # Changed to an alternate port
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   rabbitmq:
     image: "rabbitmq:management"
     ports:
-      - "15673:15672" # Changed to an alternate port
-      - "5673:5672" # Changed to an alternate port
+      - "15672:15672" # Changed to an alternate port
+      - "5672:5672" # Changed to an alternate port
 
   celery:
     environment:
