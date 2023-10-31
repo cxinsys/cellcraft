@@ -63,19 +63,19 @@ RUN /opt/conda/envs/snakemake/bin/pip install cupy-cuda12x
 RUN /opt/conda/envs/snakemake/bin/pip install --upgrade pip && \
     /opt/conda/envs/snakemake/bin/pip install "jax[cuda11_cudnn86]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
-RUN git config --global user.email "min1125@cau.ac.kr"
-RUN git config --global user.name "mindongdong"
+RUN git config --global user.email "chxhyxn@gmail.com"
+RUN git config --global user.name "chxhyxn"
 
 ARG GITHUB_TOKEN
 
 # Mate 설치
-RUN if [ ! -d "mate" ]; then git clone https://${GITHUB_TOKEN}@github.com/cxinsys/mate.git; fi
+RUN if [ ! -d "mate" ]; then git clone https://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@github.com/cxinsys/mate.git; fi
 RUN cd mate && \
     /opt/conda/envs/snakemake/bin/pip install -e .
     # python setup.py install
 
 # FastTENET 설치
-RUN if [ ! -d "fasttenet" ]; then git clone https://${GITHUB_TOKEN}@github.com/cxinsys/fasttenet.git; fi
+RUN if [ ! -d "fasttenet" ]; then git clone https://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@github.com/cxinsys/fasttenet.git; fi
 RUN cd fasttenet && \
     /opt/conda/envs/snakemake/bin/pip install -e .
     # python setup.py install

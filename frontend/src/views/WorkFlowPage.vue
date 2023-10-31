@@ -148,7 +148,9 @@
         >
           <div class="tab__name">
             <img class="tab__icon" :src="tab.img" />
-            <p class="tab__text">{{ tab.name }}</p>
+            <p class="tab__text">
+              {{ tab_names_map.get(tab.name) || "Error" }}
+            </p>
           </div>
           <img class="tab__close" @click="closeTab" src="@/assets/close.png" />
         </li>
@@ -263,6 +265,15 @@ export default {
         },
       ],
       tabList: [],
+      tab_names_map: new Map(
+        [
+          ["File", "File Upload"],
+          ["DataTable", "Data Table"],
+          ["scatterPlot", "Scatter Plot"],
+          // ["heatMap", "heat-map"],
+          ["algorithm", "Algorithm"],
+        ]
+      ),
       is_show_modal: false,
       is_show_info: false,
       show_modal: null,

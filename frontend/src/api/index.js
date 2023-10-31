@@ -8,7 +8,7 @@ import { setInterceptors } from "@/api/common/interceptors";
 
 function createInstance() {
   const instance = axios.create({
-    baseURL: "http://localhost:8002",
+    baseURL: "http://localhost:8003",
     // baseURL: "http://backend:8000",
     // baseURL: "http://127.0.0.1:8000",
   });
