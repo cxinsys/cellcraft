@@ -58,29 +58,6 @@
             </select>
           </div>
           <div class="parameters" style="height: 1.8rem">
-            <span class="parameter-id">
-              Pseudotime Column
-              <span class="parameter-tooltip">Selected File Name</span>
-            </span>
-            <select
-              class="parameter__dropdown"
-              v-model="pseudotimeColumn"
-              @change="selectColumns($event)"
-            >
-              <option class="parameter__menu" disabled value="">
-                Select Pseudotime
-              </option>
-              <option
-                class="parameter__menu"
-                v-for="(column, index) in pseudotime"
-                :key="index"
-                :value="column"
-              >
-                {{ column }}
-              </option>
-            </select>
-          </div>
-          <div class="parameters" style="height: 1.8rem">
             <span class="parameter-id"
               >Clusters
               <span class="parameter-tooltip">Selected File Name</span>
@@ -113,6 +90,29 @@
                 {{ column }}
               </div>
             </div>
+          </div>
+          <div class="parameters" style="height: 1.8rem">
+            <span class="parameter-id">
+              Pseudotime Column
+              <span class="parameter-tooltip">Selected File Name</span>
+            </span>
+            <select
+              class="parameter__dropdown"
+              v-model="pseudotimeColumn"
+              @change="selectColumns($event)"
+            >
+              <option class="parameter__menu" disabled value="">
+                Select Pseudotime
+              </option>
+              <option
+                class="parameter__menu"
+                v-for="(column, index) in pseudotime"
+                :key="index"
+                :value="column"
+              >
+                {{ column }}
+              </option>
+            </select>
           </div>
         </div>
         <div v-for="part in algorithmParts" :key="part.id">

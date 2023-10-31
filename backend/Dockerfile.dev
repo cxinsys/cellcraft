@@ -1,5 +1,6 @@
 # FROM continuumio/miniconda3
-FROM ubuntu:20.04
+# FROM ubuntu:20.04
+FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
 
 # 기본 패키지 및 Miniconda3 설치
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -9,7 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
     && rm Miniconda3-latest-Linux-x86_64.sh
 
@@ -24,20 +24,12 @@ COPY . .
 
 RUN apt-get update && apt-get install -y git
 
-# 필요한 패키지 설치
-# RUN apt-get update && apt-get install -y gnupg2 curl ca-certificates
-
-# NVIDIA CUDA 리포지터리의 GPG 키 추가
-# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC
-
-# NVIDIA CUDA 리포지터리 추가
-# RUN echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64 /" > /etc/apt/sources.list.d/cuda.list
-
-# CUDA 컴파일러 툴만 설치 (nvidia-settings 패키지는 설치되지 않음)
-# RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests cuda-compiler-12-0
-
 # Avoid tzdata asking for geographic location
 ENV DEBIAN_FRONTEND=noninteractive
+
+# Set up time zone
+ENV TZ=Asia/Seoul
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
 
 # CUDA Toolkit 설치
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -45,16 +37,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         software-properties-common
 
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin \
-    && mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600 \
-    && wget https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda-repo-ubuntu2004-12-1-local_12.1.0-530.30.02-1_amd64.deb \
-    && dpkg -i cuda-repo-ubuntu2004-12-1-local_12.1.0-530.30.02-1_amd64.deb \
-    && cp /var/cuda-repo-ubuntu2004-12-1-local/cuda-*-keyring.gpg /usr/share/keyrings/ \
-    && apt-get update \
-    && apt-get -y install cuda
-
 ENV PATH /usr/local/cuda/bin:$PATH
-ENV LD_LIBRARY_PATH /usr/local/cuda/lib64:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/usr/local/cuda-12.1/compat
 
 # RUN conda install -n snakemake -c conda-forge cupy
 RUN /opt/conda/envs/snakemake/bin/pip install cupy-cuda12x

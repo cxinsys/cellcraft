@@ -31,110 +31,6 @@
         </div>
       </div>
     </main>
-    <div class="notice-component">
-      <h1 class="notice__title">Notice</h1>
-      <div class="notice__column">
-        <p class="notice__info">
-          [Notice] The lastest CellCraft release came out...
-        </p>
-        <p class="notice__date">2023.01.04</p>
-      </div>
-      <div class="notice__column">
-        <p class="notice__info">[Event] Welcome to CellCraft workshop</p>
-        <p class="notice__date">2023.01.04</p>
-      </div>
-      <img class="notice__list" src="@/assets/menu.png" />
-    </div>
-    <section class="menu-component" id="menuId">
-      <ul class="menu-list">
-        <li
-          class="menu-list__card"
-          @mouseover="mouseoverEvent"
-          @mouseout="mouseoutEvent"
-        >
-          <img class="menu-list__icon" src="@/assets/e-book.png" />
-          <div class="menu-list__textbox">
-            <p class="menu-list__title">Tutorial</p>
-            <span class="menu-list__desc"
-              >The best tutorial you can see to get started with CellCraft</span
-            >
-          </div>
-          <img class="arrow" src="@/assets/right-arrow.png" />
-        </li>
-        <li
-          class="menu-list__card"
-          @mouseover="mouseoverEvent"
-          @mouseout="mouseoutEvent"
-        >
-          <img class="menu-list__icon" src="@/assets/document.png" />
-          <div class="menu-list__textbox">
-            <p class="menu-list__title">Document</p>
-            <span class="menu-list__desc"
-              >Algorithms, Data sets, Research results, detailed resources
-              etc.</span
-            >
-          </div>
-          <img class="arrow" src="@/assets/right-arrow.png" />
-        </li>
-        <li
-          class="menu-list__card"
-          @mouseover="mouseoverEvent"
-          @mouseout="mouseoutEvent"
-        >
-          <img class="menu-list__icon" src="@/assets/chat.png" />
-          <div class="menu-list__textbox">
-            <p class="menu-list__title">Forum</p>
-            <span class="menu-list__desc"
-              >A community where users communicate freely with each other.</span
-            >
-          </div>
-          <img class="arrow" src="@/assets/right-arrow.png" />
-        </li>
-        <li
-          class="menu-list__card"
-          @mouseover="mouseoverEvent"
-          @mouseout="mouseoutEvent"
-        >
-          <img class="menu-list__icon" src="@/assets/database.png" />
-          <div class="menu-list__textbox">
-            <p class="menu-list__title">Dataset</p>
-            <span class="menu-list__desc"
-              >Single-cell data set accumulated through the study</span
-            >
-          </div>
-          <img class="arrow" src="@/assets/right-arrow.png" />
-        </li>
-        <li
-          class="menu-list__card"
-          @mouseover="mouseoverEvent"
-          @mouseout="mouseoutEvent"
-        >
-          <img class="menu-list__icon" src="@/assets/megaphone.png" />
-          <div class="menu-list__textbox">
-            <p class="menu-list__title">Notice</p>
-            <span class="menu-list__desc"
-              >Check out announcements, blogs, and events</span
-            >
-          </div>
-          <img class="arrow" src="@/assets/right-arrow.png" />
-        </li>
-        <li
-          class="menu-list__card"
-          @mouseover="mouseoverEvent"
-          @mouseout="mouseoutEvent"
-        >
-          <img class="menu-list__icon" src="@/assets/faq.png" />
-          <div class="menu-list__textbox">
-            <p class="menu-list__title">FAQ</p>
-            <span class="menu-list__desc"
-              >You can see frequently asked questions while using our
-              service</span
-            >
-          </div>
-          <img class="arrow" src="@/assets/right-arrow.png" />
-        </li>
-      </ul>
-    </section>
     <div class="intro-component" id="introId">
       <div class="intro__textbox">
         <h1 class="intro__title">
@@ -172,6 +68,113 @@
         </div>
       </div>
     </div>
+    <!-- <div class="notice-component">
+      <h1 class="notice__title">Notice</h1>
+      <div class="notice__column">
+        <p class="notice__info">
+          [Notice] The lastest CellCraft release came out...
+        </p>
+        <p class="notice__date">2023.01.04</p>
+      </div>
+      <div class="notice__column">
+        <p class="notice__info">[Event] Welcome to CellCraft workshop</p>
+        <p class="notice__date">2023.01.04</p>
+      </div>
+      <img class="notice__list" src="@/assets/menu.png" />
+    </div> -->
+    <section class="menu-component" id="menuId">
+      <ul class="menu-list">
+        <div class="menu-list__row">
+          <li
+            class="menu-list__card"
+            @mouseover="mouseoverEvent"
+            @mouseout="mouseoutEvent"
+          >
+            <img class="menu-list__icon" src="@/assets/Seurat_work.png" />
+            <div class="menu-list__textbox">
+              <p class="menu-list__title">seurat</p>
+              <span class="menu-list__desc"
+                >A basic tutorial on single-cell transcriptomics using Scanpy.
+              </span>
+            </div>
+            <img class="arrow" src="@/assets/right-arrow.png" />
+          </li>
+          <li
+            class="menu-list__card"
+            @mouseover="mouseoverEvent"
+            @mouseout="mouseoutEvent"
+          >
+            <img class="menu-list__icon" src="@/assets/scanpy_work.png" />
+            <div class="menu-list__textbox">
+              <p class="menu-list__title">scanpy</p>
+              <span class="menu-list__desc"
+                >A basic tutorial on single-cell transcriptomics using Seurat.
+              </span>
+            </div>
+            <img class="arrow" src="@/assets/right-arrow.png" />
+          </li>
+        </div>
+        <div class="menu-list__row">
+          <li
+            class="menu-list__card"
+            @mouseover="mouseoverEvent"
+            @mouseout="mouseoutEvent"
+          >
+            <img class="menu-list__icon" src="@/assets/Monocle_Work.png" />
+            <div class="menu-list__textbox">
+              <p class="menu-list__title">monocle</p>
+              <span class="menu-list__desc">
+                A community where users communicate freely with each other.
+              </span>
+            </div>
+            <img class="arrow" src="@/assets/right-arrow.png" />
+          </li>
+          <li
+            class="menu-list__card"
+            @mouseover="mouseoverEvent"
+            @mouseout="mouseoutEvent"
+          >
+            <img class="menu-list__icon" src="@/assets/PAGA_work.png" />
+            <div class="menu-list__textbox">
+              <p class="menu-list__title">PAGA</p>
+              <span class="menu-list__desc"
+                >Single-cell data set accumulated through the study</span
+              >
+            </div>
+            <img class="arrow" src="@/assets/right-arrow.png" />
+          </li>
+        </div>
+        <!-- <li
+          class="menu-list__card"
+          @mouseover="mouseoverEvent"
+          @mouseout="mouseoutEvent"
+        >
+          <img class="menu-list__icon" src="@/assets/megaphone.png" />
+          <div class="menu-list__textbox">
+            <p class="menu-list__title">Notice</p>
+            <span class="menu-list__desc"
+              >Check out announcements, blogs, and events</span
+            >
+          </div>
+          <img class="arrow" src="@/assets/right-arrow.png" />
+        </li>
+        <li
+          class="menu-list__card"
+          @mouseover="mouseoverEvent"
+          @mouseout="mouseoutEvent"
+        >
+          <img class="menu-list__icon" src="@/assets/faq.png" />
+          <div class="menu-list__textbox">
+            <p class="menu-list__title">FAQ</p>
+            <span class="menu-list__desc"
+              >You can see frequently asked questions while using our
+              service</span
+            >
+          </div>
+          <img class="arrow" src="@/assets/right-arrow.png" />
+        </li> -->
+      </ul>
+    </section>
   </div>
 </template>
 
@@ -457,6 +460,35 @@ export default {
   align-items: center;
   justify-content: center;
 }
+.menu-list__row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  position: relative; /* Setting position to relative for pseudo-element positioning */
+}
+/* Adding a down arrow between the rows using the ::before pseudo-element */
+.menu-list__row:first-child::before {
+  content: "▼"; /* Using a down arrow symbol */
+  position: absolute; /* Absolute positioning to place it below the element */
+  bottom: -25px; /* Positioning it above the next row */
+  left: calc(50% - 23.5rem); /* Positioning it slightly left to the center */
+  transform: translateX(-50%); /* Ensuring it's perfectly centered */
+  font-size: 2rem; /* Setting a font size for the arrow */
+  color: #ffffff; /* Setting the arrow color */
+  animation: moveArrow 1.5s infinite; /* Applying an animation */
+}
+/* Adding a down arrow between the rows using the ::before pseudo-element */
+.menu-list__row:first-child::after {
+  content: "▼"; /* Using a down arrow symbol */
+  position: absolute; /* Absolute positioning to place it below the element */
+  bottom: -25px; /* Positioning it above the next row */
+  left: calc(50% + 23.5rem); /* Positioning it slightly left to the center */
+  transform: translateX(-50%); /* Ensuring it's perfectly centered */
+  font-size: 2rem; /* Setting a font size for the arrow */
+  color: #ffffff; /* Setting the arrow color */
+  animation: moveArrow 1.5s infinite; /* Applying an animation */
+}
 .menu-list__card {
   cursor: pointer;
   margin: 2rem 1rem;
@@ -483,13 +515,14 @@ export default {
 }
 .menu-list__icon {
   pointer-events: none;
-  /* width: 2.5rem;
-  height: 2.5rem; */
-  width: 4rem;
-  height: 4rem;
+  width: 100%;
+  height: 100%;
+  /* width: 4rem;
+  height: 4rem; */
   object-fit: cover;
-  margin-right: 2rem;
-  opacity: 0.8;
+  position: absolute;
+  opacity: 0.25;
+  border-radius: 0.5rem;
 }
 .menu-list__textbox {
   pointer-events: none;
@@ -499,6 +532,7 @@ export default {
   flex-direction: column;
   justify-content: center;
   position: relative;
+  border-radius: 0.5rem;
 }
 .menu-list__title {
   pointer-events: none;
@@ -518,7 +552,7 @@ export default {
   max-width: 19rem;
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 400;
+  font-weight: 600;
   font-size: 1rem;
   line-height: 1.2rem;
   margin-left: 0.1rem;
@@ -628,5 +662,16 @@ export default {
   height: 20rem;
   object-fit: cover;
   border-radius: 0.5rem;
+}
+
+/* Defining the animation */
+@keyframes moveArrow {
+  0%,
+  100% {
+    bottom: -25px; /* Starting and ending position */
+  }
+  50% {
+    bottom: -10px; /* Middle position */
+  }
 }
 </style>
