@@ -1,6 +1,9 @@
 <template>
   <div class="layout">
-    <div class="table-layout">
+    <div v-if="isLoading" class="loading-layout">
+      <span v-if="current_file !== null"> </span>
+    </div>
+    <div v-else class="table-layout">
       <vue-good-table
         class="dataTable"
         :columns="columns"
@@ -30,6 +33,7 @@ export default {
       current_file: null,
       lines: null,
       firstLine: null,
+      isLoading: true,
       columns: [
         // columns 데이터 형식
         // {
@@ -47,6 +51,7 @@ export default {
     this.current_file = this.$store.getters.getCurrentFile.file;
     console.log(this.current_file);
     if (this.current_file !== "") {
+      this.isLoading = true;
       try {
         console.log(this.current_file);
         const dataTableResult = await getResult({
@@ -65,8 +70,10 @@ export default {
             ...this.firstLine.map((k, i) => ({ [k]: x[i] }))
           );
         });
+        this.isLoading = false;
       } catch (error) {
         console.error(error);
+        this.isLoading = false;
       }
     }
   },
@@ -98,5 +105,29 @@ export default {
   width: 100%;
   height: 100%;
   overflow: scroll;
+}
+
+.loading-layout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-layout span {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>
