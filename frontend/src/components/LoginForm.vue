@@ -1,7 +1,7 @@
 <template>
   <div class="login-layout">
     <header class="login-header">
-      <h1 class="header-text">Login</h1>
+      <h1 class="header-text">Sign in to Cellcraft</h1>
     </header>
     <form class="login-form" @submit.prevent="submitForm">
       <div class="login__field">
@@ -30,7 +30,7 @@
           :disabled="!email || !password"
           type="submit"
         >
-          Login
+          Sign In
         </button>
       </div>
     </form>
@@ -87,6 +87,7 @@ export default {
 .login-header {
   width: 90%;
   height: 15%;
+  margin: 8% 0 7% 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -94,8 +95,8 @@ export default {
 .header-text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 500;
-  font-size: 2rem;
+  font-weight: 600;
+  font-size: 1.3rem;
   line-height: 2rem;
   text-decoration: none;
   color: rgb(81, 81, 81);
@@ -106,8 +107,8 @@ export default {
 }
 .login__field {
   width: 100%;
-  height: 25%;
-  margin-top: 2.5%;
+  height: 20%;
+  margin-top: 1.5%;
   position: relative;
 }
 .login__input {
@@ -124,8 +125,8 @@ export default {
 }
 .login__login {
   width: 100%;
-  height: 25%;
-  margin-top: 5%;
+  height: 15%;
+  margin-top: 15%;
 }
 .login__button {
   width: 100%;

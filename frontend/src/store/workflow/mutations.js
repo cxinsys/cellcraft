@@ -2,8 +2,14 @@ export default {
   setTitle(state, title) {
     state.title = title;
   },
+  setThumbnail(state, thumbnail) {
+    state.thumbnail = thumbnail;
+  },
   clearTitle(state) {
     state.title = "Untitled";
+  },
+  clearThumbnail(state) {
+    state.thumbnail = null;
   },
   setWorkflow(state, workflow_info) {
     state.workflow_info = workflow_info;
@@ -13,7 +19,6 @@ export default {
   },
   createNode(state, node) {
     state.nodes.push(node);
-    console.log("yes");
   },
   deleteNode(state, node) {
     state.nodes.forEach((obj, idx) => {
@@ -31,6 +36,12 @@ export default {
   },
   setNodes(state, nodes) {
     state.nodes = nodes;
+  },
+  updateNodeTitle(state, { nodeId, newTitle }) {
+    const node = state.nodes.find((node) => node.id === nodeId);
+    if (node) {
+      node.title = newTitle;
+    }
   },
   clearNodes(state) {
     state.nodes = [];
@@ -95,6 +106,14 @@ export default {
       }
     });
   },
+  setSelectedIndices(state, selectedList) {
+    state.linked_nodes.forEach((obj) => {
+      if (obj.connection.includes(state.current_node)) {
+        obj.group = selectedList[0];
+        obj.selectedIndices = selectedList[1];
+      }
+    });
+  },
   shareConnectionFile(state) {
     // state.linked_nodes.forEach((ele) => {
     //   ele.forEach((item) => {
@@ -124,5 +143,27 @@ export default {
   },
   clearCurrentNode(state) {
     state.current_node = 0;
+  },
+  setAlgorithm(state, algorithm) {
+    state.algorithmOptions.algorithm = algorithm;
+  },
+  setCommonOptions(state, commonOptions) {
+    state.algorithmOptions.commonOptions = commonOptions;
+  },
+  setFasttenetOptions(state, fasttenetOptions) {
+    state.algorithmOptions.fasttenetOptions = fasttenetOptions;
+  },
+  setTenetOptions(state, tenetOptions) {
+    state.algorithmOptions.tenetOptions = tenetOptions;
+  },
+  clearAlgorithm(state) {
+    state.algorithmOptions.algorithm = "fasttenet";
+    state.algorithmOptions.commonOptions = {
+      annotationColumn: "",
+      pseudotimeColumn: "",
+      clusterColumn: [],
+    };
+    state.algorithmOptions.fasttenetOptions = null;
+    state.algorithmOptions.tenetOptions = null;
   },
 };

@@ -62,7 +62,9 @@ export default {
         this.$store.commit("clearNodes");
         this.$store.commit("clearLinkedNodes");
         this.$store.commit("clearTitle");
+        this.$store.commit("clearThumbnail");
         this.$store.commit("clearCurrentNode");
+        this.$store.commit("clearAlgorithm");
       }
 
       if (to.path.includes("/main")) {
@@ -93,54 +95,52 @@ export default {
 
 <style>
 .app {
-  width: 100vw;
+  width: 100vw; /* Changed from 100vw to 80vw */
   overflow-x: hidden;
-  /* height: 191vh; */
 }
+
 .main__app {
-  width: calc(100vw - 0px);
+  width: calc(100vw - 15px); /* Changed from 100vw to 80vw */
 }
+
 .header-component {
   width: 100%;
-  /* height: 3.5rem; */
-  height: 60px;
+  height: 48px; /* Changed from 60px to 48px */
   position: fixed;
   z-index: 999;
   background-color: rgba(0, 0, 0, 0.7);
 }
 
-/* .header-component, */
 .workflowPage__header,
 .filesPage__header {
   width: 100%;
-  height: 60px;
+  height: 48px; /* Changed from 60px to 48px */
   position: relative;
   background-color: rgba(0, 0, 0, 0.9);
 }
 
-.loginPage__header {
-  display: none;
-}
 .filesPage__header {
-  /* border-bottom: 1px solid #e1e1e1; */
 }
+
 .main-component {
   width: 100%;
 }
+
 .loginPage__main {
   width: 100%;
-  height: 100%;
+  height: 80%; /* Assuming you want to change the height proportionally */
+  background: #f0f0f0;
 }
-.workflowPage__main {
-  /* border-top: 1px solid #e1e1e1; */
-}
+
 .workflowPage__main,
 .filesPage__main {
-  height: calc(100vh - 60px);
+  height: calc(100vh - 48px);
+  /* Changed from 100vh to 80vh and adjusted the subtraction */
 }
+
 .footer-component {
   width: 100%;
-  height: 80px;
+  height: 80px; /* Changed from 80px to 64px */
   background: #fff;
   border-top: 1px solid #e1e1e1;
 }
@@ -166,12 +166,5 @@ export default {
   color: #5e5e5e;
 }
 
-@media (prefers-color-scheme: dark) {
-  /* .header-component {
-    background-color: rgba(0, 0, 0, 0.7);
-  } */
-  /* .workflowPage__main {
-    border-top: 1px solid #404040;
-  } */
-}
+/* You can apply similar calculations for any other properties that need to be scaled down to 80% */
 </style>

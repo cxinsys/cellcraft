@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, UniqueConstraint
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB, JSON, ARRAY
 
@@ -38,6 +38,7 @@ class Workflow(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
+    thumbnail = Column(Text, nullable=True)
     workflow_info = Column(JSONB, nullable=False)
     nodes = Column(ARRAY(JSON), nullable=False)
     linked_nodes = Column(ARRAY(JSON), nullable=False)

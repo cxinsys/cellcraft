@@ -155,20 +155,44 @@ def user_file_convert(
         if not os.path.exists(folder_path + '/result'):
             os.makedirs(folder_path + '/result')
 
-        adata = sc.read_h5ad(input_filepath)
+        # Check if file exists, if not, continue
+        if not os.path.isfile(output_filepath):
+            # Read the h5ad file
+            adata = sc.read_h5ad(input_filepath)
 
-        # Process and combine data to form the desired dataframe structure
-        df = pd.concat([adata.obs, pd.DataFrame(adata.obsm['X_umap'], columns=['X', 'Y'], index=adata.obs.index)], axis=1)
+            # Process and combine data to form the desired dataframe structure
+            df = pd.concat([adata.obs, pd.DataFrame(adata.obsm['X_umap'], columns=['X', 'Y'], index=adata.obs.index)], axis=1)
 
-        # Save the dataframe to a specific folder
-        df.to_csv(output_filepath, index=False)
-        return {'file_name': output_filename}
+            # Save the dataframe to a specific folder
+            df.to_csv(output_filepath, index=False)
+            return {'file_name': output_filename}
+        else:
+            return {'file_name': output_filename}
+            
     else:
         raise HTTPException(
                 status_code=400,
                 detail="this file not exists in your files",
                 )
-    
+
+@router.get("/check/{file_name}")
+def check_user_file_convert(
+    *,
+    current_user: models.User = Depends(dep.get_current_active_user),
+    file_name: str,
+    ) -> Any:
+    folder_path = './user' + '/' + current_user.username
+    output_filename = file_name.replace('.h5ad', '') + '_obs_umap.csv'
+    output_filepath = f"{folder_path}/result/{output_filename}"
+    if os.path.isfile(output_filepath):
+        return { 'file_name': output_filename }
+    else:
+        raise HTTPException(
+                status_code=400,
+                detail="this file not exists in your files",
+                )
+
+
 @router.post("/columns")
 def h5ad_columns (
     *,
@@ -239,22 +263,43 @@ def algorithm_setup (
         # option 파일에는 anno_of_interest, pseudo_of_interest, clusters_of_interest, make_binary, device, device_ids, batch_size 정보를 저장
         # option 파일의 경로 "user/{username}/data/{filename}_option.json"
 
-        options = {
+        setOptions = {
+            "algorithm": options.algorithm,
             "anno_of_interest": options.anno_of_interest,
             "pseudo_of_interest": options.pseudo_of_interest,
             "clusters_of_interest": options.clusters_of_interest,
-            "make_binary": options.make_binary,
-            "device": options.device,
-            "device_ids": options.device_ids,
-            "batch_size": options.batch_size,
-            "kp": options.kp,
-            "percentile": options.percentile,
-            "win_length": options.win_length,
-            "polyorder": options.polyorder
         }
 
+        if len(options.clusters_of_interest) == 0:
+            setOptions["selected_indices"] = options.selected_indices
+
+        if options.algorithm == 'fasttenet':
+            # options = {
+            #     "make_binary": options.make_binary,
+            #     "device": options.device,
+            #     "device_ids": options.device_ids,
+            #     "batch_size": options.batch_size,
+            # }
+            setOptions["make_binary"] = options.make_binary
+            setOptions["device"] = options.device
+            setOptions["device_ids"] = options.device_ids
+            setOptions["batch_size"] = options.batch_size
+        elif options.algorithm == 'tenet':
+            # options = {
+            #     "num_threads": options.num_threads,
+            #     "history_length": options.history_length
+            # }
+            setOptions["selected_tenet"] = options.selected_tenet
+            setOptions["num_of_threads"] = options.num_of_threads
+            setOptions["history_length"] = options.history_length
+            setOptions["species"] = options.species
+            setOptions["cutoff_for_fdr"] = options.cutoff_for_fdr
+            setOptions["num_of_links"] = options.num_of_links
+
+        print(setOptions)
+
         with open(input_filepath + '_option.json', 'w', encoding='utf-8') as f:
-            json.dump(options, f, ensure_ascii=False, indent=4)
+            json.dump(setOptions, f, ensure_ascii=False, indent=4)
 
         # 파일 생성 되었는지 확인
         if os.path.isfile(input_filepath + '_option.json'):

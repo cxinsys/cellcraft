@@ -1,6 +1,6 @@
 <template>
   <div class="layout">
-    <form class="fileUpload-form" @submit.prevent="uploadFile">
+    <form class="fileUpload-form" @submit.prevent="applyFile">
       <div class="cloud-form" v-if="!getFile">
         <div class="cloud-row" @click="getFinder">
           <label class="form__button">
@@ -29,6 +29,7 @@
         </router-link>
       </div>
       <ul class="folder__list" v-else>
+        <li @click="getFile = false" class="folder__list--back">Back</li>
         <li
           class="folder__item"
           v-for="(folder, idx) in folders_list"
@@ -107,9 +108,12 @@
             <li class="form__info--blank">Please add data file</li>
           </ul>
           <label class="form__button--apply" v-bind:class="{ activate: apply }">
-            Apply
+            {{ apply ? "Applied" : "Apply" }}
             <input class="form__input" type="submit" value="업로드" />
           </label>
+          <div v-if="isLoading" class="loading-layout">
+            <span> </span>
+          </div>
         </div>
       </div>
     </form>
@@ -117,7 +121,13 @@
 </template>
 
 <script>
-import { getFiles, findFolder, findFile, convertFile } from "@/api/index";
+import {
+  getFiles,
+  findFolder,
+  findFile,
+  convertFile,
+  checkConvert,
+} from "@/api/index";
 
 export default {
   data() {
@@ -133,6 +143,7 @@ export default {
       files_list: [],
       recentFiles_list: [],
       apply: false,
+      isLoading: false,
     };
   },
   methods: {
@@ -181,6 +192,7 @@ export default {
       }
     },
     async fileClick(idx, fileName) {
+      this.apply = false;
       if (idx === this.toggleFile) {
         this.toggleFile = null;
       } else {
@@ -191,9 +203,18 @@ export default {
         });
         console.log(file.data);
         this.selectFile = file.data;
+        try {
+          console.log(this.selectFile.file_name);
+          const check = await checkConvert(this.selectFile.file_name);
+          console.log(check.data);
+          // this.apply = false;
+        } catch (error) {
+          console.error(error);
+        }
       }
     },
-    async uploadFile() {
+    async applyFile() {
+      this.isLoading = true;
       try {
         const file = await convertFile({
           file_name: this.selectFile.file_name,
@@ -205,6 +226,7 @@ export default {
       } catch (error) {
         console.error(error);
       }
+      this.isLoading = false;
     },
   },
   async mounted() {
@@ -213,9 +235,12 @@ export default {
       try {
         const file = await findFile({
           file_name: this.filterAndAddSuffix(currentFile.file),
-          // file_name: "pbmc3k.h5ad",
         });
         this.selectFile = file.data;
+        const check = await checkConvert(
+          this.filterAndAddSuffix(currentFile.file)
+        );
+        console.log(check.data);
       } catch (error) {
         console.error(error);
       }
@@ -314,6 +339,16 @@ export default {
   object-fit: contain;
   margin: 0 0.5rem;
 }
+.folder__list--back {
+  margin: 0 0 0.5rem 0.5rem;
+  color: #2f2f2f;
+  cursor: pointer;
+  font-weight: 300;
+}
+.folder__list--back:hover {
+  /* color: #000000; */
+  font-weight: 400;
+}
 .folder__item--icon {
   width: 1.5rem;
   height: 1.5rem;
@@ -338,6 +373,9 @@ export default {
   align-items: center;
   text-decoration: none;
 }
+.cloud-row:first-child:hover {
+  cursor: pointer;
+}
 .cloud-textbox {
   width: 17rem;
   height: 5rem;
@@ -360,12 +398,12 @@ export default {
 }
 .cloud-textbox__directory {
   color: rgb(109, 158, 235);
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 400;
 }
 .cloud-textbox__directory__desc {
   color: rgb(51, 51, 51);
-  font-size: 1rem;
+  font-size: 0.8rem;
   font-weight: 200;
   padding: 0.2rem 0 0 0;
 }
@@ -447,23 +485,26 @@ export default {
   color: rgba(51, 51, 51, 0.5);
 }
 .form__button {
-  width: 3rem;
-  height: 3rem;
+  width: 4rem;
+  height: 4rem;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 1rem;
 }
 .form__addfile {
-  width: 6rem;
-  min-width: 6rem;
-  height: 6rem;
+  width: 9rem;
+  min-width: 9rem;
+  height: 9rem;
   position: relative;
   cursor: pointer;
-  background-color: rgb(241, 243, 244);
+  background-color: rgb(80, 120, 251);
   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
-  border-radius: 1rem;
+  border-radius: 2rem;
   margin-top: -4rem;
+}
+.form__addfile:hover {
+  background: rgb(96, 146, 246);
 }
 .form__button--plusicon {
   width: 1rem;
@@ -474,8 +515,8 @@ export default {
   right: 2rem;
 }
 .form__button--foldericon {
-  width: 70%;
-  height: 70%;
+  width: 7rem;
+  height: 7rem;
   object-fit: contain;
   position: absolute;
   top: 1rem;
@@ -540,7 +581,7 @@ export default {
 .form__button--apply {
   cursor: pointer;
   position: absolute;
-  left: 80%;
+  left: 78%;
   top: 7%;
   width: 20%;
   height: 46%;
@@ -549,8 +590,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(16, 83, 217, 0.377);
-  /* background: rgb(40, 84, 197); */
+  /* background: rgba(16, 83, 217, 0.377); */
+  background: rgb(40, 84, 197);
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 500;
@@ -559,10 +600,32 @@ export default {
   color: rgb(244, 246, 251);
 }
 .form__button--apply:hover {
-  background: rgb(40, 84, 197);
+  background: rgb(75, 119, 209);
 }
 .activate {
-  background: rgb(40, 84, 197);
+  background: rgb(40, 197, 105);
+}
+.activate:hover {
+  background: rgb(40, 197, 105);
+  /* background: rgb(75, 232, 140); */
+}
+
+.loading-layout {
+  position: absolute;
+  top: 14px;
+  right: -25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-layout span {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 2s linear infinite;
 }
 /* @media (prefers-color-scheme: dark) {
   .form__button--foldericon {

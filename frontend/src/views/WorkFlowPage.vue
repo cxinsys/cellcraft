@@ -1,5 +1,5 @@
 <template>
-  <div class="layout__workflow">
+  <div class="layout__workflow" ref="captureArea">
     <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
     <section class="node-bar">
       <ul class="node-bar__nodelist" draggable="false">
@@ -9,6 +9,7 @@
           :key="idx"
           draggable="true"
           :data-node="node.name"
+          :nodeId="node.id"
           @dragstart="drag($event)"
         >
           <img class="node-bar__img" :src="node.img" draggable="false" />
@@ -149,7 +150,8 @@
           <div class="tab__name">
             <img class="tab__icon" :src="tab.img" />
             <p class="tab__text">
-              {{ tab_names_map.get(tab.name) || "Error" }}
+              <!-- {{ tab_names_map.get(tab.name) || "Error" }} -->
+              {{ getNodeTitleById(tab.id) || "Error" }}
             </p>
           </div>
           <img class="tab__close" @click="closeTab" src="@/assets/close.png" />
@@ -216,7 +218,6 @@ import {
   findFolder,
   revokeTask,
 } from "@/api/index";
-// import Algorithm from "../components/algorithm.vue";
 
 export default {
   components: {
@@ -244,7 +245,7 @@ export default {
           output: 1,
         },
         {
-          name: "scatterPlot",
+          name: "ScatterPlot",
           // name2: "Plot",
           img: require("@/assets/scatter-plot2.png"),
           input: 1,
@@ -257,7 +258,7 @@ export default {
         //   output: 0,
         // },
         {
-          name: "algorithm",
+          name: "Algorithm",
           // name2: "Algorithm",
           img: require("@/assets/algorithm2.png"),
           input: 1,
@@ -267,11 +268,11 @@ export default {
       tabList: [],
       tab_names_map: new Map(
         [
-          ["File", "File Upload"],
-          ["DataTable", "Data Table"],
-          ["scatterPlot", "Scatter Plot"],
+          ["File", "File"],
+          ["DataTable", "DataTable"],
+          ["ScatterPlot", "ScatterPlot"],
           // ["heatMap", "heat-map"],
-          ["algorithm", "Algorithm"],
+          ["Algorithm", "Algorithm"],
         ]
       ),
       is_show_modal: false,
@@ -315,9 +316,9 @@ export default {
     //노드 등록 (2번)
     this.$df.registerNode("File", fileUpload, {}, {});
     this.$df.registerNode("DataTable", dataTable, {}, {});
-    this.$df.registerNode("scatterPlot", scatterPlot, {}, {});
+    this.$df.registerNode("ScatterPlot", scatterPlot, {}, {});
     this.$df.registerNode("heatMap", heatMap, {}, {});
-    this.$df.registerNode("algorithm", algorithm, {}, {});
+    this.$df.registerNode("Algorithm", algorithm, {}, {});
 
     // 노드 수직 연결선
     this.$df.curvature = 0.5;
@@ -332,8 +333,8 @@ export default {
         name: node.name,
         img: require(`@/assets/${node.name}.png`),
       });
-      console.log(node);
-      console.log(this.currentTab);
+      // console.log(node);
+      // console.log(this.currentTab);
 
       //TabList가 1개 이상일 때, 현재 탭을 마지막 탭으로 설정
       if (this.tabList.length !== 1) {
@@ -346,13 +347,14 @@ export default {
         id: node.id,
         name: node.name,
         file: "",
+        title: node.name,
       });
       this.$store.commit("changeNode", node.id);
 
       //노드 생성시 현재 워크플로우의 상태 업데이트
 
       const currentWorkflow = await this.setCurrentWorkflow();
-      console.log(currentWorkflow);
+      // console.log(currentWorkflow);
     });
 
     this.$df.on("nodeRemoved", async (ev) => {
@@ -377,11 +379,11 @@ export default {
       });
 
       const currentWorkflow = awaitthis.setCurrentWorkflow();
-      console.log(currentWorkflow);
+      // console.log(currentWorkflow);
     });
     this.$df.on("connectionCreated", async (ev) => {
       // ev 값에 따라 기능 구분
-      console.log(ev);
+      // console.log(ev);
       // const input_id = this.$df.getNodeFromId(ev.input_id);
       // const output_id = this.$df.getNodeFromId(ev.output_id);
       const lastNodeInfo = this.$store.getters.getNodeInfo(
@@ -400,7 +402,7 @@ export default {
     });
     this.$df.on("connectionRemoved", async (ev) => {
       // ev 값에 따라 기능 구분
-      console.log(ev);
+      // console.log(ev);
       // const input_id = this.$df.getNodeFromId(ev.input_id);
       // const output_id = this.$df.getNodeFromId(ev.output_id);
       this.$store.commit("deleteConnection", [
@@ -409,31 +411,29 @@ export default {
       ]);
 
       const currentWorkflow = await this.setCurrentWorkflow();
-      console.log(currentWorkflow);
+      // console.log(currentWorkflow);
     });
     this.$df.on("nodeDataChanged", (ev) => {
       // nodeData 바뀌게 되면 Connection Update
       // console.log(ev)
       const node = this.$df.getNodeFromId(ev);
-      console.log(node);
+      // console.log(node);
       this.$df.updateConnectionNodes(ev);
     });
 
     this.$df.on("clickEnd", (ev) => {
       // ev 값에 따라 기능 구분
-      // console.log(ev);
+      console.dir(ev.target.className);
       if (ev.detail === 2 && this.$df.node_selected) {
         // 해당 노드와 연결되어 있는 File 정보 추출
         this.isTabView = true;
 
         const node_id = this.$df.node_selected.id.replace(/node-/g, "");
-        console.log(typeof node_id);
         //Vuex 에서의 Current Node 변경
         this.$store.commit("changeNode", parseInt(node_id));
         //this.tabList에 추가
         const node = this.$store.getters.getNodeInfo(parseInt(node_id));
-        console.log(node);
-
+        // console.log(node);
         const index = this.tabList.findIndex(
           (listItem) => listItem.id === node.id
         );
@@ -450,9 +450,8 @@ export default {
           // If the node.id is already in tabList, set currentTab to its index
           this.currentTab = index;
         }
-
         this.componentChange(node.name);
-        console.log(this.tabList);
+        // console.log(this.tabList);
       }
     });
 
@@ -462,11 +461,12 @@ export default {
           id: this.currentId,
         };
         const workflow_data = await findWorkflow(workflowInfo);
-        console.log(workflow_data.data);
+        // console.log(workflow_data.data);
         this.$df.import(workflow_data.data.workflow_info);
         this.$store.commit("setNodes", workflow_data.data.nodes);
         this.$store.commit("setLinkedNodes", workflow_data.data.linked_nodes);
         this.$store.commit("setTitle", workflow_data.data.title);
+        this.$store.commit("setThumbnail", workflow_data.data.thumbnail);
       }
     } catch (error) {
       console.error(error);
@@ -475,7 +475,7 @@ export default {
     const storeItem = localStorage.getItem("vuex");
     if (storeItem) {
       const workflow_data = JSON.parse(storeItem);
-      console.log(workflow_data);
+      // console.log(workflow_data);
       if (workflow_data.workflow.workflow_info) {
         this.$df.import(workflow_data.workflow.workflow_info);
         this.$store.commit("setNodes", workflow_data.workflow.nodes);
@@ -484,6 +484,7 @@ export default {
           workflow_data.workflow.linked_nodes
         );
         this.$store.commit("setTitle", workflow_data.workflow.title);
+        this.$store.commit("setThumbnail", workflow_data.workflow.thumbnail);
       }
     }
 
@@ -528,16 +529,18 @@ export default {
         const nodes = this.$store.getters.getNodes;
         const linked_nodes = this.$store.getters.getLinkedNodes;
         const title = this.$store.getters.getTitle;
+        const thumbnail = this.$store.getters.getThumbnail;
         // console.log(JSON.stringify(this.exportValue));
         console.log(this.$df.drawflow.drawflow[this.$df.module]);
         const workflow = {
           id: this.currentId,
           title: title,
+          thumbnail: thumbnail,
           workflow_info: this.exportValue,
           nodes: nodes,
           linked_nodes: linked_nodes,
         };
-        console.log(workflow);
+        // console.log(workflow);
         // this.compile_check = "loading";
         const workflow_data = await exportData(workflow);
         this.createEventSource(workflow_data.data.task_id);
@@ -583,7 +586,6 @@ export default {
             (this.$df.precanvas.clientHeight * this.$df.zoom));
 
       const nodeSelected = this.listNodes.find((ele) => ele.name === name);
-      console.log(nodeSelected);
       this.$df.addNode(
         name,
         nodeSelected.input,
@@ -666,6 +668,31 @@ export default {
         const currentWorkflow = await this.setCurrentWorkflow();
         console.log(currentWorkflow);
         this.setMessage("success", "Save workflow successfully!");
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    async captureWorkflow() {
+      console.log("이미지 캡쳐");
+      try {
+        await html2canvas(this.$refs.captureArea).then(canvas => {
+          const originalCanvasWidth = canvas.width;
+          const originalCanvasHeight = canvas.height;
+
+          const newCanvasWidth = originalCanvasWidth / 8;
+          const newCanvasHeight = originalCanvasHeight / 8;
+
+          const resizedCanvas = document.createElement('canvas');
+          resizedCanvas.width = newCanvasWidth;
+          resizedCanvas.height = newCanvasHeight;
+
+          const ctx = resizedCanvas.getContext('2d');
+          ctx.drawImage(canvas, 0, 0, newCanvasWidth, newCanvasHeight);
+
+          const thumbnailURL = resizedCanvas.toDataURL("image/png");
+          this.$store.commit("setThumbnail", thumbnailURL);
+          console.log(thumbnailURL);
+        });
       } catch (error) {
         console.error(error);
       }
@@ -825,22 +852,32 @@ export default {
     async setCurrentWorkflow() {
       this.exportValue = this.$df.export();
       this.$store.commit("setWorkflow", this.exportValue);
+      await this.captureWorkflow();
       const nodes = this.$store.getters.getNodes;
       const linked_nodes = this.$store.getters.getLinkedNodes;
       const title = this.$store.getters.getTitle;
-      console.log(title);
+      const thumbnail = this.$store.getters.getThumbnail;
       const workflow = {
         id: this.currentId,
         title: title,
+        thumbnail: thumbnail,
         workflow_info: this.exportValue,
         nodes: nodes,
         linked_nodes: linked_nodes,
       };
+      console.log(1);
       console.log(workflow);
+      console.log(2);
       const workflow_data = await saveWorkflow(workflow);
+      console.log(3);
       console.log(workflow_data);
+      console.log(4);
       this.currentId = workflow_data.data.id;
       return workflow_data.data;
+    },
+    getNodeTitleById(id) {
+      const node = this.$store.getters.getNodeInfo(id);
+      return node.title;
     },
   },
   beforeDestroy() {
@@ -937,10 +974,11 @@ export default {
   height: 100%;
   position: relative;
   overflow: hidden;
-  background-image: url("@/assets/fantastic_background2.png");
+  background: rgb(0, 0, 0);
+  /* background-image: url("@/assets/fantastic_background2.png");
   background-size: cover;
   background-position: center center;
-  background-repeat: no-repeat;
+  background-repeat: no-repeat; */
 }
 .main__bg-video {
   position: fixed;
@@ -1094,8 +1132,8 @@ export default {
   /* height: 34rem; */
   height: 400px;
   border-radius: 16px;
-  background: rgba(244, 246, 251, 0.586);
-  box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 1);
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0px 0px 1px 1px rgba(255, 255, 255, 0.2);
   position: absolute;
   /* top: calc(50% - 17rem); */
   top: calc(50% - 208px);
@@ -1120,14 +1158,14 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: move;
-  background: rgba(15, 19, 70, 0.868);
-  color: rgb(245, 245, 245);
+  background: rgba(15, 19, 70);
+  /* color: rgb(245, 245, 245); */
   border-radius: 1rem;
   /* width: 5rem;
   height: 5rem; */
   width: 4rem;
   height: 4rem;
-  box-shadow: 0px 0px 6px 0px rgb(99, 99, 99);
+  box-shadow: 0px 1px 1px 0px rgba(0, 0, 0, 0.5);
 }
 .node-bar__img {
   /* width: 3rem;
@@ -1341,9 +1379,10 @@ export default {
   width: calc(100% - 180px);
   height: calc(100% - 50px);
   top: 30px;
-  left: 101px;
+  left: 105px;
   position: relative;
   border-radius: 0.8%;
+  box-shadow: 0px 0px 1px 1px rgba(255, 255, 255, 0.2);
 
   background: var(--dfBackgroundColor);
   background-size: var(--dfBackgroundSize) var(--dfBackgroundSize);
@@ -1357,10 +1396,13 @@ export default {
   border: var(--dfNodeBorderSize) solid var(--dfNodeBorderColor);
   border-radius: var(--dfNodeBorderRadius);
   min-height: var(--dfNodeMinHeight);
-  width: auto;
+  width: 4rem;
+  height: 4rem;
   min-width: var(--dfNodeMinWidth);
   padding-top: var(--dfNodePaddingTop);
   padding-bottom: var(--dfNodePaddingBottom);
+  padding-left: var(--dfNodePaddingLeft);
+  padding-right: var(--dfNodePaddingRight);
   -webkit-box-shadow: var(--dfNodeBoxShadowHL) var(--dfNodeBoxShadowVL)
     var(--dfNodeBoxShadowBR) var(--dfNodeBoxShadowS) var(--dfNodeBoxShadowColor);
   box-shadow: var(--dfNodeBoxShadowHL) var(--dfNodeBoxShadowVL)
@@ -1400,6 +1442,7 @@ export default {
   border-radius: var(--dfInputBorderRadius);
   height: var(--dfInputHeight);
   width: var(--dfInputWidth);
+  box-shadow: 0px 0px 1px 1px rgba(255, 255, 255, 0.15);
 }
 
 .drawflow .drawflow-node .input:hover {
@@ -1419,6 +1462,7 @@ export default {
   border-radius: var(--dfOutputBorderRadius);
   height: var(--dfOutputHeight);
   width: var(--dfOutputWidth);
+  box-shadow: 0px 0px 1px 1px rgba(255, 255, 255, 0.15);
 }
 
 .drawflow .drawflow-node .output:hover {
@@ -1460,8 +1504,31 @@ export default {
   border-radius: var(--dfDeleteBorderRadius);
 }
 
+.drawflow-delete::before, .drawflow-delete::after {
+  content: ''; /* 필수: 가상 요소에 내용이 없음을 명시 */
+  position: absolute; /* 부모 요소 대비 절대 위치 */
+  left: +7px;
+  top: +2px;
+  right: 0;
+  bottom: 0;
+  width: 2px; /* X자의 두께 */
+  height: 10px;
+  background: rgb(255, 188, 188); /* X자의 색상 */
+}
+
+.drawflow-delete::before {
+  transform: rotate(45deg); /* 45도 회전 */
+}
+
+.drawflow-delete::after {
+  transform: rotate(-45deg); /* -45도 회전 */
+}
+
 .parent-node .drawflow-delete {
   top: var(--dfDeleteTop);
+  width: 15px;
+  height: 15px;
+  right: var(--dfDeleteRight);
 }
 
 .drawflow-delete:hover {

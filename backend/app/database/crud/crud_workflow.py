@@ -2,9 +2,10 @@ from sqlalchemy.orm import Session
 from app.database import models
 from app.database.schemas import workflow
 
-def create_workflow(db: Session, title: str, workflow_info: dict, nodes: list, linked_nodes: list, user_id: int) -> models.Workflow:
+def create_workflow(db: Session, title: str, thumbnail:str, workflow_info: dict, nodes: list, linked_nodes: list, user_id: int) -> models.Workflow:
     db_workflow = models.Workflow(
         title = title,
+        thumbnail = thumbnail, # 시현 추가
         workflow_info = workflow_info,
         nodes = nodes,
         linked_nodes = linked_nodes,
@@ -15,10 +16,12 @@ def create_workflow(db: Session, title: str, workflow_info: dict, nodes: list, l
     db.refresh(db_workflow)
     return db_workflow
 
-def update_workflow(db: Session, user_id: int, workflow_id: int, title: str = None, workflow_info: dict = None, nodes: list = None, linked_nodes: list = None) -> models.Workflow:
+def update_workflow(db: Session, user_id: int, workflow_id: int, title: str = None, thumbnail: str = None, workflow_info: dict = None, nodes: list = None, linked_nodes: list = None) -> models.Workflow:
     target_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id, models.Workflow.user_id == user_id).first()
     if title:
         target_workflow.title = title
+    if thumbnail:
+        target_workflow.thumbnail = thumbnail # 시현 추가
     if workflow_info:
         target_workflow.workflow_info = workflow_info
     if nodes:

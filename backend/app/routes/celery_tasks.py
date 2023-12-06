@@ -5,6 +5,7 @@ from celery.signals import worker_process_init
 import time
 import os
 import signal
+import json
 
 
 from app.database.crud.crud_task import start_task, end_task
@@ -115,23 +116,23 @@ def process_data_task(self, username: str, linked_nodes: List[dict], user_id: in
     # from multiprocessing import Pool, cpu_count
     from billiard import Pool, cpu_count
     print(f'Processing data for user {username}...')
-    # conda_libraries = list_conda_libraries()
-    # if conda_libraries:
-    #     print(conda_libraries)
-    # pip_libraries = list_pip_libraries()
-    # if pip_libraries:
-    #     print(pip_libraries)
-    # env_name = get_conda_environment_name()
-    # if env_name:
-    #     print(f"Current conda environment: {env_name}")
-    # else:
-    #     print("Not in a conda environment or environment name not found.")
     for nodes in linked_nodes:
         fileName = filter_and_add_suffix(nodes['file'])
+        file_path = f"user/{username}/data/{fileName}_option.json"
+        with open(file_path, 'r', encoding='utf-8') as file:
+            data = json.load(file)
+
+        # 'algorithm' 키의 값을 추출
+        algorithm = data.get('algorithm', None)
+        if algorithm == 'fasttenet':
+            lastNode = 'FastTenet'
+        elif algorithm == 'tenet':
+            lastNode = 'DownstreamAnalysis'
+        else:
+            print("'algorithm' 키가 존재하지 않습니다.")
         # lastNode = nodes['lastNode']
-        lastNode = "FastTenet"
-        print(nodes)
         target = f'{lastNode}_{username}_{fileName}'
+        print(target)
         p = Pool(cpu_count())
         snakemake_process = p.apply_async(snakemakeProcess, (target,))
         process = snakemake_process.get()

@@ -52,8 +52,13 @@ def make_cell_select(adata, categories, annotation_column = 'seurat_annotation')
     categories(cluster / celltype / cell state 등등)을 체크박스의 형태로 선택
     하도록 해도 좋을 것 같습니다. adata.obs에 'cell_select' column을 추가합니다.
     '''
-    categories = [int(cat) for cat in categories]
+    categories = [int(cat) if cat.isdigit() else cat for cat in categories]
     adata.obs['cell_select'] = np.where(adata.obs[annotation_column].isin(categories),'1','0')
+
+def make_cell_select_lasso(adata, selected_indices): # selected_indices: list of indices
+    cell_selected_bools = np.array(['0'] * adata.obs.shape[0])
+    cell_selected_bools[selected_indices] = '1'
+    adata.obs['cell_select'] = cell_selected_bools
 
 def select_cells(adata, pseudotime_column = 'pseudotime'):
     '''
@@ -100,7 +105,7 @@ def synch_raw_counts(adata):
     except KeyError as e:
         print("Your adata object does not contain raw counts", e)
 
-def tenet_input_make(adata, path_result, path_exp, path_pseudo, path_cell_select, pseudotime_column = 'dpt_pseudotime', gene_list = []):
+def tenet_input_make(adata, path_log, path_exp, path_pseudo, path_cell_select, pseudotime_column = 'dpt_pseudotime', gene_list = []):
     '''
     전처리가 완료된 adata를 매개변수를 받아서 3개의 tenet input file을 생성합니다.
     사용자가 만든 adata object에 있는 gene들과 사용자가 실제로 tenet 분석을 할 때
@@ -139,8 +144,10 @@ def tenet_input_make(adata, path_result, path_exp, path_pseudo, path_cell_select
         #save cell sellect
         input_data['cell_select'].to_csv(path_cell_select, 
                                     index=False, header=False)
-        with open(path_result, "w") as f:
-            f.write("success")
+        
+        #save log
+        with open(path_log, 'w') as f:
+            f.write('input file has been generated')
     except:
         raise
     
@@ -154,9 +161,13 @@ adata.obs = organize_column_dtypes(adata.obs)
 anno_of_interest = options['anno_of_interest']
 pseudo_of_interest = options['pseudo_of_interest']
 clusters_of_interest = options['clusters_of_interest']
-
-# cell_select column 생성 및 '1' 혹은 '0'의 값 할당
-make_cell_select(adata, annotation_column = anno_of_interest, categories = clusters_of_interest)
+# clusters_of_interest의 길이가 0인 경우, selected_indices에 options['selected_indices'] 할당
+if len(clusters_of_interest) == 0:
+    selected_indices = options['selected_indices']
+    make_cell_select_lasso(adata, selected_indices)
+else :
+    # cell_select column 생성 및 '1' 혹은 '0'의 값 할당
+    make_cell_select(adata, annotation_column = anno_of_interest, categories = clusters_of_interest)
 
 # cell_select column을 기반으로 cell 선택 및
 # pseudotime column의 inf와 NA값 제거
@@ -171,4 +182,4 @@ if adata.shape[0] == 0:
 synch_raw_counts(adata)
     
 # tenet inputfile 생성
-tenet_input_make(adata, snakemake.output[0], snakemake.output[1], snakemake.output[2], snakemake.output[3], pseudotime_column = pseudo_of_interest)
+tenet_input_make(adata, snakemake.output[0], snakemake.output[1], snakemake.output[2], snakemake.output[3],pseudotime_column = pseudo_of_interest)

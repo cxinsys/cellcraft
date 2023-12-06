@@ -1,90 +1,55 @@
 <template>
-  <!-- <div class="layout">
-    <form class="fileUpload-form" @submit.prevent="uploadFile">
-        <label class="fileUpload-form__title">File</label>
-        <div class="toggle-layout" v-if="toggle_file">
-          <div class="toggle-layout__row">
-            <label class="fileUpload-form__button">
-              파일 찾기
-              <input df-file class="fileUpload-form__input" type="file" ref="selectFile" @change.prevent="previewFile" accept="text/csv" />
-            </label>
-            <label class="fileUpload-form__button">
-              업로드
-              <input class="fileUpload-form__button" type="submit" value="업로드">
-            </label>
-          </div>
-          <input class="fileUpload-form__info" placeholder="첨부파일" v-if="selectFile" v-model="selectFile.name" readonly>
-          <input class="fileUpload-form__info" placeholder="첨부파일" v-else readonly>
-          <ul class="fileUploa d-form__info" v-if="selectFile">
-            <li>name : {{ selectFile.name }}</li>
-            <li>size : {{ selectFile.size | formatBytes}}</li>
-            <li>type : {{ selectFile.type }}</li>
-          </ul>
-          <ul class="fileUpload-form__info" v-else>
-            <li>name : </li>
-            <li>size : </li>
-            <li>type : </li>
-          </ul>
-        </div>
-    </form>
-    <div class="toggle-icon" @click="toggleFile">
-      <i class="fileUpload-form__arrow fa-solid fa-arrow-up" v-if="toggle_arrow"></i>
-      <i class="fileUpload-form__arrow fa-solid fa-arrow-down" v-else></i>
-    </div>
-  </div> -->
   <div>
-    <div class="nodeBox">
+    <div class="nodeBox" ref="nodeBox">
       <img class="nodeBox__icon" src="@/assets/file-upload2.png" />
+    </div>
+    <div class="nodeTitleBox">
+      <input
+        type="text"
+        class="nodeTitle"
+        v-model="nodeTitle"
+        @input="updateTitle"
+      />
     </div>
   </div>
 </template>
 
 <script>
-import { uploadForm } from "@/api/index";
+import { mapMutations } from "vuex";
 
 export default {
   data() {
     return {
-      title: "File Upload",
-      selectFile: null,
-      is_upload: false,
-      done_upload: false,
-      toggle_arrow: false,
-      toggle_file: false,
+      nodeId: null,
     };
   },
-  methods: {
-    previewFile() {
-      if (this.$refs.selectFile.files.length > 0) {
-        this.selectFile = this.$refs.selectFile.files[0];
-      }
-    },
-    toggleFile() {
-      this.toggle_arrow = !this.toggle_arrow;
-      this.toggle_file = !this.toggle_file;
-    },
-    async uploadFile() {
-      if (this.selectFile) {
-        this.is_upload = true;
-        const form = new FormData();
-        form.append("files", this.selectFile);
-        const response = await uploadForm(form);
-        console.log(response);
-        if (response) {
-          this.done_upload = true;
+  mounted() {
+    this.$nextTick(() => {
+      const nodeBox = this.$refs.nodeBox;
+      const nodeId = parseInt(
+        nodeBox.parentNode.parentNode.parentNode.id.replace("node-", "")
+      );
+      this.nodeId = nodeId;
+    });
+  },
+  computed: {
+    nodeTitle: {
+      get() {
+        if (this.nodeId == null) {
+          return "File"; // 또는 기본 타이틀 반환
         }
-      }
+        const node = this.$store.getters.getNodeInfo(this.nodeId);
+        return node.title;
+      },
+      set(newTitle) {
+        this.updateNodeTitle({ nodeId: this.nodeId, newTitle });
+      },
     },
   },
-  filters: {
-    formatBytes(a, b) {
-      if (a === 0) return "0 Bytes";
-      const c = 1024;
-      const d = b || 2;
-      const e = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-      const f = Math.floor(Math.log(a) / Math.log(c));
-
-      return parseFloat((a / Math.pow(c, f)).toFixed(d)) + " " + e[f];
+  methods: {
+    ...mapMutations(["updateNodeTitle"]),
+    updateTitle() {
+      this.updateNodeTitle({ nodeId: this.nodeId, newTitle: this.nodeTitle });
     },
   },
 };
@@ -92,19 +57,17 @@ export default {
 
 <style scoped>
 .nodeBox {
-  width: 3rem;
-  height: 3rem;
+  width: 4rem;
+  height: 4rem;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
 }
 .nodeBox__icon {
-  width: 70%;
-  height: 70%;
+  width: 55%;
+  height: 55%;
   object-fit: contain;
-  /* filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg) brightness(27%)
-    contrast(101%); */
 }
 .layout {
   display: flex;
@@ -185,7 +148,33 @@ export default {
   justify-content: center;
   text-align: center;
 }
-
+.nodeTitleBox {
+  margin-top: 0.2rem;
+  width: 8rem;
+  height: 1.5rem;
+  left: calc(50% - 4rem);
+  display: flex;
+  position: absolute;
+  align-items: center;
+  justify-content: center;
+}
+.nodeTitle {
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-size: 0.9rem;
+  font-weight: 300;
+  width: 100%;
+  text-align: center;
+  color: rgb(233, 233, 233);
+  background: none;
+  border: none;
+  text-overflow: ellipsis;
+}
+.nodeTitle:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.442);
+  border-radius: 4px;
+}
 @media (prefers-color-scheme: dark) {
   /* .nodeBox__icon {
     filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg)

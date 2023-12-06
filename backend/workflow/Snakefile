@@ -1,3 +1,15 @@
+import json
+
+def get_options(wildcards):
+    with open(f"user/{wildcards.username}/data/{wildcards.filename}_option.json") as json_file:
+        data = json.load(json_file)
+        num_of_threads = data.get("num_of_threads", "")
+        history_length = data.get("history_length", "")
+        cutoff_for_fdr = data.get("cutoff_for_fdr", "")
+        num_of_links = data.get("num_of_links", "")
+    return num_of_threads, history_length, cutoff_for_fdr, num_of_links
+
+
 rule TenetInput:
     input:
         "user/{username}/data/{filename}",
@@ -18,6 +30,84 @@ rule FastTenet:
         "user/{username}/result/TenetInput_{filename}_cellSelect.csv"
     output:
         "workflow/data/FastTenet_{username}_{filename}.txt",
-        "user/{username}/result/FastTenet_{filename}_resultMatrix.csv"
+        "user/{username}/result/FastTenet_{filename}_resultMatrix.txt"
     script:
         "script/FastTenet.py"
+
+rule Tenet:
+    input:
+        option="user/{username}/data/{filename}_option.json",
+        expMatrix="user/{username}/result/TenetInput_{filename}_expMatrix.csv",
+        pseudotime="user/{username}/result/TenetInput_{filename}_pseudotime.csv",
+        cellSelect="user/{username}/result/TenetInput_{filename}_cellSelect.csv"
+    output:
+        target="workflow/data/Tenet_{username}_{filename}.txt",
+        result="user/{username}/result/Tenet_{filename}_resultMatrix.txt"
+    params:
+        numOfThreads=lambda wc, output: get_options(wc)[0],
+        historyLength=lambda wc, output: get_options(wc)[1]
+    shell:
+        """
+        echo "try success" > "{output.target}"
+        /app/workflow/script/TENET/TENET "{input.expMatrix}" "{params.numOfThreads}" "{input.pseudotime}" "{input.cellSelect}" "{params.historyLength}" "{output.result}" "{wildcards.username}"
+        """
+
+rule ReconstructionGRN_Fdr:
+    input:
+        resultMatrix="user/{username}/result/Tenet_{filename}_resultMatrix.txt"
+    params:
+        cutoffForFdr=lambda wc, output: get_options(wc)[2]
+    output:
+        result="user/{username}/result/Tenet_{filename}_result_matrix.fdr{params.cutoffForFdr}.sif"
+    shell:
+        "python /app/workflow/script/TENET/makeGRN.py {params.cutoffForFdr} {input.resultMatrix} {output.result}"
+
+rule ReconstructionGRN_NumLinks:
+    input:
+        resultMatrix="user/{username}/result/Tenet_{filename}_resultMatrix.txt"
+    params:
+        numOfLinks=lambda wc, output: get_options(wc)[3]
+    output:
+        result="user/{username}/result/Tenet_{filename}_result_matrix.NumberOfLinks{params.numOfLinks}.sif"
+    shell:
+        "python /app/workflow/script/TENET/makeGRNsameNumberOfLinks.py {params.numOfLinks} {input.resultMatrix} {output.result}"
+
+rule TrimmingIndirectEdges:
+    input:
+        fdr="user/{username}/result/Tenet_{filename}_result_matrix.fdr{params.cutoffForFdr}.sif",
+        numLinks="user/{username}/result/Tenet_{filename}_result_matrix.NumberOfLinks{params.numOfLinks}.sif"
+    output:
+        fdr_trim="user/{username}/result/Tenet_{filename}_result_matrix.fdr{params.cutoffForFdr}.trimIndirect0.0.sif",
+        numLinks_trim="user/{username}/result/Tenet_{filename}_result_matrix.NumberOfLinks{params.numOfLinks}.trimIndirect0.0.sif"
+    shell:
+        """
+        python /app/workflow/script/TENET/trim_indirect.py {input.fdr} 0 {output.fdr_trim}
+        python /app/workflow/script/TENET/trim_indirect.py {input.numLinks} 0 {output.numLinks_trim}
+        """
+
+rule CountOutdegree:
+    input:
+        fdr="user/{username}/result/Tenet_{filename}_result_matrix.fdr{params.cutoffForFdr}.sif",
+        numLinks="user/{username}/result/Tenet_{filename}_result_matrix.NumberOfLinks{params.numOfLinks}.sif"
+    output:
+        fdr_out="user/{username}/result/Tenet_{filename}_result_matrix.fdr{params.cutoffForFdr}.outdegree.txt",
+        numLinks_out="user/{username}/result/Tenet_{filename}_result_matrix.NumberOfLinks{params.numOfLinks}.outdegree.txt"
+    shell:
+        """
+        python /app/workflow/script/TENET/countOutdegree.py {input.fdr} {output.fdr_out}
+        python /app/workflow/script/TENET/countOutdegree.py {input.numLinks} {output.numLinks_out}
+        """
+
+rule DownstreamAnalysis:
+    input:
+        "user/{username}/result/Tenet_{filename}_result_matrix.fdr{params.cutoffForFdr}.trimIndirect0.0.sif",
+        "user/{username}/result/Tenet_{filename}_result_matrix.NumberOfLinks{params.numOfLinks}.trimIndirect0.0.sif",
+        "user/{username}/result/Tenet_{filename}_result_matrix.fdr{params.cutoffForFdr}.outdegree.txt",
+        "user/{username}/result/Tenet_{filename}_result_matrix.NumberOfLinks{params.numOfLinks}.outdegree.txt"
+    params:
+        cutoffForFdr=lambda wc, output: get_options(wc)[2],
+        numOfLinks=lambda wc, output: get_options(wc)[3]
+    output:
+        "workflow/data/DownstreamAnalysis_{username}_{filename}.txt",
+    shell:
+        "echo {input[0]} > {output[0]}"

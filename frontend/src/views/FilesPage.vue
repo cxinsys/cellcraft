@@ -67,12 +67,10 @@
               @change.prevent="uploadFile"
             />
           </label>
-          <button class="files__button">
-            <img class="files__button--icon" src="@/assets/delete.png" />
-          </button>
-          <button class="files__button right">
-            <img class="files__button--icon" src="@/assets/setting.png" />
-          </button>
+          <div class="progress__box" v-if="uploadPercentage > 0">
+            <progress :value="uploadPercentage" max="100"></progress>
+            <span>{{ uploadPercentage }}%</span>
+          </div>
         </div>
       </div>
 
@@ -153,6 +151,7 @@ export default {
       deletionTimer: null,
       messageContent: "",
       targetFile: null,
+      uploadPercentage: 0,
     };
   },
 
@@ -183,10 +182,18 @@ export default {
           [this.$refs.selectFile.files[0]],
           `${this.currentFolder}_${this.$refs.selectFile.files[0].name}`
         );
+
+        const form = new FormData();
+        form.append("files", this.selectFile);
+        // 파일 업로드 진행률을 추적하기 위한 콜백
+        const onUploadProgress = (progressEvent) => {
+          this.uploadPercentage = parseInt(
+            Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          );
+        };
         try {
-          const form = new FormData();
-          form.append("files", this.selectFile);
-          const response = await uploadForm(form);
+          const response = await uploadForm(form, onUploadProgress);
+          this.uploadPercentage = 0; // 업로드 완료 후 초기화
           console.log(response);
           const folderList = await findFolder({
             folder_name: this.currentFolder,
@@ -275,10 +282,10 @@ export default {
   overflow: hidden;
 }
 .folder {
-  width: 25%;
+  width: 22rem;
   height: 100%;
-  background: #ffffff;
-  border-right: 1px solid #e1e1e1;
+  background: #cfcfcf;
+  border-right: 1px solid #afafaf;
 }
 .folder__header {
   width: 90%;
@@ -287,13 +294,15 @@ export default {
   display: flex;
   align-items: center;
   position: relative;
+  color: rgba(0, 0, 0, 0.8);
 }
 .folder__title {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 500;
-  font-size: 1.25rem;
+  font-weight: 600;
+  font-size: 1.7rem;
   line-height: 1.25rem;
+  color: rgba(0, 0, 0, 0.8);
 }
 .folder__createBtn {
   width: 6rem;
@@ -305,6 +314,7 @@ export default {
   height: 2rem;
   object-fit: cover;
   margin: 0 0.5rem;
+  opacity: 0.8;
 }
 .folder__list {
   width: 85%;
@@ -314,14 +324,16 @@ export default {
 .folder__item {
   width: 100%;
   height: 5%;
+  /* margin: 0 0rem; */
+  border-radius: 0.5rem;
   display: flex;
   cursor: pointer;
 }
 .folder__item:hover {
-  background: rgb(204, 218, 245);
+  background: rgb(176, 177, 178);
 }
 .toggleFolder {
-  background: rgb(204, 218, 245);
+  background: rgb(176, 177, 178);
 }
 .folder__item--col {
   width: 5rem;
@@ -362,7 +374,7 @@ export default {
   position: relative;
 }
 .header__column {
-  width: 33%;
+  width: 20%;
   height: 100%;
   display: flex;
   align-items: center;
@@ -379,40 +391,51 @@ export default {
   margin-left: 2rem;
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 500;
-  font-size: 1.25rem;
+  font-weight: 600;
+  font-size: 1.8rem;
   line-height: 1.25rem;
+  color: rgba(0, 0, 0, 0.8);
+  text-transform: capitalize;
 }
 .files__button {
   width: 2rem;
   height: 2rem;
+  padding: 0.2rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  background: #ffffff;
+  /* background: #ffffff; */
+  border-radius: 1.2rem;
   margin-right: 1rem;
+  box-shadow: rgba(0, 0, 0, 0.15) 0px 0px 4px;
+}
+.files__button:hover {
+  cursor: pointer;
+  box-shadow: rgba(0, 0, 0, 0.35) 0px 0px 4px;
 }
 .files__button--icon {
   width: 1.75rem;
   height: 1.75rem;
   object-fit: contain;
+  opacity: 0.8;
 }
 .files__input {
   display: none;
 }
 .files__search {
-  width: 16rem;
+  width: 50%;
   height: 2.5rem;
   border: 1px solid #e1e1e1;
   border-radius: 1rem;
-  padding: 0 0.5rem;
+  padding: 0 2rem;
   outline-style: none;
   background: #f7f7f7;
 }
 .files__search:focus {
-  box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
-  border: none;
+  /* box-shadow: rgba(0, 0, 0, 0.15) 0px 4px 4px;
+  border: none; */
+  border: 1px solid #bcbcbc;
 }
 .files__table {
   width: 95%;
@@ -552,5 +575,34 @@ export default {
 }
 .toggleMessage {
   display: none;
+}
+
+.progress__box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15rem;
+  height: 1rem;
+}
+
+/* progress bar */
+progress {
+  width: 100%; /* 전체 너비를 차지하도록 설정 */
+  height: 100%; /* 높이 설정 */
+  background-color: #eee; /* 배경색 설정 */
+  border-radius: 10px; /* 모서리 둥글게 처리 */
+  margin-right: 0.5rem;
+}
+
+progress::-webkit-progress-bar {
+  background-color: #eee; /* 크롬, 사파리 등 WebKit 기반 브라우저에서의 배경색 */
+}
+
+progress::-webkit-progress-value {
+  background-color: #4caf50; /* 크롬, 사파리 등 WebKit 기반 브라우저에서의 진행률 색상 */
+}
+
+progress::-moz-progress-bar {
+  background-color: #4caf50; /* 파이어폭스에서의 진행률 색상 */
 }
 </style>

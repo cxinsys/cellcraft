@@ -19,19 +19,17 @@ export default {
 
 <style scoped>
 .nodeBox {
-  width: 3rem;
-  height: 3rem;
+  width: 4rem;
+  height: 4rem;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
 }
 .nodeBox__icon {
-  width: 70%;
-  height: 70%;
+  width: 55%;
+  height: 55%;
   object-fit: contain;
-  /* filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg) brightness(27%)
-    contrast(101%); */
 }
 
 @media (prefers-color-scheme: dark) {

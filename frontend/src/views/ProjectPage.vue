@@ -45,11 +45,11 @@
             <p class="project__date">Data Analysis Pipeline</p>
           </div>
         </li>
-        <li class="project-component" @contextmenu.prevent>
+        <!-- <li class="project-component" @contextmenu.prevent>
           <div class="project__content">
             <img
               class="project__thumnail"
-              src="@/assets/workflow-template.png"
+              src="@/assets/workflow-template2.png"
             />
           </div>
           <div class="project__info">
@@ -61,14 +61,14 @@
           <div class="project__content">
             <img
               class="project__thumnail"
-              src="@/assets/workflow-template.png"
+              src="@/assets/workflow-template2.png"
             />
           </div>
           <div class="project__info">
             <p class="project__title">Workflow Basics2</p>
             <p class="project__date">Just Template</p>
           </div>
-        </li>
+        </li> -->
         <li
           class="project-component"
           v-for="(workflow, idx) in workflows"
@@ -78,9 +78,15 @@
           @click.right="RMouseClick($event, workflow.id, idx)"
         >
           <div class="project__content">
+            <!-- <img
+              class="project__thumnail"
+              src="@/assets/workflow-template2.png"
+            /> -->
             <img
               class="project__thumnail"
-              src="@/assets/workflow-template.png"
+              :src="
+                workflow.thumbnail || require('@/assets/workflow-template2.png')
+              "
             />
           </div>
           <div class="project__info">
@@ -125,6 +131,8 @@ export default {
       workflow_id: null,
       list_idx: null,
       R_Mouse_isActive: false,
+      xPosition: 0,
+      yPosition: 0,
       toggleMessage: false,
       deletionTimer: null,
       messageContent: "",
@@ -193,6 +201,7 @@ export default {
       console.log(profile.data);
       this.profile = profile.data;
       const workflows = await getWorkflows();
+      console.log(1);
       console.log(workflows.data);
       this.workflows = workflows.data;
     } catch (error) {
@@ -221,9 +230,10 @@ export default {
   display: flex;
 }
 .side-panel {
-  width: 20rem;
+  width: 14rem;
   height: 100%;
-  border-right: 1px solid #e1e1e1;
+  border-right: 1px solid #aeaeae;
+  background-color: rgb(201, 202, 203);
 }
 .profile {
   width: 100%;
@@ -237,6 +247,7 @@ export default {
   height: 2rem;
   object-fit: cover;
   margin-left: 1.5rem;
+  opacity: 0.8;
 }
 .profile__column {
   width: calc(100% - 3.5rem);
@@ -253,6 +264,7 @@ export default {
   font-weight: 500;
   font-size: 1.2rem;
   line-height: 1.2rem;
+  color: rgba(0, 0, 0, 1);
 }
 .profile__email {
   font-weight: 400;
@@ -264,40 +276,50 @@ export default {
   width: 100%;
   display: flex;
   flex-direction: column;
+  padding: 1rem 0;
 }
 .projects__recent,
 .projects__template {
-  width: 100%;
-  height: 4rem;
+  width: clac(100% - 2rem);
+  height: 3rem;
+  margin: 0.1rem 1rem;
+  border-radius: 1rem;
   display: flex;
   align-items: center;
   cursor: pointer;
 }
 .projects__recent:hover,
 .projects__template:hover {
-  background: rgb(204, 218, 245);
+  margin: 0.1rem 1rem;
+  border-radius: 1rem;
+  background: rgb(176, 177, 178);
 }
 .toggleMenu {
-  background: rgb(204, 218, 245);
+  margin: 0.1rem 1rem;
+  border-radius: 1rem;
+  background: rgb(176, 177, 178);
 }
 .projects__icon {
   width: 1.5rem;
   height: 1.5rem;
   object-fit: cover;
   margin-left: 1.5rem;
+  color: rgba(0, 0, 0, 0.7);
 }
 .projects__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
-  font-size: 1.2rem;
+  font-size: 1rem;
   line-height: 1rem;
   padding-left: 1rem;
+  color: rgba(0, 0, 0, 0.7);
 }
 .project-view {
   width: calc(100% - 20rem);
   height: 100%;
   overflow-y: auto;
+  background-color: #ffffff;
 }
 .project-view__header {
   width: 100%;
@@ -309,37 +331,40 @@ export default {
 .header__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 500;
-  font-size: 1.4rem;
+  font-weight: 600;
+  font-size: 2rem;
   line-height: 1rem;
   padding-left: 2rem;
+  color: rgba(0, 0, 0, 0.8);
 }
 .project-view__list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between; /* for space between items */
-  align-items: center; /* for vertical alignment */
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(230px, 1fr)
+  ); /* 컴포넌트 최소 너비를 250px, 최대를 1fr로 설정 */
   padding: 3rem;
   gap: 3rem; /* for space around items */
 }
 
 .project-component {
-  flex: 1 0 calc(33% - 6rem); /* Adjusting the size calculation to take into account both the margins and the gap. */
+  /* flex: 1 0 calc(33% - 6rem);
   height: 16rem;
-  max-width: 19.5rem;
+  max-width: 19.5rem; */
   display: flex;
   flex-direction: column;
   border: 1px solid #e1e1e1;
   border-radius: 1rem;
   cursor: pointer;
+  box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 2px;
 }
 
 .project-component:hover {
-  box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 12px;
+  box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px;
 }
 .project__content {
   width: 100%;
-  height: 11rem;
+  height: 10rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -370,6 +395,7 @@ export default {
   font-size: 1.2rem;
   line-height: 1.3rem;
   padding: 0 0 0.5rem 1rem;
+  color: rgba(0, 0, 0, 0.8);
 }
 .project__date {
   font-family: "Montserrat", sans-serif;

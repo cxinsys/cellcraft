@@ -30,13 +30,13 @@ def exportData(
     try:
         user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflow.id)
         if user_workflow:
-            crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes)
+            crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info, workflow.nodes, workflow.linked_nodes)
             process_task = process_data_task.apply_async(
                 (current_user.username, workflow.linked_nodes),
                 kwargs={'user_id': current_user.id, 'workflow_id': workflow.id }
             )
         else:
-            workflow_info = crud_workflow.create_workflow(db, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
+            workflow_info = crud_workflow.create_workflow(db, workflow.title, workflow.thumbnail, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
             print(workflow_info.id)
             process_task = process_data_task.apply_async(
                 (current_user.username, workflow.linked_nodes),
@@ -64,10 +64,10 @@ def update_user_workflow(
     user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflow.id)
     if user_workflow:
         # workflow 수정
-        return crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes)
+        return crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info, workflow.nodes, workflow.linked_nodes)
     else :
         # workflow 생성
-        return crud_workflow.create_workflow(db, workflow.title, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
+        return crud_workflow.create_workflow(db, workflow.title, workflow.thumbnail, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
 
 #User workflow delete
 @router.post("/delete")
@@ -102,6 +102,7 @@ def get_user_workflow(
             workflow_res = {
                 'id': item.id, 
                 'title': item.title, 
+                'thumbnail': item.thumbnail, # 시현 추가
                 'updated_at': item.updated_at, 
                 'user_id': item.user_id
             }
@@ -126,6 +127,7 @@ def find_user_workflow(
     if user_workflow:
         return {
             'title': user_workflow.title,
+            'thumbnail': user_workflow.thumbnail, # 시현 추가
             'workflow_info': user_workflow.workflow_info,
             'nodes': user_workflow.nodes,
             'linked_nodes': user_workflow.linked_nodes,

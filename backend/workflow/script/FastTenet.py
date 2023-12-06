@@ -42,13 +42,11 @@ def run_fasttenet(dpath_exp_data, dpath_trj_data, dpath_branch_data, spath_resul
         
         print(result_matrix)
 
-        with open(snakemake.output[0], "w") as f:
-            f.write("success")
+        # save log
+        with open(path_log, 'w') as f:
+            f.write('Tenet result has been generated')
     except Exception as e:
         print(e)
-
-        with open(snakemake.output[0], "w") as f:
-            f.write("fail")
         raise
 
 
@@ -57,6 +55,8 @@ options = json.load(open(snakemake.input[0]))
 dpath_exp_data = snakemake.input[1]
 dpath_trj_data = snakemake.input[2]
 dpath_branch_data = snakemake.input[3]
+path_log = snakemake.output[0]
 spath_result_matrix = snakemake.output[1]
+
 
 run_fasttenet(dpath_exp_data, dpath_trj_data, dpath_branch_data, spath_result_matrix, options)

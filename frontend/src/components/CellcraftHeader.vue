@@ -46,10 +46,10 @@
       />
     </div>
     <div class="login-component" v-if="isUserLogin">
-      <p class="login__link" @click="logoutUser">LOGOUT</p>
+      <p class="login__link" @click="logoutUser">Sign Out</p>
     </div>
     <div class="login-component" v-else>
-      <router-link class="login__link" to="/login"> LOGIN </router-link>
+      <router-link class="login__link" to="/login"> Sign In </router-link>
     </div>
   </div>
 </template>
@@ -92,8 +92,8 @@ export default {
     },
   },
   watch: {
-    $route(to, from) {
-      console.log(to.path, from.path);
+    $route(to) {
+      // console.log(to.path, from.path);
       this.isWorkflowPage = to.path.includes("/workflow");
     },
   },
@@ -233,8 +233,8 @@ a {
   align-items: center;
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 600;
-  font-size: 1.2rem;
+  font-weight: 400;
+  font-size: 1rem;
   line-height: 1.2rem;
   color: rgb(241, 243, 248);
 }

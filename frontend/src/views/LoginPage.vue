@@ -11,7 +11,7 @@
       <div class="login-help">
         <div class="login-help__column">
           <router-link class="login-help__text" to="/signup"
-            >Sign up</router-link
+            >Sign Up</router-link
           >
         </div>
         <div class="login-help__column">
@@ -104,7 +104,7 @@ export default {
 .login-help__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
-  font-weight: 500;
+  font-weight: 400;
   font-size: 0.9rem;
   line-height: 0.9rem;
   padding: 0 1rem;

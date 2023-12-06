@@ -64,6 +64,29 @@ RUN cd fasttenet && \
     /opt/conda/envs/snakemake/bin/pip install -e .
     # python setup.py install
 
+# OpenMPI 설치를 위한 필요한 패키지 설치
+RUN apt-get update && apt-get install -y build-essential autoconf automake libtool curl make g++ unzip
+
+# OpenMPI 소스 코드 다운로드
+RUN wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.5.tar.gz
+
+# OpenMPI 압축 해제 및 설치
+RUN tar -xzvf openmpi-4.0.5.tar.gz && \
+    cd openmpi-4.0.5 && \
+    ./configure --prefix=/usr/local/openmpi && \
+    make all && \
+    make install
+
+# OpenMPI 환경 변수 설정
+ENV PATH="/usr/local/openmpi/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/openmpi/lib:${LD_LIBRARY_PATH}"
+
+# JDK 및 Python 개발 헤더 설치
+RUN apt-get update && apt-get install -y default-jdk python3-pip python3-dev jq
+
+# JPype 설치
+RUN /opt/conda/envs/snakemake/bin/pip install JPype1
+
 # Activate the conda environment and run FastAPI
 CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0"]
 

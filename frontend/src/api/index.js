@@ -49,7 +49,7 @@ function getResult(filename) {
   return instance.post("/routes/workflow/result", filename);
 }
 
-function uploadForm(formData) {
+function uploadForm(formData, onUploadProgress) {
   // FormData의 value 확인
   // for (let value of formData.values()) {
   //   console.log(value)
@@ -58,6 +58,7 @@ function uploadForm(formData) {
     headers: {
       "Content-Type": "multipart/form-data",
     },
+    onUploadProgress,
   });
 }
 
@@ -79,6 +80,10 @@ function deleteFile(file) {
 
 function convertFile(file) {
   return instance.post("routes/files/convert", file);
+}
+
+function checkConvert(file) {
+  return instance.get(`routes/files/check/${file}`);
 }
 
 function getColumns(fileInfo) {
@@ -145,4 +150,5 @@ export {
   getColumns,
   getClusters,
   setupAlgorithm,
+  checkConvert,
 };
