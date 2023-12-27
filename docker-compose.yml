@@ -4,9 +4,9 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     ports:
-      - "8082:8080" # Changed from "8080:8080"
+      - "8002:8080" # Changed from "8080:8080"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -16,11 +16,11 @@ services:
       - CONDA_DEFAULT_ENV=snakemake
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
       args:
         - GITHUB_TOKEN
     ports:
-      - "8002:8000" # Changed from "8000:8000"
+      - "8000:8000" # Changed from "8000:8000"
     volumes:
       - ./backend:/app
 
@@ -45,10 +45,9 @@ services:
     environment:
       - CONDA_DEFAULT_ENV=snakemake
       - C_FORCE_ROOT=true
-      - NVIDIA_VISIBLE_DEVICES=all
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
       args:
         - GITHUB_TOKEN
     command:
@@ -69,13 +68,6 @@ services:
     depends_on:
       - rabbitmq
       - db
-    deploy:
-      resources:
-        reservations:
-          devices:
-          - driver: nvidia
-            count: 8
-            capabilities: [gpu, utility]
 
 volumes:
   postgres_data:
