@@ -541,7 +541,7 @@ export default {
       this.on_progress = true;
       // Initialize a new event source with the provided URL
       this.eventSources[task_id] = new EventSource(
-        `http://cellcraft.ssu.ac.kr:8000/routes/workflow/task/${task_id}`
+        `http://localhost/api/routes/workflow/task/${task_id}`
       );
 
       // Event handler for the 'onmessage' event
