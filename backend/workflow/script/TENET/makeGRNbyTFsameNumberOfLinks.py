@@ -1,47 +1,45 @@
-import numpy
+import numpy as np
 import sys
+import os
 
-TFlist=[]
-species=sys.argv[1]
-ifile = open("GO_symbol_"+species+"_regulation_of_transcription+sequence-specific_DNA_binding_list.txt")
-for line in ifile:
-    TFlist.append(line.replace("\n","").replace("\r",""))
+root_path = "/app/"
 
-file_name="TE_result_matrix.txt"
+# 전사 인자(TFs) 목록 파일 경로 설정
+species = sys.argv[1]
+tf_list_path = root_path + f"/workflow/script/TENET/GO_symbol_{species}_regulation_of_transcription+sequence-specific_DNA_binding_list.txt"
+with open(tf_list_path, 'r') as file:
+    TFlist = [line.strip() for line in file]
 
-ifile = open(file_name)
-line = ifile.readline()
-temp = line.split()
-gene_name=[]
-for i in range(len(temp)-1):
-    gene_name.append(temp[i+1])
+# 유전자 발현 결과 파일 경로 설정
+input_file_name = root_path + sys.argv[3]
+with open(input_file_name, 'r') as file:
+    gene_name = file.readline().strip().split()[1:]
 
-cutOff=0
-sourceIndex=0
-TEnetwork=[]
-source=[]
-TE=[]
-target=[]
-for line in ifile:
-    if gene_name[sourceIndex] in TFlist:
-        temp = line.split()
-        for targetIndex in range(len(temp)-1):
-            if float(temp[targetIndex+1])>cutOff:            
-                source.append(gene_name[sourceIndex])
-                TE.append(float(temp[targetIndex+1]))
-                target.append(gene_name[targetIndex])
-    sourceIndex=sourceIndex+1
-ifile.close()
+    # 유전자 발현 데이터 처리
+    cutOff = 0
+    source, TE, target = [], [], []
+    for sourceIndex, line in enumerate(file):
+        if gene_name[sourceIndex] in TFlist:
+            temp = line.strip().split()
+            for targetIndex in range(len(temp) - 1):
+                if float(temp[targetIndex + 1]) > cutOff:
+                    source.append(gene_name[sourceIndex])
+                    TE.append(float(temp[targetIndex + 1]))
+                    target.append(gene_name[targetIndex])
 
-TE=numpy.array(TE)
+# TE 값 정렬 및 상위 링크 선택
+TEsortIndex = np.argsort(TE)
+print(TEsortIndex)
+NumberOfLinks = int(sys.argv[2])
 
-TEsortIndex=numpy.argsort(TE)
+# 결과 파일 경로 설정 및 파일 쓰기
+output_file_name = root_path + sys.argv[4]
 
-NumberOfLinks=sys.argv[2]
-ofile = open(file_name.replace(".txt",".byTF.NumberOfLinks")+NumberOfLinks+".sif","w")
-for i in range(int(NumberOfLinks)):
-    ofile.write(source[TEsortIndex[-i-1]]+"\t"+str(TE[-i-1])+"\t"+target[TEsortIndex[-i-1]]+"\n")
-ofile.close()
-
-
+with open(output_file_name, 'w') as file:
+    if len(TEsortIndex) > 0:
+        for i in range(min(NumberOfLinks, len(TEsortIndex))):
+            idx = TEsortIndex[-i-1]
+            file.write(f"{source[idx]}\t{TE[idx]}\t{target[idx]}\n")
+    else:
+        print("TEsortIndex 배열이 비어 있습니다. 빈 결과 파일이 생성됩니다.")
 

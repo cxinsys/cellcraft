@@ -34,7 +34,11 @@ def create_user(
                 status_code=400,
                 detail="this email already exists in the system",
             )
-        user = crud_user.create_user(db, user=user_in)
+        if user_in.email == 'admincellcraft@cellcraft.com':
+            print('admin user created')
+            user = crud_user.create_superuser(db, user=user_in)
+        else:
+            user = crud_user.create_user(db, user=user_in)
         USER_DIRECTORY_NAME = './user/' + user_in.username + '/data'
         os.makedirs(USER_DIRECTORY_NAME)
         #회원가입 시 보내는 확인 이메일
@@ -73,4 +77,4 @@ def read_user_me(
     current_user: models.User = Depends(dep.get_current_active_user),
 ) -> Any:
 
-    return { "email" : current_user.email, "username" : current_user.username }
+    return { "email" : current_user.email, "username" : current_user.username, "is_superuser" : current_user.is_superuser}

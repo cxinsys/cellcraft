@@ -1,9 +1,11 @@
 import numpy
 import sys
 
-file_name="TE_result_matrix.txt"
+root_path = "/app/"
+input_file_name = root_path + sys.argv[2]
+output_file_name = root_path + sys.argv[3]
 
-ifile = open(file_name)
+ifile = open(input_file_name)
 line = ifile.readline()
 temp = line.split()
 gene_name=[]
@@ -31,10 +33,7 @@ TE=numpy.array(TE)
 TEsortIndex=numpy.argsort(TE)
 
 NumberOfLinks=sys.argv[1]
-ofile = open(file_name.replace(".txt",".NumberOfLinks")+NumberOfLinks+".sif","w")
+ofile = open(output_file_name,"w")
 for i in range(int(NumberOfLinks)):
     ofile.write(source[TEsortIndex[-i-1]]+"\t"+str(TE[-i-1])+"\t"+target[TEsortIndex[-i-1]]+"\n")
 ofile.close()
-
-
-

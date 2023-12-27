@@ -3,9 +3,11 @@ import statsmodels.sandbox.stats.multicomp
 import scipy.stats
 import sys
 
-file_name="TE_result_matrix.txt"
+root_path = "/app/"
+input_file_name = root_path + sys.argv[2]
+output_file_name = root_path + sys.argv[3]
 
-ifile = open(file_name)
+ifile = open(input_file_name)
 line = ifile.readline()
 temp = line.split()
 gene_name=[]
@@ -33,7 +35,7 @@ TEpvalue=1-scipy.stats.norm.cdf(TEzscore)
 TEfdr=statsmodels.sandbox.stats.multicomp.multipletests(TEpvalue,alpha=0.05,method='fdr_bh')
 
 fdrCutoff=float(sys.argv[1])
-ofile = open(file_name.replace(".txt",".fdr")+str(fdrCutoff)+".sif","w")
+ofile = open(output_file_name,"w")
 for i in range(len(source)):
     if TEfdr[1][i]<fdrCutoff:
         ofile.write(source[i]+"\t"+str(TE[i])+"\t"+target[i]+"\n")

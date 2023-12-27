@@ -14,6 +14,7 @@ class WorkflowCreate(WorkflowBase):
     workflow_info: Dict = None
     nodes: List = None
     linked_nodes: List = None
+    option_file: str = None
 
 class WorkflowFind(WorkflowBase):
     id: int

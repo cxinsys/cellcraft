@@ -1,5 +1,3 @@
-# FROM continuumio/miniconda3
-# FROM ubuntu:20.04
 FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
 
 # 기본 패키지 및 Miniconda3 설치

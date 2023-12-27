@@ -2,7 +2,9 @@ import sys
 
 threshold=float(sys.argv[2])
 
-file_name=sys.argv[1]
+file_name="/app/" + sys.argv[1]
+
+output_file_name="/app/" + sys.argv[3]
 
 ifile = open(file_name)
 TF=[];TFtarget=[];TFtargetTE=[];TFtargetIndirect=[]
@@ -28,7 +30,7 @@ for i in range(len(TF)):
                     if TFtargetTE[i][k]<min(TFtargetTE[i][j],TFtargetTE[indexTemp][TFtarget[indexTemp].index(TFtarget[i][k])])+threshold:
                         TFtargetIndirect[i][k]=1
 
-ofile = open(file_name.replace(".sif",".trimIndirect"+str(threshold)+".sif"),"w")
+ofile = open(output_file_name,"w")
 for i in range(len(TF)):
     for j in range(len(TFtarget[i])):
         if TFtargetIndirect[i][j]==0:
