@@ -1,0 +1,66 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d  # 수정된 경로
+    depends_on:
+      - frontend
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+  backend:
+    environment:
+      - CONDA_DEFAULT_ENV=snakemake
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - GITHUB_TOKEN
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: cellcraft
+      POSTGRES_USER: testdb
+      POSTGRES_PASSWORD: testdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: "rabbitmq:management"
+
+  celery:
+    environment:
+      - CONDA_DEFAULT_ENV=snakemake
+      - C_FORCE_ROOT=true
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - GITHUB_TOKEN
+    command:
+      [
+        "/opt/conda/envs/snakemake/bin/python",
+        "-m",
+        "celery",
+        "-A",
+        "app.main.celery",
+        "worker",
+        "--loglevel=info",
+        "-E",
+        "-Q",
+        "workflow_task",
+      ]
+    depends_on:
+      - rabbitmq
+      - db
+
+volumes:
+  postgres_data:

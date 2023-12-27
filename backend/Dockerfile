@@ -51,4 +51,4 @@ RUN conda env create -f environment.yml
 COPY . .
 
 # Conda 환경 활성화 및 FastAPI 애플리케이션 실행
-CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0"]
+CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0" , "--port", "8000"]
