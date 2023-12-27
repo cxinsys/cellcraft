@@ -266,9 +266,9 @@
                   class="parameter__textInput"
                   v-model="parameter.value"
                   :step="parameter.step"
-                  :class="{ 'red-text': !parameter.value }"
                   :disabled="parameter.disabled"
                   :min="parameter.min"
+                  :max="parameter.max"
                 />
                 <div
                   v-else-if="parameter.type === 'radio'"
@@ -518,7 +518,7 @@ export default {
               step: 1,
               description: "number of threads",
               value: 10,
-              max: 16,
+              max: 10,
               min: 1,
               required: true,
               disabled: false,
@@ -529,7 +529,7 @@ export default {
               step: 1,
               description: "history length",
               value: 1,
-              max: 10,
+              max: 1,
               min: 1,
               required: true,
               disabled: false,
@@ -1644,6 +1644,7 @@ export default {
   overflow-wrap: break-word; /* CSS3에서 word-wrap 대신 사용 */
 }
 .parameter__textInput {
+  width: 8.5rem;
   color: black;
   padding: 5px;
   /* right: 10px; */
