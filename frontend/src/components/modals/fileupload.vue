@@ -1,35 +1,15 @@
 <template>
   <div class="layout">
     <form class="fileUpload-form" @submit.prevent="applyFile">
-      <div class="cloud-form" v-if="!getFile">
-        <div class="cloud-row" @click="getFinder">
-          <label class="form__button">
-            <div class="form__addfile">
-              <img
-                class="form__button--foldericon"
-                src="@/assets/add-file.png"
-              />
-              <!-- <img class="form__button--plusicon" src="@/assets/plus.png" /> -->
-            </div>
-          </label>
+      <ul class="folder__list">
+        <router-link class="cloud-row" target="_blank" to="/files">
           <div class="cloud-textbox">
-            <h1 class="cloud-textbox__title">Get file</h1>
-            <p class="cloud-textbox__desc">
-              Get file from CELLCRAFT files directory.
-            </p>
-          </div>
-        </div>
-        <router-link class="cloud-row" to="/files">
-          <div class="cloud-textbox">
-            <h1 class="cloud-textbox__directory">Files directory ></h1>
             <p class="cloud-textbox__directory__desc">
-              Open CELLCRAFT files directory.
+              If you want to upload a new file, please click here.
             </p>
+            <h1 class="cloud-textbox__directory">Files directory ></h1>
           </div>
         </router-link>
-      </div>
-      <ul class="folder__list" v-else>
-        <li @click="getFile = false" class="folder__list--back">Back</li>
         <li
           class="folder__item"
           v-for="(folder, idx) in folders_list"
@@ -40,7 +20,7 @@
           <div class="folder__item--col">
             <img
               class="folder__item--arrow"
-              src="@/assets/arrow-bottom.png"
+              src="@/assets/arrow-right.png"
               v-if="toggleFolder === idx"
             />
             <img
@@ -57,7 +37,7 @@
           </div>
           <p class="folder__name">{{ folder[0] }}</p>
         </li>
-        <li
+        <!-- <li
           class="file__item"
           v-for="(file, idx) in files_list"
           :key="idx + 'I'"
@@ -69,29 +49,36 @@
             <img class="folder__item--icon" src="@/assets/file-icon.png" />
           </div>
           <p class="folder__name">{{ file.file_name }}</p>
-        </li>
+        </li> -->
       </ul>
       <div class="fileUpload">
         <div class="form-row">
-          <h1 class="form__name">Choose Recent File</h1>
           <div class="form__selectFile">
             <ul class="form__fileList">
               <li
-                class="fileList__item"
-                v-for="(file, idx) in recentFiles_list.data"
-                :key="idx"
-                @click="fileSelect"
+                class="file__item"
+                v-for="(file, idx) in files_list"
+                :key="idx + 'I'"
+                v-bind:class="{ toggleFile: toggleFile === idx }"
+                @click="fileClick(idx, file.file_name)"
               >
-                <p class="fileList__text">{{ file.file_name }}</p>
-              </li>
-              <li class="fileList__item" v-if="recentFiles_list.length === 0">
-                <p class="fileList__text--blank">Please upload a new file</p>
+                <div class="folder__item--col">
+                  <img
+                    class="folder__item--arrow"
+                    src="@/assets/arrow-right.png"
+                  />
+                  <img
+                    class="folder__item--icon"
+                    src="@/assets/file-icon.png"
+                  />
+                </div>
+                <p class="folder__name">{{ file.file_name }}</p>
               </li>
             </ul>
           </div>
         </div>
         <div class="form-row">
-          <h1 class="form__name">Current File</h1>
+          <div class="form__name">Current File</div>
         </div>
         <div class="form-row">
           <ul class="form__info" v-if="selectFile">
@@ -150,19 +137,16 @@ export default {
     previewFile() {
       if (this.$refs.selectFile.files.length > 0) {
         this.selectFile = this.$refs.selectFile.files[0];
-        console.log(this.selectFile.name);
       }
     },
     filterAndAddSuffix(inputString) {
       // Check if the inputString contains an underscore
       if (inputString.includes("_")) {
-        // Find the position of the first underscore
-        let underscorePosition = inputString.indexOf("_");
-        // Add ".h5ad" before the first underscore and exclude everything after underscore
-        let modifiedString =
-          inputString.substring(0, underscorePosition) + ".h5ad";
-        // Return the modified string
-        return modifiedString;
+        // "_"로 구분된 문자열을 배열로 변환
+        const segments = inputString.split("_");
+        // 마지막 두 요소를 제외한 나머지를 합침
+        const fileName = segments.slice(0, -2).join("_") + ".h5ad";
+        return fileName;
       }
       // If no underscore found, return the original string
       return inputString;
@@ -171,7 +155,6 @@ export default {
       this.getFile = true;
       try {
         const fileList = await getFiles();
-        console.log(fileList.data);
         this.folders_list = fileList.data;
       } catch (error) {
         console.error(error);
@@ -183,11 +166,9 @@ export default {
       } else {
         this.toggleFolder = idx;
         this.currentFolder = folderName;
-        console.log(folderName);
         const folderFile = await findFolder({
           folder_name: folderName,
         });
-        console.log(folderFile.data);
         this.files_list = folderFile.data;
       }
     },
@@ -197,16 +178,12 @@ export default {
         this.toggleFile = null;
       } else {
         this.toggleFile = idx;
-        console.log(fileName);
         const file = await findFile({
           file_name: fileName,
         });
-        console.log(file.data);
         this.selectFile = file.data;
         try {
-          console.log(this.selectFile.file_name);
-          const check = await checkConvert(this.selectFile.file_name);
-          console.log(check.data);
+          await checkConvert(this.selectFile.file_name);
           // this.apply = false;
         } catch (error) {
           console.error(error);
@@ -220,7 +197,6 @@ export default {
           file_name: this.selectFile.file_name,
         });
         this.apply = true;
-        console.log(file.data);
         this.$store.commit("changeFile", file.data.file_name);
         this.$store.commit("shareConnectionFile");
       } catch (error) {
@@ -231,21 +207,20 @@ export default {
   },
   async mounted() {
     const currentFile = this.$store.getters.getCurrentFile;
+    await this.getFinder();
     if (currentFile.file !== "") {
       try {
         const file = await findFile({
           file_name: this.filterAndAddSuffix(currentFile.file),
         });
         this.selectFile = file.data;
-        const check = await checkConvert(
-          this.filterAndAddSuffix(currentFile.file)
-        );
-        console.log(check.data);
+        await checkConvert(this.filterAndAddSuffix(currentFile.file));
+        this.apply = true;
       } catch (error) {
         console.error(error);
       }
     }
-    console.log(this.selectFile);
+    // await this.getFinder();
   },
   filters: {
     formatBytes(a, b) {
@@ -297,7 +272,7 @@ export default {
   display: flex;
   flex-direction: column;
   margin: 1rem 0 1rem 1rem;
-  padding: 3rem 1rem;
+  padding: 1rem 1rem;
   border-radius: 1rem;
   box-sizing: border-box;
   background-color: rgb(255, 255, 255);
@@ -317,6 +292,7 @@ export default {
   display: flex;
   cursor: pointer;
   margin-bottom: 0.5rem;
+  /* background: #ffffff; */
 }
 .folder__item:hover {
   background: rgb(231, 233, 238);
@@ -378,7 +354,7 @@ export default {
 }
 .cloud-textbox {
   width: 17rem;
-  height: 5rem;
+  height: 3rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -409,32 +385,35 @@ export default {
 }
 .fileUpload {
   width: 55%;
-  height: 95%;
-  margin: 1rem 2rem 1rem 0;
+  height: 100%;
+  margin: 0rem 2rem 0rem 0;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 .form-row {
   width: 100%;
-  height: 8%;
+  height: 10%;
   position: relative;
 }
 .form-row:first-child {
   height: 75%;
   margin: 1rem;
+  /* background: #3498db; */
+  padding: 0;
 }
 .form-row:last-child {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  height: 17%;
+  height: 15%;
+  margin: 0rem;
   padding: 0 2rem;
   box-sizing: border-box;
 }
 .form__name {
   width: 100%;
-  height: 3rem;
+  height: 100%;
   display: flex;
   align-items: center;
   padding: 0 2rem;
@@ -447,18 +426,20 @@ export default {
 }
 .form__selectFile {
   width: 100%;
-  height: 85%;
+  height: 90%;
   display: flex;
-  padding: 0 0 0 0.5rem;
+  padding: 0 0 0 2rem;
 }
 .form__fileList {
-  width: 80%;
+  width: 84%;
   height: 100%;
   display: flex;
-  padding: 0% 3%;
+  padding: 2rem 1rem;
   flex-direction: column;
   align-items: center;
   overflow: hidden;
+  border-radius: 1rem;
+  background-color: rgb(255, 255, 255);
 }
 .fileList__item {
   width: 90%;
@@ -541,7 +522,7 @@ export default {
   border-radius: 0.5rem;
 }
 .form__info--type {
-  width: 30%;
+  width: 20%;
   height: 100%;
   display: flex;
   align-items: center;
@@ -554,7 +535,7 @@ export default {
 }
 .form__info--name,
 .form__info--size {
-  width: 70%;
+  width: 80%;
   height: 100%;
   display: flex;
   align-items: center;
@@ -564,6 +545,8 @@ export default {
   font-size: 0.9rem;
   line-height: 0.9rem;
   color: rgb(51, 51, 51);
+  overflow-wrap: break-word; /* 줄바꿈 처리 */
+  overflow: hidden; /* 넘치는 내용 숨기기 */
 }
 .form__info--blank {
   width: 100%;

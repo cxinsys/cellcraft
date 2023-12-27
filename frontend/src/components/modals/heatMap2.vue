@@ -2,20 +2,15 @@
   <div id="layout">
     <div class="plotly-layout">
       <div id="plotly-heatmap"></div>
-      <div v-if="isLoading" class="loading-layout">
-        <span> </span>
-      </div>
-      <div v-else-if="errorOccured">
-        <span> SOME ERROR OCCURED</span>
-      </div>
-      <div v-else-if="!plotReady">
-        <span> NO DATA FOR HEATMAP</span>
-      </div>
     </div>
     <div class="options-layout">
       <div class="options__item">
         sif&nbsp;
-        <select class="options__item__select" v-model="selectedSif">
+        <select
+          class="options__item__select"
+          :value="selectedSif"
+          @change="setSelectedSif($event)"
+        >
           <option v-for="sif in resultSifs" :key="sif" :value="sif">
             {{ sif | splitUnderScore }}
           </option>
@@ -25,6 +20,7 @@
         Degree&nbsp;
         <select
           class="options__item__select"
+          :value="selectedDegree"
           @change="setSelectedDegree($event)"
         >
           <option
@@ -35,11 +31,6 @@
             {{ item.name }}
           </option>
         </select>
-      </div>
-      <div class="options__item">
-        <button id="apply-button" @click="applySelect">
-          {{ "Select Apply " }}
-        </button>
       </div>
       <!-- <div class="options__item">
         p_min&nbsp;
@@ -98,9 +89,6 @@ export default {
       expression_file: "",
       pseudo_time_file: "",
       cell_select_file: "",
-      plotReady: false,
-      isLoading: false,
-      errorOccured: false,
     };
   },
   name: "PlotlyHeatMap",
@@ -109,6 +97,9 @@ export default {
     // option_file_name.algorithmOptions.optionFilePath이 null이면 error 띄우기
     const option_file_name = this.$store.getters.getCurrentLinkedNodes;
     console.log(option_file_name[0].algorithmOptions.optionFilePath);
+    if (option_file_name[0].algorithmOptions.optionFilePath === null) {
+      alert("Please select an option file.");
+    }
 
     try {
       this.current_file = this.filterAndAddSuffix(
@@ -133,11 +124,11 @@ export default {
       }
 
       // resultSifs에서 trimIndirect가 포함된 파일명 this.selectedSif에 할당
-      for (i = 0; i < this.resultSifs.length; i++) {
-        if (this.resultSifs[i].includes("trimIndirect")) {
-          this.selectedSif = this.resultSifs[i];
-        }
-      }
+      // for (i = 0; i < this.resultSifs.length; i++) {
+      //   if (this.resultSifs[i].includes("trimIndirect")) {
+      //     this.selectedSif = this.resultSifs[i];
+      //   }
+      // }
 
       // expMatrix, pseudotime, cellSelect가 포함된 파일명 추출
       // 그냥 resultsList에서 순회하면서 해당 문자열이 포함된 파일명을 찾아서
@@ -157,6 +148,8 @@ export default {
     } catch (error) {
       console.log(error);
     }
+
+    await this.updatePlot(this.selectedDegree); // indegree는 0 outdegree는 2
   },
   filters: {
     // 문자열 안에 "_"가 포함되어 있으면 "_"로 구분된 문자열을 중 마지막 요소를만 반환
@@ -187,179 +180,73 @@ export default {
       // If no underscore found, return the original string
       return inputString;
     },
-    async applySelect() {
-      this.isLoading = true;
-      await this.updatePlot();
-      this.isLoading = false;
-    },
-    async updatePlot() {
+    async updatePlot(rowNum = 0) {
+      var [
+        algorithmResult,
+        expressionResult,
+        pseudoTimeResult,
+        cellSelectResult,
+      ] = ["", "", "", ""];
       try {
-        // ---- y축 ------
-        const algorithmResult = await getResultFileOne(this.selectedSif);
-        // 줄바꿈 문자("\n")를 기준으로 문자열을 분할하여 각 라인을 배열로 변환
-        let lines = algorithmResult.data.split("\n");
-
-        // 각 라인을 탭 문자("\t")를 기준으로 분할하여 2차원 배열 생성
-        var twoDimensionalList = lines.map(function (line) {
-          return line.split("\t");
-        });
-
-        // 결과 출력 (옵션)
-
-        var frequencyMap = {};
-        const tmpDegree = this.selectedDegree;
-        twoDimensionalList.forEach(function (row) {
-          var element = row[tmpDegree]; // 첫 번째 열의 요소
-          // 해당 요소가 frequencyMap에 이미 존재하면 카운트 증가, 없으면 1로 초기화
-          if (frequencyMap[element]) {
-            frequencyMap[element]++;
-          } else {
-            frequencyMap[element] = 1;
-          }
-        });
-
-        if (Object.prototype.hasOwnProperty.call(frequencyMap, "")) {
-          delete frequencyMap[""];
-        }
-
-        // 결과 출력 (옵션)
-
-        // 객체를 키-값 쌍의 배열로 변환
-        var items = Object.keys(frequencyMap).map(function (key) {
-          return [key, frequencyMap[key]];
-        });
-
-        // 배열을 값(value)에 따라 내림차순으로 정렬
-        items.sort(function (first, second) {
-          return first[1] - second[1];
-        });
-
-        // 정렬된 배열을 다시 객체로 변환 (선택적)
-        var sortedFrequencyMap = {};
-        items.forEach(function (item) {
-          sortedFrequencyMap[item[0]] = item[1];
-        });
-
-        //sortedFrequencyMap에 key가 undefined인 요소가 있으면 삭제
-        if (
-          Object.prototype.hasOwnProperty.call(sortedFrequencyMap, "undefined")
-        ) {
-          delete sortedFrequencyMap["undefined"];
-        }
-
-        // 결과 출력
-        // ---- y축 ------ 끝
-
-        // ---- z ------
-        const expressionResult = await getResultFileOne(this.expression_file);
-
-        var expressionLines = expressionResult.data.split("\n");
-
-        // 각 라인을 탭 문자("\t")를 기준으로 분할하여 2차원 배열 생성
-        var expressionTwoDimensionalList = expressionLines.map(function (line) {
-          return line.split(",");
-        });
-
-        // 결과 출력 (옵션)
-
-        const pseudoTimeResult = await getResultFileOne(this.pseudo_time_file);
-        const pseudoTimes = pseudoTimeResult.data.split("\n");
-
-        for (var i = 0; i < pseudoTimes.length; i++) {
-          expressionTwoDimensionalList[i].push(pseudoTimes[i]);
-        }
-
-        const cellSelectResult = await getResultFileOne(this.cell_select_file);
-        const cellSelect = cellSelectResult.data.split("\r\n");
-
-        // 새로운 2차원 배열 생성
-        var filteredExpressionList = [];
-        var expressionFirstRow = expressionTwoDimensionalList[0];
-        // expressionTwoDimensionalList를 순회하면서
-        // cellSelect에서 해당 인덱스가 "1"인 행만 새 배열에 추가
-        for (i = 0; i < expressionTwoDimensionalList.length; i++) {
-          if (cellSelect[i] === "1") {
-            filteredExpressionList.push(expressionTwoDimensionalList[i + 1]);
-          }
-        }
-
-        filteredExpressionList.sort(function (a, b) {
-          // 각 행의 마지막 요소를 비교하여 정렬
-          return a[a.length - 1] - b[b.length - 1];
-        });
-
-        var zMatrix = [];
-
-        for (i = 0; i < Object.keys(sortedFrequencyMap).length; i++) {
-          var cellIndex = expressionFirstRow.indexOf(
-            Object.keys(sortedFrequencyMap)[i]
-          );
-          var row = [];
-          for (var j = 0; j < filteredExpressionList.length; j++) {
-            row.push(filteredExpressionList[j][cellIndex + 1]);
-          }
-          zMatrix.push(this.localRegression(row));
-        }
-        console.log(Object.keys(sortedFrequencyMap));
-        console.log(zMatrix);
-        // Data for the bar plot
-        const data = [
-          {
-            // x: items.map((item) => item[1]),
-            // y: items.map((item) => item[0]),
-            // z: items.map((item) => item[1]),
-            // x: [1, 2, 3],
-            y: Object.keys(sortedFrequencyMap),
-            z: zMatrix, // Heatmap values
-            type: "heatmap",
-            orientation: "h",
-          },
-        ];
-
-        // Layout configuration
-        const layout = {
-          // title: "Simple Bar Plot",
-          // xaxis: {
-          //   title: "Categories",
-          // },
-          // yaxis: {
-          //   title: "Values",
-          // },
-          width: 600, // !--조정필요
-          height: 570, // !--조정필요
-        };
-        const config = {
-          responsive: true,
-          scrollZoom: true,
-          displayModeBar: true,
-          displaylogo: false,
-        };
-        // Rendering the bar plot
-        Plotly.newPlot("plotly-heatmap", data, layout, config);
-        this.plotReady = true;
+        // 비동기 처리 병렬화
+        [
+          algorithmResult,
+          expressionResult,
+          pseudoTimeResult,
+          cellSelectResult,
+        ] = await Promise.all([
+          getResultFileOne(this.selectedSif),
+          getResultFileOne(this.expression_file),
+          getResultFileOne(this.pseudo_time_file),
+          getResultFileOne(this.cell_select_file),
+        ]);
       } catch (error) {
-        this.plotReady = false;
-        this.errorOccured = true;
         console.log(error);
       }
-      console.log(
-        111,
-        this.selectedSif,
-        222,
-        this.current_file,
-        333,
-        this.expression_file,
-        444,
-        this.pseudo_time_file,
-        555,
-        this.cell_select_file
+      // y축 데이터 처리 최적화
+      const frequencyMap = this.processAlgorithmResult(
+        algorithmResult.data,
+        rowNum
       );
+
+      // z축 데이터 처리 최적화
+      const { expressionTwoDimensionalList, expressionFirstRow } =
+        this.processExpressionResult(expressionResult.data);
+      this.appendPseudoTimes(
+        expressionTwoDimensionalList,
+        pseudoTimeResult.data
+      );
+      const filteredExpressionList = this.filterExpressionList(
+        expressionTwoDimensionalList,
+        cellSelectResult.data
+      );
+
+      var zMatrix = this.computeZMatrix(
+        expressionFirstRow,
+        filteredExpressionList,
+        frequencyMap
+      );
+
+      // Plotly 데이터 준비
+      const data = this.preparePlotData(frequencyMap, zMatrix);
+      // Plotly 레이아웃 설정
+      const layout = this.getPlotLayout();
+      // Plotly 차트 렌더링
+      Plotly.newPlot("plotly-heatmap", data, layout, {
+        responsive: true,
+        scrollZoom: true,
+        displayModeBar: true,
+        displaylogo: false,
+      });
     },
     async setSelectedDegree(event) {
       this.selectedDegree = event.target.value;
-      if (typeof this.selectedDegree === "string") {
-        this.selectedDegree = parseInt(this.selectedDegree);
-      }
+      await this.updatePlot(this.selectedDegree);
+    },
+    async setSelectedSif(event) {
+      this.selectedSif = event.target.value;
+      console.log(this.selectedSif);
+      await this.updatePlot(this.selectedDegree);
     },
     localRegression(data, bandwidth = 75) {
       const n = data.length;
@@ -393,34 +280,108 @@ export default {
       );
       return multipliedArray;
     },
-    pMinMinus() {
-      if (this.p_min <= -7) {
-        return;
-      }
-      this.p_min -= 1;
-      this.updatePlot(this.selectedDegree);
+    processAlgorithmResult(data, rowNum) {
+      const lines = data.split("\n");
+      let frequencyMap = {};
+
+      lines.forEach((line) => {
+        const elements = line.split("\t");
+        const element = elements[rowNum];
+        if (element) {
+          frequencyMap[element] = (frequencyMap[element] || 0) + 1;
+        }
+      });
+
+      return frequencyMap;
     },
-    pMinPlus() {
-      if (this.p_min >= -1) {
-        return;
-      }
-      this.p_min += 1;
-      this.updatePlot(this.selectedDegree);
+    processExpressionResult(data) {
+      const lines = data.split("\n");
+      let twoDimensionalList = lines.map((line) => line.split(","));
+
+      return {
+        expressionTwoDimensionalList: twoDimensionalList,
+        expressionFirstRow: twoDimensionalList[0],
+      };
     },
-    pMaxMinus() {
-      if (this.p_max <= 1) {
-        return;
-      }
-      this.p_max -= 1;
-      this.updatePlot(this.selectedDegree);
+    appendPseudoTimes(twoDimensionalList, pseudoTimeData) {
+      const pseudoTimes = pseudoTimeData.split("\n");
+      pseudoTimes.forEach((time, index) => {
+        if (twoDimensionalList[index]) {
+          twoDimensionalList[index].push(time);
+        }
+      });
     },
-    pMaxPlus() {
-      if (this.p_max >= 7) {
-        return;
-      }
-      this.p_max += 1;
-      this.updatePlot(this.selectedDegree);
+    filterExpressionList(twoDimensionalList, cellSelectData) {
+      const cellSelect = cellSelectData.split("\r\n");
+      let filteredList = [];
+
+      twoDimensionalList.forEach((row, index) => {
+        if (cellSelect[index] === "1") {
+          filteredList.push(row);
+        }
+      });
+
+      filteredList.sort((a, b) => a[a.length - 1] - b[b.length - 1]);
+      return filteredList;
     },
+    computeZMatrix(firstRow, expressionList, frequencyMap) {
+      let zMatrix = [];
+
+      Object.keys(frequencyMap).forEach((key) => {
+        const cellIndex = firstRow.indexOf(key);
+        let row = [];
+        expressionList.forEach((expressionRow) => {
+          row.push(expressionRow[cellIndex + 1]);
+        });
+        zMatrix.push(this.localRegression(row));
+      });
+
+      return zMatrix;
+    },
+    preparePlotData(frequencyMap, zMatrix) {
+      return [
+        {
+          y: Object.keys(frequencyMap),
+          z: zMatrix,
+          type: "heatmap",
+          orientation: "h",
+        },
+      ];
+    },
+    getPlotLayout() {
+      return {
+        width: 600,
+        height: 570,
+      };
+    },
+    // pMinMinus() {
+    //   if (this.p_min <= -7) {
+    //     return;
+    //   }
+    //   this.p_min -= 1;
+    //   this.updatePlot(this.selectedDegree);
+    // },
+    // pMinPlus() {
+    //   if (this.p_min >= -1) {
+    //     return;
+    //   }
+    //   this.p_min += 1;
+    //   this.updatePlot(this.selectedDegree);
+    // },
+    // pMaxMinus() {
+    //   if (this.p_max <= 1) {
+    //     return;
+    //   }
+    //   this.p_max -= 1;
+    //   this.updatePlot(this.selectedDegree);
+    // },
+    // pMaxPlus() {
+    //   if (this.p_max >= 7) {
+    //     return;
+    //   }
+    //   this.p_max += 1;
+    //   this.updatePlot(this.selectedDegree);
+    // },
   },
 };
 </script>
@@ -604,7 +565,7 @@ input:checked + .slider_button:before {
 
 #apply-button {
   background-color: #2d2fbf; /* 버튼 배경색 */
-  width: 13.5rem;
+  width: 8.5rem;
   color: white; /* 글자색 */
   padding: 10px 0px; /* 상하 10px, 좌우 20px의 여백 */
   border: none; /* 테두리 없앰 */
@@ -642,20 +603,5 @@ input:checked + .slider_button:before {
 
 #reset-button:hover {
   background-color: #797979; /* 마우스 오버시 버튼의 배경색 변경 */
-}
-
-.loading-layout {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.loading-layout span {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 2s linear infinite;
 }
 </style>

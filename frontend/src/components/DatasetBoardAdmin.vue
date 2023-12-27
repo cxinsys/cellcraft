@@ -1,18 +1,19 @@
 <template>
-  <div>
+  <div class="layout_admin">
     <div class="first-line">
+      <div class="header__text">Datasets</div>
       <div class="search">
         <input
           type="text"
           v-model="searchTerm"
           placeholder="Search by title..."
         />
-        <img
+        <!-- <img
           class="reset-button"
           src="@/assets/reset.png"
           alt="reset"
           @click="resetSearch"
-        />
+        /> -->
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>
@@ -30,7 +31,7 @@
         class="upload-button"
         href="https://github.com/chxhyxn/TmpCellcraftBoard"
       >
-        ⇪ UPLOAD NEW DATASET
+        ⇪ upload new dataset
       </a>
     </div>
     <table>
@@ -138,7 +139,6 @@ export default {
           );
           if (exists) {
             dataset.posturl = `https://github.com/${repo}/blob/main/posts/${baseName}.${ext}`;
-            console.log(dataset.posturl);
             break;
           }
         }
@@ -290,12 +290,13 @@ a {
 
 .first-line {
   height: 40px;
+  margin-bottom: 10px;
   width: calc(100% - 10px);
   padding: 5px 5px 0px 5px;
-  /* margin-bottom: 10px; */
   display: flex;
   justify-content: space-between;
   flex-direction: row;
+  align-items: center;
 }
 .second-line {
   width: calc(100% - 10px);
@@ -317,17 +318,16 @@ a {
 }
 
 .search input {
-  margin-right: 10px;
-  width: 200px;
-  color: black;
-  padding: 5px;
-  left: 10px;
-  border-radius: 10px;
-  border-color: #e7eaff;
-  font-size: small;
-  text-align: center;
-  margin-top: 5px;
-  margin-bottom: 10px;
+  width: 300px;
+  height: 2.5rem;
+  border: 1px solid #e1e1e1;
+  border-radius: 1rem;
+  padding: 0 2rem;
+  outline-style: none;
+  background: #f7f7f7;
+}
+.search input:focus {
+  border: 1px solid #bcbcbc;
 }
 .upload-button {
   border-radius: 5px;
@@ -340,6 +340,7 @@ a {
   border-radius: 10px;
   text-decoration: none;
   color: rgb(255, 255, 255);
+  text-transform: capitalize;
 }
 .upload-button:hover {
   cursor: pointer;
@@ -369,5 +370,18 @@ a {
 button:disabled {
   color: #ccc;
   border-color: #ccc;
+}
+
+.layout_admin {
+  padding: 0 2rem 0 1rem;
+}
+.header__text {
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 2rem;
+  line-height: 1rem;
+  /* padding-left: 2rem; */
+  color: rgba(0, 0, 0, 0.8);
 }
 </style>

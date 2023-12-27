@@ -1,13 +1,14 @@
 <template>
-  <div>
+  <div class="layout_admin">
     <div class="first-line">
+      <div class="header__text">Users</div>
       <div class="search">
         <input
           type="text"
           v-model="searchTerm"
-          placeholder="Enter keyword for search..."
+          placeholder="Search by keyword..."
         />
-        <button @click="updateUsers">search</button>
+        <!-- <button @click="updateUsers">search</button> -->
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>
@@ -32,7 +33,7 @@
           <th @click="sortTable('email')">
             e-mail <span class="sort-icon">{{ sortIcon("email") }}</span>
           </th>
-          <th>password</th>
+          <!-- <th>password</th> -->
         </tr>
       </thead>
       <tbody>
@@ -40,10 +41,9 @@
           <td>{{ user.id }}</td>
           <td>{{ user.username }}</td>
           <td>{{ user.email }}</td>
-          <td>
+          <!-- <td>
             <span class="blind-password">****</span>
-            <!-- {{ user.hashed_password }} -->
-          </td>
+          </td> -->
         </tr>
       </tbody>
     </table>
@@ -84,7 +84,6 @@ export default {
     async updateUsers() {
       const response = await getUsersCount();
       this.usersCount = response.data;
-      console.log(this.usersCount);
 
       const conditions = {
         amount: this.pageSize,
@@ -94,7 +93,6 @@ export default {
         searchTerm: this.searchTerm,
       };
       const filteredUsers = await getFilteredUsers(conditions);
-      console.log(filteredUsers.data);
       this.users = filteredUsers.data;
     },
     async sortTable(key) {
@@ -114,6 +112,16 @@ export default {
     },
     resetPageNum() {
       this.currentPage = 1; // Reset to first page when page size changes
+    },
+  },
+  watch: {
+    searchTerm: {
+      handler: function () {
+        // 검색어가 바뀔 때마다 사용자 업데이트 메소드를 호출합니다.
+        this.updateUsers();
+      },
+      // 이 옵션은 searchTerm이 바뀔 때마다 즉시 watcher가 호출되도록 합니다.
+      immediate: true,
     },
   },
 };
@@ -192,27 +200,18 @@ button:disabled {
 }
 
 .search input {
-  margin-right: 10px;
-  width: 200px;
-  color: black;
-  padding: 5px;
-  left: 10px;
-  border-radius: 10px;
-  border-color: #e7eaff;
-  font-size: small;
-  text-align: center;
-  margin-top: 11px;
-  margin-bottom: 10px;
+  width: 300px;
+  height: 2.5rem;
+  border: 1px solid #e1e1e1;
+  border-radius: 1rem;
+  padding: 0 2rem;
+  outline-style: none;
+  background: #f7f7f7;
 }
-/* .blind-password {
-  position: absolute;
-  padding-left: 10px;
-  padding-right: 100px;
-  background: white;
+.search input:focus {
+  border: 1px solid #bcbcbc;
 }
-.blind-password:hover {
-  opacity: 0;
-} */
+
 #pageSize {
   padding: 2px;
   border-radius: 5px;
@@ -228,5 +227,19 @@ button:disabled {
 
 .pagination button {
   margin: -5px 10px 0px 10px;
+}
+
+.header__text {
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 2rem;
+  line-height: 1rem;
+  /* padding-left: 2rem; */
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.layout_admin {
+  padding: 0 2rem 0 1rem;
 }
 </style>

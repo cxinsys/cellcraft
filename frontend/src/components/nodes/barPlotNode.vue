@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="nodeBox" ref="nodeBox">
-      <img class="nodeBox__icon" src="@/assets/heatMap2.png" />
+      <img class="nodeBox__icon" src="@/assets/barPlot.png" />
     </div>
     <div class="nodeTitleBox">
       <input
@@ -36,7 +36,7 @@ export default {
     nodeTitle: {
       get() {
         if (this.nodeId == null) {
-          return "HeatMap"; // 또는 기본 타이틀 반환
+          return "BarPlot"; // 또는 기본 타이틀 반환
         }
         const node = this.$store.getters.getNodeInfo(this.nodeId);
         return node.title;

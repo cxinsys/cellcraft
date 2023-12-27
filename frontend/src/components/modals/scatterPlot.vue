@@ -42,22 +42,6 @@
           </option>
         </select>
       </div>
-      <!-- <div class="options__item">
-        Labeling&nbsp;
-        <select
-          class="options__item__select"
-          :value="selectedName"
-          @change="setSelectName($event)"
-        >
-          <option
-            v-for="(item, index) in keyList"
-            :key="index"
-            :value="item.value"
-          >
-            {{ item.name }}
-          </option>
-        </select>
-      </div> -->
       <div class="options__item">
         Group&nbsp;
         <select
@@ -74,38 +58,6 @@
           </option>
         </select>
       </div>
-      <!-- <div class="options__item">
-        Contrast&nbsp;
-        <img
-          class="options__item__button__minus"
-          src="@/assets/button_minus.png"
-          alt="-"
-          v-on:click="clusterContrastMinus"
-        />
-        <label class="options__item__degree">{{ clusterContrast }}</label>
-        <img
-          class="options__item__button__plus"
-          src="@/assets/button_plus.png"
-          alt="-"
-          v-on:click="clusterContrastPlus"
-        />
-      </div>
-      <div class="options__item">
-        Quantile&nbsp;
-        <img
-          class="options__item__button__minus"
-          src="@/assets/button_minus.png"
-          alt="-"
-          v-on:click="clusterQuantileMinus"
-        />
-        <label class="options__item__degree">{{ clusterQuantile }}</label>
-        <img
-          class="options__item__button__plus"
-          src="@/assets/button_plus.png"
-          alt="-"
-          v-on:click="clusterQuantilePlus"
-        />
-      </div> -->
 
       <div class="options__item">
         Marker Size&nbsp;
@@ -123,34 +75,6 @@
           v-on:click="markerSizePlus"
         />
       </div>
-      <!-- <div class="options__item">
-        Show Grid&nbsp;
-        <label class="switch" v-on:click="switchShowGrid">
-          <input type="checkbox" />
-          <span class="slider_button round"></span>
-        </label>
-      </div>
-      <div class="options__item">
-        Show Line&nbsp;
-        <label class="switch" v-on:click="switchShowLine">
-          <input type="checkbox" />
-          <span class="slider_button round"></span>
-        </label>
-      </div>
-      <div class="options__item">
-        Show Zero Line&nbsp;
-        <label class="switch" v-on:click="switchShowZeroLine">
-          <input type="checkbox" />
-          <span class="slider_button round"></span>
-        </label>
-      </div>
-      <div class="options__item">
-        Show Axes Label&nbsp;
-        <label class="switch" v-on:click="switchShowLabel">
-          <input type="checkbox" />
-          <span class="slider_button round"></span>
-        </label>
-      </div> -->
       <div class="options__item">
         Download Plot Image&nbsp;
         <img
@@ -167,7 +91,7 @@
           @click="cellselect"
           :disabled="disableApplyButton"
         >
-          {{ disableApplyButton ? "Applied" : " Apply " }}
+          {{ disableApplyButton ? "Select Applied" : "Select Apply " }}
         </button>
       </div>
     </div>
@@ -249,29 +173,7 @@ export default {
         this.disableApplyButton = true;
       }
     }
-    console.log(this.appliedSelectedIndices);
     if (this.current_file !== "") {
-      // // adata.obs 받아오기
-      // const filename_obs = {
-      //   filename: `file_${this.current_file.replace(".h5ad", "")}_obs`,
-      // };
-      // console.log(filename_obs);
-      // const scatterResult_obs = await getResult(filename_obs);
-      // // adta.obsm['X_umap'] 받아오기
-      // const filename_obsm = {
-      //   filename: `file_${this.current_file.replace(".h5ad", "")}_obsm`,
-      // };
-      // console.log(filename_obsm);
-      // const scatterResult_obsm = await getResult(filename_obsm);
-      // // 받아온 데이터 출력
-      // console.log(scatterResult_obs.data);
-      // console.log(scatterResult_obsm.data);
-
-      // obs + X_umap 가져오기
-      // const filename_obs_umap = {
-      //   filename: `file_${this.current_file.replace(".h5ad", "")}_obs_umap`,
-      // };
-      console.log(this.current_file);
       const scatterResult = await getResult({
         filename: this.current_file,
       });
@@ -280,12 +182,9 @@ export default {
       // lines, keys, areNum 업데이트
       this.scatterResult = scatterResult;
       this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
-      console.log(this.lines);
       this.keys = this.lines.splice(0, 1)[0];
-      console.log(this.keys);
       this.keys.push("INDEX");
       // this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
-      console.log(this.keys);
       this.areNum = this.lines[0].map((x) => !isNaN(x));
 
       for (let i = 0; i < this.lines.length; i++) {
@@ -294,15 +193,12 @@ export default {
 
       if (this.appliedSelectedIndices != null) {
         if (this.appliedSelectedIndices.length > 0) {
-          console.log(this.appliedSelectedIndices);
           this.lines = this.lines.filter((_, index) =>
             this.appliedSelectedIndices.includes(index)
           );
           this.disableApplyButton = true;
         }
       }
-
-      console.log(this.lines);
 
       this.numList = [{ name: "None", value: null }];
       for (let i = 0; i < this.keys.length; i++) {
@@ -416,15 +312,6 @@ export default {
             },
           });
         } else {
-          // console.log(this.clusterQuantile);
-          // console.log(this.clusterContrast);
-          // console.log(
-          //   this.lines.map(
-          //     (x) =>
-          //       x[this.selectedCluster] * this.clusterContrast +
-          //       this.clusterQuantile
-          //   )
-          // );
           Plotly.newPlot("plotly__scatter", {
             data: [
               {
@@ -513,15 +400,11 @@ export default {
       graphDiv.on("plotly_selected", (eventData) => {
         this.selectedIndices = [];
         if (eventData.points.length > 0) {
-          console.log(eventData.points);
           for (let i = 0; i < eventData.points.length; i++) {
             this.selectedIndices.push(parseInt(eventData.points[i].text));
           }
-          console.log(this.selectedIndices);
         }
       });
-      // console.log(this.keys[this.selectedX], this.outputX);
-      // console.log(this.keys[this.selectedY], this.outputY);
     },
     setSelectX(event) {
       this.selectedX = event.target.value;
@@ -611,14 +494,12 @@ export default {
       });
     },
     cellselect() {
-      console.log(this.selectedCluster, this.selectedIndices);
       if (this.selectedIndices.length > 0) {
         this.$store.commit("setSelectedIndices", [
           this.keys[this.selectedCluster],
           this.selectedIndices,
         ]);
         this.appliedSelectedIndices = this.selectedIndices;
-        console.log(this.appliedSelectedIndices);
         this.lines = this.lines.filter((_, index) =>
           this.appliedSelectedIndices.includes(index)
         );
@@ -633,19 +514,14 @@ export default {
       this.disableApplyButton = false;
       this.markerSize = 3;
       this.lines = this.scatterResult.data.split("\n").map((x) => x.split(","));
-      console.log(this.lines);
       this.keys = this.lines.splice(0, 1)[0];
-      console.log(this.keys);
       this.keys.push("INDEX");
       // this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
-      console.log(this.keys);
       this.areNum = this.lines[0].map((x) => !isNaN(x));
 
       for (let i = 0; i < this.lines.length; i++) {
         this.lines[i].push(i);
       }
-
-      console.log(this.lines);
 
       this.numList = [{ name: "None", value: null }];
       for (let i = 0; i < this.keys.length; i++) {
@@ -765,14 +641,12 @@ export default {
 }
 .options__item__button__minus {
   position: absolute;
-  margin-top: -5px;
   right: 80px;
   width: 15px;
   height: 15px;
 }
 .options__item__button__plus {
   position: absolute;
-  margin-top: -5px;
   right: 10px;
   width: 15px;
   height: 15px;

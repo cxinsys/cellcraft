@@ -1,6 +1,9 @@
 <template>
   <div class="layout" @click="ClickOut">
     <section class="side-panel">
+      <div class="profile__header">
+        <div class="profile__title">Projects</div>
+      </div>
       <div class="profile">
         <img class="profile__img" src="@/assets/user.png" />
         <div class="profile__column">
@@ -16,14 +19,6 @@
         >
           <img class="projects__icon" src="@/assets/recent.png" />
           <p class="projects__text">Recents</p>
-        </div>
-        <div
-          class="projects__template"
-          v-bind:class="{ toggleMenu: !toggleMenu }"
-          @click="toggleMenu = false"
-        >
-          <img class="projects__icon" src="@/assets/template.png" />
-          <p class="projects__text">Templates</p>
         </div>
       </div>
     </section>
@@ -41,34 +36,10 @@
             <img class="project__thumnail--icon" src="@/assets/create.png" />
           </div>
           <div class="project__info">
-            <p class="project__title">New Workflow Project</p>
+            <p class="project__title">New Workflow</p>
             <p class="project__date">Data Analysis Pipeline</p>
           </div>
         </li>
-        <!-- <li class="project-component" @contextmenu.prevent>
-          <div class="project__content">
-            <img
-              class="project__thumnail"
-              src="@/assets/workflow-template2.png"
-            />
-          </div>
-          <div class="project__info">
-            <p class="project__title">Workflow Basics</p>
-            <p class="project__date">Just Template</p>
-          </div>
-        </li>
-        <li class="project-component" @contextmenu.prevent>
-          <div class="project__content">
-            <img
-              class="project__thumnail"
-              src="@/assets/workflow-template2.png"
-            />
-          </div>
-          <div class="project__info">
-            <p class="project__title">Workflow Basics2</p>
-            <p class="project__date">Just Template</p>
-          </div>
-        </li> -->
         <li
           class="project-component"
           v-for="(workflow, idx) in workflows"
@@ -78,10 +49,6 @@
           @click.right="RMouseClick($event, workflow.id, idx)"
         >
           <div class="project__content">
-            <!-- <img
-              class="project__thumnail"
-              src="@/assets/workflow-template2.png"
-            /> -->
             <img
               class="project__thumnail"
               :src="
@@ -102,8 +69,8 @@
         :style="{ left: xPosition, top: yPosition }"
       >
         <li @click="openWorkflow">Open</li>
-        <li>Copy Link</li>
-        <li>Rename</li>
+        <!-- <li>Copy Link</li>
+        <li>Rename</li> -->
         <li @click="removeWorkflow">Delete</li>
       </ul>
     </div>
@@ -163,7 +130,6 @@ export default {
       this.R_Mouse_isActive = true;
       this.workflow_id = id;
       this.list_idx = idx;
-      console.log(event);
     },
     ClickOut() {
       this.R_Mouse_isActive = false;
@@ -171,7 +137,6 @@ export default {
     async removeWorkflow() {
       this.targetWorkflow = this.workflows[this.list_idx];
       this.workflows.splice(this.list_idx, 1);
-      console.log(this.targetWorkflow);
       this.toggleMessage = true;
       // 10초 안에 toggleMessage가 false로 바뀌면 deleteFile 실행 안 함, 안 바뀌면 실행
       this.messageContent = `${this.targetWorkflow.title} is deleted`;
@@ -180,8 +145,7 @@ export default {
           const workflow = {
             id: this.workflow_id,
           };
-          const targetWorkflow = await deleteWorkflow(workflow);
-          console.log(targetWorkflow);
+          await deleteWorkflow(workflow);
           this.workflows.splice(this.list_idx, 1);
         } catch (error) {
           console.error(error);
@@ -198,11 +162,11 @@ export default {
   async mounted() {
     try {
       const profile = await getUser();
-      console.log(profile.data);
       this.profile = profile.data;
       const workflows = await getWorkflows();
-      console.log(1);
-      console.log(workflows.data);
+      workflows.data.sort((a, b) => {
+        return new Date(b.updated_at) - new Date(a.updated_at);
+      });
       this.workflows = workflows.data;
     } catch (error) {
       console.error(error);
@@ -230,14 +194,14 @@ export default {
   display: flex;
 }
 .side-panel {
-  width: 14rem;
+  width: 18rem;
   height: 100%;
   border-right: 1px solid #aeaeae;
   background-color: rgb(201, 202, 203);
 }
 .profile {
   width: 100%;
-  height: 8rem;
+  height: 4rem;
   display: flex;
   align-items: center;
   border-bottom: 1px solid #e1e1e1;
@@ -268,8 +232,8 @@ export default {
 }
 .profile__email {
   font-weight: 400;
-  font-size: 1rem;
-  line-height: 1rem;
+  font-size: 0.9rem;
+  line-height: 0.9rem;
   color: rgba(0, 0, 0, 0.6);
 }
 .projects {
@@ -418,6 +382,7 @@ export default {
   box-shadow: 0 15px 35px rgba(50, 50, 90, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07);
   overflow: hidden;
   z-index: 999999;
+  text-transform: capitalize;
 }
 .files_menu.open {
   display: block;
@@ -476,5 +441,22 @@ export default {
 }
 .toggleMessage {
   display: none;
+}
+.profile__header {
+  width: 90%;
+  height: 10%;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  position: relative;
+  color: rgba(0, 0, 0, 0.8);
+}
+.profile__title {
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 1.7rem;
+  line-height: 1.25rem;
+  color: rgba(0, 0, 0, 0.8);
 }
 </style>

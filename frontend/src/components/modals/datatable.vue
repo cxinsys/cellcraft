@@ -52,15 +52,12 @@ export default {
   },
   async mounted() {
     this.current_file = this.$store.getters.getCurrentFile.file;
-    console.log(this.current_file);
     if (this.current_file !== "") {
       this.isLoading = true;
       try {
-        console.log(this.current_file);
         const dataTableResult = await getResult({
           filename: this.current_file,
         });
-        console.log(dataTableResult.data);
 
         //백엔드에서 넘겨준 dataTable 데이터
         this.lines = dataTableResult.data.split("\n").map((x) => x.split(","));

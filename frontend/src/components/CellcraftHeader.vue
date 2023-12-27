@@ -26,8 +26,14 @@
           </router-link>
         </li>
         <li class="header-menu__item">
-          <router-link class="header-menu__link" to="/main">
+          <router-link class="header-menu__link" to="/datasets">
             Datasets
+          </router-link>
+        </li>
+        <!-- <li class="header-menu__item" v-if="isSuperUser"> -->
+        <li class="header-menu__item" v-if="isSuperUser">
+          <router-link class="header-menu__link" to="/admin">
+            Admin
           </router-link>
         </li>
       </ul>
@@ -56,6 +62,7 @@
 
 <script>
 import { deleteCookie } from "@/utils/cookies";
+import { getUser } from "@/api/index";
 
 export default {
   data() {
@@ -67,8 +74,10 @@ export default {
   },
   computed: {
     isUserLogin() {
-      console.log(this.$store.getters.isLogin);
       return this.$store.getters.isLogin;
+    },
+    isSuperUser() {
+      return this.$store.getters.isSuperUser;
     },
     setTitle() {
       return this.$store.getters.getTitle;
@@ -90,11 +99,17 @@ export default {
       this.activeInput = false;
       this.$store.commit("setTitle", this.title);
     },
+    async getUserInfo() {
+      const response = await getUser();
+      this.$store.commit("setUserInfo", response.data);
+      console.log(response.data);
+    },
   },
   watch: {
     $route(to) {
-      // console.log(to.path, from.path);
       this.isWorkflowPage = to.path.includes("/workflow");
+      this.title = this.$store.getters.getTitle;
+      this.getUserInfo();
     },
   },
 };
