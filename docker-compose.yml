@@ -44,7 +44,6 @@ services:
   celery:
     environment:
       - CONDA_DEFAULT_ENV=snakemake
-      - C_FORCE_ROOT=true
     build:
       context: ./backend
       dockerfile: Dockerfile

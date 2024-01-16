@@ -5,15 +5,10 @@ services:
     image: nginx:latest
     ports:
       - "80:80"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d  # 수정된 경로
+      - "443:443"
     depends_on:
+      - backend
       - frontend
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
 
   backend:
     environment:
@@ -21,15 +16,25 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      args:
-        - GITHUB_TOKEN
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - rabbitmq
+      - db
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
 
   db:
     image: postgres:15
     environment:
-      POSTGRES_DB: cellcraft
-      POSTGRES_USER: testdb
-      POSTGRES_PASSWORD: testdb
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -37,14 +42,9 @@ services:
     image: "rabbitmq:management"
 
   celery:
-    environment:
-      - CONDA_DEFAULT_ENV=snakemake
-      - C_FORCE_ROOT=true
     build:
       context: ./backend
       dockerfile: Dockerfile
-      args:
-        - GITHUB_TOKEN
     command:
       [
         "/opt/conda/envs/snakemake/bin/python",
