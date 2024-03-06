@@ -14,14 +14,14 @@
             >Sign Up</router-link
           >
         </div>
-        <div class="login-help__column">
+        <!-- <div class="login-help__column">
           <router-link class="login-help__text" to="/main">Find ID</router-link>
         </div>
         <div class="login-help__column">
           <router-link class="login-help__text" to="/main"
             >Find Password</router-link
           >
-        </div>
+        </div> -->
       </div>
       <footer class="login-footer">
         <div class="copyright__txt">CELLCRAFT © 2023. All rights reserved</div>

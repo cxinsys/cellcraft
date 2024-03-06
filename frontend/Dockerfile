@@ -1,4 +1,4 @@
-FROM node:alpine
+FROM node:alpine as build-stage
 
 WORKDIR /app
 
@@ -8,6 +8,11 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 8080
+RUN npm run build
 
-CMD [ "npm", "run", "serve" ]
+FROM nginx:alpine
+
+COPY --from=build-stage /app/dist /usr/share/nginx/html
+
+# Path: frontend/nginx/default.conf
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf

@@ -1,3 +1,18 @@
+function isAlgorithmOptionsEmpty(options) {
+  const defaultOptions = {
+    algorithm: "",
+    optionName: "",
+    commonOptions: {
+      annotationColumn: "",
+      pseudotimeColumn: "",
+      clusterColumn: [],
+    },
+    tenetOptions: null,
+    optionFilePath: null,
+  };
+
+  return JSON.stringify(options) === JSON.stringify(defaultOptions);
+}
 export default {
   setTitle(state, title) {
     state.title = title;
@@ -47,6 +62,7 @@ export default {
     state.nodes = [];
   },
   createConnection(state, connection_info) {
+    // 경우 : 1. 연결된 노드가 없을 때
     if (state.linked_nodes.length === 0) {
       state.linked_nodes.push(connection_info);
     } else {
@@ -83,6 +99,17 @@ export default {
             connection: [...based_connection, ...connection_info.connection],
             file: "",
             lastNode: connection_info.lastNode,
+            algorithmOptions: {
+              algorithm: "TENET",
+              optionName: "Untitled",
+              commonOptions: {
+                annotationColumn: "",
+                pseudotimeColumn: "",
+                clusterColumn: [],
+              },
+              tenetOptions: null,
+              optionFilePath: null,
+            },
           });
           return 0;
         }
@@ -90,18 +117,28 @@ export default {
       state.linked_nodes.push(connection_info);
     }
   },
+  // 코드 설명
+  // 1. state.linked_nodes를 순회하면서
+  // 2. connection[0]이 있는지 확인
+  // 3. 있으면 connection[1]을 찾아서
+  // 4. connection[1]을 제거
+  // 5. connection[1]이 없으면 connection[0]을 제거
+  // 6. connection[0]이 없으면 아무것도 안함
   deleteConnection(state, connection) {
     state.linked_nodes.forEach((ele, idx) => {
-      ele.forEach((item, idx) => {
-        if (item === connection[0] && ele[idx + 1] === connection[1]) {
-          if (ele.length == 2) {
-            ele.splice(idx, 2);
+      ele.connection.forEach((item, idx) => {
+        if (
+          item === connection[0] &&
+          ele.connection[idx + 1] === connection[1]
+        ) {
+          if (ele.connection.length == 2) {
+            ele.connection.splice(idx, 2);
           } else {
-            ele.splice(idx + 1, 1);
+            ele.connection.splice(idx + 1, 1);
           }
         }
       });
-      if (ele.length === 0) {
+      if (ele.connection.length === 0) {
         state.linked_nodes.splice(idx, 1);
       }
     });
@@ -134,6 +171,22 @@ export default {
   },
   setLinkedNodes(state, linked_nodes) {
     state.linked_nodes = linked_nodes;
+    // linked_nodes를 순회해서 각 아이템 안에 algorithmOptions가 없으면 추가합니다.
+    state.linked_nodes.forEach((node) => {
+      if (!node.algorithmOptions) {
+        node.algorithmOptions = {
+          algorithm: "TENET",
+          optionName: "Untitled",
+          commonOptions: {
+            annotationColumn: "",
+            pseudotimeColumn: "",
+            clusterColumn: [],
+          },
+          tenetOptions: null,
+          optionFilePath: null,
+        };
+      }
+    });
   },
   clearLinkedNodes(state) {
     state.linked_nodes = [];
@@ -144,26 +197,87 @@ export default {
   clearCurrentNode(state) {
     state.current_node = 0;
   },
-  setAlgorithm(state, algorithm) {
-    state.algorithmOptions.algorithm = algorithm;
+  setLinkedNodeAlgorithm(state, { nodeIndex, algorithm }) {
+    if (state.linked_nodes[nodeIndex]) {
+      state.linked_nodes[nodeIndex].algorithmOptions.algorithm = algorithm;
+    }
   },
-  setCommonOptions(state, commonOptions) {
-    state.algorithmOptions.commonOptions = commonOptions;
+  setLinkedNodeCommonOptions(state, { nodeIndex, commonOptions }) {
+    if (state.linked_nodes[nodeIndex]) {
+      state.linked_nodes[nodeIndex].algorithmOptions.commonOptions =
+        commonOptions;
+    }
   },
-  setFasttenetOptions(state, fasttenetOptions) {
-    state.algorithmOptions.fasttenetOptions = fasttenetOptions;
+  setLinkedNodeTenetOptions(state, { nodeIndex, tenetOptions }) {
+    if (state.linked_nodes[nodeIndex]) {
+      state.linked_nodes[nodeIndex].algorithmOptions.tenetOptions =
+        tenetOptions;
+    }
   },
-  setTenetOptions(state, tenetOptions) {
-    state.algorithmOptions.tenetOptions = tenetOptions;
+  setLinkedNodeOptionFilePath(state, { nodeIndex, optionFilePath }) {
+    if (state.linked_nodes[nodeIndex]) {
+      state.linked_nodes[nodeIndex].algorithmOptions.optionFilePath =
+        optionFilePath;
+    }
   },
-  clearAlgorithm(state) {
-    state.algorithmOptions.algorithm = "fasttenet";
-    state.algorithmOptions.commonOptions = {
-      annotationColumn: "",
-      pseudotimeColumn: "",
-      clusterColumn: [],
-    };
-    state.algorithmOptions.fasttenetOptions = null;
-    state.algorithmOptions.tenetOptions = null;
+  // linked_nodes를 순회하면서 만약 중복된 connection을 가진 linked_nodes 2개 이상이 있다면 하나만 남기고 다 제거
+  removeDuplicateLinkedNodes(state) {
+    const newLinkedNodes = [];
+    state.linked_nodes.forEach((node) => {
+      const isDuplicated = newLinkedNodes.some((newNode) => {
+        return newNode.connection.join() === node.connection.join();
+      });
+      if (!isDuplicated) {
+        newLinkedNodes.push(node);
+      }
+    });
+    state.linked_nodes = newLinkedNodes;
+  },
+  // 연결된 노드들 돌면서 connection에 포함된 노드ID들이 실제로 존재하는 노드의 ID인지 체크
+  // 존재하지 않는다면 해당 노드를 제거
+  removeInvalidLinkedNodes(state) {
+    const newLinkedNodes = [];
+    state.linked_nodes.forEach((node) => {
+      const isInvalid = node.connection.some((nodeId) => {
+        return !state.nodes.some((node) => node.id === nodeId);
+      });
+      if (!isInvalid) {
+        newLinkedNodes.push(node);
+      }
+    });
+    state.linked_nodes = newLinkedNodes;
+  },
+  // 연결된 노드가 2개 이상 있을 때만 실행
+  // 연결된 노드를 돌면서 connection에 포함된 노드ID를 통해 algorithm node가 있는지 체크
+  // algorithm node가 있다면 다른 연결된 노드에도 해당 algorithm node가 있는지 체크
+  // 있다면 algortihmOptions가 채워져 있는 쪽 내용을 복사해 비어있는 쪽 채워넣기
+  // 연결된 노드가 1개 이하라면 아무것도 하지 않음
+  fillAlgorithmOptions(state) {
+    if (state.linked_nodes.length > 1) {
+      state.linked_nodes.forEach((node) => {
+        // algorithmOptions가 비어있는지 확인
+        if (!isAlgorithmOptionsEmpty(node.algorithmOptions)) {
+          node.connection.forEach((nodeId) => {
+            const algorithmNode = state.nodes.find(
+              (node) => node.id === nodeId
+            );
+            if (algorithmNode && algorithmNode.name === "Algorithm") {
+              const otherLinkedNode = state.linked_nodes.find(
+                (linkedNode) =>
+                  linkedNode.connection.includes(algorithmNode.id) &&
+                  linkedNode.connection.length > 1 &&
+                  linkedNode.connection.join() !== node.connection.join()
+              );
+              if (
+                otherLinkedNode &&
+                isAlgorithmOptionsEmpty(otherLinkedNode.algorithmOptions)
+              ) {
+                otherLinkedNode.algorithmOptions = node.algorithmOptions;
+              }
+            }
+          });
+        }
+      });
+    }
   },
 };

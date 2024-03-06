@@ -5,7 +5,22 @@
       <ul class="node-bar__nodelist" draggable="false">
         <li
           class="node-bar__drag-drawflow"
-          v-for="(node, idx) in listNodes"
+          v-for="(node, idx) in listNodes.slice(0, 4)"
+          :key="idx"
+          draggable="true"
+          :data-node="node.name"
+          :nodeId="node.id"
+          @dragstart="drag($event)"
+        >
+          <img class="node-bar__img" :src="node.img" draggable="false" />
+        </li>
+      </ul>
+    </section>
+    <section class="node-bar_output">
+      <ul class="node-bar__nodelist" draggable="false">
+        <li
+          class="node-bar__drag-drawflow"
+          v-for="(node, idx) in listNodes.slice(4, 6)"
           :key="idx"
           draggable="true"
           :data-node="node.name"
@@ -51,7 +66,7 @@
         <tbody>
           <tr v-for="(task, index) in taskList" :key="index">
             <td>{{ index + 1 }}</td>
-            <td>{{ task.title }}</td>
+            <td>{{ task.title | titleNone }}</td>
             <td>{{ task.start_time | formatDateTime }}</td>
             <td>{{ task.end_time | formatDateTime }}</td>
             <td>{{ task.running_time }}</td>
@@ -209,6 +224,7 @@ import scatterPlot from "@/components/nodes/scatterPlotNode.vue";
 import fileUpload from "@/components/nodes/fileUploadNode.vue";
 import dataTable from "@/components/nodes/dataTableNode.vue";
 import heatMap from "@/components/nodes/heatMapNode.vue";
+import barPlot from "@/components/nodes/barPlotNode.vue";
 import algorithm from "@/components/nodes/algorithmNode.vue";
 import {
   exportData,
@@ -251,12 +267,6 @@ export default {
           input: 1,
           output: 1,
         },
-        // {
-        //   name: "heatMap",
-        //   img: require("@/assets/heatMap2.png"),
-        //   input: 1,
-        //   output: 0,
-        // },
         {
           name: "Algorithm",
           // name2: "Algorithm",
@@ -264,17 +274,20 @@ export default {
           input: 1,
           output: 1,
         },
+        {
+          name: "BarPlot",
+          img: require("@/assets/barPlot.png"),
+          input: 1,
+          output: 1,
+        },
+        {
+          name: "HeatMap",
+          img: require("@/assets/heatMap2.png"),
+          input: 1,
+          output: 1,
+        },
       ],
       tabList: [],
-      tab_names_map: new Map(
-        [
-          ["File", "File"],
-          ["DataTable", "DataTable"],
-          ["ScatterPlot", "ScatterPlot"],
-          // ["heatMap", "heat-map"],
-          ["Algorithm", "Algorithm"],
-        ]
-      ),
       is_show_modal: false,
       is_show_info: false,
       show_modal: null,
@@ -317,7 +330,8 @@ export default {
     this.$df.registerNode("File", fileUpload, {}, {});
     this.$df.registerNode("DataTable", dataTable, {}, {});
     this.$df.registerNode("ScatterPlot", scatterPlot, {}, {});
-    this.$df.registerNode("heatMap", heatMap, {}, {});
+    this.$df.registerNode("HeatMap", heatMap, {}, {});
+    this.$df.registerNode("BarPlot", barPlot, {}, {});
     this.$df.registerNode("Algorithm", algorithm, {}, {});
 
     // 노드 수직 연결선
@@ -352,6 +366,7 @@ export default {
       this.$store.commit("changeNode", node.id);
 
       //노드 생성시 현재 워크플로우의 상태 업데이트
+      setUpLinkedNodes();
 
       const currentWorkflow = await this.setCurrentWorkflow();
       // console.log(currentWorkflow);
@@ -371,12 +386,15 @@ export default {
             this.currentTab = this.currentTab;
           }
         }
+        setUpLinkedNodes();
       });
 
       //노드 삭제시 노드 상태 업데이트
       this.$store.commit("deleteNode", {
         id: parseInt(ev),
       });
+
+      this.$store.commit("changeNode", this.tabList[this.currentTab].id);
 
       const currentWorkflow = awaitthis.setCurrentWorkflow();
       // console.log(currentWorkflow);
@@ -394,8 +412,21 @@ export default {
         connection: [parseInt(ev.output_id), parseInt(ev.input_id)],
         file: "",
         lastNode: lastNodeInfo.name,
+        algorithmOptions: {
+          algorithm: "TENET",
+          optionName: "Untitled",
+          commonOptions: {
+            annotationColumn: "",
+            pseudotimeColumn: "",
+            clusterColumn: [],
+          },
+          tenetOptions: null,
+          optionFilePath: null,
+        },
       });
       this.$store.commit("shareConnectionFile");
+
+      setUpLinkedNodes();
 
       const currentWorkflow = await this.setCurrentWorkflow();
       console.log(currentWorkflow);
@@ -410,6 +441,8 @@ export default {
         parseInt(ev.input_id),
       ]);
 
+      setUpLinkedNodes();
+
       const currentWorkflow = await this.setCurrentWorkflow();
       // console.log(currentWorkflow);
     });
@@ -420,7 +453,6 @@ export default {
       // console.log(node);
       this.$df.updateConnectionNodes(ev);
     });
-
     this.$df.on("clickEnd", (ev) => {
       // ev 값에 따라 기능 구분
       console.dir(ev.target.className);
@@ -488,6 +520,16 @@ export default {
       }
     }
 
+    try {
+      const userTasks = await userTaskMonitoring();
+      console.log(userTasks.data);
+      if (userTasks.data.some(task => task.status === "RUNNING")) {
+        this.on_progress = true;
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
     //workflow 들어오자마자 저장
     const currentWorkflow = await this.setCurrentWorkflow();
     console.log(currentWorkflow);
@@ -499,7 +541,7 @@ export default {
       this.on_progress = true;
       // Initialize a new event source with the provided URL
       this.eventSources[task_id] = new EventSource(
-        `http://localhost:8002/routes/workflow/task/${task_id}`
+        `http://localhost/api/routes/workflow/task/${task_id}`
       );
 
       // Event handler for the 'onmessage' event
@@ -524,6 +566,16 @@ export default {
       }
     },
     async exportdf() {
+      // getter.getCurrentFile에서 algorithmOptions.optionFilePath 존재하지 않으면 export 불가능
+      const currentFile = this.$store.getters.getCurrentFile;
+      if (currentFile.algorithmOptions.optionFilePath === null) {
+        this.setMessage(
+          "error",
+          "Please select the Algorithm node option file to run the workflow"
+        );
+        return;
+      }
+
       try {
         this.exportValue = this.$df.export();
         const nodes = this.$store.getters.getNodes;
@@ -663,6 +715,16 @@ export default {
         }
       }, "100");
     },
+    // linked_Nodes 한번씩 정리하는 함수
+    setUpLinkedNodes(){
+      // removeDuplicateLinkedNodes
+      // removeInvalidLinkedNodes
+      // fillAlgorithmOptions
+      // 위 3개 함수를 실행하는 this.$store.commit("함수명") 코드
+      this.$store.commit("removeDuplicateLinkedNodes");
+      this.$store.commit("removeInvalidLinkedNodes");
+      this.$store.commit("fillAlgorithmOptions");
+    },
     async saveWorkflowProject() {
       try {
         const currentWorkflow = await this.setCurrentWorkflow();
@@ -673,7 +735,7 @@ export default {
       }
     },
     async captureWorkflow() {
-      console.log("이미지 캡쳐");
+      // console.log("이미지 캡쳐");
       try {
         await html2canvas(this.$refs.captureArea).then(canvas => {
           const originalCanvasWidth = canvas.width;
@@ -691,7 +753,7 @@ export default {
 
           const thumbnailURL = resizedCanvas.toDataURL("image/png");
           this.$store.commit("setThumbnail", thumbnailURL);
-          console.log(thumbnailURL);
+          // console.log(thumbnailURL);
         });
       } catch (error) {
         console.error(error);
@@ -717,11 +779,13 @@ export default {
               // 해당 Task가 실행되고 있다는 가정하에 running_time 계산하는 interval 시작
               this.timeInterval = this.startTimer(idx);
             }
+            console.log(task.workflow_id, typeof task.workflow_id);
             // Task의 workflow title 가져오기
             const workflow = await findWorkflow({
               id: task.workflow_id,
             });
             this.taskList[idx].title = workflow.data.title;
+            console.log(this.taskList[idx].title);
           });
         }
         else {
@@ -732,7 +796,7 @@ export default {
         // 모니터링 탭 활성화 여부 토글
         setTimeout(() => {
           this.show_jobs = !this.show_jobs;
-        }, 100);
+        }, 300);
       } catch (error) {
         console.error(error);
         this.setMessage(
@@ -745,6 +809,7 @@ export default {
       try {
         const revoke_task = await revokeTask(task_id);
         console.log(revoke_task);
+        this.toggleTask();
         this.setMessage("success", "Cancel task successfully!");
       } catch (error) {
         console.error(error);
@@ -778,7 +843,6 @@ export default {
           clearInterval(interval);
 
           // 근데 Task 완료되었다고 판단했는데, Task 상태가 RUNNING으로 잡혀서 interval 종료되지 않았을 때 오류 발생
-          this.toggleTask();
         }
         // Task가 진행 중이므로 running_time 계산
         let currentTime = new Date();
@@ -865,13 +929,7 @@ export default {
         nodes: nodes,
         linked_nodes: linked_nodes,
       };
-      console.log(1);
-      console.log(workflow);
-      console.log(2);
       const workflow_data = await saveWorkflow(workflow);
-      console.log(3);
-      console.log(workflow_data);
-      console.log(4);
       this.currentId = workflow_data.data.id;
       return workflow_data.data;
     },
@@ -887,6 +945,10 @@ export default {
     }
   },
   filters: {
+    titleNone(value) {
+      if (value === "" || !value) return "Untitled";
+      return value;
+    },
     formatBytes(a, b) {
       if (a === 0) return "0 Bytes";
       const c = 1024;
@@ -907,7 +969,7 @@ export default {
     },
     formatDateTime(dateTime) {
       const date = moment(dateTime).format("MMMM Do, HH:mm");
-      if (date === "Invalid date") return "Not yet completed";
+      if (date === "Invalid date") return "Not Yet Completed";
       return date;
     },
   },
@@ -975,10 +1037,10 @@ export default {
   position: relative;
   overflow: hidden;
   background: rgb(0, 0, 0);
-  /* background-image: url("@/assets/fantastic_background2.png");
+  background-image: url("@/assets/fantastic_background3.png");
   background-size: cover;
   background-position: center center;
-  background-repeat: no-repeat; */
+  background-repeat: no-repeat;
 }
 .main__bg-video {
   position: fixed;
@@ -1133,7 +1195,7 @@ export default {
   height: 400px;
   border-radius: 16px;
   background-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0px 0px 1px 1px rgba(255, 255, 255, 0.2);
+  box-shadow: 0px 0px 0px 1px rgba(255, 255, 255, 0.1);
   position: absolute;
   /* top: calc(50% - 17rem); */
   top: calc(50% - 208px);
@@ -1143,6 +1205,25 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.node-bar_output {
+  /* width: 8rem; */
+  width: 80px;
+  /* height: 34rem; */
+  height: 400px;
+  border-radius: 16px;
+  background-color: rgba(69, 69, 69, 0.5);
+  box-shadow: 0px 0px 0px 1px rgba(255, 255, 255, 0.1);
+  position: absolute;
+  /* top: calc(50% - 17rem); */
+  top: calc(50% - 208px);
+  right: 12px;
+  z-index: 9998;
+  opacity: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
 }
 .node-bar__nodelist {
   width: 80%;
@@ -1158,14 +1239,14 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: move;
-  background: rgba(15, 19, 70);
+  background: rgba(69, 69, 69);
   /* color: rgb(245, 245, 245); */
   border-radius: 1rem;
   /* width: 5rem;
   height: 5rem; */
   width: 4rem;
   height: 4rem;
-  box-shadow: 0px 1px 1px 0px rgba(0, 0, 0, 0.5);
+  box-shadow: 0px 0px 0px 1px rgba(255, 255, 255, 0.3);
 }
 .node-bar__img {
   /* width: 3rem;
@@ -1300,7 +1381,8 @@ export default {
   height: 50px;
   width: 300px;
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.776);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0px 0px 1px 0px rgba(255, 255, 255, 0.5);
   position: absolute;
   bottom: 24px;
   left: calc(50% - 150px);
@@ -1319,6 +1401,7 @@ export default {
   width: 24px;
   height: 24px;
   padding: 8px;
+  align-items: center;
 }
 
 .control-bar__icon {
@@ -1376,13 +1459,14 @@ export default {
     brightness(125%) contrast(111%);
 } */
 #drawflow {
-  width: calc(100% - 180px);
+  width: calc(100% - 210px);
   height: calc(100% - 50px);
   top: 30px;
   left: 105px;
   position: relative;
   border-radius: 0.8%;
   box-shadow: 0px 0px 1px 1px rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
 
   background: var(--dfBackgroundColor);
   background-size: var(--dfBackgroundSize) var(--dfBackgroundSize);
@@ -1392,6 +1476,7 @@ export default {
 .drawflow .drawflow-node {
   display: var(--dfNodeType);
   background: var(--dfNodeBackgroundColor);
+  backdrop-filter: blur(5px);
   color: var(--dfNodeTextColor);
   border: var(--dfNodeBorderSize) solid var(--dfNodeBorderColor);
   border-radius: var(--dfNodeBorderRadius);
@@ -1497,38 +1582,43 @@ export default {
 }
 
 .drawflow-delete {
+  content: "";
+  color: rgba(0, 0, 0, 0);
   display: var(--dfDeleteDisplay);
-  color: var(--dfDeleteColor);
   background: var(--dfDeleteBackgroundColor);
   border: var(--dfDeleteBorderSize) solid var(--dfDeleteBorderColor);
   border-radius: var(--dfDeleteBorderRadius);
+  width: 15px;
+  height: 15px;
 }
 
 .drawflow-delete::before, .drawflow-delete::after {
-  content: ''; /* 필수: 가상 요소에 내용이 없음을 명시 */
-  position: absolute; /* 부모 요소 대비 절대 위치 */
-  left: +7px;
-  top: +2px;
+  font-size: x-large;
+  color: var(--dfDeleteColor);
+  content: '-';
+  position: absolute;
+  /* left: 0px; */
+  top: -6px;
   right: 0;
   bottom: 0;
-  width: 2px; /* X자의 두께 */
-  height: 10px;
-  background: rgb(255, 188, 188); /* X자의 색상 */
+  width: 15px;
+  height: 15px;
 }
 
 .drawflow-delete::before {
-  transform: rotate(45deg); /* 45도 회전 */
+  transform: rotate(45deg);
+  left: 6px;
 }
 
 .drawflow-delete::after {
-  transform: rotate(-45deg); /* -45도 회전 */
+  transform: rotate(-45deg);
+  left: -6px;
 }
 
 .parent-node .drawflow-delete {
   top: var(--dfDeleteTop);
-  width: 15px;
-  height: 15px;
   right: var(--dfDeleteRight);
+  border-radius: var(--dfDeleteHoverBorderRadius);
 }
 
 .drawflow-delete:hover {
@@ -1547,14 +1637,14 @@ export default {
 }
 
 .message {
-  width: 25rem;
-  height: 4rem;
+  width: 30rem;
+  height: 6rem;
   display: flex;
   align-items: center;
   justify-content: space-around;
   position: absolute;
-  bottom: 5rem;
-  left: calc(50% - 13.5rem);
+  bottom: 7rem;
+  left: calc(50% - 16rem);
   background: rgba(0, 0, 0, 0.8);
   border-radius: 1rem;
   padding: 0 1rem;

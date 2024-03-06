@@ -24,6 +24,9 @@ export default new Vuex.Store({
     isLogin(state) {
       return state.token !== "";
     },
+    isSuperUser(state) {
+      return state.userInfo.is_superuser;
+    },
   },
   mutations: {
     setToken(state, token) {

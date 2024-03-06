@@ -5,7 +5,7 @@ from pydantic import BaseModel, EmailStr
 class UserBase(BaseModel):
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = True
-    is_superuser: bool = False
+    is_superuser: Optional[bool] = False
     username: Optional[str] = None
 
 
@@ -17,6 +17,7 @@ class UserCreate(UserBase):
 class UserProfile(UserBase):
     email: EmailStr
     username: str
+    is_superuser: bool
 
 class User(UserBase):
     id: Optional[int] = None

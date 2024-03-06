@@ -4,6 +4,7 @@ from scipy.sparse import csr_matrix
 import pandas as pd
 import numpy as np
 import json
+import os
 
 def organize_column_dtypes(data_frame):
     '''
@@ -74,34 +75,23 @@ def select_cells(adata, pseudotime_column = 'pseudotime'):
     return doi
 
 def synch_raw_counts(adata):
-    '''
-    TENET을 위해 cell X gene matrix 파일을 만들기 위한 전처리 과정입니다. 
-    cell X gene matrix를 일관되게추출할 수 있도록 raw count expression을 
-    adata.layers['counts']에 저장하도록 합니다. adata.layers['counts']가
-    이미 있을 경우 adata.layers['counts'] 내에 있는 숫자들이 정수인지
-    확인합니다. raw count expression은 정수 값이기 때문에 정수가 아니라면
-    counts로 normalized data 대신 raw data를 넣어달라고 요구합니다.
-    '''
     try:
-        print(check_raw_data(adata.X), check_raw_data(adata.raw.X))
-        # check_data_type(adata)
+        if hasattr(adata, 'X') and check_raw_data(adata.X):
+            print("Your adata object contains raw counts adata.X")
+        if hasattr(adata, 'raw') and hasattr(adata.raw, 'X') and check_raw_data(adata.raw.X):
+            print("Your adata object contains raw counts adata.raw.X")
+
         if 'counts' in adata.layers and check_raw_data(adata.layers['counts']):
             print("Your adata object already contains raw counts")
             return
-        if check_raw_data(adata.X):
-            print("Your adata object contains raw counts adata.X", adata.X)
+        if hasattr(adata, 'X') and check_raw_data(adata.X):
             adata.layers['counts'] = adata.X
             return
-        if hasattr(adata, 'raw') and check_raw_data(adata.raw.X):
-            print("Your adata object contains raw counts adata.raw.X", adata.raw.X)
+        if hasattr(adata, 'raw') and hasattr(adata.raw, 'X') and check_raw_data(adata.raw.X):
             adata.layers['counts'] = adata.raw.X
             return
     except AttributeError as e:
-        if check_raw_data(adata.layers['counts']):
-            print("Your adata object contains raw counts adata.layers['counts']", adata.layers['counts'])
-            return 
-        else:
-            print("Your adata object does not contain raw counts", e)
+        print("Your adata object does not contain raw counts", e)
     except KeyError as e:
         print("Your adata object does not contain raw counts", e)
 
@@ -135,7 +125,7 @@ def tenet_input_make(adata, path_log, path_exp, path_pseudo, path_cell_select, p
         #exp matrix
         pd.DataFrame(data=matrix_data,
                 index=adata.obs_names, 
-                columns=adata.var_names).to_csv(path_exp)
+                columns=gene_list).to_csv(path_exp)
         
         #save pseudotime
         input_data[pseudotime_column].to_csv(path_pseudo, 
@@ -161,6 +151,8 @@ adata.obs = organize_column_dtypes(adata.obs)
 anno_of_interest = options['anno_of_interest']
 pseudo_of_interest = options['pseudo_of_interest']
 clusters_of_interest = options['clusters_of_interest']
+gene_list = options['gene_list']
+
 # clusters_of_interest의 길이가 0인 경우, selected_indices에 options['selected_indices'] 할당
 if len(clusters_of_interest) == 0:
     selected_indices = options['selected_indices']
@@ -182,4 +174,4 @@ if adata.shape[0] == 0:
 synch_raw_counts(adata)
     
 # tenet inputfile 생성
-tenet_input_make(adata, snakemake.output[0], snakemake.output[1], snakemake.output[2], snakemake.output[3],pseudotime_column = pseudo_of_interest)
+tenet_input_make(adata, snakemake.output[0], snakemake.output[1], snakemake.output[2], snakemake.output[3],pseudotime_column = pseudo_of_interest, gene_list = gene_list)

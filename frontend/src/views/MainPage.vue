@@ -18,86 +18,88 @@
         <div class="main__hotButtons">
           <button
             class="main__hotButtons-item"
-            @click="scrollToBottom('menuId')"
+            @click="scrollToBottom('introId')"
           >
             More
           </button>
-          <!-- <button
-            class="main__hotButtons-item"
-            @click="scrollToBottom('introId')"
-          >
-            About >
-          </button> -->
         </div>
       </div>
     </main>
-    <!-- <div class="notice-component">
-      <h1 class="notice__title">Notice</h1>
-      <div class="notice__column">
-        <p class="notice__info">
-          [Notice] The lastest CellCraft release came out...
-        </p>
-        <p class="notice__date">2023.01.04</p>
-      </div>
-      <div class="notice__column">
-        <p class="notice__info">[Event] Welcome to CellCraft workshop</p>
-        <p class="notice__date">2023.01.04</p>
-      </div>
-      <img class="notice__list" src="@/assets/menu.png" />
-    </div> -->
     <div class="main-bump"></div>
+    <div class="intro-component" id="introId">
+      <div class="intro__descbox">
+        <div class="intro__descbox__column">
+          <h1 class="menu__title">{{ textDict.intro.title }}</h1>
+          <p class="intro__desc-text">
+            {{ textDict.intro.desc }} <br />
+            {{ textDict.intro.desc1 }}
+          </p>
+        </div>
+        <div class="intro__descbox__column">
+          <h1 class="menu__title">{{ textDict.gettingStarted.title }}</h1>
+          <p class="intro__desc-text">
+            {{ textDict.gettingStarted.desc }}
+          </p>
+        </div>
+      </div>
+    </div>
     <section class="menu-component" id="menuId">
-      <h1 class="menu__title">Tutorial1</h1>
+      <h1 class="menu__title">Tutorial</h1>
       <h2 class="menu__description">
         Follow the posts below, ready the dataset for Cellcraft
       </h2>
       <ul class="menu-list">
         <div class="menu-list__col">
           <li
+            ref="seurat"
             class="menu-list__card"
+            @click="openHtmlPage('seurat')"
             @mouseover="mouseoverEvent"
             @mouseout="mouseoutEvent"
           >
             <img class="menu-list__icon" src="@/assets/Seurat_work.png" />
             <div class="menu-list__textbox">
-              <p class="menu-list__title">seurat</p>
+              <p class="menu-list__title">Seurat</p>
               <span class="menu-list__desc"
                 >A basic tutorial on single-cell transcriptomics using Seurat.
               </span>
             </div>
-            <img class="arrow" src="@/assets/right-arrow.png" />
           </li>
           <li
+            ref="monocle"
+            class="menu-list__card"
+            @click="openHtmlPage('monocle')"
+            @mouseover="mouseoverEvent"
+            @mouseout="mouseoutEvent"
+          >
+            <img class="menu-list__icon" src="@/assets/Monocle_Work.png" />
+            <div class="menu-list__textbox">
+              <p class="menu-list__title">Monocle</p>
+              <span class="menu-list__desc">
+                Example of Trajectory Analysis Using Monocle
+              </span>
+            </div>
+          </li>
+        </div>
+        <div class="menu-list__col">
+          <li
+            ref="scanpy"
+            @click="openHtmlPage('scanpy')"
             class="menu-list__card"
             @mouseover="mouseoverEvent"
             @mouseout="mouseoutEvent"
           >
             <img class="menu-list__icon" src="@/assets/scanpy_work.png" />
             <div class="menu-list__textbox">
-              <p class="menu-list__title">scanpy</p>
+              <p class="menu-list__title">Scanpy</p>
               <span class="menu-list__desc"
                 >A basic tutorial on single-cell transcriptomics using Scanpy.
               </span>
             </div>
-            <img class="arrow" src="@/assets/right-arrow.png" />
-          </li>
-        </div>
-        <div class="menu-list__col">
-          <li
-            class="menu-list__card"
-            @mouseover="mouseoverEvent"
-            @mouseout="mouseoutEvent"
-          >
-            <img class="menu-list__icon" src="@/assets/Monocle_Work.png" />
-            <div class="menu-list__textbox">
-              <p class="menu-list__title">monocle</p>
-              <span class="menu-list__desc">
-                Example of Trajectory Analysis Using Monocle
-              </span>
-            </div>
-            <img class="arrow" src="@/assets/right-arrow.png" />
           </li>
           <li
+            ref="PAGA"
+            @click="openHtmlPage('PAGA')"
             class="menu-list__card"
             @mouseover="mouseoverEvent"
             @mouseout="mouseoutEvent"
@@ -109,74 +111,81 @@
                 >Example of Trajectory Analysis Using PAGA</span
               >
             </div>
-            <img class="arrow" src="@/assets/right-arrow.png" />
           </li>
         </div>
-        <!-- <li
-          class="menu-list__card"
-          @mouseover="mouseoverEvent"
-          @mouseout="mouseoutEvent"
-        >
-          <img class="menu-list__icon" src="@/assets/megaphone.png" />
-          <div class="menu-list__textbox">
-            <p class="menu-list__title">Notice</p>
-            <span class="menu-list__desc"
-              >Check out announcements, blogs, and events</span
-            >
-          </div>
-          <img class="arrow" src="@/assets/right-arrow.png" />
-        </li>
-        <li
-          class="menu-list__card"
-          @mouseover="mouseoverEvent"
-          @mouseout="mouseoutEvent"
-        >
-          <img class="menu-list__icon" src="@/assets/faq.png" />
-          <div class="menu-list__textbox">
-            <p class="menu-list__title">FAQ</p>
-            <span class="menu-list__desc"
-              >You can see frequently asked questions while using our
-              service</span
-            >
-          </div>
-          <img class="arrow" src="@/assets/right-arrow.png" />
-        </li> -->
       </ul>
     </section>
-    <div class="intro-component" id="introId">
-      <div class="intro__textbox">
-        <h1 class="intro__title">
+    <section class="menu-component">
+      <div class="sub-description__box">
+        <h2 class="menu__description sub-description">Convert Output</h2>
+        <h2 class="menu__description sub-description">multi omics</h2>
+      </div>
+      <ul class="menu-list">
+        <div class="menu-list__col">
+          <li
+            ref="output-conversion"
+            @click="openHtmlPage('output-conversion')"
+            class="menu-list__largeCard"
+            @mouseover="mouseoverEvent"
+            @mouseout="mouseoutEvent"
+          >
+            <img
+              class="menu-list__largeIcon"
+              src="@/assets/output-conversion.png"
+            />
+            <div class="menu-list__textbox largeTextbox">
+              <p class="menu-list__title">
+                {{ textDict.outputConversion.title }}
+              </p>
+              <span class="menu-list__desc"
+                >{{ textDict.outputConversion.desc }}
+              </span>
+            </div>
+          </li>
+        </div>
+        <div class="menu-list__col">
+          <li
+            ref="multi-omics"
+            @click="openHtmlPage('multi-omics')"
+            class="menu-list__largeCard"
+            @mouseover="mouseoverEvent"
+            @mouseout="mouseoutEvent"
+          >
+            <img class="menu-list__largeIcon" src="@/assets/multi-omics.png" />
+            <div class="menu-list__textbox largeTextbox">
+              <p class="menu-list__title">
+                {{ textDict.multiOmics.title }}
+              </p>
+              <span class="menu-list__desc"
+                >{{ textDict.multiOmics.desc }}
+              </span>
+            </div>
+          </li>
+        </div>
+      </ul>
+    </section>
+    <div class="about-component">
+      <div class="about__textbox">
+        <h1 class="about__title">
           <span class="bold">ABOUT</span>
           <br />
           CELLCRAFT
         </h1>
-        <ul class="intro__list">
-          <li class="intro__list-item">Intro</li>
-          <li class="intro__list-item">Pipeline</li>
-          <li class="intro__list-item">License</li>
-        </ul>
       </div>
-      <div class="intro__descbox">
-        <div class="intro__descbox__column">
-          <h1 class="intro__desc-title">
+      <div class="about__descbox">
+        <div class="about__descbox__column">
+          <h1 class="about__desc-title">
             Single-cell analysis data platform for researchers
           </h1>
-          <p class="intro__desc-text">
-            CellCraft is a data platform for easy analysis of single cell data
-            and efficient use of data. CellCraft contains many utilities for
-            performing related tasks such as processing and quality control of
-            high-throughput sequencing data and provides services on the web.
-          </p>
-          <p class="intro__desc-text">
-            These tools are primarily designed for data analysts in
-            bioinformatics, but even those who do not know programming can
-            easily use CellCraft to handle data analysis. CellCraft was
-            originally developed for single-cell analysis, but it is being
-            developed to handle multiple biological data.
+          <p class="about__desc-text">
+            Cellcraft is an innovative online service meticulously designed to
+            analyze gene regulatory networks. Developed by our dedicated team,
+            TENET stands at the forefront of computational biology and gene
+            regulatory network analysis. TENET is now implemented in Cellcraft.
           </p>
         </div>
-        <div class="intro__descbox__column">
-          <img class="intro__desc-img" src="@/assets/example.jpg" />
+        <div class="about__descbox__column">
+          <img class="about__desc-img" src="@/assets/example1.png" />
         </div>
       </div>
     </div>
@@ -188,6 +197,47 @@ import logo1 from "@/assets/cellcraft_logo_text_5.png";
 import logo2 from "@/assets/cellcraft_logo_text_12.png";
 
 export default {
+  data() {
+    return {
+      images: [logo1, logo2],
+      textDict: {
+        seurat: {
+          title: "seurat",
+          desc: "A basic tutorial on single-cell transcriptomics using Seurat.",
+        },
+        monocle: {
+          title: "monocle",
+          desc: "Example of Trajectory Analysis Using Monocle",
+        },
+        scanpy: {
+          title: "scanpy",
+          desc: "A basic tutorial on single-cell transcriptomics using Scanpy.",
+        },
+        PAGA: {
+          title: "PAGA",
+          desc: "Example of Trajectory Analysis Using PAGA",
+        },
+        outputConversion: {
+          title: "Output Conversion",
+          desc: "An overview of converting analyzed files (rds to h5ad)",
+        },
+        multiOmics: {
+          title: "Multi-Omics",
+          desc: "Example of Multiomics Analysis(scRNA-seq + scATAC-seq) Using Seurat.",
+        },
+        intro: {
+          title: "Intro",
+          desc: "Welcome to the official tutorial for Cellcraft.",
+          desc1:
+            "Cellcraft offers a user-friendly interface that allows researchers to quickly explore, analyze, and visualize gene regulatory networks. Cellcraft can process complex datasets, providing accurate and actionable insights into genetic interactions. Users can upload their data, select parameters for analysis, and witness the transformative power of Cellcraft and TENET. This main tutorial aims to give users a comprehensive overview of Cellcraft, guiding them through its features and capabilities.",
+        },
+        gettingStarted: {
+          title: "Getting Started",
+          desc: "Navigating Cellcraft is intuitive. Please refer to our sub-pages for detailed step-by-step instructions and tips on maximizing the platform's potential. Whether you want to conduct a quick analysis or embark on a complex research project, the sub-pages will guide you through every platform facet. They cover topics ranging from data upload procedures to advanced analytics techniques.",
+        },
+      },
+    };
+  },
   methods: {
     mouseoverEvent(ev) {
       if (ev.target.children[2]) {
@@ -206,6 +256,14 @@ export default {
         behavior: "smooth",
       });
     },
+    openHtmlPage(ref) {
+      const htmlName = ref;
+      const routePath = this.$router.resolve({
+        path: "/tutorial",
+        query: { htmlName },
+      }).href;
+      window.open(routePath, "_blank");
+    },
   },
   mounted() {
     const video = this.$refs.videoRef;
@@ -221,11 +279,6 @@ export default {
   beforeDestroy() {
     const video = this.$refs.videoRef;
     video.pause();
-  },
-  data() {
-    return {
-      images: [logo1, logo2],
-    };
   },
   computed: {
     randomImage() {
@@ -321,38 +374,32 @@ export default {
   position: relative;
 }
 
-/* .notice-component:before {
-  content: "";
-  background: rgba(0, 85, 203, 0.8);
-  width: calc(100vw - 0px);
-  height: 100%;
-  position: absolute;
-  left: 0;
-  z-index: -1;
-  top: 0;
-} */
-
 .menu-component {
-  padding: 6rem 0;
+  padding: 10rem 0 0rem 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: 105vh;
+  /* height: 105vh; */
   box-sizing: border-box;
   background-color: #c3c3c3;
 }
-
-.intro-component {
-  height: calc(45vh - 80px);
+.intro-component,
+.about-component {
+  /* height: calc(35vh - 80px); */
   display: flex;
   align-items: center;
   justify-content: center;
   margin-right: auto;
   margin-left: auto;
   position: relative;
+  padding-top: 5rem;
 }
 
-.intro-component:before {
+.intro-component {
+  background-color: #c3c3c3;
+}
+
+.about-component::before {
   content: "";
   background: linear-gradient(to bottom, #c3c3c3, #ffffff);
   width: 100%;
@@ -361,6 +408,39 @@ export default {
   left: 0;
   z-index: -1;
   top: 0;
+}
+
+.intro__descbox {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.intro__descbox__column {
+  width: 70%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 9.7rem 0 2rem 0;
+}
+
+.intro__descbox__column {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+.intro__desc-text {
+  margin-left: 0.2rem;
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 1.1rem;
+  line-height: 1.5rem;
+  text-align: center;
+  color: rgb(82, 82, 82);
 }
 
 .main__img {
@@ -516,6 +596,7 @@ export default {
 } */
 
 .menu__title {
+  width: 100%;
   font-family: "Montserrat", sans-serif; /* Montserrat 폰트 적용 */
   font-weight: 700; /* 두께는 bold로 설정 */
   font-size: 2.5rem; /* 크기는 2.5rem으로 설정 */
@@ -524,7 +605,7 @@ export default {
   letter-spacing: 0.05em; /* 글자 사이 간격 설정 */
   text-align: center; /* 중앙 정렬 */
   margin-top: 10px; /* 상단 여백 */
-  margin-bottom: 10px; /* 하단 여백 */
+  margin-bottom: 1rem; /* 하단 여백 */
 }
 
 .menu__description {
@@ -535,6 +616,7 @@ export default {
   text-transform: uppercase; /* 모든 글자를 대문자로 */
   letter-spacing: 0.05em; /* 글자 사이 간격 설정 */
   text-align: center; /* 중앙 정렬 */
+  width: 70%;
 }
 
 .menu-list {
@@ -578,8 +660,8 @@ export default {
   cursor: pointer;
   margin: 2rem 1rem;
   margin-bottom: 2rem;
-  width: 34rem;
-  height: 13rem;
+  width: 26rem;
+  height: 15rem;
   max-width: 80%;
   max-height: 80%;
   display: flex;
@@ -594,8 +676,8 @@ export default {
 }
 
 .menu-list__card:hover {
-  width: 36rem;
-  max-width: calc(80% + 2rem);
+  /* width: 36rem;
+  max-width: calc(80% + 2rem); */
   box-shadow: rgba(0, 0, 0, 0.31) 0px 5px 20px, rgba(0, 0, 0, 0.35) 0px 3px 10px;
   transition: 0.5s;
   background: #f3f3f3;
@@ -607,17 +689,21 @@ export default {
   left: calc(50% - 1rem);
   font-size: 2rem;
   color: #ffffff;
-  animation: moveArrow 3s infinite;
+  bottom: -50px; /* Middle position */
 }
 
 .menu-list__icon {
-  pointer-events: none;
+  /* pointer-events: none; */
   width: 100%;
   height: 100%;
   object-fit: cover;
   position: absolute;
-  opacity: 0.25;
+  opacity: 0.05;
   border-radius: 2.5rem;
+  transition: opacity 1.5s ease; /* 투명도가 서서히 변화하는 트랜지션 설정 */
+}
+.menu-list__icon:hover {
+  opacity: 0.5;
 }
 
 .menu-list__textbox {
@@ -627,6 +713,8 @@ export default {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
+  text-align: center;
   position: relative;
   border-radius: 0.5rem;
 }
@@ -638,6 +726,7 @@ export default {
   font-weight: 600;
   font-size: 2rem;
   line-height: 1.4rem;
+  text-align: center;
   position: absolute;
   top: 0rem;
   color: rgb(31, 56, 90);
@@ -658,7 +747,7 @@ export default {
   color: rgb(80, 80, 80);
 }
 
-.intro__textbox {
+.about__textbox {
   width: 20rem;
   height: 100%;
   display: flex;
@@ -669,7 +758,7 @@ export default {
   margin-left: 2rem;
 }
 
-.intro__title {
+.about__title {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 700;
@@ -678,14 +767,14 @@ export default {
   color: rgb(70, 70, 70);
 }
 
-.intro__list {
+.about__list {
   width: 100%;
   margin-top: 1rem;
   counter-reset: list-counter;
   list-style: none;
 }
 
-.intro__list-item {
+.about__list-item {
   width: 100%;
   margin: 1rem 0;
   font-family: "Montserrat", sans-serif;
@@ -696,13 +785,13 @@ export default {
   padding: 0.25rem;
 }
 
-.intro__list-item:hover {
+.about__list-item:hover {
   box-shadow: rgba(0, 0, 0, 0.4) -5px 5px, rgba(0, 0, 0, 0.3) -10px 10px;
   transform: translateX(0.5rem) translateY(-0.5rem);
   transition: 0.5s;
 }
 
-.intro__list-item:before {
+.about__list-item:before {
   content: counter(list-counter);
   counter-increment: list-counter;
   width: 0.75rem;
@@ -719,7 +808,7 @@ export default {
   display: inline-block;
 }
 
-.intro__descbox {
+.about__descbox {
   width: 70rem;
   height: 100%;
   display: flex;
@@ -727,7 +816,7 @@ export default {
   justify-content: center;
 }
 
-.intro__descbox__column {
+.about__descbox__column {
   width: 45%;
   height: 100%;
   margin: 0 1rem;
@@ -737,11 +826,11 @@ export default {
   justify-content: center;
 }
 
-.intro__descbox__column:last-child {
+.about__descbox__column:last-child {
   align-items: center;
 }
 
-.intro__desc-title {
+.about__desc-title {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: bold;
@@ -750,7 +839,7 @@ export default {
   color: rgb(50, 50, 50);
 }
 
-.intro__desc-text {
+.about__desc-text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 500;
@@ -759,13 +848,87 @@ export default {
   margin-top: 1rem;
   opacity: 0.7;
   color: rgb(40, 40, 40);
+  margin-left: 0.4rem;
 }
 
-.intro__desc-img {
-  width: 28rem;
-  height: 20rem;
+.about__desc-img {
+  width: 100%;
+  height: 12rem;
   object-fit: cover;
   border-radius: 0.5rem;
+  margin: 1rem;
+  margin-top: 3rem;
+  margin-bottom: 3rem;
+}
+
+.sub-description__box {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.sub-description {
+  width: 40%;
+  color: #333333; /* 글자 색상 설정 */
+}
+
+.menu-list__largeCard {
+  cursor: pointer;
+  margin: 2rem 1rem;
+  margin-bottom: 2rem;
+  width: 26rem;
+  height: 24rem;
+  max-width: 80%;
+  max-height: 80%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f3f3d2;
+  box-shadow: rgba(0, 0, 0, 0.34) 0px 0px 10px;
+  padding: 1rem;
+  border-radius: 2.5rem;
+  /* transition: 0.5s; */
+  position: relative;
+}
+
+.menu-list__largeCard:hover {
+  /* width: 36rem;
+  max-width: calc(80% + 2rem); */
+  box-shadow: rgba(0, 0, 0, 0.31) 0px 5px 20px, rgba(0, 0, 0, 0.35) 0px 3px 10px;
+  transition: 0.5s;
+  background: #f3f3f3;
+}
+
+.menu-list__largeIcon {
+  /* pointer-events: none; */
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  position: absolute;
+  opacity: 0.05;
+  border-radius: 2.5rem;
+  transition: opacity 1.5s ease; /* 투명도가 서서히 변화하는 트랜지션 설정 */
+}
+
+.menu-list__largeIcon:hover {
+  opacity: 0.5;
+}
+
+.largeTextbox {
+  width: 20rem;
+  height: 6rem;
+  text-align: center;
+}
+
+.menu-list__largeTitle {
+  pointer-events: none;
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 2rem;
+  text-align: center;
+  color: rgb(31, 56, 90);
 }
 
 /* Defining the animation */

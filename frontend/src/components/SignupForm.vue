@@ -82,19 +82,27 @@ export default {
   methods: {
     async submitForm() {
       try {
-        const userData = {
-          email: this.email,
-          password: this.password,
-          username: this.username,
-        };
-        console.log(userData);
-        this.modal = true;
-        const response = await registerUser(userData);
-        console.log(response);
-        this.$router.push("/login");
+        if (this.password != this.re_password) {
+          throw new Error("Confirm password does not match");
+        } else {
+          const userData = {
+            email: this.email,
+            password: this.password,
+            username: this.username,
+          };
+          this.modal = true;
+          await registerUser(userData);
+          this.$router.push("/login");
+        }
       } catch (error) {
-        console.error(error.response.data.detail);
-        this.errorMessage = error.response.data.detail;
+        if (error.message === "Confirm password does not match") {
+          this.errorMessage = error.message;
+        } else {
+          this.errorMessage =
+            error.response && error.response.data.detail
+              ? error.response.data.detail
+              : "An unknown error occurred";
+        }
         this.isError = true;
       } finally {
         this.initForm();

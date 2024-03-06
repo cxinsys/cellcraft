@@ -4,8 +4,8 @@
       <div class="folder__header">
         <p class="folder__title left">Navigator</p>
         <div class="folder__createBtn right">
-          <img class="folder__createBtn--icon" src="@/assets/add-folder.png" />
-          <img class="folder__createBtn--icon" src="@/assets/refresh.png" />
+          <!-- <img class="folder__createBtn--icon" src="@/assets/add-folder.png" />
+          <img class="folder__createBtn--icon" src="@/assets/refresh.png" /> -->
         </div>
       </div>
       <ul class="folder__list">
@@ -47,18 +47,19 @@
         <div class="header__column left">
           <p class="files__folder">{{ currentFolder }}</p>
         </div>
-        <input
+        <!-- <input
           class="files__search"
           type="text"
           name="search"
           placeholder="search anything..."
-        />
+        /> -->
         <div class="header__column right">
           <label class="files__button">
             <img
               class="files__button--icon"
               src="@/assets/upload-file-black.png"
             />
+            <h1>Upload File</h1>
             <input
               class="files__input"
               type="file"
@@ -105,9 +106,9 @@
         v-bind:class="{ open: R_Mouse_isActive }"
         :style="{ left: xPosition, top: yPosition }"
       >
-        <li>view</li>
+        <!-- <li>view</li>
         <li>plot</li>
-        <li>rename</li>
+        <li>rename</li> -->
         <li @click="removeFile">delete</li>
       </ul>
     </main>
@@ -163,7 +164,6 @@ export default {
       this.R_Mouse_isActive = true;
       this.file_name = file_name;
       this.list_idx = idx;
-      console.log(event);
     },
     ClickOut() {
       this.R_Mouse_isActive = false;
@@ -178,6 +178,11 @@ export default {
     },
     async uploadFile() {
       if (this.$refs.selectFile.files.length > 0) {
+        // file이 .h5ad 확장자가 아니면 오류 발생
+        if (this.$refs.selectFile.files[0].name.includes(".h5ad") === false) {
+          alert("Please upload .h5ad file");
+          return;
+        }
         this.selectFile = new File(
           [this.$refs.selectFile.files[0]],
           `${this.currentFolder}_${this.$refs.selectFile.files[0].name}`
@@ -192,13 +197,11 @@ export default {
           );
         };
         try {
-          const response = await uploadForm(form, onUploadProgress);
+          await uploadForm(form, onUploadProgress);
           this.uploadPercentage = 0; // 업로드 완료 후 초기화
-          console.log(response);
           const folderList = await findFolder({
             folder_name: this.currentFolder,
           });
-          console.log(folderList.data);
           this.files_list = folderList.data;
         } catch (error) {
           console.error(error);
@@ -208,23 +211,21 @@ export default {
     removeFile() {
       this.targetFile = this.files_list[this.list_idx];
       this.files_list.splice(this.list_idx, 1);
-      console.log(this.targetFile);
-      this.toggleMessage = true;
-      // 10초 안에 toggleMessage가 false로 바뀌면 deleteFile 실행 안 함, 안 바뀌면 실행
-      this.messageContent = `${this.targetFile.file_name} is deleted`;
-      this.deletionTimer = setTimeout(async () => {
+      // this.toggleMessage = true;
+      if (
+        confirm(
+          "Are you sure you want to delete this file? This action cannot be undone."
+        )
+      ) {
         try {
           const file = {
             file_name: this.file_name,
           };
-          console.log(file);
-          const targetFile = await deleteFile(file);
-          console.log(targetFile);
+          deleteFile(file);
         } catch (error) {
           console.error(error);
         }
-        this.toggleMessage = false;
-      }, 3000);
+      }
     },
     undoDeletion() {
       this.files_list.push(this.targetFile);
@@ -239,12 +240,10 @@ export default {
     }
     try {
       const fileList = await getFiles();
-      console.log(fileList.data);
       this.folders_list = fileList.data;
       const folderList = await findFolder({
         folder_name: this.currentFolder,
       });
-      console.log(folderList.data);
       this.files_list = folderList.data;
     } catch (error) {
       console.error(error);
@@ -282,10 +281,14 @@ export default {
   overflow: hidden;
 }
 .folder {
-  width: 22rem;
+  width: 18rem;
+  height: 100%;
+  border-right: 1px solid #aeaeae;
+  background-color: rgb(201, 202, 203);
+  /* width: 22rem;
   height: 100%;
   background: #cfcfcf;
-  border-right: 1px solid #afafaf;
+  border-right: 1px solid #afafaf; */
 }
 .folder__header {
   width: 90%;
@@ -374,7 +377,7 @@ export default {
   position: relative;
 }
 .header__column {
-  width: 20%;
+  width: 50%;
   height: 100%;
   display: flex;
   align-items: center;
@@ -395,10 +398,10 @@ export default {
   font-size: 1.8rem;
   line-height: 1.25rem;
   color: rgba(0, 0, 0, 0.8);
-  text-transform: capitalize;
+  /* text-transform: capitalize; */
 }
 .files__button {
-  width: 2rem;
+  width: 9rem;
   height: 2rem;
   padding: 0.2rem;
   display: flex;
@@ -419,12 +422,13 @@ export default {
   height: 1.75rem;
   object-fit: contain;
   opacity: 0.8;
+  margin-right: 0.5rem;
 }
 .files__input {
   display: none;
 }
 .files__search {
-  width: 50%;
+  width: 300px;
   height: 2.5rem;
   border: 1px solid #e1e1e1;
   border-radius: 1rem;
@@ -433,8 +437,6 @@ export default {
   background: #f7f7f7;
 }
 .files__search:focus {
-  /* box-shadow: rgba(0, 0, 0, 0.15) 0px 4px 4px;
-  border: none; */
   border: 1px solid #bcbcbc;
 }
 .files__table {
@@ -517,6 +519,7 @@ export default {
   box-shadow: 0 15px 35px rgba(50, 50, 90, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07);
   overflow: hidden;
   z-index: 999999;
+  text-transform: capitalize;
 }
 .files_menu.open {
   display: block;

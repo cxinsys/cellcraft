@@ -186,6 +186,7 @@ dependencies:
   - zipp=3.8.1
   - zlib=1.2.12
   - zstd=1.5.2
+  - jpype1
   - pip:
     - aiormq==6.7.6
     - amqp==5.1.1

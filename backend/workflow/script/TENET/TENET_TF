@@ -1,0 +1,64 @@
+#!/bin/bash
+## $1: 입력 *.csv 파일, $2: 병렬 작업 수, $3: 궤적 파일, $4: 셀 선택 파일, $5: historyLength, $6: 종(species), $7: 출력 경로, $8: 사용자 이름
+
+# script 파일 위치
+script_path="/app/workflow/script/TENET/"
+# 결과 파일들을 저장할 유저의 result 폴더 경로 설정
+user_result_path="/app/user/${8}/result/"
+
+export OMPI_ALLOW_RUN_AS_ROOT=1
+export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+
+# transpose input matrix from cell*gene to gene*cell, and generate list of all pairs of genes
+cat /app/$1 | cut -d ',' -f 2- | tail -n +2 | sed 's/,/ /g' > "${user_result_path}cell_gene.tsv"
+cat /app/$1 | head -n 1 | cut -d ',' -f 2- | tr ',' '\n' > "${user_result_path}gene_names"
+num_gene=$(cat "${user_result_path}cell_gene.tsv" | wc -l | sed -e 's/^[ \t]*//')
+/opt/conda/envs/snakemake/bin/python ${script_path}PreProcessScriptTF.py $6 "${user_result_path}"
+
+# split pair list into # of jobs
+num_job=$2
+pair_jobs_path="${user_result_path}pair_jobs"
+if [ -d "$pair_jobs_path" ]; then
+	rm -rf "$pair_jobs_path"
+fi
+mkdir "$pair_jobs_path"
+mv "${user_result_path}all_pairs.csv" "${pair_jobs_path}/all_pairs.csv"
+
+num_pair=$(cat "${pair_jobs_path}/all_pairs.csv" | wc -l | sed -e 's/^[ \t]*//')
+num_line=`expr $(expr ${num_pair} / ${num_job}) + 1`
+split -a 3 -l ${num_line} "${pair_jobs_path}/all_pairs.csv" "${pair_jobs_path}/pair_list_"
+rm -f "${pair_jobs_path}/all_pairs.csv"
+ls -1 "$pair_jobs_path/" > "${user_result_path}list_jobfiles"
+
+## mpirun
+mpirun_cmd='time mpirun'
+outputs_path="${user_result_path}outputs"
+if [ -d "$outputs_path" ]; then
+	rm -rf "$outputs_path"
+fi
+mkdir "$outputs_path"
+num_job=$(grep -c '^[^[:space:]]' "${user_result_path}list_jobfiles")
+echo "num_job: ${num_job}"
+cat "${user_result_path}list_jobfiles"
+
+for ((loop=1;loop<=${num_job};loop++))
+do
+	input_file=$(cat "${user_result_path}list_jobfiles" | head -n $loop | tail -n 1)
+    output_id=$(echo $input_file | awk -F'_' '{print $NF}')
+	echo "input_file: ${input_file}"
+	echo "output_id: ${output_id}"
+	mpirun_cmd+=" -np 1 /opt/conda/envs/snakemake/bin/python ${script_path}runTE_TF.py ${pair_jobs_path}/${input_file} ${outputs_path}/TE_out_${output_id}.csv $3 $4 $5 ${user_result_path} :"
+	echo "mpirun_cmd: ${mpirun_cmd}"
+done
+mpirun_cmd=$(echo "${mpirun_cmd}" | sed 's/ :$//')
+echo "mpirun_cmd: ${mpirun_cmd}"
+echo "${mpirun_cmd}" > "${user_result_path}mpirun_script.sh"
+chmod a+x "${user_result_path}mpirun_script.sh"
+"${user_result_path}mpirun_script.sh"
+sleep 5
+
+# 결과 합치기
+cat "${outputs_path}/"*.csv > "${user_result_path}TE_result_all.csv"
+chmod a+x ${script_path}makeTEasMatrix.py
+/opt/conda/envs/snakemake/bin/python ${script_path}makeTEasMatrix.py "${user_result_path}" $7
+rm "${user_result_path}/TE_result_all.csv"

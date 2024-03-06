@@ -11,6 +11,9 @@
         loginPage__header: loginPage,
         workflowPage__header: workflowPage,
         filesPage__header: filesPage,
+        datasetsPage__header: datasetsPage,
+        adminPage__header: adminPage,
+        tutorialPage__header: tutorialPage,
       }"
     >
       <CellcraftHeader></CellcraftHeader>
@@ -21,6 +24,8 @@
         loginPage__main: loginPage,
         workflowPage__main: workflowPage,
         filesPage__main: filesPage,
+        datasetsPage__main: datasetsPage,
+        adminPage__main: adminPage,
       }"
     >
       <router-view></router-view>
@@ -31,6 +36,8 @@
         loginPage__footer: loginPage,
         workflowPage__footer: workflowPage,
         filesPage__footer: filesPage,
+        datasetsPage__footer: datasetsPage,
+        adminPage__footer: adminPage,
       }"
     >
       <div class="copyright__txt">CELLCRAFT © 2023. All rights reserved</div>
@@ -51,20 +58,29 @@ export default {
       loginPage: false,
       workflowPage: false,
       filesPage: false,
+      datasetsPage: false,
+      adminPage: false,
+      tutorialPage: false,
     };
   },
   watch: {
     $route(to, from) {
-      console.log(to.path, from.path);
       if (from.path.includes("/workflow") && !to.path.includes("/workflow")) {
-        console.log("store cleared");
         this.$store.commit("clearWorkflow");
         this.$store.commit("clearNodes");
         this.$store.commit("clearLinkedNodes");
         this.$store.commit("clearTitle");
         this.$store.commit("clearThumbnail");
         this.$store.commit("clearCurrentNode");
-        this.$store.commit("clearAlgorithm");
+      }
+
+      if (from.path.includes("/login")) {
+        this.$store.commit("clearWorkflow");
+        this.$store.commit("clearNodes");
+        this.$store.commit("clearLinkedNodes");
+        this.$store.commit("clearTitle");
+        this.$store.commit("clearThumbnail");
+        this.$store.commit("clearCurrentNode");
       }
 
       if (to.path.includes("/main")) {
@@ -72,21 +88,57 @@ export default {
         this.loginPage = false;
         this.workflowPage = false;
         this.filesPage = false;
+        this.datasetsPage = false;
+        this.adminPage = false;
+        this.tutorialPage = false;
       } else if (to.path.includes("/login") || to.path.includes("/signup")) {
         this.mainPage = false;
         this.loginPage = true;
         this.workflowPage = false;
         this.filesPage = false;
+        this.datasetsPage = false;
+        this.adminPage = false;
+        this.tutorialPage = false;
       } else if (to.path.includes("/workflow")) {
         this.mainPage = false;
         this.loginPage = false;
         this.workflowPage = true;
         this.filesPage = false;
+        this.datasetsPage = false;
+        this.adminPage = false;
+        this.tutorialPage = false;
       } else if (to.path.includes("/files") || to.path.includes("/projects")) {
         this.mainPage = false;
         this.loginPage = false;
         this.workflowPage = false;
         this.filesPage = true;
+        this.datasetsPage = false;
+        this.adminPage = false;
+        this.tutorialPage = false;
+      } else if (to.path.includes("/datasets")) {
+        this.mainPage = false;
+        this.loginPage = false;
+        this.workflowPage = false;
+        this.filesPage = false;
+        this.datasetsPage = true;
+        this.adminPage = false;
+        this.tutorialPage = false;
+      } else if (to.path.includes("/admin")) {
+        this.mainPage = false;
+        this.loginPage = false;
+        this.workflowPage = false;
+        this.filesPage = false;
+        this.datasetsPage = false;
+        this.adminPage = true;
+        this.tutorialPage = false;
+      } else if (to.path.includes("/tutorial")) {
+        this.mainPage = false;
+        this.loginPage = false;
+        this.workflowPage = false;
+        this.filesPage = false;
+        this.datasetsPage = false;
+        this.adminPage = false;
+        this.tutorialPage = true;
       }
     },
   },
@@ -108,18 +160,21 @@ export default {
   height: 48px; /* Changed from 60px to 48px */
   position: fixed;
   z-index: 999;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.9);
 }
 
 .workflowPage__header,
-.filesPage__header {
+.filesPage__header,
+.datasetsPage__header,
+.adminPage__header {
   width: 100%;
   height: 48px; /* Changed from 60px to 48px */
   position: relative;
   background-color: rgba(0, 0, 0, 0.9);
 }
 
-.filesPage__header {
+.tutorialPage__header {
+  display: none;
 }
 
 .main-component {
@@ -133,7 +188,9 @@ export default {
 }
 
 .workflowPage__main,
-.filesPage__main {
+.filesPage__main,
+.datasetsPage__main,
+.adminPage__main {
   height: calc(100vh - 48px);
   /* Changed from 100vh to 80vh and adjusted the subtraction */
 }
@@ -146,7 +203,8 @@ export default {
 }
 .loginPage__footer,
 .workflowPage__footer,
-.filesPage__footer {
+.filesPage__footer,
+.datasetsPage__footer {
   display: none;
 }
 .copyright__txt {

@@ -54,7 +54,6 @@ export default {
           username: this.email,
           password: this.password,
         };
-        console.log(userData);
         await this.$store.dispatch("LOGIN", userData);
         this.$router.push("/projects");
       } catch (error) {

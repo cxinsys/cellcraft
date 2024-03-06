@@ -8,9 +8,7 @@ import { setInterceptors } from "@/api/common/interceptors";
 
 function createInstance() {
   const instance = axios.create({
-    baseURL: "http://localhost:8002",
-    // baseURL: "http://backend:8000",
-    // baseURL: "http://127.0.0.1:8000",
+    baseURL: "http://localhost/api", // 백엔드 서비스 경로
   });
   return setInterceptors(instance);
 }
@@ -49,6 +47,10 @@ function getResult(filename) {
   return instance.post("/routes/workflow/result", filename);
 }
 
+function getResults() {
+  return instance.post("/routes/workflow/results");
+}
+
 function uploadForm(formData, onUploadProgress) {
   // FormData의 value 확인
   // for (let value of formData.values()) {
@@ -80,6 +82,14 @@ function deleteFile(file) {
 
 function convertFile(file) {
   return instance.post("routes/files/convert", file);
+}
+
+function checkOptions() {
+  return instance.get("routes/files/setup/check");
+}
+
+function getOptions(file) {
+  return instance.get(`routes/files/setup/${file}`);
 }
 
 function checkConvert(file) {
@@ -126,6 +136,24 @@ function revokeTask(taskId) {
   return instance.delete(`/routes/workflow/revoke/${taskId}`);
 }
 
+function getHtml(filename) {
+  return instance.get(`/routes/files/html/${filename}`);
+}
+
+function getResultFile(fileInfo) {
+  return instance.post("/routes/files/result", fileInfo);
+}
+
+function getDownloadResult(filename) {
+  return instance.get(`/routes/files/result/${filename}`, {
+    responseType: "blob", // 서버로부터 받은 데이터를 blob 형태로 처리
+  });
+}
+
+function getResultFileOne(filename) {
+  return instance.get(`/routes/files/result/${filename}`);
+}
+
 export {
   registerUser,
   loginUser,
@@ -134,6 +162,7 @@ export {
   getFilteredUsers,
   exportData,
   getResult,
+  getResults,
   uploadForm,
   getFiles,
   findFile,
@@ -151,4 +180,10 @@ export {
   getClusters,
   setupAlgorithm,
   checkConvert,
+  getOptions,
+  checkOptions,
+  getHtml,
+  getResultFile,
+  getDownloadResult,
+  getResultFileOne,
 };

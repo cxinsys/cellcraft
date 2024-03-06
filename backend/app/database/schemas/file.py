@@ -12,6 +12,10 @@ class FileCreate(FileBase):
     file_size: str
     file_path: str
 
+class FileGet(FileBase):
+    file_name: str
+    local_file_path: str
+
 class FileFind(FileBase):
     file_name: str
     anno_column: Optional[str] = None
@@ -28,7 +32,7 @@ class FileUpdate(FileBase):
 
 class FileSetup(FileBase):
     algorithm: str
-    selected_tenet: Optional[str] = None
+    option_name: str
     file_name: str
     anno_of_interest: str
     pseudo_of_interest: str
@@ -37,8 +41,10 @@ class FileSetup(FileBase):
     num_of_threads: Optional[int] = None
     history_length: Optional[int] = None
     species: Optional[str] = None
+    gene_list: Optional[str] = None
     cutoff_for_fdr: Optional[float] = None
     num_of_links: Optional[int] = None
+    trimming_indirect_edges: Optional[float] = None
     make_binary: Optional[bool] = None
     device: Optional[str] = None
     device_ids: Optional[List] = None
@@ -47,6 +53,10 @@ class FileSetup(FileBase):
     percentile: Optional[int] = None
     win_length: Optional[int] = None
     polyorder: Optional[int] = None
+
+class FileResultFind(FileBase):
+    file_name: str
+    option_file_name: str
 
 class File(FileBase):
     id: int

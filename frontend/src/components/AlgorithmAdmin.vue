@@ -1,18 +1,19 @@
 <template>
-  <div>
+  <div class="layout_admin">
     <div class="first-line">
+      <div class="header__text">Algorithms</div>
       <div class="search">
         <input
           type="text"
           v-model="searchTerm"
           placeholder="Search by name..."
         />
-        <img
+        <!-- <img
           class="reset-button"
           src="@/assets/reset.png"
           alt="reset"
           @click="resetSearch"
-        />
+        /> -->
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>
@@ -28,7 +29,7 @@
     <div class="second-line">
       <div></div>
       <label class="upload-button">
-        ⇪ UPLOAD NEW ALGORITHM
+        ⇪ upload new algorithm
         <input
           type="file"
           ref="fileInput"
@@ -428,21 +429,17 @@ export default {
     updatePage() {
       this.currentPage = 1; // Reset to first page when page size changes
     },
-    getLinkUrl(algorithm) {
-      console.log(algorithm);
+    getLinkUrl() {
       // 데이터셋에 따른 링크 URL을 반환하는 메서드
       // 예시로 데이터셋의 no 값을 링크 URL에 사용
       return `https://singlecell.broadinstitute.org/single_cell/study/SCP2221/primary-nasal-viral-infection-rewires-the-tissue-scale-memory-response-rechallenge-rm`;
     },
-    uploadFile(event) {
-      const file = event.target.files[0]; // Get the selected file
+    uploadFile() {
       // Perform the necessary operations with the file, such as uploading to a server or processing it
       // You can access the file using the 'file' variable
-      console.log(file);
     },
     editAlgorithmSetting(algorithm) {
       this.editingAlgorithm = algorithm;
-      console.log(this.editingAlgorithm);
     },
   },
 };
@@ -527,12 +524,13 @@ a {
 
 .first-line {
   height: 40px;
-
+  margin-bottom: 10px;
   width: calc(100% - 10px);
   padding: 5px 5px 0px 5px;
   display: flex;
   justify-content: space-between;
   flex-direction: row;
+  align-items: center;
 }
 .second-line {
   width: calc(100% - 10px);
@@ -686,17 +684,16 @@ a {
 }
 
 .search input {
-  margin-right: 10px;
-  width: 200px;
-  color: black;
-  padding: 5px;
-  left: 10px;
-  border-radius: 10px;
-  border-color: #e7eaff;
-  font-size: small;
-  text-align: center;
-  margin-top: 5px;
-  margin-bottom: 10px;
+  width: 300px;
+  height: 2.5rem;
+  border: 1px solid #e1e1e1;
+  border-radius: 1rem;
+  padding: 0 2rem;
+  outline-style: none;
+  background: #f7f7f7;
+}
+.search input:focus {
+  border: 1px solid #bcbcbc;
 }
 .upload-button {
   border-radius: 5px;
@@ -707,6 +704,7 @@ a {
   border-radius: 10px;
   text-decoration: none;
   color: rgb(255, 255, 255);
+  text-transform: capitalize;
 }
 .upload-button:hover {
   cursor: pointer;
@@ -798,5 +796,18 @@ input:checked + .slider_button:before {
 
 .slider_button.round:before {
   border-radius: 50%;
+}
+
+.layout_admin {
+  padding: 0 2rem 0 1rem;
+}
+.header__text {
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 2rem;
+  line-height: 1rem;
+  /* padding-left: 2rem; */
+  color: rgba(0, 0, 0, 0.8);
 }
 </style>

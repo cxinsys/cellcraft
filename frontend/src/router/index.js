@@ -39,8 +39,12 @@ export default new Router({
           component: () => import("@/components/modals/scatterPlot.vue"),
         },
         {
-          path: "heatmap",
+          path: "heatMap",
           component: () => import("@/components/modals/heatMap.vue"),
+        },
+        {
+          path: "barPlot",
+          component: () => import("@/components/modals/barPlot.vue"),
         },
         {
           path: "algorithm",
@@ -55,6 +59,10 @@ export default new Router({
     {
       path: "/projects",
       component: () => import("@/views/ProjectPage.vue"),
+    },
+    {
+      path: "/datasets",
+      component: () => import("@/views/DatasetsPage.vue"),
     },
     {
       path: "/admin",
@@ -81,6 +89,10 @@ export default new Router({
           component: () => import("@/components/AlgorithmAdmin.vue"),
         },
       ],
+    },
+    {
+      path: "/tutorial",
+      component: () => import("@/views/TutorialPage.vue"),
     },
   ],
 });

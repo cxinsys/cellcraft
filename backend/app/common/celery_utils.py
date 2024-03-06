@@ -16,6 +16,17 @@ def create_celery():
     celery_app.conf.update(result_persistent=True)
     celery_app.conf.update(worker_send_task_events=False)
     celery_app.conf.update(worker_prefetch_multiplier=1)
+    # 긴 작업을 위한 타임아웃 설정 추가
+    celery_app.conf.update(broker_transport_options={'visibility_timeout': 400000})  # 초 단위
+    # Celery 설정에서 ampq 연결 끊김 방지를 위한 연결 관련 옵션 조정
+    celery_app.conf.update(
+        broker_heartbeat=0,  # 브로커 하트비트 비활성화
+        broker_connection_timeout=60,  # 연결 시도 제한 시간 (초 단위)
+        broker_connection_retry=True,  # 연결 실패 시 재시도 활성화
+        broker_connection_max_retries=10,  # 최대 재시도 횟수
+        broker_connection_retry_delay=1,  # 재시도 간격 (초 단위)
+        broker_connection_retry_jitter=False,  # 재시도 간격 랜덤화 비활성화
+    )
 
     return celery_app
 

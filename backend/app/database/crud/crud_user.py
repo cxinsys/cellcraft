@@ -42,12 +42,24 @@ def get_users_count(db: Session) -> int:
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
-
 def create_user(db: Session, user: user.UserCreate) -> models.User:
     db_user = models.User(
         email=user.email, 
         hashed_password=get_password_hash(user.password),
         username=user.username,
+        )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def create_superuser(db: Session, user: user.UserCreate) -> models.User:
+    db_user = models.User(
+        email=user.email, 
+        hashed_password=get_password_hash(user.password),
+        username=user.username,
+        is_superuser=True,
+        is_active=True  # 여기에 is_active 값을 추가합니다.
         )
     db.add(db_user)
     db.commit()
