@@ -49,7 +49,7 @@ export default {
   data() {
     return {
       currentPage: 1,
-      pageSize: 10,
+      pageSize: 5,
       searchTerm: "",
       studies: [
         {

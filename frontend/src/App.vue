@@ -61,6 +61,7 @@ export default {
       datasetsPage: false,
       adminPage: false,
       tutorialPage: false,
+      pluginsPage: false,
     };
   },
   watch: {
@@ -105,6 +106,7 @@ export default {
         this.workflowPage = true;
         this.filesPage = false;
         this.datasetsPage = false;
+        this.pluginsPage = false;
         this.adminPage = false;
         this.tutorialPage = false;
       } else if (to.path.includes("/files") || to.path.includes("/projects")) {
@@ -113,14 +115,16 @@ export default {
         this.workflowPage = false;
         this.filesPage = true;
         this.datasetsPage = false;
+        this.pluginsPage = false;
         this.adminPage = false;
         this.tutorialPage = false;
-      } else if (to.path.includes("/datasets")) {
+      } else if (to.path.includes("/datasets") || to.path.includes("/plugins")) {
         this.mainPage = false;
         this.loginPage = false;
         this.workflowPage = false;
         this.filesPage = false;
         this.datasetsPage = true;
+        this.pluginsPage = true;
         this.adminPage = false;
         this.tutorialPage = false;
       } else if (to.path.includes("/admin")) {
@@ -129,6 +133,7 @@ export default {
         this.workflowPage = false;
         this.filesPage = false;
         this.datasetsPage = false;
+        this.pluginsPage = false;
         this.adminPage = true;
         this.tutorialPage = false;
       } else if (to.path.includes("/tutorial")) {
@@ -137,6 +142,7 @@ export default {
         this.workflowPage = false;
         this.filesPage = false;
         this.datasetsPage = false;
+        this.pluginsPage = false;
         this.adminPage = false;
         this.tutorialPage = true;
       }

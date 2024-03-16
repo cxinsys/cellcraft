@@ -1318,7 +1318,6 @@ export default {
   background-color: rgb(255, 255, 255);
   /* margin: 1rem; */
   padding: 1rem;
-  border-radius: 1rem;
 }
 
 .algorithm-select {

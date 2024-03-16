@@ -41,38 +41,6 @@
           {{ "Select Apply " }}
         </button>
       </div>
-      <!-- <div class="options__item">
-        p_min&nbsp;
-        <img
-          class="options__item__button__minus"
-          src="@/assets/button_minus.png"
-          alt="-"
-          v-on:click="pMinMinus"
-        />
-        <label class="options__item__degree">{{ p_min / 10 }}</label>
-        <img
-          class="options__item__button__plus"
-          src="@/assets/button_plus.png"
-          alt="-"
-          v-on:click="pMinPlus"
-        />
-      </div>
-      <div class="options__item">
-        p_max&nbsp;
-        <img
-          class="options__item__button__minus"
-          src="@/assets/button_minus.png"
-          alt="-"
-          v-on:click="pMaxMinus"
-        />
-        <label class="options__item__degree">{{ p_max / 10 }}</label>
-        <img
-          class="options__item__button__plus"
-          src="@/assets/button_plus.png"
-          alt="-"
-          v-on:click="pMaxPlus"
-        />
-      </div> -->
     </div>
   </div>
 </template>

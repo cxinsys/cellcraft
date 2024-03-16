@@ -3,30 +3,16 @@
     <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
     <section class="node-bar">
       <ul class="node-bar__nodelist" draggable="false">
-        <li
-          class="node-bar__drag-drawflow"
-          v-for="(node, idx) in listNodes.slice(0, 4)"
-          :key="idx"
-          draggable="true"
-          :data-node="node.name"
-          :nodeId="node.id"
-          @dragstart="drag($event)"
-        >
+        <li class="node-bar__drag-drawflow" v-for="(node, idx) in listNodes.slice(0, 4)" :key="idx" draggable="true"
+          :data-node="node.name" :nodeId="node.id" @dragstart="drag($event)">
           <img class="node-bar__img" :src="node.img" draggable="false" />
         </li>
       </ul>
     </section>
     <section class="node-bar_output">
       <ul class="node-bar__nodelist" draggable="false">
-        <li
-          class="node-bar__drag-drawflow"
-          v-for="(node, idx) in listNodes.slice(4, 6)"
-          :key="idx"
-          draggable="true"
-          :data-node="node.name"
-          :nodeId="node.id"
-          @dragstart="drag($event)"
-        >
+        <li class="node-bar__drag-drawflow" v-for="(node, idx) in listNodes.slice(4, 6)" :key="idx" draggable="true"
+          :data-node="node.name" :nodeId="node.id" @dragstart="drag($event)">
           <img class="node-bar__img" :src="node.img" draggable="false" />
         </li>
       </ul>
@@ -71,31 +57,17 @@
             <td>{{ task.end_time | formatDateTime }}</td>
             <td>{{ task.running_time }}</td>
             <td class="task-status">
-              <div
-                class="status-box__red"
-                v-if="
-                  task.status === 'FAILURE' ||
-                  task.status === 'REVOKED' ||
-                  task.status === 'RETRY'
-                "
-              ></div>
-              <div
-                class="status-box__yellow"
-                v-if="task.status === 'RUNNING'"
-              ></div>
-              <div
-                class="status-box__green"
-                v-if="task.status === 'SUCCESS'"
-              ></div>
+              <div class="status-box__red" v-if="task.status === 'FAILURE' ||
+      task.status === 'REVOKED' ||
+      task.status === 'RETRY'
+      "></div>
+              <div class="status-box__yellow" v-if="task.status === 'RUNNING'"></div>
+              <div class="status-box__green" v-if="task.status === 'SUCCESS'"></div>
               {{ task.status }}
             </td>
             <td>
-              <img
-                v-if="task.status === 'RUNNING'"
-                @click="cancelTask(task.task_id)"
-                class="control-bar__icon"
-                src="@/assets/multiply.png"
-              />
+              <img v-if="task.status === 'RUNNING'" @click="cancelTask(task.task_id)" class="control-bar__icon"
+                src="@/assets/multiply.png" />
             </td>
           </tr>
         </tbody>
@@ -115,53 +87,24 @@
           </button>
         </li>
         <li>
-          <div
-            class="loader"
-            @click="toggleTask"
-            v-if="on_progress == true"
-          ></div>
+          <div class="loader" @click="toggleTask" v-if="on_progress == true"></div>
           <div class="loader_done" @click="toggleTask" v-else></div>
         </li>
-        <li class="control-bar__button">
+        <!-- <li class="control-bar__button">
           <img class="control-bar__icon" src="@/assets/control_export.png" />
-        </li>
+        </li> -->
         <li class="control-bar__button">
-          <img
-            class="control-bar__icon white"
-            v-if="isTabView"
-            src="@/assets/view.png"
-            @click="isTabView = !isTabView"
-          />
-          <img
-            class="control-bar__icon white"
-            v-else
-            src="@/assets/view_hide.png"
-            @click="isTabView = !isTabView"
-          />
+          <img class="control-bar__icon white margin__top-4" v-if="isTabView" src="@/assets/view.png"
+            @click="isTabView = !isTabView" />
+          <img class="control-bar__icon white margin__top-4" v-else src="@/assets/view_hide.png" @click="isTabView = !isTabView" />
         </li>
       </ul>
     </section>
-    <VueDragResize
-      contentClass="content-component"
-      v-if="tabList.length != 0 && isTabView"
-      :isActive="true"
-      :x="600"
-      :y="64"
-      :w="880"
-      :h="672"
-      :minw="820"
-      :minh="540"
-      :stickSize="14"
-      :sticks="['tl', 'ml', 'tr', 'bl', 'br']"
-    >
+    <VueDragResize contentClass="content-component" v-if="tabList.length != 0 && isTabView" :isActive="true" :x="600"
+      :y="64" :w="880" :h="672" :minw="820" :minh="540" :stickSize="14" :sticks="['tl', 'ml', 'tr', 'bl', 'br']">
       <ul class="content-tab" v-if="tabList.length != 0 && isTabView">
-        <li
-          class="tab__item"
-          v-for="(tab, idx) in tabList"
-          :key="idx"
-          v-bind:class="{ currentTab: currentTab === idx }"
-          @click="tabClick(idx)"
-        >
+        <li class="tab__item" v-for="(tab, idx) in tabList" :key="idx" v-bind:class="{ currentTab: currentTab === idx }"
+          @click="tabClick(idx)">
           <div class="tab__name">
             <img class="tab__icon" :src="tab.img" />
             <p class="tab__text">
@@ -173,40 +116,20 @@
         </li>
         <div class="tab__hide" @click="isTabView = false"></div>
       </ul>
-      <div
-        class="content-view"
-        v-if="tabList.length != 0 && isTabView"
-        @mousedown.stop
-      >
+      <div class="content-view" v-if="tabList.length != 0 && isTabView" @mousedown.stop>
         <router-view :key="$route.fullPath"></router-view>
       </div>
     </VueDragResize>
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
       <!-- <p class="message__text">{{ messageContent }}</p> -->
-      <img
-        class="message__status"
-        src="@/assets/succes.png"
-        v-if="messageStatus === 'success'"
-      />
-      <img
-        class="message__status"
-        src="@/assets/error.png"
-        v-else-if="messageStatus === 'error'"
-      />
+      <img class="message__status" src="@/assets/succes.png" v-if="messageStatus === 'success'" />
+      <img class="message__status" src="@/assets/error.png" v-else-if="messageStatus === 'error'" />
       <div class="message__box">
-        <p
-          class="message__text"
-          v-for="(content, index) in filteredMessageContent"
-          :key="index"
-        >
+        <p class="message__text" v-for="(content, index) in filteredMessageContent" :key="index">
           {{ content }}
         </p>
       </div>
-      <img
-        class="message__close"
-        @click="toggleMessage = !toggleMessage"
-        src="@/assets/close.png"
-      />
+      <img class="message__close" @click="toggleMessage = !toggleMessage" src="@/assets/close.png" />
     </div>
   </div>
 </template>
@@ -624,18 +547,18 @@ export default {
     addNodeToDrawFlow(name, pos_x, pos_y) {
       pos_x =
         pos_x *
-          (this.$df.precanvas.clientWidth /
-            (this.$df.precanvas.clientWidth * this.$df.zoom)) -
+        (this.$df.precanvas.clientWidth /
+          (this.$df.precanvas.clientWidth * this.$df.zoom)) -
         this.$df.precanvas.getBoundingClientRect().x *
-          (this.$df.precanvas.clientWidth /
-            (this.$df.precanvas.clientWidth * this.$df.zoom));
+        (this.$df.precanvas.clientWidth /
+          (this.$df.precanvas.clientWidth * this.$df.zoom));
       pos_y =
         pos_y *
-          (this.$df.precanvas.clientHeight /
-            (this.$df.precanvas.clientHeight * this.$df.zoom)) -
+        (this.$df.precanvas.clientHeight /
+          (this.$df.precanvas.clientHeight * this.$df.zoom)) -
         this.$df.precanvas.getBoundingClientRect().y *
-          (this.$df.precanvas.clientHeight /
-            (this.$df.precanvas.clientHeight * this.$df.zoom));
+        (this.$df.precanvas.clientHeight /
+          (this.$df.precanvas.clientHeight * this.$df.zoom));
 
       const nodeSelected = this.listNodes.find((ele) => ele.name === name);
       this.$df.addNode(
@@ -716,7 +639,7 @@ export default {
       }, "100");
     },
     // linked_Nodes 한번씩 정리하는 함수
-    setUpLinkedNodes(){
+    setUpLinkedNodes() {
       // removeDuplicateLinkedNodes
       // removeInvalidLinkedNodes
       // fillAlgorithmOptions
@@ -992,6 +915,7 @@ export default {
     -o-transform: rotate(0deg);
     -moz-transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
     -ms-transform: rotate(360deg);
@@ -1005,12 +929,15 @@ export default {
   0% {
     opacity: 0;
   }
+
   20% {
     opacity: 0;
   }
+
   50% {
     opacity: 1;
   }
+
   100% {
     opacity: 0;
   }
@@ -1020,12 +947,15 @@ export default {
   0% {
     opacity: 0;
   }
+
   5% {
     opacity: 1;
   }
+
   95% {
     opacity: 1;
   }
+
   100% {
     opacity: 0;
   }
@@ -1042,6 +972,7 @@ export default {
   background-position: center center;
   background-repeat: no-repeat;
 }
+
 .main__bg-video {
   position: fixed;
   width: 100%;
@@ -1049,6 +980,7 @@ export default {
   overflow: hidden;
   z-index: -1;
 }
+
 .main-video {
   position: absolute;
   top: 0;
@@ -1064,6 +996,7 @@ export default {
   object-position: left; */
   /* border-radius: 1.5rem; */
 }
+
 .content-component {
   width: 55rem;
   height: 42rem;
@@ -1071,12 +1004,15 @@ export default {
   right: -55rem;
   top: calc(50% - 21rem);
 }
+
 .tab_actvie {
   right: 0;
 }
+
 .tab_hide {
   left: 100%;
 }
+
 .content-tab {
   width: 100%;
   height: 2.5rem;
@@ -1086,6 +1022,7 @@ export default {
   position: relative;
   /* border-radius: 0.5rem 0.5rem 0 0; */
 }
+
 .tab__item {
   cursor: pointer;
   width: 10rem;
@@ -1101,14 +1038,17 @@ export default {
   opacity: 1;
   box-shadow: inset 0 -5px 10px -5px rgba(0, 0, 0, 0.3);
 }
+
 .tab__item:last-child {
   border-right: none;
 }
+
 .currentTab {
   background: rgba(244, 246, 251, 0.5);
   color: rgb(51, 51, 51);
   box-shadow: inset 0 -5px 10px -5px rgba(0, 0, 0, 0);
 }
+
 .tab__name {
   width: 8rem;
   height: 100%;
@@ -1117,6 +1057,7 @@ export default {
   position: absolute;
   left: 0.5rem;
 }
+
 .tab__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -1128,12 +1069,14 @@ export default {
   justify-content: flex-start;
   overflow: hidden;
 }
+
 .tab__icon {
   width: 1rem;
   height: 1rem;
   object-fit: contain;
   margin-right: 0.5rem;
 }
+
 .tab__close {
   width: 0.7rem;
   height: 0.7rem;
@@ -1141,6 +1084,7 @@ export default {
   position: absolute;
   right: 1rem;
 }
+
 .tab__hide {
   width: 1rem;
   height: 1rem;
@@ -1153,15 +1097,18 @@ export default {
   opacity: 0.5;
   cursor: pointer;
 }
+
 .tab__hide:hover {
   opacity: 1;
 }
+
 .content-view {
   width: 100%;
   height: calc(100% - 2rem);
   background: rgba(244, 248, 251, 0.6);
   border-radius: 0 0 0.5rem 0.5rem;
 }
+
 .content__handle {
   position: absolute;
   left: -0.75rem;
@@ -1180,14 +1127,17 @@ export default {
   display: flex;
   align-items: center;
 }
+
 .handle--img {
   width: 1.5rem;
   height: 1.5rem;
   object-fit: contain;
 }
+
 .isResizing {
   right: -55rem;
 }
+
 .node-bar {
   /* width: 8rem; */
   width: 80px;
@@ -1206,6 +1156,7 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
 .node-bar_output {
   /* width: 8rem; */
   width: 80px;
@@ -1225,6 +1176,7 @@ export default {
   justify-content: center;
   backdrop-filter: blur(10px);
 }
+
 .node-bar__nodelist {
   width: 80%;
   height: 100%;
@@ -1234,6 +1186,7 @@ export default {
   justify-content: space-evenly;
   align-items: center;
 }
+
 .node-bar__drag-drawflow {
   display: flex;
   align-items: center;
@@ -1248,6 +1201,7 @@ export default {
   height: 4rem;
   box-shadow: 0px 0px 0px 1px rgba(255, 255, 255, 0.3);
 }
+
 .node-bar__img {
   /* width: 3rem;
   height: 3rem; */
@@ -1259,6 +1213,7 @@ export default {
   -moz-user-drag: none;
   -o-user-drag: none;
 }
+
 .control-popup__files,
 .control-popup__jobs {
   /* width: 8rem; */
@@ -1279,9 +1234,11 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
 .control-popup__files {
   right: calc(50% + 1vw);
 }
+
 .control-popup__table {
   width: 95%;
   height: auto;
@@ -1290,17 +1247,23 @@ export default {
   position: absolute;
   top: 20px;
 }
+
 .control-popup__table thead {
   height: 26px;
   font-weight: 500;
   color: rgb(49, 49, 49);
   border-bottom: 1px solid #6767678c;
 }
+
 .control-popup__table td.task-status {
-  display: flex; /* align items horizontally */
-  align-items: center; /* center items vertically */
-  justify-content: center; /* center items horizontally */
+  display: flex;
+  /* align items horizontally */
+  align-items: center;
+  /* center items vertically */
+  justify-content: center;
+  /* center items horizontally */
 }
+
 .control-popup__table td {
   vertical-align: middle;
   font-weight: 400;
@@ -1317,30 +1280,38 @@ export default {
   height: 540px;
   left: calc(50% + 1vw);
   overflow-y: auto;
-  border-radius: 16px; /* or whatever radius you prefer */
+  border-radius: 16px;
+  /* or whatever radius you prefer */
 }
 
 .control-popup__jobs::-webkit-scrollbar {
-  width: 10px; /* width of the entire scrollbar */
+  width: 10px;
+  /* width of the entire scrollbar */
 }
 
 .control-popup__jobs::-webkit-scrollbar-track {
-  background: #f1f1f1; /* color of the tracking area */
-  border-radius: 16px; /* keep the same radius as the container */
+  background: #f1f1f1;
+  /* color of the tracking area */
+  border-radius: 16px;
+  /* keep the same radius as the container */
 }
 
 .control-popup__jobs::-webkit-scrollbar-thumb {
-  background: #888; /* color of the scroll thumb */
-  border-radius: 16px; /* keep the same radius as the container */
+  background: #888;
+  /* color of the scroll thumb */
+  border-radius: 16px;
+  /* keep the same radius as the container */
 }
 
 .control-popup__jobs::-webkit-scrollbar-thumb:hover {
-  background: #555; /* color of the scroll thumb on hover */
+  background: #555;
+  /* color of the scroll thumb on hover */
 }
 
 .control-popup__table__progress {
   width: 40%;
 }
+
 .status-box__red,
 .status-box__green,
 .status-box__yellow {
@@ -1379,17 +1350,18 @@ export default {
 
 .control-bar {
   height: 50px;
-  width: 300px;
+  width: 260px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.1);
   box-shadow: 0px 0px 1px 0px rgba(255, 255, 255, 0.5);
   position: absolute;
   bottom: 24px;
-  left: calc(50% - 150px);
+  left: calc(50% - 130px);
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 .control-bar__btnList {
   width: 100%;
   height: 100%;
@@ -1397,23 +1369,26 @@ export default {
   justify-content: center;
   align-items: center;
 }
+
 .control-bar__button {
   width: 24px;
   height: 24px;
-  padding: 8px;
+  margin: 0 8px;
   align-items: center;
 }
 
 .control-bar__icon {
   max-width: 24px;
   max-height: 24px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   opacity: 0.6;
 }
+
 .white {
-  filter: invert(100%) sepia(75%) saturate(0%) hue-rotate(51deg)
-    brightness(115%) contrast(101%);
+  filter: invert(100%) sepia(75%) saturate(0%) hue-rotate(51deg) brightness(115%) contrast(101%);
 }
+
 .loader,
 .loader_done {
   border: 4px solid #f3f3f3bf;
@@ -1424,14 +1399,17 @@ export default {
   height: 20px;
   opacity: 0.5;
 }
+
 .loader {
   border-top: 4px solid #41b3ff;
   animation: spin 3s linear infinite;
 }
+
 .control-bar__icon:hover,
 .loader.drawflow-node:hover,
 .loader_done:hover {
-  opacity: 0.7; /* You can adjust this value to your liking */
+  opacity: 0.7;
+  /* You can adjust this value to your liking */
   transform: scale(1.1);
 }
 
@@ -1439,6 +1417,7 @@ export default {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -1451,6 +1430,7 @@ export default {
   border: none;
   cursor: pointer;
 }
+
 /* .run_button__icon {
   width: 1.5rem;
   height: 1.5rem;
@@ -1488,10 +1468,8 @@ export default {
   padding-bottom: var(--dfNodePaddingBottom);
   padding-left: var(--dfNodePaddingLeft);
   padding-right: var(--dfNodePaddingRight);
-  -webkit-box-shadow: var(--dfNodeBoxShadowHL) var(--dfNodeBoxShadowVL)
-    var(--dfNodeBoxShadowBR) var(--dfNodeBoxShadowS) var(--dfNodeBoxShadowColor);
-  box-shadow: var(--dfNodeBoxShadowHL) var(--dfNodeBoxShadowVL)
-    var(--dfNodeBoxShadowBR) var(--dfNodeBoxShadowS) var(--dfNodeBoxShadowColor);
+  -webkit-box-shadow: var(--dfNodeBoxShadowHL) var(--dfNodeBoxShadowVL) var(--dfNodeBoxShadowBR) var(--dfNodeBoxShadowS) var(--dfNodeBoxShadowColor);
+  box-shadow: var(--dfNodeBoxShadowHL) var(--dfNodeBoxShadowVL) var(--dfNodeBoxShadowBR) var(--dfNodeBoxShadowS) var(--dfNodeBoxShadowColor);
 }
 
 .drawflow .drawflow-node:hover {
@@ -1499,12 +1477,8 @@ export default {
   color: var(--dfNodeHoverTextColor);
   border: var(--dfNodeHoverBorderSize) solid var(--dfNodeHoverBorderColor);
   border-radius: var(--dfNodeHoverBorderRadius);
-  -webkit-box-shadow: var(--dfNodeHoverBoxShadowHL)
-    var(--dfNodeHoverBoxShadowVL) var(--dfNodeHoverBoxShadowBR)
-    var(--dfNodeHoverBoxShadowS) var(--dfNodeHoverBoxShadowColor);
-  box-shadow: var(--dfNodeHoverBoxShadowHL) var(--dfNodeHoverBoxShadowVL)
-    var(--dfNodeHoverBoxShadowBR) var(--dfNodeHoverBoxShadowS)
-    var(--dfNodeHoverBoxShadowColor);
+  -webkit-box-shadow: var(--dfNodeHoverBoxShadowHL) var(--dfNodeHoverBoxShadowVL) var(--dfNodeHoverBoxShadowBR) var(--dfNodeHoverBoxShadowS) var(--dfNodeHoverBoxShadowColor);
+  box-shadow: var(--dfNodeHoverBoxShadowHL) var(--dfNodeHoverBoxShadowVL) var(--dfNodeHoverBoxShadowBR) var(--dfNodeHoverBoxShadowS) var(--dfNodeHoverBoxShadowColor);
 }
 
 .drawflow .drawflow-node.selected {
@@ -1512,12 +1486,8 @@ export default {
   color: var(--dfNodeSelectedTextColor);
   border: var(--dfNodeSelectedBorderSize) solid var(--dfNodeSelectedBorderColor);
   border-radius: var(--dfNodeSelectedBorderRadius);
-  -webkit-box-shadow: var(--dfNodeSelectedBoxShadowHL)
-    var(--dfNodeSelectedBoxShadowVL) var(--dfNodeSelectedBoxShadowBR)
-    var(--dfNodeSelectedBoxShadowS) var(--dfNodeSelectedBoxShadowColor);
-  box-shadow: var(--dfNodeSelectedBoxShadowHL) var(--dfNodeSelectedBoxShadowVL)
-    var(--dfNodeSelectedBoxShadowBR) var(--dfNodeSelectedBoxShadowS)
-    var(--dfNodeSelectedBoxShadowColor);
+  -webkit-box-shadow: var(--dfNodeSelectedBoxShadowHL) var(--dfNodeSelectedBoxShadowVL) var(--dfNodeSelectedBoxShadowBR) var(--dfNodeSelectedBoxShadowS) var(--dfNodeSelectedBoxShadowColor);
+  box-shadow: var(--dfNodeSelectedBoxShadowHL) var(--dfNodeSelectedBoxShadowVL) var(--dfNodeSelectedBoxShadowBR) var(--dfNodeSelectedBoxShadowS) var(--dfNodeSelectedBoxShadowColor);
 }
 
 .drawflow .drawflow-node .input {
@@ -1592,7 +1562,8 @@ export default {
   height: 15px;
 }
 
-.drawflow-delete::before, .drawflow-delete::after {
+.drawflow-delete::before,
+.drawflow-delete::after {
   font-size: x-large;
   color: var(--dfDeleteColor);
   content: '-';
@@ -1631,6 +1602,7 @@ export default {
 .vdr-stick {
   opacity: 0;
 }
+
 .vdr.active:before {
   border: none;
   outline: none;
@@ -1649,12 +1621,14 @@ export default {
   border-radius: 1rem;
   padding: 0 1rem;
 }
+
 .message__status {
   width: 2rem;
   height: 2rem;
   object-fit: contain;
   margin: 0 1rem;
 }
+
 .message__box {
   display: flex;
   flex-direction: column;
@@ -1662,6 +1636,7 @@ export default {
   width: 100%;
   height: 100%;
 }
+
 .message__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -1670,6 +1645,7 @@ export default {
   line-height: 1.4rem;
   color: #ffffff;
 }
+
 .message__close {
   cursor: pointer;
   width: 1rem;
@@ -1677,12 +1653,17 @@ export default {
   object-fit: contain;
   margin: 0 0.5rem;
   opacity: 0.5;
-  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%)
-    contrast(100%);
+  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
 }
+
 .toggleMessage {
   display: none;
 }
+
+.margin__top-4{
+  margin-top: 4px;
+}
+
 /* @media (prefers-color-scheme: dark) {
   .node-bar__img {
     filter: invert(100%) sepia(3%) saturate(2008%) hue-rotate(348deg)

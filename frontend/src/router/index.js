@@ -65,6 +65,10 @@ export default new Router({
       component: () => import("@/views/DatasetsPage.vue"),
     },
     {
+      path: "/plugins",
+      component: () => import("@/views/PluginsPage.vue"),
+    },
+    {
       path: "/admin",
       component: () => import("@/views/AdminPage.vue"),
       children: [
