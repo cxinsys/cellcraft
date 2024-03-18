@@ -4,7 +4,9 @@
       <div class="first-line__left">
         <div class="header__text">
           Plugins
-          <div class="header__desc">Plugin for Data Analysis Algorithm Extensions</div>
+          <div class="header__desc">
+            Plugin for Data Analysis Algorithm Extensions
+          </div>
         </div>
       </div>
       <div class="first-line__right">
@@ -13,7 +15,11 @@
           <h1>Add Plugin</h1>
         </div>
         <div class="search">
-          <input type="text" v-model="searchTerm" placeholder="Search titles..." />
+          <input
+            type="text"
+            v-model="searchTerm"
+            placeholder="Search titles..."
+          />
         </div>
       </div>
     </div>
@@ -34,7 +40,10 @@
             </div>
             <div class="option-container">
               <div class="setting">
-                <img class="setting__button--icon" src="@/assets/settings.png" />
+                <img
+                  class="setting__button--icon"
+                  src="@/assets/settings.png"
+                />
               </div>
               <label class="switch">
                 <input v-model="plugin.checked" type="checkbox" />
@@ -59,20 +68,16 @@ export default {
           title: "TENET",
           description:
             "A tool for reconstructing Transfer Entropy-based causal gene NETwork from pseudo-time ordered single cell transcriptomic data",
-          lastUpdated:
-            "2021/07/01",
-          checked:
-            true,
+          lastUpdated: "2024/03/18",
+          checked: true,
         },
         {
           id: 2,
           title: "TENET TF",
           description:
             "A tool for reconstructing Transfer Entropy-based causal gene NETwork from pseudo-time ordered single cell transcriptomic data",
-          lastUpdated:
-            "2021/07/01",
-          checked:
-            true,
+          lastUpdated: "2024/03/18",
+          checked: true,
         },
       ],
     };
@@ -89,11 +94,11 @@ export default {
       const today = new Date();
       const year = today.getFullYear();
       // 월은 0부터 시작하므로 1을 더해줍니다. 또한, 월과 일이 10보다 작을 때 앞에 '0'을 붙여줍니다.
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, "0");
+      const day = String(today.getDate()).padStart(2, "0");
       // YYYY/MM/DD 형식으로 문자열을 반환합니다.
       return `${year}/${month}/${day}`;
-    }
+    },
   },
 };
 </script>
@@ -231,7 +236,7 @@ button:disabled {
   margin-right: 0.5rem;
 }
 
-.setting{
+.setting {
   width: 2rem;
   height: 2rem;
   display: flex;
@@ -240,7 +245,7 @@ button:disabled {
   cursor: pointer;
 }
 
-.setting__button--icon{
+.setting__button--icon {
   width: 2rem;
   height: 2rem;
   object-fit: contain;
@@ -365,11 +370,11 @@ button:disabled {
   transition: 0.4s;
 }
 
-input:checked+.slider.w-color {
+input:checked + .slider.w-color {
   background-color: #ccc;
 }
 
-input:checked+.slider.icon {
+input:checked + .slider.icon {
   background-color: #a37eba;
 }
 
@@ -381,11 +386,11 @@ input:checked+.slider.icon {
   background-color: #e2df23;
 }
 
-input:checked+.slider {
+input:checked + .slider {
   background-color: #2196f3;
 }
 
-input:checked+.slider:before {
+input:checked + .slider:before {
   -webkit-transform: translateX(26px);
   -ms-transform: translateX(26px);
   transform: translateX(26px);

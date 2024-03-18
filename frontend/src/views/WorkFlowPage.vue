@@ -3,16 +3,30 @@
     <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
     <section class="node-bar">
       <ul class="node-bar__nodelist" draggable="false">
-        <li class="node-bar__drag-drawflow" v-for="(node, idx) in listNodes.slice(0, 4)" :key="idx" draggable="true"
-          :data-node="node.name" :nodeId="node.id" @dragstart="drag($event)">
+        <li
+          class="node-bar__drag-drawflow"
+          v-for="(node, idx) in listNodes.slice(0, 4)"
+          :key="idx"
+          draggable="true"
+          :data-node="node.name"
+          :nodeId="node.id"
+          @dragstart="drag($event)"
+        >
           <img class="node-bar__img" :src="node.img" draggable="false" />
         </li>
       </ul>
     </section>
     <section class="node-bar_output">
       <ul class="node-bar__nodelist" draggable="false">
-        <li class="node-bar__drag-drawflow" v-for="(node, idx) in listNodes.slice(4, 6)" :key="idx" draggable="true"
-          :data-node="node.name" :nodeId="node.id" @dragstart="drag($event)">
+        <li
+          class="node-bar__drag-drawflow"
+          v-for="(node, idx) in listNodes.slice(4, 6)"
+          :key="idx"
+          draggable="true"
+          :data-node="node.name"
+          :nodeId="node.id"
+          @dragstart="drag($event)"
+        >
           <img class="node-bar__img" :src="node.img" draggable="false" />
         </li>
       </ul>
@@ -57,17 +71,31 @@
             <td>{{ task.end_time | formatDateTime }}</td>
             <td>{{ task.running_time }}</td>
             <td class="task-status">
-              <div class="status-box__red" v-if="task.status === 'FAILURE' ||
-      task.status === 'REVOKED' ||
-      task.status === 'RETRY'
-      "></div>
-              <div class="status-box__yellow" v-if="task.status === 'RUNNING'"></div>
-              <div class="status-box__green" v-if="task.status === 'SUCCESS'"></div>
+              <div
+                class="status-box__red"
+                v-if="
+                  task.status === 'FAILURE' ||
+                  task.status === 'REVOKED' ||
+                  task.status === 'RETRY'
+                "
+              ></div>
+              <div
+                class="status-box__yellow"
+                v-if="task.status === 'RUNNING'"
+              ></div>
+              <div
+                class="status-box__green"
+                v-if="task.status === 'SUCCESS'"
+              ></div>
               {{ task.status }}
             </td>
             <td>
-              <img v-if="task.status === 'RUNNING'" @click="cancelTask(task.task_id)" class="control-bar__icon"
-                src="@/assets/multiply.png" />
+              <img
+                v-if="task.status === 'RUNNING'"
+                @click="cancelTask(task.task_id)"
+                class="control-bar__icon"
+                src="@/assets/multiply.png"
+              />
             </td>
           </tr>
         </tbody>
@@ -87,24 +115,53 @@
           </button>
         </li>
         <li>
-          <div class="loader" @click="toggleTask" v-if="on_progress == true"></div>
+          <div
+            class="loader"
+            @click="toggleTask"
+            v-if="on_progress == true"
+          ></div>
           <div class="loader_done" @click="toggleTask" v-else></div>
         </li>
         <!-- <li class="control-bar__button">
           <img class="control-bar__icon" src="@/assets/control_export.png" />
         </li> -->
         <li class="control-bar__button">
-          <img class="control-bar__icon white margin__top-4" v-if="isTabView" src="@/assets/view.png"
-            @click="isTabView = !isTabView" />
-          <img class="control-bar__icon white margin__top-4" v-else src="@/assets/view_hide.png" @click="isTabView = !isTabView" />
+          <img
+            class="control-bar__icon white margin__top-4"
+            v-if="isTabView"
+            src="@/assets/view.png"
+            @click="isTabView = !isTabView"
+          />
+          <img
+            class="control-bar__icon white margin__top-4"
+            v-else
+            src="@/assets/view_hide.png"
+            @click="isTabView = !isTabView"
+          />
         </li>
       </ul>
     </section>
-    <VueDragResize contentClass="content-component" v-if="tabList.length != 0 && isTabView" :isActive="true" :x="600"
-      :y="64" :w="880" :h="672" :minw="820" :minh="540" :stickSize="14" :sticks="['tl', 'ml', 'tr', 'bl', 'br']">
+    <VueDragResize
+      contentClass="content-component"
+      v-if="tabList.length != 0 && isTabView"
+      :isActive="true"
+      :x="600"
+      :y="64"
+      :w="880"
+      :h="672"
+      :minw="820"
+      :minh="540"
+      :stickSize="14"
+      :sticks="['tl', 'ml', 'tr', 'bl', 'br']"
+    >
       <ul class="content-tab" v-if="tabList.length != 0 && isTabView">
-        <li class="tab__item" v-for="(tab, idx) in tabList" :key="idx" v-bind:class="{ currentTab: currentTab === idx }"
-          @click="tabClick(idx)">
+        <li
+          class="tab__item"
+          v-for="(tab, idx) in tabList"
+          :key="idx"
+          v-bind:class="{ currentTab: currentTab === idx }"
+          @click="tabClick(idx)"
+        >
           <div class="tab__name">
             <img class="tab__icon" :src="tab.img" />
             <p class="tab__text">
@@ -116,20 +173,40 @@
         </li>
         <div class="tab__hide" @click="isTabView = false"></div>
       </ul>
-      <div class="content-view" v-if="tabList.length != 0 && isTabView" @mousedown.stop>
+      <div
+        class="content-view"
+        v-if="tabList.length != 0 && isTabView"
+        @mousedown.stop
+      >
         <router-view :key="$route.fullPath"></router-view>
       </div>
     </VueDragResize>
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
       <!-- <p class="message__text">{{ messageContent }}</p> -->
-      <img class="message__status" src="@/assets/succes.png" v-if="messageStatus === 'success'" />
-      <img class="message__status" src="@/assets/error.png" v-else-if="messageStatus === 'error'" />
+      <img
+        class="message__status"
+        src="@/assets/succes.png"
+        v-if="messageStatus === 'success'"
+      />
+      <img
+        class="message__status"
+        src="@/assets/error.png"
+        v-else-if="messageStatus === 'error'"
+      />
       <div class="message__box">
-        <p class="message__text" v-for="(content, index) in filteredMessageContent" :key="index">
+        <p
+          class="message__text"
+          v-for="(content, index) in filteredMessageContent"
+          :key="index"
+        >
           {{ content }}
         </p>
       </div>
-      <img class="message__close" @click="toggleMessage = !toggleMessage" src="@/assets/close.png" />
+      <img
+        class="message__close"
+        @click="toggleMessage = !toggleMessage"
+        src="@/assets/close.png"
+      />
     </div>
   </div>
 </template>
@@ -1660,7 +1737,7 @@ export default {
   display: none;
 }
 
-.margin__top-4{
+.margin__top-4 {
   margin-top: 4px;
 }
 

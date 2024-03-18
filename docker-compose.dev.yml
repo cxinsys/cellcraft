@@ -6,7 +6,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     ports:
-      - "8002:8080"
+      - "8080:8080"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -17,8 +17,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
-      args:
-        - GITHUB_TOKEN
     ports:
       - "8000:8000"
     volumes:
@@ -45,26 +43,17 @@ services:
     environment:
       - CONDA_DEFAULT_ENV=snakemake
       - C_FORCE_ROOT=true
+    ipc: host
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
-      args:
-        - GITHUB_TOKEN
-    command:
-      [
-        "/opt/conda/envs/snakemake/bin/python",
-        "-m",
-        "celery",
-        "-A",
-        "app.main.celery",
-        "worker",
-        "--loglevel=info",
-        "-E",
-        "-Q",
-        "workflow_task",
-      ]
+      dockerfile: Dockerfile.dev.celery
     volumes:
       - ./backend:/app
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - capabilities: ["gpu"]
     depends_on:
       - rabbitmq
       - db

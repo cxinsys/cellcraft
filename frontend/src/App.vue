@@ -118,7 +118,10 @@ export default {
         this.pluginsPage = false;
         this.adminPage = false;
         this.tutorialPage = false;
-      } else if (to.path.includes("/datasets") || to.path.includes("/plugins")) {
+      } else if (
+        to.path.includes("/datasets") ||
+        to.path.includes("/plugins")
+      ) {
         this.mainPage = false;
         this.loginPage = false;
         this.workflowPage = false;
@@ -153,17 +156,20 @@ export default {
 
 <style>
 .app {
-  width: 100vw; /* Changed from 100vw to 80vw */
+  width: 100vw;
+  /* Changed from 100vw to 80vw */
   overflow-x: hidden;
 }
 
 .main__app {
-  width: calc(100vw - 15px); /* Changed from 100vw to 80vw */
+  width: calc(100vw - 15px);
+  /* Changed from 100vw to 80vw */
 }
 
 .header-component {
   width: 100%;
-  height: 48px; /* Changed from 60px to 48px */
+  height: 48px;
+  /* Changed from 60px to 48px */
   position: fixed;
   z-index: 999;
   background-color: rgba(0, 0, 0, 0.9);
@@ -174,7 +180,8 @@ export default {
 .datasetsPage__header,
 .adminPage__header {
   width: 100%;
-  height: 48px; /* Changed from 60px to 48px */
+  height: 48px;
+  /* Changed from 60px to 48px */
   position: relative;
   background-color: rgba(0, 0, 0, 0.9);
 }
@@ -189,7 +196,8 @@ export default {
 
 .loginPage__main {
   width: 100%;
-  height: 80%; /* Assuming you want to change the height proportionally */
+  height: 80%;
+  /* Assuming you want to change the height proportionally */
   background: #f0f0f0;
 }
 
@@ -203,16 +211,19 @@ export default {
 
 .footer-component {
   width: 100%;
-  height: 80px; /* Changed from 80px to 64px */
+  height: 80px;
+  /* Changed from 80px to 64px */
   background: #fff;
   border-top: 1px solid #e1e1e1;
 }
+
 .loginPage__footer,
 .workflowPage__footer,
 .filesPage__footer,
 .datasetsPage__footer {
   display: none;
 }
+
 .copyright__txt {
   width: 100%;
   height: 100%;

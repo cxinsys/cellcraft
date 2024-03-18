@@ -78,3 +78,14 @@ def read_user_me(
 ) -> Any:
 
     return { "email" : current_user.email, "username" : current_user.username, "is_superuser" : current_user.is_superuser}
+
+#update user plugins
+@router.post("/plugins", response_model=user.User)
+def update_user_plugins(
+    *,
+    db: Session = Depends(dep.get_db),
+    user_in: user.UserUpdate,
+    current_user: models.User = Depends(dep.get_current_active_user),
+) -> Any:
+    user = crud_user.update_user(db, user_id=current_user.id, user=user_in)
+    return user

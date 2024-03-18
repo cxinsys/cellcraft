@@ -14,6 +14,10 @@ class UserCreate(UserBase):
     password: str
     username: Optional[str] = None
 
+class UserUpdate(UserBase):
+    password: Optional[str] = None
+    plugins: Optional[list] = None
+
 class UserProfile(UserBase):
     email: EmailStr
     username: str
