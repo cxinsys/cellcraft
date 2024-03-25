@@ -276,7 +276,7 @@ export default {
         },
         {
           name: "BarPlot",
-          img: require("@/assets/barPlot.png"),
+          img: require("@/assets/barPlot2.png"),
           input: 1,
           output: 1,
         },

@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="nodeBox" ref="nodeBox">
-      <img class="nodeBox__icon" src="@/assets/barPlot.png" />
+      <img class="nodeBox__icon" src="@/assets/barPlot2.png" />
     </div>
     <div class="nodeTitleBox">
       <input

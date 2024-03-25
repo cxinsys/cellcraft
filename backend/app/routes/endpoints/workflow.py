@@ -46,9 +46,6 @@ def exportData(
                 # user 폴더에 workflow 폴더 존재하지 않으면 생성
                 if not os.path.exists(workflow_path):
                     os.makedirs(workflow_path)
-
-                # print(nodes)
-
                 # workflow.option_file(option.json 파일 경로) 가져와서 해당 경로에 있는 json 파일 load
                 with open(user_path + "data/" + nodes["algorithmOptions"]["optionFilePath"], "r") as f:
                     options = json.load(f)
