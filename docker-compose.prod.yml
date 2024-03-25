@@ -10,6 +10,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    restart: always
 
   backend:
     environment:
@@ -21,6 +22,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+    restart: always
 
   db:
     image: postgres:15
@@ -32,12 +34,14 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: always
 
   rabbitmq:
     image: "rabbitmq:management"
     ports:
       - "15672:15672"
       - "5672:5672"
+    restart: always
 
   celery:
     environment:
@@ -52,6 +56,7 @@ services:
     depends_on:
       - rabbitmq
       - db
+    restart: always
 
 volumes:
   postgres_data:
