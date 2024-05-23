@@ -35,33 +35,66 @@
             <div class="createModal-container">
                 <form>
                     <div class="controller-group">
-                        <!-- rule title -->
                         <label for="ruleTitle">Rule Title:</label>
                         <input type="text" id="ruleTitle" v-model="ruleTitle" />
 
-                        <label for="inputs">Number of Inputs:</label>
-                        <input type="number" id="inputs" v-model.number="nodeInputs" min="0" max="6" />
-
-                        <label for="outputs">Number of Outputs:</label>
-                        <input type="number" id="outputs" v-model.number="nodeOutputs" min="0" max="6" />
-                    </div>
-
-
-                    <div class="dynamic-input-wrapper">
-                        <div v-for="i in nodeInputs" :key="'input' + i" class="dynamic-input-group">
-                            <label :for="'inputFile' + i">Input File Name {{ i }}:</label>
-                            <input type="text" :id="'inputFile' + i" v-model="inputFiles[i]" />
-                        </div>
-                        <div v-for="i in nodeOutputs" :key="'output' + i" class="dynamic-input-group">
-                            <label :for="'outputFile' + i">Output File Name {{ i }}:</label>
-                            <input type="text" :id="'outputFile' + i" v-model="outputFiles[i]" />
-                        </div>
-                    </div>
-
-                    <div class="script-upload">
                         <label for="scriptFile">Upload Script File:</label>
                         <input type="file" id="scriptFile" @change="handleFileUpload" />
                     </div>
+
+                    <div class="script-code-container">
+                        <pre>{{ completeRule }}</pre>
+                    </div>
+
+                    <div class="add-parameter-group">
+                        <label>Parameters:</label>
+                        <div class="parameter-inputs">
+                            <input type="text" v-model="newParameter.name" placeholder="Parameter Name"
+                                class="parameter-name" />
+                            <select v-model="newParameter.type" class="parameter-type" @change="resetParameterOption">
+                                <option value="inputFile">Input File</option>
+                                <option value="outputFile">Output File</option>
+                                <option value="string">String</option>
+                                <option value="int">Integer</option>
+                                <option value="float">Float</option>
+                                <option value="boolean">Boolean</option>
+                            </select>
+                        </div>
+                        <div v-if="newParameter.type === 'inputFile' || newParameter.type === 'outputFile'"
+                            class="file-inputs">
+                            <input type="text" v-model="newParameter.fileExtension" placeholder="File Type"
+                                class="file-extension-input" />
+                            <select v-model="selectedFileExtension" @change="updateFileExtension"
+                                class="file-extension-select">
+                                <option value="">Direct Input</option>
+                                <option value=".txt">.txt</option>
+                                <option value=".csv">.csv</option>
+                                <option value=".json">.json</option>
+                            </select>
+                        </div>
+                        <div v-else class="col-input-group">
+                            <input type="text"
+                                v-if="newParameter.type !== 'inputFile' && newParameter.type !== 'outputFile' && newParameter.type !== 'boolean'"
+                                v-model="newParameter.defaultValue" placeholder="Default Value"
+                                class="default-value-input" />
+                            <select v-if="newParameter.type === 'boolean'" v-model="newParameter.defaultValue"
+                                class="boolean-select">
+                                <option value="">Select Value</option>
+                                <option value="true">True</option>
+                                <option value="false">False</option>
+                            </select>
+                            <div v-if="newParameter.type === 'int' || newParameter.type === 'float'"
+                                class="range-inputs">
+                                <input type="number" v-model.number="newParameter.min" placeholder="Min"
+                                    class="range-min" />
+                                <input type="number" v-model.number="newParameter.max" placeholder="Max"
+                                    class="range-max" />
+                            </div>
+                        </div>
+                        <button type="button" @click="addParameter">Add Parameter</button>
+                    </div>
+
+
                     <div class="button-group">
                         <button type="button" @click="createNode">Create</button>
                         <button type="button" @click="isShowCreateModal = false">Cancel</button>
@@ -87,8 +120,19 @@ export default {
             inputFiles: [],
             outputFiles: [],
             scriptFile: null,
+            newParameter: {
+                name: '',
+                type: 'string',
+                defaultValue: '',
+                min: null,
+                max: null,
+                fileExtension: ''
+            },
+            parameters: [],
+            selectedFileExtension: '',
+            completeRule: '',
+            shellCommand: '',
             rules: [],
-            editor: null,
         };
     },
     mounted() {
@@ -102,6 +146,13 @@ export default {
         this.$df.on('connectionCreated', (connection) => this.onConnectionCreated(connection));
         this.$df.on('connectionRemoved', (connection) => this.onConnectionRemoved(connection));
         this.$df.on('nodeDataChanged', (id, data) => this.onNodeDataChanged(id, data));
+    },
+    watch: {
+        ruleTitle: 'updateCompleteRule',
+        parameters: {
+            handler: 'updateShellCommand',
+            deep: true
+        }
     },
     methods: {
         showCreateModal() {
@@ -118,6 +169,68 @@ export default {
         },
         handleFileUpload(event) {
             this.scriptFile = event.target.files[0];
+            if (this.scriptFile) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.scriptContent = e.target.result;
+                    this.updateShellCommand();
+                };
+                reader.readAsText(this.scriptFile);
+            }
+        },
+        updateShellCommand() {
+            if (!this.scriptFile) return;
+            const fileName = this.scriptFile.name;
+            let command = '';
+            if (fileName.endsWith('.py')) {
+                command = `/python ${fileName}`;
+            } else if (fileName.endsWith('.R')) {
+                command = `/Rscript ${fileName}`;
+            } else {
+                command = `/${fileName}`;
+            }
+
+            const paramStr = this.parameters.map(p => {
+                if (p.type === 'inputFile' || p.type === 'outputFile') {
+                    return `${p.defaultValue}(${p.type})`;
+                } else {
+                    return `${p.name}(${p.type}:${p.defaultValue})`;
+                }
+            }).join(' ');
+
+            this.shellCommand = `${command} ${paramStr}`;
+            this.updateCompleteRule();
+        },
+        updateCompleteRule() {
+            const inputs = this.inputFiles.slice(1).join(', ');
+            const outputs = this.outputFiles.slice(1).join(', ');
+            this.completeRule = `rule ${this.ruleTitle}:\n  input: ${inputs}\n  output: ${outputs}\n  shell:\n    "${this.shellCommand}"`;
+        },
+        addParameter() {
+            const newParam = { ...this.newParameter }; // 객체 복사
+            if (newParam.type === 'inputFile' || newParam.type === 'outputFile') {
+                newParam.defaultValue = newParam.name + newParam.fileExtension;
+            }
+            this.parameters.push(newParam);
+            this.resetNewParameter();
+            this.updateShellCommand();
+        },
+        resetNewParameter() {
+            this.newParameter = {
+                name: '',
+                type: 'string',
+                defaultValue: '',
+                min: null,
+                max: null,
+                fileExtension: ''
+            };
+            this.selectedFileExtension = ''; // 선택된 파일 확장자 초기화
+        },
+        resetParameterOption() {
+            this.newParameter.defaultValue = '';
+        },
+        updateFileExtension() {
+            this.newParameter.fileExtension = this.selectedFileExtension;
         },
         createNode() {
             const nodeData = {
@@ -127,7 +240,7 @@ export default {
                 script: this.scriptFile,
             };
             const nodeId = this.$df.addNode('ruleNode', this.nodeInputs, this.nodeOutputs, 10, 10, 'ruleNode', nodeData, 'ruleNode', 'vue');
-            
+
             console.log(nodeId, nodeData);
             this.onNodeCreated(nodeId, nodeData);
             this.closeModal();
@@ -137,7 +250,8 @@ export default {
                 name: nodeData.title,
                 input: nodeData.inputs,
                 output: nodeData.outputs,
-                script: nodeData.script.name,
+                script: nodeData.script ? nodeData.script.name : '',
+                parameters: nodeData.parameters,
             };
             this.rules.push(rule);
             this.updateSnakefile();
@@ -209,18 +323,6 @@ export default {
     position: absolute;
     top: 1rem;
     z-index: 9999;
-}
-
-#rule-drawflow {
-    width: calc(100% - 2rem);
-    height: 36.5rem;
-    border-radius: 1rem;
-    box-shadow: 0px 0px 1px 1px rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-    background: var(--dfBackgroundColor);
-    background-size: var(--dfBackgroundSize) var(--dfBackgroundSize);
-    background-image: var(--dfBackgroundImage);
-    z-index: 9998;
 }
 
 .rule-view-container {
@@ -356,7 +458,7 @@ img {
     padding: 8px;
     border: 1px solid #ccc;
     border-radius: 4px;
-    width: calc(30% - 2rem);
+    width: calc(40% - 2rem);
     margin-right: 1rem;
 }
 
@@ -368,19 +470,65 @@ img {
     line-height: 1rem;
 }
 
-.script-upload {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    margin-top: 1rem;
-}
-
-.script-upload input {
-    padding: 8px;
+.script-code-container {
+    background: #f9f9f9;
     border: 1px solid #ccc;
     border-radius: 4px;
-    width: calc(80% - 2rem);
-    margin-right: 1rem;
+    padding: 10px;
+    width: 100%;
+    height: 10rem;
+    /* 기본 높이 설정 */
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+    line-height: 1.4rem;
+}
+
+.add-parameter-group {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.add-parameter-group .parameter-inputs,
+.add-parameter-group .file-inputs,
+.add-parameter-group .col-input-group {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+}
+
+.parameter-name,
+.parameter-type,
+.file-extension-select,
+.file-extension-input,
+.default-value-input,
+.boolean-select,
+.range-min,
+.range-max {
+    flex: 1 1 48%;
+    /* 가로 한 줄에 2개씩 배치 */
+}
+
+.range-inputs {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+}
+
+.range-inputs input {
+    flex: 1 1 calc(50% - 0.5rem);
+}
+
+.add-parameter-group .parameter-inputs select,
+.add-parameter-group .parameter-inputs input[type="text"],
+.add-parameter-group .file-inputs select,
+.add-parameter-group .file-inputs input[type="text"] {
+    width: 100%;
+}
+
+.add-parameter-group .range-inputs input {
+    width: calc(50% - 0.5rem);
 }
 
 .button-group {
@@ -422,120 +570,126 @@ img {
     background-color: rgb(204, 0, 0);
 }
 
-#drawflow {
-  background: #ffffff;
-  background-size: 0px 0px;
-  background-image: none;
+#rule-drawflow {
+    width: calc(100% - 2rem);
+    height: 36.5rem;
+    border-radius: 1rem;
+    box-shadow: 0px 0px 1px 1px rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    background: var(--dfBackgroundColor);
+    background-size: var(--dfBackgroundSize) var(--dfBackgroundSize);
+    background-image: var(--dfBackgroundImage);
+    z-index: 9998;
 }
 
 .drawflow .drawflow-node {
-  display: flex;
-  background: #ffffff;
-  color: #000000;
-  border: 2px solid #000000;
-  border-radius: 4px;
-  min-height: 40px;
-  width: auto;
-  min-width: 160px;
-  padding-top: 15px;
-  padding-bottom: 15px;
-  -webkit-box-shadow: 0px 2px 15px 2px #000000;
-  box-shadow: 0px 2px 15px 2px #000000;
+    display: flex;
+    background: #ffffff;
+    color: #000000;
+    border: 2px solid #000000;
+    border-radius: 4px;
+    min-height: 40px;
+    width: auto;
+    min-width: 160px;
+    padding-top: 15px;
+    padding-bottom: 15px;
+    -webkit-box-shadow: 0px 2px 15px 2px #000000;
+    box-shadow: 0px 2px 15px 2px #000000;
 }
 
 .drawflow .drawflow-node:hover {
-  background: #ffffff;
-  color: #000000;
-  border: 2px solid #000000;
-  border-radius: 4px;
-  -webkit-box-shadow: 0px 2px 15px 2px rgba(255, 255, 255, 1);
-  box-shadow: 0px 2px 15px 2px rgba(255, 255, 255, 1);
+    background: #ffffff;
+    color: #000000;
+    border: 2px solid #000000;
+    border-radius: 4px;
+    -webkit-box-shadow: 0px 2px 15px 2px rgba(255, 255, 255, 1);
+    box-shadow: 0px 2px 15px 2px rgba(255, 255, 255, 1);
 }
 
 .drawflow .drawflow-node.selected {
-  background: rgba(230, 230, 230, 0.75);
-  color: rgba(0, 0, 0, 1);
-  border: 2px solid #000000;
-  border-radius: 4px;
-  -webkit-box-shadow: 0px 2px 15px 2px rgba(0, 0, 0, 1);
-  box-shadow: 0px 2px 15px 2px rgba(0, 0, 0, 1);
+    background: rgba(230, 230, 230, 0.75);
+    color: rgba(0, 0, 0, 1);
+    border: 2px solid #000000;
+    border-radius: 4px;
+    -webkit-box-shadow: 0px 2px 15px 2px rgba(0, 0, 0, 1);
+    box-shadow: 0px 2px 15px 2px rgba(0, 0, 0, 1);
 }
 
 .drawflow .drawflow-node .input {
-  left: -25px;
-  background: #ffffff;
-  border: 2px solid #000000;
-  border-radius: 50px;
-  height: 13px;
-  width: 13px;
+    left: -25px;
+    background: #ffffff;
+    border: 2px solid #000000;
+    border-radius: 50px;
+    height: 13px;
+    width: 13px;
 }
 
 .drawflow .drawflow-node .input:hover {
-  background: #ffffff;
-  border: 2px solid #000000;
-  border-radius: 50px;
+    background: #ffffff;
+    border: 2px solid #000000;
+    border-radius: 50px;
 }
 
 .drawflow .drawflow-node .outputs {
-  float: none;
+    float: none;
 }
 
 .drawflow .drawflow-node .output {
-  right: -8px;
-  background: #ffffff;
-  border: 2px solid #000000;
-  border-radius: 50px;
-  height: 13px;
-  width: 13px;
+    right: -8px;
+    background: #ffffff;
+    border: 2px solid #000000;
+    border-radius: 50px;
+    height: 13px;
+    width: 13px;
 }
 
 .drawflow .drawflow-node .output:hover {
-  background: #ffffff;
-  border: 2px solid #000000;
-  border-radius: 50px;
+    background: #ffffff;
+    border: 2px solid #000000;
+    border-radius: 50px;
 }
 
 .drawflow .connection .main-path {
-  stroke-width: 5px;
-  stroke: #4682b4;
+    stroke-width: 5px;
+    stroke: #4682b4;
 }
 
 .drawflow .connection .main-path:hover {
-  stroke: #4682b4;
+    stroke: #4682b4;
 }
 
 .drawflow .connection .main-path.selected {
-  stroke: #43b993;
+    stroke: #43b993;
 }
 
 .drawflow .connection .point {
-  stroke: #000000;
-  stroke-width: 2px;
-  fill: #ffffff;
+    stroke: #000000;
+    stroke-width: 2px;
+    fill: #ffffff;
 }
 
 .drawflow .connection .point:hover {
-  stroke: #000000;
-  stroke-width: 2px;
-  fill: #ffffff;
+    stroke: #000000;
+    stroke-width: 2px;
+    fill: #ffffff;
 }
 
 .drawflow-delete {
-  display: block;
-  color: #ffffff;
-  background: #000000;
-  border: 2px solid #ffffff;
-  border-radius: 50px;
+    display: block;
+    color: #ffffff;
+    background: #000000;
+    border: 2px solid #ffffff;
+    border-radius: 50px;
 }
 
 .parent-node .drawflow-delete {
-  top: -15px;
+    top: -15px;
 }
 
 .drawflow-delete:hover {
-  color: #000000;
-  background: #ffffff;
-  border: 2px solid #000000;
-  border-radius: 50px;
+    color: #000000;
+    background: #ffffff;
+    border: 2px solid #000000;
+    border-radius: 50px;
 }
 </style>
