@@ -13,21 +13,26 @@
 
         <!-- Rule 보기 컴포넌트 -->
         <div v-if="isRuleView" class="rule-view-container">
-            <div v-for="(rule, index) in rules" :key="index" class="rule-item">
-                <h4>rule {{ rule.name }}:</h4>
-                <div>
-                    <strong>input:</strong>
-                    <div v-for="(value, key) in rule.input" :key="'input-' + key">{{ key }}="{{ value }}"</div>
+            <div class="warning-comment" v-if="rules.length === 0">
+                <p>Rule content does not exist</p>
+            </div>
+            <div v-else>
+                <div v-for="(rule, index) in rules" :key="index" class="rule-item">
+                    <h4>rule {{ rule.name }}:</h4>
+                    <div>
+                        <strong>input:</strong>
+                        <div v-for="(value, key) in rule.input" :key="'input-' + key">{{ key }}="{{ value }}"</div>
+                    </div>
+                    <div>
+                        <strong>output:</strong>
+                        <div v-for="(value, key) in rule.output" :key="'output-' + key">{{ key }}="{{ value }}"</div>
+                    </div>
+                    <div v-if="rule.script">
+                        <strong>script:</strong>
+                        <div>{{ generateShellCommand(rule) }}</div>
+                    </div>
+                    <button class="rule-remove-button" @click="removeRule(index)">remove</button>
                 </div>
-                <div>
-                    <strong>output:</strong>
-                    <div v-for="(value, key) in rule.output" :key="'output-' + key">{{ key }}="{{ value }}"</div>
-                </div>
-                <div v-if="rule.script">
-                    <strong>script:</strong>
-                    <div>{{ rule.script }}</div>
-                </div>
-                <button @click="editRule(index)">Edit</button>
             </div>
         </div>
 
@@ -132,7 +137,9 @@ export default {
             selectedFileExtension: '',
             completeRule: '',
             shellCommand: '',
+            nodeData: {},
             rules: [],
+            allowRuleEdit: false,
         };
     },
     mounted() {
@@ -141,11 +148,11 @@ export default {
         //this.$df == editor
         this.$df.start();
         this.$df.registerNode('ruleNode', ruleNode, {}, {});
-        this.$df.on('nodeCreated', (id) => this.updateSnakefile(id));
-        this.$df.on('nodeRemoved', (id) => this.updateSnakefile(id));
+        this.$df.on('nodeCreated', (id) => this.onNodeCreated(id));
+        this.$df.on('nodeRemoved', (id) => this.onNodeRemoved(id));
         this.$df.on('connectionCreated', (connection) => this.onConnectionCreated(connection));
         this.$df.on('connectionRemoved', (connection) => this.onConnectionRemoved(connection));
-        this.$df.on('nodeDataChanged', (id, data) => this.onNodeDataChanged(id, data));
+        this.$df.on('nodeDataChanged', (id) => this.onNodeDataChanged(id, data));
     },
     watch: {
         ruleTitle: 'updateCompleteRule',
@@ -202,14 +209,24 @@ export default {
             this.updateCompleteRule();
         },
         updateCompleteRule() {
-            const inputs = this.inputFiles.slice(1).join(', ');
-            const outputs = this.outputFiles.slice(1).join(', ');
+            const inputs = this.parameters.filter(p => p.type === 'inputFile').map(p => p.defaultValue).join(', ');
+            const outputs = this.parameters.filter(p => p.type === 'outputFile').map(p => p.defaultValue).join(', ');
+
             this.completeRule = `rule ${this.ruleTitle}:\n  input: ${inputs}\n  output: ${outputs}\n  shell:\n    "${this.shellCommand}"`;
         },
         addParameter() {
+            if (!this.scriptFile) {
+                alert('Please upload a script file first.');
+                return;
+            }
             const newParam = { ...this.newParameter }; // 객체 복사
+            // newParam.name, newParam.defaultValue 둘 중에 하나라도 비어있으면 추가하지 않음
             if (newParam.type === 'inputFile' || newParam.type === 'outputFile') {
                 newParam.defaultValue = newParam.name + newParam.fileExtension;
+            }
+            if (!newParam.name || !newParam.defaultValue) {
+                alert('Please fill in the parameter name and default value.');
+                return;
             }
             this.parameters.push(newParam);
             this.resetNewParameter();
@@ -233,20 +250,37 @@ export default {
             this.newParameter.fileExtension = this.selectedFileExtension;
         },
         createNode() {
+            const isDuplicateTitle = this.rules.some(rule => rule.name === this.ruleTitle);
+            if (isDuplicateTitle) {
+                alert('The rule title already exists. Please change the rule title.');
+                this.ruleTitle = ""; // ruleTitle 초기화
+                return; // 함수 실행 중지
+            }
+
+            const inputFiles = this.parameters.filter(p => p.type === 'inputFile').map(p => p.defaultValue);
+            const outputFiles = this.parameters.filter(p => p.type === 'outputFile').map(p => p.defaultValue);
+
             const nodeData = {
                 title: this.ruleTitle,
-                inputs: this.inputFiles.slice(1),
-                outputs: this.outputFiles.slice(1),
+                inputs: inputFiles,
+                outputs: outputFiles,
                 script: this.scriptFile,
+                parameters: this.parameters,
             };
-            const nodeId = this.$df.addNode('ruleNode', this.nodeInputs, this.nodeOutputs, 10, 10, 'ruleNode', nodeData, 'ruleNode', 'vue');
+
+            this.nodeData = nodeData;
+
+            // 노드 x,y 좌표를 랜덤으로 생성
+            let nodeX, nodeY = Math.floor(Math.random() * 100) + 10;
+
+            const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'ruleNode', nodeData, 'ruleNode', 'vue');
 
             console.log(nodeId, nodeData);
-            this.onNodeCreated(nodeId, nodeData);
             this.closeModal();
         },
-        onNodeCreated(id, nodeData) {
+        addNewRule(id, nodeData) {
             const rule = {
+                nodeId: id,
                 name: nodeData.title,
                 input: nodeData.inputs,
                 output: nodeData.outputs,
@@ -254,25 +288,182 @@ export default {
                 parameters: nodeData.parameters,
             };
             this.rules.push(rule);
-            this.updateSnakefile();
+
+            // 노드 데이터 초기화
+            this.nodeData = {};
         },
         closeModal() {
             this.isShowCreateModal = false;
             this.ruleTitle = "";
-            this.nodeInputs = 0;
-            this.nodeOutputs = 0;
-            this.inputFiles = [];
-            this.outputFiles = [];
+            this.scriptFile = null;
+            this.parameters = [];
+            this.completeRule = "";
+            this.shellCommand = "";
         },
-        onNodeDataChanged(id, data) {
-            console.log("Node data changed", id, data);
+        generateShellCommand(rule) {
+            const paramStr = rule.parameters.map(p => {
+                if (p.type === 'inputFile' || p.type === 'outputFile') {
+                    return `${p.defaultValue}(${p.type})`;
+                } else {
+                    return `${p.name}(${p.type}:${p.defaultValue})`;
+                }
+            }).join(' ');
+
+            const scriptName = rule.script ? rule.script : '';
+            let command = '';
+            if (scriptName.endsWith('.py')) {
+                command = `/python ${scriptName}`;
+            } else if (scriptName.endsWith('.R')) {
+                command = `/Rscript ${scriptName}`;
+            } else {
+                command = `/${scriptName}`;
+            }
+
+            return `${command} ${paramStr}`;
         },
-        editRule(index) {
-            // Rule 편집 로직
-            console.log("Editing rule", this.rules[index]);
+        generateShellCommand(rule) {
+            const paramStr = rule.parameters.map(p => {
+                if (p.type === 'inputFile' || p.type === 'outputFile') {
+                    return `${p.defaultValue}(${p.type})`;
+                } else {
+                    return `${p.name}(${p.type}:${p.defaultValue})`;
+                }
+            }).join(' ');
+
+            const scriptName = rule.script ? rule.script : '';
+            let command = '';
+            if (scriptName.endsWith('.py')) {
+                command = `/python ${scriptName}`;
+            } else if (scriptName.endsWith('.R')) {
+                command = `/Rscript ${scriptName}`;
+            } else {
+                command = `/${scriptName}`;
+            }
+
+            return `${command} ${paramStr}`;
         },
-        updateSnakefile() {
-            // Snakefile 업데이트 로직
+        checkAndConnectNodes() {
+            const nodeIds = this.$df.getNodesFromName('ruleNode')
+
+            // 노드 ID와 규칙을 매핑
+            const nodeToRuleMap = new Map();
+            nodeIds.forEach(nodeId => {
+                const rule = this.rules.find(rule => rule.nodeId === nodeId);
+                if (rule) {
+                    nodeToRuleMap.set(nodeId, rule);
+                }
+            });
+
+            // 모든 노드 쌍을 비교하여 일치하는 output과 input을 연결
+            nodeIds.forEach((nodeAId, i) => {
+                const ruleA = nodeToRuleMap.get(nodeAId);
+                if (!ruleA) return;
+
+                nodeIds.slice(i + 1).forEach(nodeBId => {
+                    const ruleB = nodeToRuleMap.get(nodeBId);
+                    if (!ruleB) return;
+
+                    ruleA.output.forEach((output, outputIndex) => {
+                        ruleB.input.forEach((input, inputIndex) => {
+                            if (output === input) {
+                                console.log("log connection check", nodeAId, nodeBId, outputIndex + 1, inputIndex + 1);
+                                this.allowRuleEdit = true;
+                                this.$df.addConnection(nodeAId, nodeBId, `output_${outputIndex + 1}`, `input_${inputIndex + 1}`);
+                            }
+                        });
+                    });
+                });
+            });
+        },
+        onNodeCreated(id) {
+            try {
+                console.log("Node created", id);
+                this.addNewRule(id, this.nodeData);
+                this.checkAndConnectNodes();
+                this.emitRules();
+                this.emitDrawflow();
+            } catch (error) {
+                console.error(error);
+            }
+        },
+        onConnectionCreated(connection) {
+            if (this.allowRuleEdit) {
+                try {
+                    this.allowRuleEdit = false;
+                    this.emitRules();
+                    this.emitDrawflow();
+                } catch (error) {
+                    console.error(error);
+                }
+            } else {
+                this.$df.removeSingleConnection(connection.output_id, connection.input_id, connection.output_class, connection.input_class);
+                alert('Connection is not allowed.');
+            }
+        },
+        onNodeRemoved(id) {
+            if (this.allowRuleEdit) {
+                try {
+                    this.allowRuleEdit = false;
+                    this.emitRules();
+                    this.emitDrawflow();
+                    // 만약, drawflow 상태에서 직접 노드 제거가 허용되는 기능 제작되면 아래 주석 풀기
+                    // nodeId 확인 후, 해당 노드에 대응되는 rule을 rules에서 제거
+                    // const rule = this.rules.find(rule => rule.nodeId === id);
+                    // const index = this.rules.indexOf(rule);
+                    // this.rules.splice(index, 1);
+                } catch (error) {
+                    console.error(error);
+                }
+            } else {
+                alert('Node removal is not allowed.');
+                // rules에서 제거된 노드에 해당하는 rule을 찾아서 다시 node를 추가
+                const rule = this.rules.find(rule => rule.nodeId === id);
+                let nodeX, nodeY = Math.floor(Math.random() * 100) + 10;
+                this.$df.addNode('ruleNode', rule.input.length, rule.output.length, nodeX, nodeY, 'ruleNode', rule, 'ruleNode', 'vue');
+            }
+        },
+        removeRule(index) {
+            const confirmed = confirm('Are you sure you want to delete this rule?');
+            if (confirmed) {
+                this.allowRuleEdit = true;
+                // Drawflow에서 해당 노드를 찾아서 제거
+                const node = this.$df.getNodeFromName(this.rules[index].name);
+                this.$df.removeNodeId(node.id);
+
+                this.rules.splice(index, 1);
+                this.emitRules();
+            }
+        },
+        onConnectionRemoved(connection) {
+            if (this.allowRuleEdit) {
+                try {
+                    this.allowRuleEdit = false;
+                    this.emitRules();
+                    this.emitDrawflow();
+                } catch (error) {
+                    console.error(error);
+                }
+            } else {
+                alert('Connection removal is not allowed.');
+                // Drawflow에서 연결이 제거되지 않도록 처리
+                this.$df.addConnection(connection.output_id, connection.input_id, connection.output_class, connection.input_class);
+            }
+        },
+        onNodeDataChanged(id) {
+            // 노드 데이터가 변경되었을 때, 해당 노드에 대응되는 rule을 rules에서 찾아서 업데이트
+            const node = this.$df.getNodeFromName(id);
+            const rule = this.rules.find(rule => rule.nodeId === node.id);
+            rule.name = node.data.title;
+            this.emitRules();
+            this.emitDrawflow();
+        },
+        emitRules() {
+            this.$emit('update-rules', this.rules);
+        },
+        emitDrawflow() {
+            const drawflow = this.$df.export();
+            this.$emit('update-drawflow', drawflow);
+            console.log(drawflow);
         },
     },
 };
@@ -336,6 +527,18 @@ export default {
     overflow-y: auto;
 }
 
+.warning-comment {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+.warning-comment p {
+    font-size: 1.2rem;
+    color: #333;
+}
+
 .rule-item {
     padding: 1rem;
     margin-bottom: 1rem;
@@ -353,17 +556,19 @@ export default {
     margin-right: 5px;
 }
 
-.rule-edit-button {
-    background-color: #007BFF;
+.rule-remove-button {
+    /* red button */
+    background-color: rgb(204, 0, 0);
     color: white;
     border: none;
     padding: 5px 10px;
     border-radius: 5px;
     cursor: pointer;
+    margin-top: 0.5rem;
 }
 
-.rule-edit-button:hover {
-    background-color: #0056b3;
+.rule-remove-button:hover {
+    background-color: #ff5c5c;
 }
 
 img {
@@ -386,12 +591,12 @@ img {
 
 .createModal-container {
     background-color: white;
-    padding: 20px;
+    padding: 1.5rem;
     border-radius: 8px;
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
     width: 80%;
     max-width: 600px;
-    height: 30rem;
+    height: 25rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -476,11 +681,12 @@ img {
     border-radius: 4px;
     padding: 10px;
     width: 100%;
-    height: 10rem;
+    height: 7.5rem;
     /* 기본 높이 설정 */
-    margin-bottom: 20px;
+    margin-bottom: 1rem;
     font-size: 0.9rem;
     line-height: 1.4rem;
+    overflow-x: auto;
 }
 
 .add-parameter-group {

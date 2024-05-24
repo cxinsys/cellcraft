@@ -31,8 +31,6 @@
           <button type="button" @click="removeDependencyFile(file.type)">Remove</button>
         </div>
       </div>
-
-
   </div>
 </template>
 
@@ -68,7 +66,18 @@ export default {
     removeDependencyFile(type) {
       this.plugin.dependencyFiles = this.plugin.dependencyFiles.filter(file => file.type !== type);
     },
-  }
+    emitPluginData() {
+      this.$emit('update-plugin', this.plugin);
+    },
+  },
+  watch: {
+    plugin: {
+      handler() {
+        this.emitPluginData();
+      },
+      deep: true
+    }
+  },
 };
 </script>
 

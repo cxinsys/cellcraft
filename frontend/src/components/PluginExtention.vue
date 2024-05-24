@@ -6,13 +6,13 @@
         <button @click="$emit('close')" class="close-button">✕</button>
       </div>
       <div class="modal-info" v-if="currentStep === 1">
-        <PluginInformation />
+        <PluginInformation @update-plugin="updatePlugin" />
       </div>
       <div class="modal-flow" v-if="currentStep === 2">
-        <PluginFlowchart />
+        <PluginFlowchart @update-rules="updateRules" />
       </div>
       <div class="modal-val" v-if="currentStep === 3">
-        <PluginValidation />
+        <PluginValidation :plugin="plugin" :rules="rules" :drawflow="drawflow" />
       </div>
       <div class="modal-actions">
         <button @click="prevStep" :disabled="currentStep === 1">Prev</button>
@@ -31,6 +31,9 @@ export default {
   data() {
     return {
       currentStep: 1,
+      plugin: {},
+      rules: [],
+      drawflow: {},
     };
   },
   components: {
@@ -48,6 +51,16 @@ export default {
       if (this.currentStep < 3) {
         this.currentStep++;
       }
+    },
+    updatePlugin(pluginData) {
+      this.plugin = pluginData;
+    },
+    updateRules(rulesData) {
+      this.rules = rulesData;
+    },
+    updateDrawflow(drawflowData) {
+      this.drawflow = drawflowData;
+      console.log(this.drawflow);
     },
   },
 };
@@ -116,17 +129,14 @@ export default {
 
 .modal-info {
   width: 25rem;
-  /* 예시 너비 */
 }
 
 .modal-flow {
   width: 70rem;
-  /* 예시 너비 */
 }
 
 .modal-val {
-  width: 50%;
-  /* 예시 너비 */
+  width: 50rem;
 }
 
 .modal-actions {
