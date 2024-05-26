@@ -1,41 +1,49 @@
 <template>
   <div class="plugin-container">
     <!-- 플러그인 이름 입력 필드 -->
-      <div class="input-group">
-        <label for="pluginName">Plugin Name:</label>
-        <input type="text" id="pluginName" v-model="plugin.name" />
-      </div>
+    <div class="input-group">
+      <label class="input-group__label" for="pluginName">Plugin Name:</label>
+      <input type="text" id="pluginName" v-model="plugin.name" />
+    </div>
 
-      <!-- 플러그인 설명 입력 필드 -->
-      <div class="input-group">
-        <label for="pluginDescription">Plugin Description:</label>
-        <textarea id="pluginDescription" v-model="plugin.description" rows="4"></textarea>
-      </div>
+    <!-- 플러그인 설명 입력 필드 -->
+    <div class="input-group">
+      <label class="input-group__label" for="pluginDescription">Plugin Description:</label>
+      <textarea id="pluginDescription" v-model="plugin.description" rows="4"></textarea>
+    </div>
 
-      <!-- 의존성 파일 타입 선택 드롭다운 -->
-      <div class="input-group">
-        <label for="dependencyType">Select Dependency File Type:</label>
-        <select id="dependencyType" v-model="selectedDependencyType" @change="addDependencyType">
-          <option value="" disabled>Select a file type</option>
-          <option value="requirements.txt" :disabled="isFileTypeAdded('requirements.txt')">requirements.txt</option>
-          <option value="environment.yml" :disabled="isFileTypeAdded('environment.yml')">environment.yml</option>
-          <option value="renv.lock" :disabled="isFileTypeAdded('renv.lock')">renv.lock</option>
-        </select>
-      </div>
+    <!-- 의존성 파일 타입 선택 드롭다운 -->
+    <div class="input-group">
+      <label class="input-group__label" for="dependencyType">Select Dependency File Type:</label>
+      <select id="dependencyType" v-model="selectedDependencyType" @change="addDependencyType">
+        <option value="" disabled>Select a file type</option>
+        <option value="requirements.txt" :disabled="isFileTypeAdded('requirements.txt')">requirements.txt</option>
+        <option value="environment.yml" :disabled="isFileTypeAdded('environment.yml')">environment.yml</option>
+        <option value="renv.lock" :disabled="isFileTypeAdded('renv.lock')">renv.lock</option>
+      </select>
+    </div>
 
-      <!-- 의존성 파일 업로드 필드 -->
-      <div v-for="(file, index) in plugin.dependencyFiles" :key="index" class="input-group">
-        <label :for="file.type">Upload {{ file.type }}:</label>
-        <div class="file-upload">
-          <input type="file" :id="file.type" @change="handleFileUpload($event, file.type)" />
-          <button type="button" @click="removeDependencyFile(file.type)">Remove</button>
-        </div>
+    <div v-for="(file, index) in plugin.dependencyFiles" :key="index" class="input-group">
+      <label class="input-group__label" :for="file.type">{{ file.type }}:</label>
+      <div class="file-upload">
+        <label :for="file.type" class="file-label">
+          <input type="file" :id="file.type" @change="handleFileUpload($event, file.type)" class="file-input" />
+          {{ file.fileName || 'Click to upload a file' }}
+        </label>
+        <button type="button" @click="removeDependencyFile(file.type)">Remove</button>
       </div>
+    </div>
   </div>
 </template>
 
 <script>
 export default {
+  props: {
+    newPlugin: {
+      type: Object,
+      required: true
+    }
+  },
   data() {
     return {
       plugin: {
@@ -45,6 +53,15 @@ export default {
       },
       selectedDependencyType: '', // 선택한 의존성 파일 타입
     };
+  },
+  watch: {
+    newPlugin: {
+      handler(newValue) {
+        this.plugin = { ...newValue };
+      },
+      deep: true,
+      immediate: true
+    }
   },
   methods: {
     addDependencyType() {
@@ -61,6 +78,7 @@ export default {
       const index = this.plugin.dependencyFiles.findIndex(file => file.type === type);
       if (index !== -1) {
         this.plugin.dependencyFiles[index].file = file;
+        this.plugin.dependencyFiles[index].fileName = file.name;
       }
     },
     removeDependencyFile(type) {
@@ -68,19 +86,10 @@ export default {
     },
     emitPluginData() {
       this.$emit('update-plugin', this.plugin);
-    },
-  },
-  watch: {
-    plugin: {
-      handler() {
-        this.emitPluginData();
-      },
-      deep: true
     }
-  },
+  }
 };
 </script>
-
 
 <style scoped>
 .plugin-container {
@@ -93,9 +102,9 @@ export default {
   margin-bottom: 1rem;
 }
 
-.input-group label {
+.input-group__label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 1rem;
   font-weight: bold;
   color: #333;
 }
@@ -111,9 +120,24 @@ export default {
   box-sizing: border-box;
 }
 
-.file-upload{
+.file-label {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 0;
+  margin-right: 1rem;
+}
+
+.file-upload {
   display: flex;
   align-items: center;
+}
+
+.file-input {
+  display: none;
 }
 
 input[type="file"] {

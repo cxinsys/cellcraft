@@ -115,6 +115,16 @@ import Vue from "vue";
 import ruleNode from "@/components/nodes/ruleNode.vue";
 
 export default {
+    props: {
+        newRules: {
+            type: Array,
+            required: true
+        },
+        newDrawflow: {
+            type: Object,
+            required: true
+        }
+    },
     data() {
         return {
             isRuleView: false,
@@ -138,7 +148,8 @@ export default {
             completeRule: '',
             shellCommand: '',
             nodeData: {},
-            rules: [],
+            rules: [...this.newRules],
+            drawflow: { ...this.newDrawflow },
             allowRuleEdit: false,
         };
     },
@@ -153,13 +164,30 @@ export default {
         this.$df.on('connectionCreated', (connection) => this.onConnectionCreated(connection));
         this.$df.on('connectionRemoved', (connection) => this.onConnectionRemoved(connection));
         this.$df.on('nodeDataChanged', (id) => this.onNodeDataChanged(id, data));
+        this.importDrawflowData();
     },
     watch: {
         ruleTitle: 'updateCompleteRule',
         parameters: {
             handler: 'updateShellCommand',
             deep: true
-        }
+        },
+        newRules: {
+            handler(newValue) {
+                this.rules = [...newValue];
+            },
+            deep: true,
+            immediate: true
+        },
+        newDrawflow: {
+            handler(newValue) {
+                this.drawflow = { ...newValue };
+                console.log("newDrawflow", this.drawflow);
+                this.importDrawflowData();
+            },
+            deep: true,
+            immediate: true
+        },
     },
     methods: {
         showCreateModal() {
@@ -313,28 +341,7 @@ export default {
             let command = '';
             if (scriptName.endsWith('.py')) {
                 command = `/python ${scriptName}`;
-            } else if (scriptName.endsWith('.R')) {
-                command = `/Rscript ${scriptName}`;
-            } else {
-                command = `/${scriptName}`;
-            }
-
-            return `${command} ${paramStr}`;
-        },
-        generateShellCommand(rule) {
-            const paramStr = rule.parameters.map(p => {
-                if (p.type === 'inputFile' || p.type === 'outputFile') {
-                    return `${p.defaultValue}(${p.type})`;
-                } else {
-                    return `${p.name}(${p.type}:${p.defaultValue})`;
-                }
-            }).join(' ');
-
-            const scriptName = rule.script ? rule.script : '';
-            let command = '';
-            if (scriptName.endsWith('.py')) {
-                command = `/python ${scriptName}`;
-            } else if (scriptName.endsWith('.R')) {
+            } else if (scriptName.endsWith('.R', 'r')) {
                 command = `/Rscript ${scriptName}`;
             } else {
                 command = `/${scriptName}`;
@@ -380,8 +387,8 @@ export default {
                 console.log("Node created", id);
                 this.addNewRule(id, this.nodeData);
                 this.checkAndConnectNodes();
-                this.emitRules();
-                this.emitDrawflow();
+                // this.emitRules();
+                // this.emitDrawflow();
             } catch (error) {
                 console.error(error);
             }
@@ -390,8 +397,8 @@ export default {
             if (this.allowRuleEdit) {
                 try {
                     this.allowRuleEdit = false;
-                    this.emitRules();
-                    this.emitDrawflow();
+                    // this.emitRules();
+                    // this.emitDrawflow();
                 } catch (error) {
                     console.error(error);
                 }
@@ -404,8 +411,8 @@ export default {
             if (this.allowRuleEdit) {
                 try {
                     this.allowRuleEdit = false;
-                    this.emitRules();
-                    this.emitDrawflow();
+                    // this.emitRules();
+                    // this.emitDrawflow();
                     // 만약, drawflow 상태에서 직접 노드 제거가 허용되는 기능 제작되면 아래 주석 풀기
                     // nodeId 확인 후, 해당 노드에 대응되는 rule을 rules에서 제거
                     // const rule = this.rules.find(rule => rule.nodeId === id);
@@ -438,8 +445,8 @@ export default {
             if (this.allowRuleEdit) {
                 try {
                     this.allowRuleEdit = false;
-                    this.emitRules();
-                    this.emitDrawflow();
+                    // this.emitRules();
+                    // this.emitDrawflow();
                 } catch (error) {
                     console.error(error);
                 }
@@ -454,16 +461,28 @@ export default {
             const node = this.$df.getNodeFromName(id);
             const rule = this.rules.find(rule => rule.nodeId === node.id);
             rule.name = node.data.title;
-            this.emitRules();
-            this.emitDrawflow();
+            // this.emitRules();
+            // this.emitDrawflow();
         },
         emitRules() {
             this.$emit('update-rules', this.rules);
         },
         emitDrawflow() {
-            const drawflow = this.$df.export();
-            this.$emit('update-drawflow', drawflow);
-            console.log(drawflow);
+            this.drawflow = this.$df.export();
+            this.$emit('update-drawflow', this.drawflow);
+        },
+        emitFlowchartData() {
+            this.emitRules();
+            this.emitDrawflow();
+        },
+        importDrawflowData() {
+            if (this.drawflow && this.drawflow.drawflow) {
+                try {
+                    this.$df.import(this.drawflow);
+                } catch (error) {
+                    console.error("Error importing drawflow data: ", error);
+                }
+            }
         },
     },
 };

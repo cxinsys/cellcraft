@@ -6,10 +6,11 @@
         <button @click="$emit('close')" class="close-button">✕</button>
       </div>
       <div class="modal-info" v-if="currentStep === 1">
-        <PluginInformation @update-plugin="updatePlugin" />
+        <PluginInformation ref="pluginInfoComponent" :newPlugin="plugin" @update-plugin="updatePlugin" />
       </div>
       <div class="modal-flow" v-if="currentStep === 2">
-        <PluginFlowchart @update-rules="updateRules" />
+        <PluginFlowchart ref="pluginFlowchartComponent" :newRules="rules" :newDrawflow="drawflow"
+          @update-rules="updateRules" @update-drawflow="updateDrawflow" />
       </div>
       <div class="modal-val" v-if="currentStep === 3">
         <PluginValidation :plugin="plugin" :rules="rules" :drawflow="drawflow" />
@@ -31,7 +32,11 @@ export default {
   data() {
     return {
       currentStep: 1,
-      plugin: {},
+      plugin: {
+        name: '',
+        description: '',
+        dependencyFiles: [],
+      },
       rules: [],
       drawflow: {},
     };
@@ -44,12 +49,21 @@ export default {
   methods: {
     prevStep() {
       if (this.currentStep > 1) {
+        this.emitCurrentStepData();
         this.currentStep--;
       }
     },
     nextStep() {
       if (this.currentStep < 3) {
+        this.emitCurrentStepData();
         this.currentStep++;
+      }
+    },
+    emitCurrentStepData() {
+      if (this.currentStep === 1) {
+        this.$refs.pluginInfoComponent.emitPluginData();
+      } else if (this.currentStep === 2) {
+        this.$refs.pluginFlowchartComponent.emitFlowchartData();
       }
     },
     updatePlugin(pluginData) {
@@ -60,8 +74,7 @@ export default {
     },
     updateDrawflow(drawflowData) {
       this.drawflow = drawflowData;
-      console.log(this.drawflow);
-    },
+    }
   },
 };
 </script>
@@ -144,7 +157,7 @@ export default {
   justify-content: flex-end;
   border-top: 1px solid #eee;
   padding-top: 10px;
-  margin-top: 20px;
+  margin-top: 1rem;
 }
 
 .modal-actions button {

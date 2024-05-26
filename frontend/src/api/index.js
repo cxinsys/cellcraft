@@ -155,6 +155,22 @@ function getResultFileOne(filename) {
   return instance.get(`/routes/files/result/${filename}`);
 }
 
+function uploadPlugin(plugin, rules, drawflow) {
+  const data = {
+    plugin,
+    rules,
+    drawflow,
+  };
+  
+  return instance.post("/routes/plugin/upload", data)
+    .then(response => {
+      console.log('Plugin uploaded successfully:', response.data);
+    })
+    .catch(error => {
+      console.error('Error uploading plugin:', error);
+    });
+}
+
 export {
   registerUser,
   loginUser,
@@ -187,4 +203,5 @@ export {
   getResultFile,
   getDownloadResult,
   getResultFileOne,
+  uploadPlugin,
 };

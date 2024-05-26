@@ -5,7 +5,14 @@
             <h3>Plugin Information</h3>
             <p><strong>Name:</strong> {{ plugin.name }}</p>
             <p><strong>Description:</strong> {{ plugin.description }}</p>
-            <p><strong>Dependency File:</strong> {{ plugin.dependencyFile }}</p>
+            <p>
+                <strong>Dependency Files:</strong>
+            <ul>
+                <li v-for="(dependency, index) in plugin.dependencyFiles" :key="index">
+                    {{ dependency.type }} - {{ dependency.file }}
+                </li>
+            </ul>
+            </p>
         </div>
         <div class="section rules-info">
             <h3>Rules</h3>
@@ -36,12 +43,14 @@
             </div>
         </div>
         <div class="validation-actions">
-            <button @click="uploadPlugin">Upload Plugin</button>
+            <button @click="uploadPluginData">Upload Plugin</button>
         </div>
     </div>
 </template>
 
 <script>
+import { uploadPlugin } from '@/api/index';
+
 export default {
     props: {
         plugin: {
@@ -57,10 +66,34 @@ export default {
             required: true
         }
     },
+    data() {
+        return {
+            processedPlugin: { ...this.plugin },
+            reponse: null
+        };
+    },
+    mounted() {
+        this.processDependencyFiles();
+    },
     methods: {
-        methods: {
-            uploadPlugin() {
-                const confirmationMessage = `
+        async processDependencyFiles() {
+            const promises = this.processedPlugin.dependencyFiles.map(async (dependency) => {
+                if (dependency.file instanceof File) {
+                    dependency.file = await this.readFileContent(dependency.file);
+                }
+            });
+            await Promise.all(promises);
+        },
+        readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        },
+        async uploadPluginData() {
+            const confirmationMessage = `
                     Have you confirmed the following:
                     - All uploaded scripts meet the dependencies?
                     - The complete shell command can correctly execute the specified script?
@@ -68,40 +101,40 @@ export default {
                     - The final output is visualized correctly?
                     `;
 
-                const userConfirmed = confirm(confirmationMessage);
+            const userConfirmed = confirm(confirmationMessage);
 
-                if (userConfirmed) {
-                    // 플러그인 업로드 로직을 구현
-                    console.log('Uploading plugin...', this.plugin, this.rules);
-                    alert('Plugin uploaded successfully!');
-                    this.$emit('close');
+            if (userConfirmed) {
+                // 플러그인 업로드 로직을 구현
+                console.log('Uploading plugin...', this.plugin, this.rules);
+                const response = await uploadPlugin(this.plugin, this.rules, this.drawflow);
+                console.log('Response:', response);
+                this.response = response;
+            } else {
+                alert('Please verify the plugin details and try again.');
+            }
+        },
+        generateShellCommand(rule) {
+            const paramStr = rule.parameters.map(p => {
+                if (p.type === 'inputFile' || p.type === 'outputFile') {
+                    return `${p.defaultValue}(${p.type})`;
                 } else {
-                    alert('Please verify the plugin details and try again.');
+                    return `${p.name}(${p.type}:${p.defaultValue})`;
                 }
-            },
-            generateShellCommand(rule) {
-                const paramStr = rule.parameters.map(p => {
-                    if (p.type === 'inputFile' || p.type === 'outputFile') {
-                        return `${p.defaultValue}(${p.type})`;
-                    } else {
-                        return `${p.name}(${p.type}:${p.defaultValue})`;
-                    }
-                }).join(' ');
+            }).join(' ');
 
-                const scriptName = rule.script ? rule.script : '';
-                let command = '';
-                if (scriptName.endsWith('.py')) {
-                    command = `/python ${scriptName}`;
-                } else if (scriptName.endsWith('.R')) {
-                    command = `/Rscript ${scriptName}`;
-                } else {
-                    command = `/${scriptName}`;
-                }
+            const scriptName = rule.script ? rule.script : '';
+            let command = '';
+            if (scriptName.endsWith('.py')) {
+                command = `/python ${scriptName}`;
+            } else if (scriptName.endsWith('.R')) {
+                command = `/Rscript ${scriptName}`;
+            } else {
+                command = `/${scriptName}`;
+            }
 
-                return `${command} ${paramStr}`;
-            },
-        }
-    }
+            return `${command} ${paramStr}`;
+        },
+    },
 };
 </script>
 
