@@ -30,11 +30,11 @@
             Datasets
           </router-link>
         </li>
-        <li class="header-menu__item">
+        <!-- <li class="header-menu__item">
           <router-link class="header-menu__link" to="/plugins">
             Plugins
           </router-link>
-        </li>
+        </li> -->
         <!-- <li class="header-menu__item" v-if="isSuperUser"> -->
         <li class="header-menu__item" v-if="isSuperUser">
           <router-link class="header-menu__link" to="/admin">
