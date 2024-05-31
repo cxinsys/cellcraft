@@ -5,25 +5,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    expose:
-      - "8080"
-    volumes:
-      - ./frontend:/app
-      - frontend_build:/app/dist
-    networks:
-      - web_network
-    restart: always
-
-  nginx:
-    image: nginx:alpine
     ports:
-      - "80:80"
+      - "8002:8002"
     volumes:
-      - frontend_build:/usr/share/nginx/html:ro
-      - ./nginx.conf:/etc/nginx/nginx.conf
-    depends_on:
-      - frontend
-      - backend
+      - ./frontend:/appdocke
     networks:
       - web_network
     restart: always

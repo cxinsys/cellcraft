@@ -111,6 +111,7 @@
 </template>
 
 <script>
+/* eslint-disable */ 
 import Vue from "vue";
 import ruleNode from "@/components/nodes/ruleNode.vue";
 

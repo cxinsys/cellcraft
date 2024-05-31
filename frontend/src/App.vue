@@ -240,6 +240,4 @@ export default {
 
   color: #5e5e5e;
 }
-
-/* You can apply similar calculations for any other properties that need to be scaled down to 80% */
 </style>

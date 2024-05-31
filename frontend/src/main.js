@@ -6,6 +6,7 @@ import router from "./router";
 import store from "@/store/index";
 
 require("../css/style.css");
+require("../css/animation.css");
 
 Vue.config.productionTip = false;
 

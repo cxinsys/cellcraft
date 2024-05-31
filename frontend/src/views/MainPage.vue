@@ -332,36 +332,9 @@ export default {
   animation: darkenAndLightenMain 10s ease forwards;
 }
 
-@keyframes darkenAndLightenMain {
-  0% {
-    background-color: #000;
-  }
-  100% {
-    background-color: #000000ac;
-  }
-}
-
 .main-bump {
   height: 30vh;
   animation: darkenAndLightenBump 10s ease forwards;
-}
-
-@keyframes darkenAndLightenBump {
-  0% {
-    background: linear-gradient(to bottom, #000000, #c3c3c3);
-  }
-  25% {
-    background: linear-gradient(to bottom, #000000e8, #c3c3c3);
-  }
-  50% {
-    background: linear-gradient(to bottom, #000000ca, #c3c3c3);
-  }
-  75% {
-    background: linear-gradient(to bottom, #000000bc, #c3c3c3);
-  }
-  100% {
-    background: linear-gradient(to bottom, #000000ac, #c3c3c3);
-  }
 }
 
 .notice-component {
@@ -504,15 +477,6 @@ export default {
   animation-duration: 6s;
   animation-fill-mode: forwards;
   animation-delay: 3s;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 .main__hotButtons {
@@ -929,16 +893,5 @@ export default {
   font-size: 2rem;
   text-align: center;
   color: rgb(31, 56, 90);
-}
-
-/* Defining the animation */
-@keyframes moveArrow {
-  0%,
-  100% {
-    bottom: -51px; /* Starting and ending position */
-  }
-  50% {
-    bottom: -44px; /* Middle position */
-  }
 }
 </style>

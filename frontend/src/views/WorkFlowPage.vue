@@ -984,60 +984,6 @@ export default {
 </script>
 
 <style>
-@keyframes rotate-loading {
-  0% {
-    transform: rotate(0deg);
-    -ms-transform: rotate(0deg);
-    -webkit-transform: rotate(0deg);
-    -o-transform: rotate(0deg);
-    -moz-transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-    -ms-transform: rotate(360deg);
-    -webkit-transform: rotate(360deg);
-    -o-transform: rotate(360deg);
-    -moz-transform: rotate(360deg);
-  }
-}
-
-@keyframes loading-text-opacity {
-  0% {
-    opacity: 0;
-  }
-
-  20% {
-    opacity: 0;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes complete-text-opacity {
-  0% {
-    opacity: 0;
-  }
-
-  5% {
-    opacity: 1;
-  }
-
-  95% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-  }
-}
-
 .layout__workflow {
   width: 100%;
   height: 100%;
@@ -1488,16 +1434,6 @@ export default {
   opacity: 0.7;
   /* You can adjust this value to your liking */
   transform: scale(1.1);
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
 }
 
 .run_button {
