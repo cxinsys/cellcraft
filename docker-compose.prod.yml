@@ -13,7 +13,7 @@ services:
       - web_network
     restart: always
     environment:
-      - VUE_APP_BASE_URL=http://backend:8000/api
+      - VUE_APP_BASE_URL=http://backend:8000
 
   backend:
     environment:
