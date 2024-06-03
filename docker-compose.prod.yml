@@ -12,6 +12,8 @@ services:
     networks:
       - web_network
     restart: always
+    environment:
+      - VUE_APP_BASE_URL=http://backend:8000/api
 
   backend:
     environment:

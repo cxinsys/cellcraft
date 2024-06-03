@@ -8,8 +8,9 @@ import { setInterceptors } from "@/api/common/interceptors";
 
 function createInstance() {
   const instance = axios.create({
-    baseURL: "http://localhost/api", // 백엔드 서비스 경로
+    // baseURL: "http://localhost/api", // 백엔드 서비스 경로
     // baseURL: "http://0.0.0.0:8000",
+    baseURL: process.env.VUE_APP_BASE_URL,
   });
   return setInterceptors(instance);
 }
