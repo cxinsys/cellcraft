@@ -8,12 +8,12 @@ services:
     ports:
       - "8002:8002"
     volumes:
-      - ./frontend:/appdocke
+      - ./frontend:/app
     networks:
       - web_network
     restart: always
     environment:
-      - VUE_APP_BASE_URL=http://backend:8000
+      - VUE_APP_BASE_URL=/api
 
   backend:
     environment:
@@ -27,6 +27,7 @@ services:
       - ./backend:/app
     networks:
       - web_network
+      - backend_network
     restart: always
 
   db:
@@ -40,7 +41,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - web_network
+      - backend_network
     restart: always
 
   rabbitmq:
@@ -49,7 +50,7 @@ services:
       - "15672"
       - "5672"
     networks:
-      - web_network
+      - backend_network
     restart: always
 
   celery:
@@ -66,12 +67,12 @@ services:
       - rabbitmq
       - db
     networks:
-      - web_network
+      - backend_network
     restart: always
 
 networks:
   web_network:
+  backend_network:
 
 volumes:
-  frontend_build:
   postgres_data:
