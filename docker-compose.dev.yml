@@ -10,53 +10,60 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    environment:
+      - TZ=Asia/Seoul
+    restart: always
 
   backend:
     environment:
       - CONDA_DEFAULT_ENV=snakemake
+      - TZ=Asia/Seoul
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
+    restart: always
 
   db:
     image: postgres:15
     environment:
-      POSTGRES_DB: cellcraft
-      POSTGRES_USER: testdb
-      POSTGRES_PASSWORD: testdb
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USERNAME}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - TZ=Asia/Seoul
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: always
 
   rabbitmq:
     image: "rabbitmq:management"
     ports:
       - "15672:15672"
       - "5672:5672"
+    environment:
+      - TZ=Asia/Seoul
+    restart: always
 
   celery:
     environment:
       - CONDA_DEFAULT_ENV=snakemake
       - C_FORCE_ROOT=true
+      - TZ=Asia/Seoul
     ipc: host
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev.celery
+      dockerfile: Dockerfile.celery
     volumes:
       - ./backend:/app
-    deploy:
-      resources:
-        reservations:
-          devices:
-          - capabilities: ["gpu"]
     depends_on:
       - rabbitmq
       - db
+    restart: always
 
 volumes:
   postgres_data:

@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-dev \
     jq \
+    openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Miniconda 설치
@@ -28,18 +29,6 @@ RUN wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-l
 # Conda 환경 변수 설정
 ENV PATH /opt/conda/bin:$PATH
 
-# OpenMPI 설치
-RUN wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.5.tar.gz && \
-    tar -xzvf openmpi-4.0.5.tar.gz && \
-    cd openmpi-4.0.5 && \
-    ./configure --prefix=/usr/local/openmpi && \
-    make all && \
-    make install
-
-# OpenMPI 환경 변수 설정
-ENV PATH="/usr/local/openmpi/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/openmpi/lib:${LD_LIBRARY_PATH}"
-
 # 작업 디렉토리 설정
 WORKDIR /app
 
@@ -49,6 +38,8 @@ RUN conda env create -f environment.yml
 
 # 애플리케이션 소스 코드 복사
 COPY . .
+
+EXPOSE 8000
 
 # Conda 환경 활성화 및 FastAPI 애플리케이션 실행
 CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0" , "--port", "8000"]

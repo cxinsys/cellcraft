@@ -1782,30 +1782,4 @@ input[type="radio"] {
   opacity: 0.5;
   cursor: pointer;
 }
-
-@keyframes wiggle {
-  0%,
-  7% {
-    transform: rotateZ(0);
-  }
-  15% {
-    transform: rotateZ(-5deg);
-  }
-  20% {
-    transform: rotateZ(3deg);
-  }
-  25% {
-    transform: rotateZ(-3deg);
-  }
-  30% {
-    transform: rotateZ(1deg);
-  }
-  35% {
-    transform: rotateZ(-1deg);
-  }
-  40%,
-  100% {
-    transform: rotateZ(0);
-  }
-}
 </style>
