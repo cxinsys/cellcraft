@@ -1,0 +1,166 @@
+@keyframes wiggle {
+  0%,
+  7% {
+    transform: rotateZ(0);
+  }
+
+  15% {
+    transform: rotateZ(-5deg);
+  }
+
+  20% {
+    transform: rotateZ(3deg);
+  }
+
+  25% {
+    transform: rotateZ(-3deg);
+  }
+
+  30% {
+    transform: rotateZ(1deg);
+  }
+
+  35% {
+    transform: rotateZ(-1deg);
+  }
+
+  40%,
+  100% {
+    transform: rotateZ(0);
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes moveArrow {
+  0%,
+  100% {
+    bottom: -51px; /* Starting and ending position */
+  }
+
+  50% {
+    bottom: -44px; /* Middle position */
+  }
+}
+
+@keyframes darkenAndLightenMain {
+  0% {
+    background-color: #000;
+  }
+
+  100% {
+    background-color: #000000ac;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes darkenAndLightenBump {
+  0% {
+    background: linear-gradient(to bottom, #000000, #c3c3c3);
+  }
+
+  25% {
+    background: linear-gradient(to bottom, #000000e8, #c3c3c3);
+  }
+
+  50% {
+    background: linear-gradient(to bottom, #000000ca, #c3c3c3);
+  }
+
+  75% {
+    background: linear-gradient(to bottom, #000000bc, #c3c3c3);
+  }
+
+  100% {
+    background: linear-gradient(to bottom, #000000ac, #c3c3c3);
+  }
+}
+
+@keyframes rotate-loading {
+  0% {
+    transform: rotate(0deg);
+
+    -ms-transform: rotate(0deg);
+
+    -webkit-transform: rotate(0deg);
+
+    -o-transform: rotate(0deg);
+
+    -moz-transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+
+    -ms-transform: rotate(360deg);
+
+    -webkit-transform: rotate(360deg);
+
+    -o-transform: rotate(360deg);
+
+    -moz-transform: rotate(360deg);
+  }
+}
+
+@keyframes loading-text-opacity {
+  0% {
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes complete-text-opacity {
+  0% {
+    opacity: 0;
+  }
+
+  5% {
+    opacity: 1;
+  }
+
+  95% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}

@@ -10,7 +10,7 @@
         </div>
       </div>
       <div class="first-line__right">
-        <div class="add__button">
+        <div class="add__button" @click="showPluginExtension = true">
           <img class="add__button--icon" src="@/assets/add_circle.png" />
           <h1>Add Plugin</h1>
         </div>
@@ -23,6 +23,7 @@
         </div>
       </div>
     </div>
+    <PluginExtention v-if="showPluginExtension" @close="showPluginExtension = false" />
     <table>
       <tbody>
         <tr v-for="plugin in filteredPlugins" :key="plugin.id">
@@ -58,9 +59,15 @@
 </template>
 
 <script>
+import PluginExtention from "@/components/PluginExtention.vue";
+
 export default {
+  components: {
+    PluginExtention,
+  },
   data() {
     return {
+      showPluginExtension: false,
       searchTerm: "",
       plugins: [
         {
