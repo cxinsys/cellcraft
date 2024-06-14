@@ -282,8 +282,8 @@ export default {
             const isDuplicateTitle = this.rules.some(rule => rule.name === this.ruleTitle);
             if (isDuplicateTitle) {
                 alert('The rule title already exists. Please change the rule title.');
-                this.ruleTitle = ""; // ruleTitle 초기화
-                return; // 함수 실행 중지
+                this.ruleTitle = "";
+                return;
             }
 
             const inputFiles = this.parameters.filter(p => p.type === 'inputFile').map(p => p.defaultValue);
@@ -313,7 +313,8 @@ export default {
                 name: nodeData.title,
                 input: nodeData.inputs,
                 output: nodeData.outputs,
-                script: nodeData.script ? nodeData.script.name : '',
+                // script: nodeData.script ? nodeData.script.name : '',
+                script: nodeData.script,
                 parameters: nodeData.parameters,
             };
             this.rules.push(rule);
@@ -338,7 +339,7 @@ export default {
                 }
             }).join(' ');
 
-            const scriptName = rule.script ? rule.script : '';
+            const scriptName = rule.script.name;
             let command = '';
             if (scriptName.endsWith('.py')) {
                 command = `/python ${scriptName}`;

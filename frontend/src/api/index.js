@@ -8,7 +8,6 @@ import { setInterceptors } from "@/api/common/interceptors";
 
 function createInstance() {
   const instance = axios.create({
-    // baseURL: "http://localhost/api", // 백엔드 서비스 경로
     // baseURL: "http://0.0.0.0:8000",
     baseURL: process.env.VUE_APP_BASE_URL,
   });
@@ -156,20 +155,26 @@ function getResultFileOne(filename) {
   return instance.get(`/routes/files/result/${filename}`);
 }
 
-function uploadPlugin(plugin, rules, drawflow) {
+function validationPlugin(plugin, rules, drawflow) {
   const data = {
     plugin,
     rules,
     drawflow,
   };
   
-  return instance.post("/routes/plugin/upload", data)
-    .then(response => {
-      console.log('Plugin uploaded successfully:', response.data);
-    })
-    .catch(error => {
-      console.error('Error uploading plugin:', error);
-    });
+  return instance.post("/routes/plugin/validation", data)
+}
+
+function uploadPluginMetadata(pluginCreate) {
+  return instance.post("/routes/plugin/upload", pluginCreate)
+}
+
+function uploadPluginScripts(formData) {
+  return instance.post("/routes/plugin/upload_scripts", formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
 }
 
 export {
@@ -204,5 +209,7 @@ export {
   getResultFile,
   getDownloadResult,
   getResultFileOne,
-  uploadPlugin,
+  validationPlugin,
+  uploadPluginMetadata,
+  uploadPluginScripts,
 };
