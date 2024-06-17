@@ -111,7 +111,7 @@
 </template>
 
 <script>
-/* eslint-disable */ 
+/* eslint-disable */
 import Vue from "vue";
 import ruleNode from "@/components/nodes/ruleNode.vue";
 
@@ -195,6 +195,7 @@ export default {
             this.isShowCreateModal = true;
         },
         toggleRuleView() {
+            this.removeNodeIfNotExists();
             this.isRuleView = !this.isRuleView;
         },
         allowDrop(event) {
@@ -202,6 +203,18 @@ export default {
         },
         drop(event) {
             event.preventDefault();
+        },
+        removeNodeIfNotExists() {
+            const nodeIds = this.$df.getNodesFromName('ruleNode');
+            const rules = this.rules;
+            nodeIds.forEach(nodeId => {
+                const rule = rules.find(rule => rule.nodeId === nodeId);
+                if (!rule) {
+                    this.allowRuleEdit = true;
+                    const removeFuncInput = "node-" + nodeId;
+                    this.$df.removeNodeId(removeFuncInput);
+                }
+            });
         },
         handleFileUpload(event) {
             this.scriptFile = event.target.files[0];
@@ -413,8 +426,6 @@ export default {
             if (this.allowRuleEdit) {
                 try {
                     this.allowRuleEdit = false;
-                    // this.emitRules();
-                    // this.emitDrawflow();
                     // 만약, drawflow 상태에서 직접 노드 제거가 허용되는 기능 제작되면 아래 주석 풀기
                     // nodeId 확인 후, 해당 노드에 대응되는 rule을 rules에서 제거
                     // const rule = this.rules.find(rule => rule.nodeId === id);
@@ -424,22 +435,23 @@ export default {
                     console.error(error);
                 }
             } else {
-                alert('Node removal is not allowed.');
-                // rules에서 제거된 노드에 해당하는 rule을 찾아서 다시 node를 추가
-                const rule = this.rules.find(rule => rule.nodeId === id);
-                let nodeX, nodeY = Math.floor(Math.random() * 100) + 10;
-                this.$df.addNode('ruleNode', rule.input.length, rule.output.length, nodeX, nodeY, 'ruleNode', rule, 'ruleNode', 'vue');
+                console.log("Node removed", id);
+                // alert('Node removal is not allowed.');
+                // // rules에서 제거된 노드에 해당하는 rule을 찾아서 다시 node를 추가
+                // const rule = this.rules.find(rule => rule.nodeId === id);
+                // let nodeX, nodeY = Math.floor(Math.random() * 100) + 10;
+                // this.$df.addNode('ruleNode', rule.input.length, rule.output.length, nodeX, nodeY, 'ruleNode', rule, 'ruleNode', 'vue');
             }
         },
         removeRule(index) {
             const confirmed = confirm('Are you sure you want to delete this rule?');
             if (confirmed) {
-                this.allowRuleEdit = true;
-                // Drawflow에서 해당 노드를 찾아서 제거
-                const node = this.$df.getNodeFromName(this.rules[index].name);
-                this.$df.removeNodeId(node.id);
-
                 this.rules.splice(index, 1);
+
+                // Drawflow에서 해당 노드를 찾아서 제거
+                // const node = this.$df.getNodeFromId(this.rules[index].nodeId);
+                // this.$df.removeNodeId(node.id);
+                // console.log("node data:", node);
                 this.emitRules();
             }
         },
@@ -453,9 +465,10 @@ export default {
                     console.error(error);
                 }
             } else {
-                alert('Connection removal is not allowed.');
-                // Drawflow에서 연결이 제거되지 않도록 처리
-                this.$df.addConnection(connection.output_id, connection.input_id, connection.output_class, connection.input_class);
+                console.log("Connection removed", connection);
+                // alert('Connection removal is not allowed.');
+                // // Drawflow에서 연결이 제거되지 않도록 처리
+                // this.$df.addConnection(connection.output_id, connection.input_id, connection.output_class, connection.input_class);
             }
         },
         onNodeDataChanged(id) {
@@ -902,7 +915,8 @@ img {
 }
 
 .drawflow-delete {
-    display: block;
+    /* display: block; */
+    display: none;
     color: #ffffff;
     background: #000000;
     border: 2px solid #ffffff;

@@ -55,9 +55,24 @@ export default {
     };
   },
   watch: {
+    'newPlugin.name': {
+      handler(newValue) {
+        this.plugin.name = newValue;
+      },
+      immediate: true
+    },
+    'newPlugin.description': {
+      handler(newValue) {
+        this.plugin.description = newValue;
+      },
+      immediate: true
+    },
     newPlugin: {
       handler(newValue) {
-        this.plugin = { ...newValue };
+        // plugin.dependencyFiles을 직접 할당하기 전에 변화가 있을 경우에만 업데이트
+        if (JSON.stringify(this.plugin.dependencyFiles) !== JSON.stringify(newValue.dependencyFiles)) {
+          this.plugin.dependencyFiles = [...newValue.dependencyFiles];
+        }
       },
       deep: true,
       immediate: true
@@ -65,24 +80,32 @@ export default {
   },
   methods: {
     addDependencyType() {
+      if (!this.plugin.dependencyFiles) {
+        this.plugin.dependencyFiles = [{ type: this.selectedDependencyType, file: null }];
+        this.selectedDependencyType = '';
+        return true;
+      }
       if (this.selectedDependencyType && !this.isFileTypeAdded(this.selectedDependencyType)) {
         this.plugin.dependencyFiles.push({ type: this.selectedDependencyType, file: null });
         this.selectedDependencyType = '';
       }
+      this.emitPluginData();
     },
     isFileTypeAdded(type) {
-      return this.plugin.dependencyFiles.some(file => file.type === type);
+      if (!this.plugin.dependencyFiles) return false;
+      else return this.plugin.dependencyFiles.some(file => file.type === type);
     },
     handleFileUpload(event, type) {
       const file = event.target.files[0];
       const index = this.plugin.dependencyFiles.findIndex(file => file.type === type);
       if (index !== -1) {
-        this.plugin.dependencyFiles[index].file = file;
-        this.plugin.dependencyFiles[index].fileName = file.name;
+        this.$set(this.plugin.dependencyFiles, index, { ...this.plugin.dependencyFiles[index], file, fileName: file.name });
+        this.emitPluginData();
       }
     },
     removeDependencyFile(type) {
       this.plugin.dependencyFiles = this.plugin.dependencyFiles.filter(file => file.type !== type);
+      this.emitPluginData();
     },
     emitPluginData() {
       this.$emit('update-plugin', this.plugin);
