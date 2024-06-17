@@ -12,13 +12,14 @@ class User(Base):
     username = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    plugins = Column(ARRAY(String), nullable=True)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
+    plugin_id = Column(Integer, ForeignKey("plugins.id"))
 
     files = relationship("File", back_populates="user")
     workflows = relationship("Workflow", back_populates="user")
     tasks = relationship("Task", back_populates="user")
+    plugins = relationship("Plugin", back_populates="user")
 
 class File(Base):
     __tablename__ = "files"
@@ -61,3 +62,17 @@ class Task(Base):
 
     user = relationship("User", back_populates="tasks")
     workflows = relationship("Workflow", back_populates="tasks")
+
+class Plugin(Base):
+    __tablename__ = "plugins"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    author = Column(String, nullable=False)
+    plugin_path = Column(String, nullable=False)
+    dependencies = Column(ARRAY(JSON), nullable=True)
+    drawflow = Column(JSONB, nullable=False)
+    rules = Column(ARRAY(JSON), nullable=False)
+
+    user = relationship("User", back_populates="plugins")

@@ -13,7 +13,7 @@
           @update-rules="updateRules" @update-drawflow="updateDrawflow" />
       </div>
       <div class="modal-val" v-if="currentStep === 3">
-        <PluginValidation :plugin="plugin" :rules="rules" :drawflow="drawflow" />
+        <PluginValidation @close="close" :plugin="plugin" :rules="rules" :drawflow="drawflow" />
       </div>
       <div class="modal-actions">
         <button @click="prevStep" :disabled="currentStep === 1">Prev</button>
@@ -74,6 +74,9 @@ export default {
     },
     updateDrawflow(drawflowData) {
       this.drawflow = drawflowData;
+    },
+    close() {
+      this.$emit('close');
     }
   },
 };

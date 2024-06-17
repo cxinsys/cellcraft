@@ -1,5 +1,5 @@
 <template>
-    <div class="validation-container">
+    <div class="validation-container" v-on:click.stop="validationLoading">
         <h2>Validate and Upload Plugin</h2>
         <div class="section plugin-info">
             <h3>Plugin Information</h3>
@@ -9,7 +9,7 @@
                 <strong>Dependency Files:</strong>
             <ul>
                 <li v-for="(dependency, index) in plugin.dependencyFiles" :key="index">
-                    {{ dependency.type }} - {{ dependency.file }}
+                    {{ dependency.type }}
                 </li>
             </ul>
             </p>
@@ -28,7 +28,7 @@
                 </div>
                 <div v-if="rule.script">
                     <strong>Script:</strong>
-                    <div>{{ rule.script }}</div>
+                    <div>{{ rule.script.name }}</div>
                 </div>
                 <div>
                     <strong>Parameters:</strong>
@@ -45,11 +45,17 @@
         <div class="validation-actions">
             <button @click="uploadPluginData">Upload Plugin</button>
         </div>
+        <div v-if="validationLoading" class="loading-animation">
+            <div class="loader"></div>
+            <p v-if="uploadingStep == 1">Validating Plugin...</p>
+            <p v-else-if="uploadingStep == 2">Uploading Plugin Data...</p>
+            <p v-else-if="uploadingStep == 3">Uploading Plugin Scripts...</p>
+        </div>
     </div>
 </template>
 
 <script>
-import { uploadPlugin } from '@/api/index';
+import { validationPlugin, uploadPluginMetadata, uploadPluginScripts } from '@/api/index';
 
 export default {
     props: {
@@ -69,7 +75,8 @@ export default {
     data() {
         return {
             processedPlugin: { ...this.plugin },
-            reponse: null
+            validationLoading: false,
+            uploadingStep: 0, 
         };
     },
     mounted() {
@@ -94,21 +101,72 @@ export default {
         },
         async uploadPluginData() {
             const confirmationMessage = `
-                    Have you confirmed the following:
-                    - All uploaded scripts meet the dependencies?
-                    - The complete shell command can correctly execute the specified script?
-                    - The script works correctly?
-                    - The final output is visualized correctly?
-                    `;
+                Have you confirmed the following:
+                - All uploaded scripts meet the dependencies?
+                - The complete shell command can correctly execute the specified script?
+                - The script works correctly?
+                - The final output is visualized correctly?
+                `;
 
             const userConfirmed = confirm(confirmationMessage);
 
             if (userConfirmed) {
-                // 플러그인 업로드 로직을 구현
-                console.log('Uploading plugin...', this.plugin, this.rules);
-                const response = await uploadPlugin(this.plugin, this.rules, this.drawflow);
-                console.log('Response:', response);
-                this.response = response;
+                try {
+                    this.validationLoading = true;
+                    const rules = this.rules.map(rule => {
+                        return {
+                            name: rule.name,
+                            input: rule.input,
+                            output: rule.output,
+                            script: rule.script.name,
+                            parameters: rule.parameters,
+                            nodeId: rule.nodeId,
+                        };
+                    });
+                    this.uploadingStep += 1;
+                    const validation_response = await validationPlugin(this.plugin, rules, this.drawflow);
+                    console.log('Validation Response:', validation_response);
+
+                    this.uploadingStep += 1;
+                    const pluginCreate = validation_response.data.plugin;
+                    const db_plugin = await uploadPluginMetadata(pluginCreate);
+                    console.log("Plugin Data :", db_plugin.data);
+
+                    this.uploadingStep += 1;
+                    const scriptNameList = validation_response.data.scripts;
+                    // scriptNameList 기반으로 rule.script.name을 찾아서 scriptCreate에 추가
+                    const scriptCreate = this.rules.map(rule => {
+                        const scriptName = scriptNameList.find(s => s === rule.script.name);
+                        if (scriptName) {
+                            return {
+                                name: scriptName,
+                                content: rule.script.content
+                            };
+                        }
+                    }).filter(s => s);
+                    const formData = new FormData();
+
+                    scriptCreate.forEach((script, index) => {
+                        const file = new Blob([script.content], { type: 'text/plain' });
+                        formData.append(`files`, file, script.name);
+                    });
+
+                    // plugin_name을 formData에 추가
+                    formData.append('plugin_name', db_plugin.data.plugin.name);
+
+                    const scripts = await uploadPluginScripts(formData);
+                    console.log('Plugin Metadata and Plugin Scripts uploaded:', db_plugin, scripts);
+
+                    this.uploadingStep = 0;
+                    this.validationLoading = false;
+                    alert('Plugin uploaded successfully!');
+
+                    this.$emit('close');
+                } catch (error) {
+                    console.error('Error while uploading plugin:', error);
+                    alert('Error while uploading plugin. Please try again.');
+                    this.validationLoading = false;
+                }
             } else {
                 alert('Please verify the plugin details and try again.');
             }
@@ -122,7 +180,7 @@ export default {
                 }
             }).join(' ');
 
-            const scriptName = rule.script ? rule.script : '';
+            const scriptName = rule.script.name;
             let command = '';
             if (scriptName.endsWith('.py')) {
                 command = `/python ${scriptName}`;
@@ -207,6 +265,39 @@ div {
 
 .validation-actions button:last-child {
     background-color: #6c757d;
+    color: #fff;
+}
+
+.loading-animation {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    padding: 1rem;
+    border-radius: 8px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.loader {
+    width: 48px;
+    height: 48px;
+    border: 5px solid #FFF;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 1s linear infinite;
+}
+
+.loading-animation p {
+    margin: 0;
     color: #fff;
 }
 </style>

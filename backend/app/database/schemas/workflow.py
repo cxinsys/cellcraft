@@ -1,6 +1,5 @@
 from typing import Dict, List, Optional
-from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 class WorkflowBase(BaseModel):
     title: Optional[str] = None
