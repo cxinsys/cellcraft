@@ -21,8 +21,8 @@ export default {
 
 <style scoped>
 .nodeBox {
-    width: 6rem;
-    height: 4rem;
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;

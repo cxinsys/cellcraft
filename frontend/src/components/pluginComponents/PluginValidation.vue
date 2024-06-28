@@ -76,7 +76,7 @@ export default {
         return {
             processedPlugin: { ...this.plugin },
             validationLoading: false,
-            uploadingStep: 0, 
+            uploadingStep: 0,
         };
     },
     mounted() {
@@ -134,28 +134,57 @@ export default {
 
                     this.uploadingStep += 1;
                     const scriptNameList = validation_response.data.scripts;
-                    // scriptNameList 기반으로 rule.script.name을 찾아서 scriptCreate에 추가
                     const scriptCreate = this.rules.map(rule => {
                         const scriptName = scriptNameList.find(s => s === rule.script.name);
                         if (scriptName) {
                             return {
                                 name: scriptName,
-                                content: rule.script.content
+                                content: rule.script  // File 객체 자체를 content로 저장
                             };
                         }
                     }).filter(s => s);
+
                     const formData = new FormData();
 
-                    scriptCreate.forEach((script, index) => {
-                        const file = new Blob([script.content], { type: 'text/plain' });
-                        formData.append(`files`, file, script.name);
+                    // 비동기 작업을 처리하기 위한 Promise 배열
+                    const promises = scriptCreate.map((script, index) => {
+                        return new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                const fileContent = event.target.result;
+                                console.log(`Script Name: ${script.name}`);
+                                console.log(`Script Content: ${fileContent}`);
+
+                                const file = new Blob([fileContent], { type: script.content.type });
+                                formData.append('files', file, script.name);
+                                resolve();
+                            };
+                            reader.onerror = (error) => {
+                                reject(error);
+                            };
+                            reader.readAsText(script.content);  // File 객체를 텍스트로 읽기
+                        });
                     });
 
-                    // plugin_name을 formData에 추가
-                    formData.append('plugin_name', db_plugin.data.plugin.name);
+                    // 모든 파일을 읽고 나서 FormData에 추가
+                    Promise.all(promises).then(() => {
+                        // plugin_name을 FormData에 추가
+                        formData.append('plugin_name', db_plugin.data.plugin.name);
 
-                    const scripts = await uploadPluginScripts(formData);
-                    console.log('Plugin Metadata and Plugin Scripts uploaded:', db_plugin, scripts);
+                        // FormData 내용 확인 (선택 사항)
+                        for (let [key, value] of formData.entries()) {
+                            console.log(`${key}: ${value}`);
+                        }
+
+                        // 스크립트 업로드
+                        uploadPluginScripts(formData).then((scripts) => {
+                            console.log(scripts);
+                        }).catch((error) => {
+                            console.error('Error while uploading plugin:', error);
+                        });
+                    }).catch((error) => {
+                        console.error('Error reading files:', error);
+                    });
 
                     this.uploadingStep = 0;
                     this.validationLoading = false;
