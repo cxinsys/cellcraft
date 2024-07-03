@@ -8,11 +8,20 @@
             Create Node <i class="fas fa-plus"></i>
         </button>
 
+        <div v-if="!isRuleView" class="node-zoom-buttons">
+            <button class="node-zoom-button" @click="zoomIn">
+                <img src="@/assets/zoom_in.png">
+            </button>
+            <button class="node-zoom-button" @click="zoomOut">
+                <img src="@/assets/zoom_out.png">
+            </button>
+        </div>
+
         <!-- Drawflow 컴포넌트 -->
         <div v-show="!isRuleView" id="rule-drawflow" @drop="drop" @dragover="allowDrop"></div>
 
         <!-- Rule 보기 컴포넌트 -->
-        <div v-if="isRuleView" class="rule-view-container">
+        <div v-show="isRuleView" class="rule-view-container">
             <div class="warning-comment" v-if="rules.length === 0">
                 <p>Rule content does not exist</p>
             </div>
@@ -29,7 +38,16 @@
                     </div>
                     <div v-if="rule.script">
                         <strong>script:</strong>
-                        <div>{{ generateShellCommand(rule) }}</div>
+                        <div class="script-container">
+                            <div>{{ generateShellCommand(rule) }}</div>
+                            <draggable class="script-drag-componenet" v-model="rule.parameters" @start="drag = true"
+                                @end="drag = false">
+                                <div class="script-drag-parameter" v-for="(param, paramIndex) in rule.parameters"
+                                    :key="paramIndex">
+                                    {{ param.name }} ({{ param.type }})
+                                </div>
+                            </draggable>
+                        </div>
                     </div>
                     <button class="rule-remove-button" @click="removeRule(index)">remove</button>
                 </div>
@@ -38,84 +56,95 @@
 
         <div v-if="isShowCreateModal" class="createModal-overlay">
             <div class="createModal-container">
-                <form>
-                    <div class="controller-group">
-                        <label for="ruleTitle">Rule Title:</label>
-                        <input type="text" id="ruleTitle" v-model="ruleTitle" />
+                <div class="controller-group">
+                    <label for="ruleTitle">Rule Title:</label>
+                    <input type="text" id="ruleTitle" v-model="ruleTitle" />
 
-                        <label for="scriptFile">Upload Script File:</label>
-                        <input type="file" id="scriptFile" @change="handleFileUpload" />
+                    <label for="scriptFile">Script File:</label>
+                    <input type="file" id="scriptFile" @change="handleFileUpload" />
+                </div>
+
+                <div class="script-code-container">
+                    <pre>{{ completeRule }}</pre>
+                    <div class="checkbox-group" v-if="this.scriptFile && this.ruleTitle != ''">
+                        <input type="checkbox" id="isVisualization" v-model="isVisualization"
+                            @change="showAlertAndAddOutput" />
+                        <label for="isVisualization">Is Visualization Node</label>
                     </div>
+                </div>
 
-                    <div class="script-code-container">
-                        <pre>{{ completeRule }}</pre>
+                <div class="add-parameter-group">
+                    <div class="parameter-inputs">
+                        <input type="text" v-model="newParameter.name" placeholder="Parameter Name"
+                            class="parameter-name" />
+                        <select v-model="newParameter.type" class="parameter-type" @change="resetParameterOption">
+                            <option value="inputFile">Input File</option>
+                            <option value="outputFile">Output File</option>
+                            <option value="string">String</option>
+                            <option value="int">Integer</option>
+                            <option value="float">Float</option>
+                            <option value="boolean">Boolean</option>
+                        </select>
                     </div>
-
-                    <div class="add-parameter-group">
-                        <label>Parameters:</label>
-                        <div class="parameter-inputs">
-                            <input type="text" v-model="newParameter.name" placeholder="Parameter Name"
-                                class="parameter-name" />
-                            <select v-model="newParameter.type" class="parameter-type" @change="resetParameterOption">
-                                <option value="inputFile">Input File</option>
-                                <option value="outputFile">Output File</option>
-                                <option value="string">String</option>
-                                <option value="int">Integer</option>
-                                <option value="float">Float</option>
-                                <option value="boolean">Boolean</option>
-                            </select>
+                    <div v-if="newParameter.type === 'inputFile' || newParameter.type === 'outputFile'"
+                        class="file-inputs">
+                        <input type="text" v-model="newParameter.fileExtension" placeholder="File Type"
+                            class="file-extension-input" />
+                        <select v-model="selectedFileExtension" @change="updateFileExtension"
+                            class="file-extension-select">
+                            <option value="">Direct Input</option>
+                            <option value=".txt">.txt</option>
+                            <option value=".csv">.csv</option>
+                            <option value=".json">.json</option>
+                        </select>
+                    </div>
+                    <div v-else class="col-input-group">
+                        <input type="text"
+                            v-if="newParameter.type !== 'inputFile' && newParameter.type !== 'outputFile' && newParameter.type !== 'boolean'"
+                            v-model="newParameter.defaultValue" placeholder="Default Value"
+                            class="default-value-input" />
+                        <select v-if="newParameter.type === 'boolean'" v-model="newParameter.defaultValue"
+                            class="boolean-select">
+                            <option value="">Select Value</option>
+                            <option value="true">True</option>
+                            <option value="false">False</option>
+                        </select>
+                        <div v-if="newParameter.type === 'int' || newParameter.type === 'float'" class="range-inputs">
+                            <input type="number" v-model.number="newParameter.min" placeholder="Min"
+                                class="range-min" />
+                            <input type="number" v-model.number="newParameter.max" placeholder="Max"
+                                class="range-max" />
                         </div>
-                        <div v-if="newParameter.type === 'inputFile' || newParameter.type === 'outputFile'"
-                            class="file-inputs">
-                            <input type="text" v-model="newParameter.fileExtension" placeholder="File Type"
-                                class="file-extension-input" />
-                            <select v-model="selectedFileExtension" @change="updateFileExtension"
-                                class="file-extension-select">
-                                <option value="">Direct Input</option>
-                                <option value=".txt">.txt</option>
-                                <option value=".csv">.csv</option>
-                                <option value=".json">.json</option>
-                            </select>
-                        </div>
-                        <div v-else class="col-input-group">
-                            <input type="text"
-                                v-if="newParameter.type !== 'inputFile' && newParameter.type !== 'outputFile' && newParameter.type !== 'boolean'"
-                                v-model="newParameter.defaultValue" placeholder="Default Value"
-                                class="default-value-input" />
-                            <select v-if="newParameter.type === 'boolean'" v-model="newParameter.defaultValue"
-                                class="boolean-select">
-                                <option value="">Select Value</option>
-                                <option value="true">True</option>
-                                <option value="false">False</option>
-                            </select>
-                            <div v-if="newParameter.type === 'int' || newParameter.type === 'float'"
-                                class="range-inputs">
-                                <input type="number" v-model.number="newParameter.min" placeholder="Min"
-                                    class="range-min" />
-                                <input type="number" v-model.number="newParameter.max" placeholder="Max"
-                                    class="range-max" />
-                            </div>
-                        </div>
-                        <button type="button" @click="addParameter">Add Parameter</button>
                     </div>
+                    <button type="button" @click="addParameter">Add Parameter</button>
+                </div>
 
-
-                    <div class="button-group">
-                        <button type="button" @click="createNode">Create</button>
-                        <button type="button" @click="isShowCreateModal = false">Cancel</button>
-                    </div>
-                </form>
+                <div class="button-group">
+                    <button type="button" @click="createNode">Create</button>
+                    <button type="button" @click="closeCreateModal">Cancel</button>
+                </div>
             </div>
         </div>
+
+        <alert-modal :show="showAlertModal" title="※ Please read the instructions for the visualization node" :messages="[
+            'Visualization nodes must always be configured to output a single .json file that can be uploaded to Plotly.',
+            'Visualization nodes can later select the input file from multiple files, so consider the current input file setting as a default value.'
+        ]" @close="closeAlertModal" />
     </div>
 </template>
 
 <script>
 /* eslint-disable */
+import draggable from 'vuedraggable';
 import Vue from "vue";
 import ruleNode from "@/components/nodes/ruleNode.vue";
+import AlertModal from '@/components/modals/AlertModal.vue';
 
 export default {
+    components: {
+        draggable,
+        AlertModal
+    },
     props: {
         newRules: {
             type: Array,
@@ -152,6 +181,8 @@ export default {
             rules: [...this.newRules],
             drawflow: { ...this.newDrawflow },
             allowRuleEdit: false,
+            isVisualization: false,
+            showAlertModal: false,
         };
     },
     mounted() {
@@ -193,6 +224,28 @@ export default {
     methods: {
         showCreateModal() {
             this.isShowCreateModal = true;
+            // nodecreate 데이터 초기화
+            this.resetNewParameter();
+        },
+        showAlertAndAddOutput() {
+            if (this.isVisualization) {
+                this.showAlertModal = true;
+
+                // 기존 output 파라미터 제거
+                this.parameters = this.parameters.filter(param => param.type !== 'outputFile');
+
+                // 새로운 output 파라미터 추가
+                const outputParameter = {
+                    name: 'output',
+                    type: 'outputFile',
+                    defaultValue: `${this.ruleTitle}.json`,
+                    fileExtension: '.json',
+                };
+                this.parameters.push(outputParameter);
+            }
+        },
+        closeAlertModal() {
+            this.showAlertModal = false;
         },
         toggleRuleView() {
             this.removeNodeIfNotExists();
@@ -203,6 +256,12 @@ export default {
         },
         drop(event) {
             event.preventDefault();
+        },
+        zoomIn() {
+            this.$df.zoom_in();
+        },
+        zoomOut() {
+            this.$df.zoom_out();
         },
         removeNodeIfNotExists() {
             const nodeIds = this.$df.getNodesFromName('ruleNode');
@@ -249,6 +308,9 @@ export default {
 
             this.shellCommand = `${command} ${paramStr}`;
             this.updateCompleteRule();
+        },
+        updateParameters() {
+            this.updateShellCommand();
         },
         updateCompleteRule() {
             const inputs = this.parameters.filter(p => p.type === 'inputFile').map(p => p.defaultValue).join(', ');
@@ -302,12 +364,19 @@ export default {
             const inputFiles = this.parameters.filter(p => p.type === 'inputFile').map(p => p.defaultValue);
             const outputFiles = this.parameters.filter(p => p.type === 'outputFile').map(p => p.defaultValue);
 
+            // Check if any required data is empty
+            if (!this.ruleTitle || inputFiles.length === 0 || outputFiles.length === 0 || !this.scriptFile || this.parameters.length === 0) {
+                alert('All fields must be filled out.');
+                return;
+            }
+
             const nodeData = {
                 title: this.ruleTitle,
                 inputs: inputFiles,
                 outputs: outputFiles,
                 script: this.scriptFile,
                 parameters: this.parameters,
+                isVisualization: this.isVisualization,
             };
 
             this.nodeData = nodeData;
@@ -315,10 +384,14 @@ export default {
             // 노드 x,y 좌표를 랜덤으로 생성
             let nodeX, nodeY = Math.floor(Math.random() * 100) + 10;
 
-            const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'ruleNode', nodeData, 'ruleNode', 'vue');
-
-            console.log(nodeId, nodeData);
-            this.closeModal();
+            if (this.isVisualization) {
+                const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'visualizationNode', nodeData, 'ruleNode', 'vue');
+                console.log(nodeId, nodeData);
+            } else {
+                const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'ruleNode', nodeData, 'ruleNode', 'vue');
+                console.log(nodeId, nodeData);
+            }
+            this.closeCreateModal();
         },
         addNewRule(id, nodeData) {
             const rule = {
@@ -329,14 +402,16 @@ export default {
                 // script: nodeData.script ? nodeData.script.name : '',
                 script: nodeData.script,
                 parameters: nodeData.parameters,
+                isVisualization: nodeData.isVisualization,
             };
             this.rules.push(rule);
 
             // 노드 데이터 초기화
             this.nodeData = {};
         },
-        closeModal() {
+        closeCreateModal() {
             this.isShowCreateModal = false;
+            this.isVisualization = false;
             this.ruleTitle = "";
             this.scriptFile = null;
             this.parameters = [];
@@ -362,7 +437,8 @@ export default {
                 command = `/${scriptName}`;
             }
 
-            return `${command} ${paramStr}`;
+            // return `${command} ${paramStr}`;
+            return `${command}`;
         },
         checkAndConnectNodes() {
             const nodeIds = this.$df.getNodesFromName('ruleNode')
@@ -550,6 +626,31 @@ export default {
     z-index: 9999;
 }
 
+.node-zoom-buttons {
+    position: absolute;
+    bottom: 2.5rem;
+    right: 2.5rem;
+    display: flex;
+    gap: 0.5rem;
+    z-index: 9999;
+}
+
+.node-zoom-button {
+    width: 2.5rem;
+    height: 2.5rem;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.node-zoom-button img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
 .rule-view-container {
     width: calc(100% - 2rem);
     height: 36.5rem;
@@ -571,6 +672,10 @@ export default {
 .warning-comment p {
     font-size: 1.2rem;
     color: #333;
+}
+
+.visualizationNode {
+    background-color: #4fc3f7 !important;
 }
 
 .rule-item {
@@ -630,12 +735,13 @@ img {
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
     width: 80%;
     max-width: 600px;
-    height: 25rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
     position: relative;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 /* 스크롤 바 디자인 */
@@ -679,34 +785,42 @@ img {
     border-radius: 4px;
 }
 
-.createModal-container form {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
 .controller-group {
     width: 100%;
     display: flex;
     align-items: center;
     margin-bottom: 0.9rem;
+    gap: 1rem;
 }
 
 .controller-group input {
     padding: 8px;
     border: 1px solid #ccc;
     border-radius: 4px;
-    width: calc(40% - 2rem);
-    margin-right: 1rem;
+    width: calc(40% - 4rem);
+    height: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.createModal-container form label {
-    margin-bottom: 5px;
+.createModal-container label {
     color: #000;
     /* 검은색 폰트 색깔 */
     font-size: 0.9rem;
     line-height: 1rem;
+}
+
+.checkbox-group {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.checkbox-group input[type="checkbox"] {
+    margin-right: 0.5rem;
 }
 
 .script-code-container {
@@ -721,6 +835,42 @@ img {
     font-size: 0.9rem;
     line-height: 1.4rem;
     overflow-x: auto;
+    overflow-y: hidden;
+    position: relative;
+}
+
+.script-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem
+}
+
+.script-drag-componenet {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem
+}
+
+.script-drag-parameter {
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    cursor: grab;
+    /* 드래그 가능함을 나타내는 커서 */
+    transition: background-color 0.2s ease;
+}
+
+.script-drag-parameter:hover {
+    background-color: #e0e0e0;
+    /* 마우스를 올렸을 때 배경색 변경 */
+    cursor: grabbing;
+    /* 드래그 중일 때 커서 변경 */
+}
+
+.script-drag-parameter:active {
+    background-color: #d0d0d0;
+    /* 클릭 시 배경색 변경 */
 }
 
 .add-parameter-group {
@@ -772,11 +922,9 @@ img {
 }
 
 .button-group {
-    display: flex;
     width: 5rem;
+    display: flex;
     justify-content: center;
-    position: absolute;
-    bottom: 1rem;
     gap: 1rem;
 }
 
@@ -819,7 +967,7 @@ img {
     background: var(--dfBackgroundColor);
     background-size: var(--dfBackgroundSize) var(--dfBackgroundSize);
     background-image: var(--dfBackgroundImage);
-    z-index: 9998;
+    z-index: 9997;
 }
 
 .drawflow .drawflow-node {

@@ -4,7 +4,7 @@ from scipy.sparse import csr_matrix
 import pandas as pd
 import numpy as np
 import json
-import os
+import sys
 
 def organize_column_dtypes(data_frame):
     '''
@@ -141,21 +141,33 @@ def tenet_input_make(adata, path_log, path_exp, path_pseudo, path_cell_select, p
     except:
         raise
     
-
-options = json.load(open(snakemake.input[1]))
-
 orig_data = sc.read_h5ad(snakemake.input[0])
 adata = orig_data.copy()
 adata.obs = organize_column_dtypes(adata.obs)
 
-anno_of_interest = options['anno_of_interest']
-pseudo_of_interest = options['pseudo_of_interest']
-clusters_of_interest = options['clusters_of_interest']
-gene_list = options['gene_list']
+# options = json.load(open(snakemake.input[1]))
+
+# anno_of_interest = options['anno_of_interest']
+# pseudo_of_interest = options['pseudo_of_interest']
+# clusters_of_interest = options['clusters_of_interest']
+# gene_list = options['gene_list']
+
+# # clusters_of_interest의 길이가 0인 경우, selected_indices에 options['selected_indices'] 할당
+# if len(clusters_of_interest) == 0:
+#     selected_indices = options['selected_indices']
+#     make_cell_select_lasso(adata, selected_indices)
+# else :
+#     # cell_select column 생성 및 '1' 혹은 '0'의 값 할당
+#     make_cell_select(adata, annotation_column = anno_of_interest, categories = clusters_of_interest)
+
+anno_of_interest = sys.argv[0]
+pseudo_of_interest = sys.argv[1]
+clusters_of_interest = sys.argv[2]
+gene_list = sys.argv[3]
+selected_indices = sys.argv[4]
 
 # clusters_of_interest의 길이가 0인 경우, selected_indices에 options['selected_indices'] 할당
 if len(clusters_of_interest) == 0:
-    selected_indices = options['selected_indices']
     make_cell_select_lasso(adata, selected_indices)
 else :
     # cell_select column 생성 및 '1' 혹은 '0'의 값 할당
