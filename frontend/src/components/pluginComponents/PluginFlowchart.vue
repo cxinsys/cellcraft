@@ -66,8 +66,9 @@
 
                 <div class="script-code-container">
                     <pre>{{ completeRule }}</pre>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="isVisualization" v-model="isVisualization" />
+                    <div class="checkbox-group" v-if="this.scriptFile && this.ruleTitle != ''">
+                        <input type="checkbox" id="isVisualization" v-model="isVisualization"
+                            @change="showAlertAndAddOutput" />
                         <label for="isVisualization">Is Visualization Node</label>
                     </div>
                 </div>
@@ -120,10 +121,15 @@
 
                 <div class="button-group">
                     <button type="button" @click="createNode">Create</button>
-                    <button type="button" @click="closeModal">Cancel</button>
+                    <button type="button" @click="closeCreateModal">Cancel</button>
                 </div>
             </div>
         </div>
+
+        <alert-modal :show="showAlertModal" title="※ Please read the instructions for the visualization node" :messages="[
+            'Visualization nodes must always be configured to output a single .json file that can be uploaded to Plotly.',
+            'Visualization nodes can later select the input file from multiple files, so consider the current input file setting as a default value.'
+        ]" @close="closeAlertModal" />
     </div>
 </template>
 
@@ -132,10 +138,12 @@
 import draggable from 'vuedraggable';
 import Vue from "vue";
 import ruleNode from "@/components/nodes/ruleNode.vue";
+import AlertModal from '@/components/modals/AlertModal.vue';
 
 export default {
     components: {
-        draggable
+        draggable,
+        AlertModal
     },
     props: {
         newRules: {
@@ -174,6 +182,7 @@ export default {
             drawflow: { ...this.newDrawflow },
             allowRuleEdit: false,
             isVisualization: false,
+            showAlertModal: false,
         };
     },
     mounted() {
@@ -217,6 +226,26 @@ export default {
             this.isShowCreateModal = true;
             // nodecreate 데이터 초기화
             this.resetNewParameter();
+        },
+        showAlertAndAddOutput() {
+            if (this.isVisualization) {
+                this.showAlertModal = true;
+
+                // 기존 output 파라미터 제거
+                this.parameters = this.parameters.filter(param => param.type !== 'outputFile');
+
+                // 새로운 output 파라미터 추가
+                const outputParameter = {
+                    name: 'output',
+                    type: 'outputFile',
+                    defaultValue: `${this.ruleTitle}.json`,
+                    fileExtension: '.json',
+                };
+                this.parameters.push(outputParameter);
+            }
+        },
+        closeAlertModal() {
+            this.showAlertModal = false;
         },
         toggleRuleView() {
             this.removeNodeIfNotExists();
@@ -355,10 +384,14 @@ export default {
             // 노드 x,y 좌표를 랜덤으로 생성
             let nodeX, nodeY = Math.floor(Math.random() * 100) + 10;
 
-            const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'ruleNode', nodeData, 'ruleNode', 'vue');
-
-            console.log(nodeId, nodeData);
-            this.closeModal();
+            if (this.isVisualization) {
+                const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'visualizationNode', nodeData, 'ruleNode', 'vue');
+                console.log(nodeId, nodeData);
+            } else {
+                const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'ruleNode', nodeData, 'ruleNode', 'vue');
+                console.log(nodeId, nodeData);
+            }
+            this.closeCreateModal();
         },
         addNewRule(id, nodeData) {
             const rule = {
@@ -369,14 +402,16 @@ export default {
                 // script: nodeData.script ? nodeData.script.name : '',
                 script: nodeData.script,
                 parameters: nodeData.parameters,
+                isVisualization: nodeData.isVisualization,
             };
             this.rules.push(rule);
 
             // 노드 데이터 초기화
             this.nodeData = {};
         },
-        closeModal() {
+        closeCreateModal() {
             this.isShowCreateModal = false;
+            this.isVisualization = false;
             this.ruleTitle = "";
             this.scriptFile = null;
             this.parameters = [];
@@ -639,6 +674,10 @@ export default {
     color: #333;
 }
 
+.visualizationNode {
+    background-color: #4fc3f7 !important;
+}
+
 .rule-item {
     padding: 1rem;
     margin-bottom: 1rem;
@@ -796,6 +835,7 @@ img {
     font-size: 0.9rem;
     line-height: 1.4rem;
     overflow-x: auto;
+    overflow-y: hidden;
     position: relative;
 }
 

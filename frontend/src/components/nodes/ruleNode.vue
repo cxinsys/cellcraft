@@ -14,8 +14,6 @@ export default {
             nodeTitle: '',
         };
     },
-    mounted() {
-    },
 };
 </script>
 
