@@ -111,8 +111,9 @@ def upload_scripts(
         for file in files:
             file_path = os.path.join(plugin_folder, file.filename)
             with open(file_path, "wb") as f:
-                f.write(file.file.read())
-
+                content = file.file.read()  # 파일 내용 읽기
+                f.write(content)
+                
         return {"message": "Scripts uploaded successfully", "scripts": [file.filename for file in files]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
