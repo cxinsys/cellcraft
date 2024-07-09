@@ -56,10 +56,10 @@ export default {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
 }
 
 .modal-title {
-    width: 100%;
     font-size: 1.1rem;
     font-weight: bold;
     margin-bottom: 1rem;

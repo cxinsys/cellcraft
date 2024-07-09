@@ -29,16 +29,45 @@ import PluginFlowchart from "@/components/pluginComponents/PluginFlowchart.vue";
 import PluginValidation from "@/components/pluginComponents/PluginValidation.vue";
 
 export default {
+  props: {
+    editName: {
+      type: String,
+      required: true
+    },
+    editDescription: {
+      type: String,
+      required: true
+    },
+    editDependencies: {
+      type: Array,
+      required: true
+    },
+    editDrawflow: {
+      type: Object,
+      required: true
+    },
+    editRules: {
+      type: Array,
+      required: true
+    }
+  },
   data() {
     return {
       currentStep: 1,
+      // plugin: {
+      //   name: '',
+      //   description: '',
+      //   dependencyFiles: [],
+      // },
+      // rules: [],
+      // drawflow: {},
       plugin: {
-        name: '',
-        description: '',
-        dependencyFiles: [],
+        name: this.editName,
+        description: this.editDescription,
+        dependencyFiles: this.editDependencies,
       },
-      rules: [],
-      drawflow: {},
+      drawflow: this.editDrawflow,
+      rules: this.editRules
     };
   },
   components: {
