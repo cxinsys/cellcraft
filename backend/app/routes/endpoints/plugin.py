@@ -6,7 +6,7 @@ import time
 import json
 
 from app.routes import dep
-from app.database.schemas.plugin import PluginData, PluginCreate, Rule
+from app.database.schemas.plugin import PluginData, PluginCreate, PluginAssociate
 from app.database.crud import crud_plugin
 from app.database import models
 
@@ -55,6 +55,15 @@ def upload_plugin(
     try:
         plugin_folder = f"./plugin/{plugin_data.name}/"
         dependency_folder = os.path.join(plugin_folder, "dependency")
+
+        # 중복 검사
+        db_existing_plugin = db.query(models.Plugin).filter(models.Plugin.name == plugin_data.name).first()
+        if db_existing_plugin:
+            # 중복된 경우 업데이트
+            db_plugin = crud_plugin.update_plugin(db=db, plugin=plugin_data, plugin_id=db_existing_plugin.id)
+        else:
+            # 중복되지 않은 경우 새로운 플러그인 생성
+            db_plugin = crud_plugin.create_plugin(db=db, plugin=plugin_data)
 
         # 데이터베이스에 새로운 플러그인 생성
         db_plugin = crud_plugin.create_plugin(db=db, plugin=plugin_data)
@@ -115,5 +124,58 @@ def upload_scripts(
                 f.write(content)
                 
         return {"message": "Scripts uploaded successfully", "scripts": [file.filename for file in files]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/list")
+def list_plugins(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    try:
+        plugins = crud_plugin.get_plugins(db)
+        plugin_list = []
+        for plugin in plugins:
+            plugin_dict = plugin.__dict__
+            plugin_dict['users'] = [user.__dict__ for user in plugin.users]
+            plugin_list.append(plugin_dict)
+        return { "plugins": plugin_list }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/associate")
+def associate_plugin(
+    *,
+    db: Session = Depends(dep.get_db),
+    pluginInfo: PluginAssociate,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    try:
+        # Associate the plugin with the current user
+        crud_plugin.associate_user_plugin(db, current_user.id, pluginInfo.plugin_id)
+
+        # Get the plugin by ID
+        plugin = crud_plugin.get_plugin_by_id(db, pluginInfo.plugin_id)
+
+        return { "message": "Plugin associated with user successfully", "plugin": plugin }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/dissociate")
+def dissociate_plugin(
+    *,
+    db: Session = Depends(dep.get_db),
+    pluginInfo: PluginAssociate,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    try:
+        # Dissociate the plugin with the current user
+        crud_plugin.dissociate_user_plugin(db, current_user.id, pluginInfo.plugin_id)
+
+        # Get the plugin by ID
+        plugin = crud_plugin.get_plugin_by_id(db, pluginInfo.plugin_id)
+
+        return { "message": "Plugin dissociated from user successfully", "plugin": plugin }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

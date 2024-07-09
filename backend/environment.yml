@@ -175,6 +175,7 @@ dependencies:
   - zstd=1.5.2
   - jpype1
   - pip:
+    - alembic==1.13.2
     - aiormq==6.7.6
     - amqp==5.1.1
     - anndata==0.8.0
