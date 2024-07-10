@@ -46,8 +46,6 @@ def update_user(db: Session, user_id: int, user: user.UserUpdate) -> models.User
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
     if user.password:
         db_user.hashed_password = get_password_hash(user.password)
-    if user.plugins:
-        db_user.plugins = user.plugins
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -57,9 +55,16 @@ def create_user(db: Session, user: user.UserCreate) -> models.User:
         email=user.email, 
         hashed_password=get_password_hash(user.password),
         username=user.username,
-        plugins=["TENET", "TENET_TF"],
         )
     db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+
+    # 모든 플러그인을 조회하여 사용자와 연결
+    all_plugins = db.query(models.Plugin).all()
+    for plugin in all_plugins:
+        db_user.plugins.append(plugin)
+    
     db.commit()
     db.refresh(db_user)
     return db_user

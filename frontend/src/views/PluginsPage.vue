@@ -10,44 +10,40 @@
         </div>
       </div>
       <div class="first-line__right">
-        <div class="add__button" @click="showPluginExtension = true">
+        <div class="add__button" @click="addPluginExtension">
           <img class="add__button--icon" src="@/assets/add_circle.png" />
           <h1>Add Plugin</h1>
         </div>
         <div class="search">
-          <input
-            type="text"
-            v-model="searchTerm"
-            placeholder="Search titles..."
-          />
+          <input type="text" v-model="searchTerm" placeholder="Search titles..." />
         </div>
       </div>
     </div>
-    <PluginExtention v-if="showPluginExtension" @close="showPluginExtension = false" />
+    <PluginExtention v-if="showPluginExtension" @close="showPluginExtension = false" :editName="selectedPlugin.name"
+      :editDescription="selectedPlugin.description" :editDependencies="selectedPlugin.dependencies"
+      :editDrawflow="selectedPlugin.drawflow" :editRules="selectedPlugin.rules" />
     <table>
       <tbody>
         <tr v-for="plugin in filteredPlugins" :key="plugin.id">
           <td>
             <div class="plugin-container">
               <div class="title-container">
-                {{ plugin.title }}
+                {{ plugin.name }}
               </div>
               <div class="description-container">
                 {{ plugin.description }}
               </div>
               <div class="lastUpdated-container">
-                Last Updated: {{ plugin.lastUpdated }}
+                Last Updated: {{ plugin.updated_at.split('T')[0] }}
               </div>
             </div>
             <div class="option-container">
-              <div class="setting">
-                <img
-                  class="setting__button--icon"
-                  src="@/assets/settings.png"
-                />
+              <div class="setting" @click="editPluginExtension(plugin)">
+                <img class="setting__button--icon" src="@/assets/settings.png" />
               </div>
               <label class="switch">
-                <input v-model="plugin.checked" type="checkbox" />
+                <input v-model="plugin.checked" type="checkbox" @change="handlePluginAssociate(plugin)"
+                  :disabled="isCheckboxDisabled" />
                 <span class="slider round"></span>
               </label>
             </div>
@@ -59,6 +55,7 @@
 </template>
 
 <script>
+import { getUser, getPlugins, associatePlugin, dissociatePlugin } from "@/api/index";
 import PluginExtention from "@/components/PluginExtention.vue";
 
 export default {
@@ -68,31 +65,60 @@ export default {
   data() {
     return {
       showPluginExtension: false,
+      isCheckboxDisabled: false,
       searchTerm: "",
       plugins: [
-        {
-          id: 1,
-          title: "TENET",
-          description:
-            "A tool for reconstructing Transfer Entropy-based causal gene NETwork from pseudo-time ordered single cell transcriptomic data",
-          lastUpdated: "2024/03/18",
-          checked: true,
-        },
-        {
-          id: 2,
-          title: "TENET TF",
-          description:
-            "A tool for reconstructing Transfer Entropy-based causal gene NETwork from pseudo-time ordered single cell transcriptomic data",
-          lastUpdated: "2024/03/18",
-          checked: true,
-        },
+        // {
+        //   id: 1,
+        //   name: "TENET",
+        //   description:
+        //     "A tool for reconstructing Transfer Entropy-based causal gene NETwork from pseudo-time ordered single cell transcriptomic data",
+        //   lastUpdated: "2024/03/18",
+        //   checked: true,
+        // },
+        // {
+        //   id: 2,
+        //   name: "TENET TF",
+        //   description:
+        //     "A tool for reconstructing Transfer Entropy-based causal gene NETwork from pseudo-time ordered single cell transcriptomic data",
+        //   lastUpdated: "2024/03/18",
+        //   checked: true,
+        // },
       ],
+      profile: {},
+      selectedPlugin: {
+        name: "",
+        description: "",
+        dependencies: [],
+        drawflow: {},
+        rules: [],
+      },
     };
+  },
+  async mounted() {
+    try {
+      const profile = await getUser();
+      this.profile = profile.data;
+
+      const plugins = await getPlugins();
+      console.log(plugins.data.plugins);
+      const currentUser = this.profile.username;
+
+      this.plugins = plugins.data.plugins.map(plugin => {
+        const userIncluded = plugin.users.some(user => user.username === currentUser);
+        return {
+          ...plugin,
+          checked: userIncluded,
+        };
+      });
+    } catch (error) {
+      console.error(error);
+    }
   },
   computed: {
     filteredPlugins() {
       return this.plugins.filter((plugin) =>
-        plugin.title.toLowerCase().includes(this.searchTerm.toLowerCase())
+        plugin.name.toLowerCase().includes(this.searchTerm.toLowerCase())
       );
     },
   },
@@ -105,6 +131,41 @@ export default {
       const day = String(today.getDate()).padStart(2, "0");
       // YYYY/MM/DD 형식으로 문자열을 반환합니다.
       return `${year}/${month}/${day}`;
+    },
+    addPluginExtension() {
+      this.selectedPlugin = {
+        name: "",
+        description: "",
+        dependencies: [],
+        drawflow: {},
+        rules: [],
+      };
+      this.showPluginExtension = true;
+    },
+    editPluginExtension(plugin) {
+      this.selectedPlugin = plugin;
+      this.showPluginExtension = true;
+    },
+    async handlePluginAssociate(plugin) {
+      const pluginId = parseInt(plugin.id);
+
+      try {
+        let result;
+        if (plugin.checked) {
+          result = await associatePlugin(pluginId);
+        } else {
+          result = await dissociatePlugin(pluginId);
+        }
+        console.log(result.data);
+
+        // 1초 동안 체크박스 비활성화
+        this.isCheckboxDisabled = true;
+        setTimeout(() => {
+          this.isCheckboxDisabled = false;
+        }, 1000);
+      } catch (error) {
+        console.error('Error associating/disassociating plugin:', error);
+      }
     },
   },
 };
@@ -259,6 +320,12 @@ button:disabled {
   opacity: 1;
 }
 
+.setting__button--icon:hover {
+  /* 톱니바퀴 이미지 마우스 올렸을 때, 1.1배 커지고 rotate 애니메이션 */
+  transition: 0.5s;
+  transform: scale(1.1) rotate(90deg);
+}
+
 .search {
   display: flex;
   align-items: center;
@@ -316,7 +383,7 @@ button:disabled {
 
 .description-container {
   width: 100%;
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: 400;
   color: #474747;
   margin: 5px 2px;
@@ -377,11 +444,11 @@ button:disabled {
   transition: 0.4s;
 }
 
-input:checked + .slider.w-color {
+input:checked+.slider.w-color {
   background-color: #ccc;
 }
 
-input:checked + .slider.icon {
+input:checked+.slider.icon {
   background-color: #a37eba;
 }
 
@@ -393,11 +460,11 @@ input:checked + .slider.icon {
   background-color: #e2df23;
 }
 
-input:checked + .slider {
+input:checked+.slider {
   background-color: #2196f3;
 }
 
-input:checked + .slider:before {
+input:checked+.slider:before {
   -webkit-transform: translateX(26px);
   -ms-transform: translateX(26px);
   transform: translateX(26px);

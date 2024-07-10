@@ -83,11 +83,23 @@
         src="@/assets/close.png"
       />
     </div>
+    <div v-if="isSelectModalVisible" class="plugin-select-modal">
+      <div class="plugin-select-modal__content">
+        <!-- <span class="close" @click="closeSelectModal">&times;</span> -->
+        <h2>Select a Plugin Template</h2>
+        <ul>
+          <li class="plugin-item" v-for="plugin in plugins" :key="plugin.id" @click="selectPlugin(plugin)">
+            {{ plugin.name }}
+            <span class="arrow">→</span>
+          </li>
+        </ul>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { getUser, getWorkflows, deleteWorkflow } from "@/api/index";
+import { getUser, getWorkflows, deleteWorkflow, getPlugins } from "@/api/index";
 
 export default {
   data() {
@@ -104,11 +116,13 @@ export default {
       deletionTimer: null,
       messageContent: "",
       targetWorkflow: null,
+      plugins: [],
+      isSelectModalVisible: false,
     };
   },
   methods: {
     createProject() {
-      this.$router.push("/workflow");
+      this.isSelectModalVisible = true;
     },
     openWorkflow(id) {
       if (id) {
@@ -158,6 +172,14 @@ export default {
       this.toggleMessage = false;
       clearTimeout(this.deletionTimer);
     },
+    closeSelectModal() {
+      this.isSelectModalVisible = false;
+    },
+    selectPlugin(plugin) {
+      this.selectedPlugin = plugin;
+      this.closeSelectModal();
+      this.$router.push("/workflow");
+    }
   },
   async mounted() {
     try {
@@ -168,6 +190,9 @@ export default {
         return new Date(b.updated_at) - new Date(a.updated_at);
       });
       this.workflows = workflows.data;
+      const plugins = await getPlugins();
+      console.log(plugins.data.plugins);
+      this.plugins = plugins.data.plugins;
     } catch (error) {
       console.error(error);
     }
@@ -459,4 +484,68 @@ export default {
   line-height: 1.25rem;
   color: rgba(0, 0, 0, 0.8);
 }
+.plugin-select-modal{
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.plugin-select-modal__content{
+  background-color: white;
+  border-radius: 10px;
+  padding: 1.5rem 2rem;
+  position: relative;
+}
+.plugin-select-modal__content h2{
+  width: 15rem;
+  margin-bottom: 1rem;
+}
+.plugin-select-modal__content ul{
+  list-style: none;
+  padding: 0;
+}
+.plugin-select-modal__content li{
+  padding: 10px;
+  cursor: pointer;
+}
+.plugin-select-modal__content li:hover{
+  background-color: #f5f5f5;
+}
+.plugin-item {
+  position: relative;
+  padding-right: 1rem;
+}
+
+.plugin-item .arrow {
+  font-size: 1.1rem;
+  position: absolute;
+  right: 10px;
+  opacity: 0;
+  transition: all 0.5s;
+}
+
+.plugin-item:hover .arrow {
+  opacity: 1;
+  right: 5px;
+}
+/* .close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  color: rgb(255, 90, 90);
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+  color: red;
+  text-decoration: none;
+  cursor: pointer;
+} */
 </style>

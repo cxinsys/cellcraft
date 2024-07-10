@@ -1,9 +1,14 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, DateTime, UniqueConstraint
+from sqlalchemy import Table, Boolean, Column, ForeignKey, Integer, String, Text, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB, JSON, ARRAY
 
 from app.database.conn import Base
 
+user_plugin_association = Table(
+    'user_plugin_association', Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('plugin_id', Integer, ForeignKey('plugins.id'))
+)
 
 class User(Base):
     __tablename__ = "users"
@@ -14,12 +19,11 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
-    plugin_id = Column(Integer, ForeignKey("plugins.id"))
 
     files = relationship("File", back_populates="user")
     workflows = relationship("Workflow", back_populates="user")
     tasks = relationship("Task", back_populates="user")
-    plugins = relationship("Plugin", back_populates="user")
+    plugins = relationship("Plugin", secondary=user_plugin_association, back_populates="users")
 
 class File(Base):
     __tablename__ = "files"
@@ -75,4 +79,4 @@ class Plugin(Base):
     drawflow = Column(JSONB, nullable=False)
     rules = Column(ARRAY(JSON), nullable=False)
 
-    user = relationship("User", back_populates="plugins")
+    users = relationship("User", secondary=user_plugin_association, back_populates="plugins")

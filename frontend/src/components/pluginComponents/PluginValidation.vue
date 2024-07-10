@@ -209,7 +209,7 @@ export default {
                 }
             }).join(' ');
 
-            const scriptName = rule.script.name;
+            const scriptName = rule.script.name || rule.script;
             let command = '';
             if (scriptName.endsWith('.py')) {
                 command = `/python ${scriptName}`;
