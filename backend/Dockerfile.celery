@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev \
     jq \
     openssh-client \
+    r-base \
     && rm -rf /var/lib/apt/lists/*
 
 # Miniconda 설치
@@ -47,6 +48,9 @@ WORKDIR /app
 # Conda 환경 설정
 COPY environment.yml ./
 RUN conda env create -f environment.yml
+
+# R 패키지 설치
+RUN R -e "install.packages(c('ggplot2', 'pheatmap', 'plotly', 'jsonlite'), repos='http://cran.rstudio.com/')"
 
 # 애플리케이션 소스 코드 복사
 COPY . .

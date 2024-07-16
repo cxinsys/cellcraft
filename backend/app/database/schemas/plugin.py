@@ -49,3 +49,6 @@ class PluginUpdate(PluginCreate):
     dependencies: Optional[List[DependencyFile]] = None
     drawflow: Optional[Dict[str, Any]] = None
     rules: Optional[List[Rule]] = None
+
+class PluginAssociate(BaseModel):
+    plugin_id: int
