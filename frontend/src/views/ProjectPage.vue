@@ -12,11 +12,7 @@
         </div>
       </div>
       <div class="projects">
-        <div
-          class="projects__recent"
-          v-bind:class="{ toggleMenu: toggleMenu }"
-          @click="toggleMenu = true"
-        >
+        <div class="projects__recent" v-bind:class="{ toggleMenu: toggleMenu }" @click="toggleMenu = true">
           <img class="projects__icon" src="@/assets/recent.png" />
           <p class="projects__text">Recents</p>
         </div>
@@ -27,11 +23,7 @@
         <p class="header__text">Recently Viewed</p>
       </header>
       <ul class="project-view__list">
-        <li
-          class="project-component"
-          @click="createProject"
-          @contextmenu.prevent
-        >
+        <li class="project-component" @click="createProject" @contextmenu.prevent>
           <div class="project__content">
             <img class="project__thumnail--icon" src="@/assets/create.png" />
           </div>
@@ -40,21 +32,11 @@
             <p class="project__date">Data Analysis Pipeline</p>
           </div>
         </li>
-        <li
-          class="project-component"
-          v-for="(workflow, idx) in workflows"
-          :key="idx"
-          @contextmenu.prevent
-          @click="openWorkflow(workflow.id)"
-          @click.right="RMouseClick($event, workflow.id, idx)"
-        >
+        <li class="project-component" v-for="(workflow, idx) in workflows" :key="idx" @contextmenu.prevent
+          @click="openWorkflow(workflow.id)" @click.right="RMouseClick($event, workflow.id, idx)">
           <div class="project__content">
-            <img
-              class="project__thumnail"
-              :src="
-                workflow.thumbnail || require('@/assets/workflow-template2.png')
-              "
-            />
+            <img class="project__thumnail" :src="workflow.thumbnail || require('@/assets/workflow-template2.png')
+              " />
           </div>
           <div class="project__info">
             <p class="project__title">{{ workflow.title }}</p>
@@ -62,12 +44,8 @@
           </div>
         </li>
       </ul>
-      <ul
-        ref="filesMenu"
-        class="files_menu"
-        v-bind:class="{ open: R_Mouse_isActive }"
-        :style="{ left: xPosition, top: yPosition }"
-      >
+      <ul ref="filesMenu" class="files_menu" v-bind:class="{ open: R_Mouse_isActive }"
+        :style="{ left: xPosition, top: yPosition }">
         <li @click="openWorkflow">Open</li>
         <!-- <li>Copy Link</li>
         <li>Rename</li> -->
@@ -77,17 +55,25 @@
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
       <p class="message__text">{{ messageContent }}</p>
       <p class="message__undo" @click="undoDeletion">undo</p>
-      <img
-        class="message__close"
-        @click="toggleMessage = !toggleMessage"
-        src="@/assets/close.png"
-      />
+      <img class="message__close" @click="toggleMessage = !toggleMessage" src="@/assets/close.png" />
+    </div>
+    <div v-if="isSelectModalVisible" class="plugin-select-modal">
+      <div class="plugin-select-modal__content">
+        <!-- <span class="close" @click="closeSelectModal">&times;</span> -->
+        <h2>Select a Plugin Template</h2>
+        <ul>
+          <li class="plugin-item" v-for="plugin in filteredPlugins" :key="plugin.id" @click="selectPlugin(plugin)">
+            {{ plugin.name }}
+            <span class="arrow">→</span>
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { getUser, getWorkflows, deleteWorkflow } from "@/api/index";
+import { getUser, getWorkflows, deleteWorkflow, getPlugins } from "@/api/index";
 
 export default {
   data() {
@@ -104,22 +90,24 @@ export default {
       deletionTimer: null,
       messageContent: "",
       targetWorkflow: null,
+      plugins: [],
+      isSelectModalVisible: false,
     };
   },
   methods: {
     createProject() {
-      this.$router.push("/workflow");
+      this.isSelectModalVisible = true;
     },
-    openWorkflow(id) {
-      if (id) {
+    openWorkflow(workflow_id) {
+      if (workflow_id) {
         this.$router.push({
           path: "/workflow",
-          query: { id: id },
+          query: { workflow_id: workflow_id },
         });
       } else {
         this.$router.push({
           path: "/workflow",
-          query: { id: this.workflow_id },
+          query: { workflow_id: this.workflow_id },
         });
       }
     },
@@ -158,16 +146,39 @@ export default {
       this.toggleMessage = false;
       clearTimeout(this.deletionTimer);
     },
+    closeSelectModal() {
+      this.isSelectModalVisible = false;
+    },
+    selectPlugin(plugin) {
+      const plugin_id = plugin.id;
+      this.closeSelectModal();
+      this.$router.push({
+        path: "/workflow",
+        query: { plugin_id: plugin_id },
+      });
+    }
   },
   async mounted() {
     try {
       const profile = await getUser();
       this.profile = profile.data;
+      const currentUser = profile.data.username;
+
       const workflows = await getWorkflows();
       workflows.data.sort((a, b) => {
         return new Date(b.updated_at) - new Date(a.updated_at);
       });
       this.workflows = workflows.data;
+
+      const plugins = await getPlugins();
+      console.log(plugins.data.plugins);
+      this.plugins = plugins.data.plugins.map(plugin => {
+        const userIncluded = plugin.users.some(user => user.username === currentUser);
+        return {
+          ...plugin,
+          checked: userIncluded,
+        };
+      });
     } catch (error) {
       console.error(error);
     }
@@ -183,6 +194,11 @@ export default {
       }
     },
   },
+  computed: {
+    filteredPlugins() {
+      return this.plugins.filter(plugin => plugin.checked);
+    }
+  },
 };
 </script>
 
@@ -193,12 +209,14 @@ export default {
   overflow: hidden;
   display: flex;
 }
+
 .side-panel {
   width: 18rem;
   height: 100%;
   border-right: 1px solid #aeaeae;
   background-color: rgb(201, 202, 203);
 }
+
 .profile {
   width: 100%;
   height: 4rem;
@@ -206,6 +224,7 @@ export default {
   align-items: center;
   border-bottom: 1px solid #e1e1e1;
 }
+
 .profile__img {
   width: 2rem;
   height: 2rem;
@@ -213,6 +232,7 @@ export default {
   margin-left: 1.5rem;
   opacity: 0.8;
 }
+
 .profile__column {
   width: calc(100% - 3.5rem);
   height: 100%;
@@ -221,6 +241,7 @@ export default {
   justify-content: center;
   padding-left: 1rem;
 }
+
 .profile__username,
 .profile__email {
   font-family: "Montserrat", sans-serif;
@@ -230,21 +251,24 @@ export default {
   line-height: 1.2rem;
   color: rgba(0, 0, 0, 1);
 }
+
 .profile__email {
   font-weight: 400;
   font-size: 0.9rem;
   line-height: 0.9rem;
   color: rgba(0, 0, 0, 0.6);
 }
+
 .projects {
   width: 100%;
   display: flex;
   flex-direction: column;
   padding: 1rem 0;
 }
+
 .projects__recent,
 .projects__template {
-  width: clac(100% - 2rem);
+  width: calc(100% - 2rem);
   height: 3rem;
   margin: 0.1rem 1rem;
   border-radius: 1rem;
@@ -252,17 +276,20 @@ export default {
   align-items: center;
   cursor: pointer;
 }
+
 .projects__recent:hover,
 .projects__template:hover {
   margin: 0.1rem 1rem;
   border-radius: 1rem;
   background: rgb(176, 177, 178);
 }
+
 .toggleMenu {
   margin: 0.1rem 1rem;
   border-radius: 1rem;
   background: rgb(176, 177, 178);
 }
+
 .projects__icon {
   width: 1.5rem;
   height: 1.5rem;
@@ -270,6 +297,7 @@ export default {
   margin-left: 1.5rem;
   color: rgba(0, 0, 0, 0.7);
 }
+
 .projects__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -279,12 +307,14 @@ export default {
   padding-left: 1rem;
   color: rgba(0, 0, 0, 0.7);
 }
+
 .project-view {
   width: calc(100% - 20rem);
   height: 100%;
   overflow-y: auto;
   background-color: #ffffff;
 }
+
 .project-view__header {
   width: 100%;
   height: 5rem;
@@ -292,6 +322,7 @@ export default {
   align-items: center;
   border-bottom: 1px solid #e1e1e1;
 }
+
 .header__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -301,14 +332,15 @@ export default {
   padding-left: 2rem;
   color: rgba(0, 0, 0, 0.8);
 }
+
 .project-view__list {
   display: grid;
-  grid-template-columns: repeat(
-    auto-fill,
-    minmax(230px, 1fr)
-  ); /* 컴포넌트 최소 너비를 250px, 최대를 1fr로 설정 */
+  grid-template-columns: repeat(auto-fill,
+      minmax(230px, 1fr));
+  /* 컴포넌트 최소 너비를 250px, 최대를 1fr로 설정 */
   padding: 3rem;
-  gap: 3rem; /* for space around items */
+  gap: 3rem;
+  /* for space around items */
 }
 
 .project-component {
@@ -326,6 +358,7 @@ export default {
 .project-component:hover {
   box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px;
 }
+
 .project__content {
   width: 100%;
   height: 10rem;
@@ -333,17 +366,20 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
 .project__thumnail {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 1rem 1rem 0 0;
 }
+
 .project__thumnail--icon {
   width: 4rem;
   height: 4rem;
   object-fit: cover;
 }
+
 .project__info {
   width: 100%;
   height: 5rem;
@@ -352,6 +388,7 @@ export default {
   flex-direction: column;
   justify-content: center;
 }
+
 .project__title {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -361,6 +398,7 @@ export default {
   padding: 0 0 0.5rem 1rem;
   color: rgba(0, 0, 0, 0.8);
 }
+
 .project__date {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -370,6 +408,7 @@ export default {
   padding-left: 1rem;
   opacity: 0.6;
 }
+
 .files_menu {
   display: none;
   position: absolute;
@@ -384,17 +423,20 @@ export default {
   z-index: 999999;
   text-transform: capitalize;
 }
+
 .files_menu.open {
   display: block;
   opacity: 1;
   position: absolute;
 }
-.files_menu > li {
+
+.files_menu>li {
   border-left: 3px solid transparent;
   transition: ease 0.2s;
   padding: 10px;
 }
-.files_menu > li:hover {
+
+.files_menu>li:hover {
   background: #e5e5e5;
 }
 
@@ -411,6 +453,7 @@ export default {
   border-radius: 1rem;
   padding: 0 1rem;
 }
+
 .message__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -419,6 +462,7 @@ export default {
   line-height: 1rem;
   color: #ffffff;
 }
+
 .message__undo {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -429,6 +473,7 @@ export default {
   text-decoration: underline;
   cursor: pointer;
 }
+
 .message__close {
   cursor: pointer;
   width: 1rem;
@@ -436,12 +481,13 @@ export default {
   object-fit: contain;
   margin: 0 0.5rem;
   opacity: 0.5;
-  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%)
-    contrast(100%);
+  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
 }
+
 .toggleMessage {
   display: none;
 }
+
 .profile__header {
   width: 90%;
   height: 10%;
@@ -451,6 +497,7 @@ export default {
   position: relative;
   color: rgba(0, 0, 0, 0.8);
 }
+
 .profile__title {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -459,4 +506,76 @@ export default {
   line-height: 1.25rem;
   color: rgba(0, 0, 0, 0.8);
 }
+
+.plugin-select-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.plugin-select-modal__content {
+  background-color: white;
+  border-radius: 10px;
+  padding: 1.5rem 2rem;
+  position: relative;
+}
+
+.plugin-select-modal__content h2 {
+  width: 15rem;
+  margin-bottom: 1rem;
+}
+
+.plugin-select-modal__content ul {
+  list-style: none;
+  padding: 0;
+}
+
+.plugin-select-modal__content li {
+  padding: 10px;
+  cursor: pointer;
+}
+
+.plugin-select-modal__content li:hover {
+  background-color: #f5f5f5;
+}
+
+.plugin-item {
+  position: relative;
+  padding-right: 1rem;
+}
+
+.plugin-item .arrow {
+  font-size: 1.1rem;
+  position: absolute;
+  right: 10px;
+  opacity: 0;
+  transition: all 0.5s;
+}
+
+.plugin-item:hover .arrow {
+  opacity: 1;
+  right: 5px;
+}
+
+/* .close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  color: rgb(255, 90, 90);
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+  color: red;
+  text-decoration: none;
+  cursor: pointer;
+} */
 </style>

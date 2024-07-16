@@ -18,7 +18,7 @@
         </div>
 
         <!-- Drawflow 컴포넌트 -->
-        <div v-show="!isRuleView" id="rule-drawflow" @drop="drop" @dragover="allowDrop"></div>
+        <div v-show="!isRuleView" ref="drawflow" id="rule-drawflow" @drop="drop" @dragover="allowDrop"></div>
 
         <!-- Rule 보기 컴포넌트 -->
         <div v-show="isRuleView" class="rule-view-container">
@@ -126,10 +126,8 @@
             </div>
         </div>
 
-        <alert-modal :show="showAlertModal" title="※ Please read the instructions for the visualization node" :messages="[
-            'Visualization nodes must always be configured to output a single .json file that can be uploaded to Plotly.',
-            'Visualization nodes can later select the input file from multiple files, so consider the current input file setting as a default value.'
-        ]" @close="closeAlertModal" />
+        <alert-modal :show="alertContent.isShowAlertModal" :title="alertContent.title" :messages="alertContent.messages"
+            @close="closeAlertModal" />
     </div>
 </template>
 
@@ -182,10 +180,16 @@ export default {
             drawflow: { ...this.newDrawflow },
             allowRuleEdit: false,
             isVisualization: false,
-            showAlertModal: false,
+            alertContent: {
+                isShowAlertModal: false,
+                title: "",
+                messages: [],
+            },
+            drawflowInstance: null,
         };
     },
     mounted() {
+        this.initDrawflow();
         const id = document.getElementById("rule-drawflow");
         Vue.prototype.$df = new Drawflow(id, Vue, this);
         //this.$df == editor
@@ -222,6 +226,20 @@ export default {
         },
     },
     methods: {
+        initDrawflow() {
+            this.$nextTick(() => {
+                const drawflowContainer = this.$refs.drawflow;
+                if (drawflowContainer) {
+                    this.drawflowInstance = new Drawflow(drawflowContainer);
+                    this.drawflowInstance.start();
+                    if (this.newDrawflow) {
+                        this.importDrawflowData();
+                    }
+                } else {
+                    console.error("Drawflow container not found.");
+                }
+            });
+        },
         showCreateModal() {
             this.isShowCreateModal = true;
             // nodecreate 데이터 초기화
@@ -229,7 +247,12 @@ export default {
         },
         showAlertAndAddOutput() {
             if (this.isVisualization) {
-                this.showAlertModal = true;
+                const title = "※ Please read the instructions for the visualization node"
+                const messages = [
+                    'Visualization nodes must always be configured to output a single .json file that can be uploaded to Plotly.',
+                    'Visualization nodes can later select the input file from multiple files, so consider the current input file setting as a default value.'
+                ]
+                this.showAlertandFillContent(title, messages);
 
                 // 기존 output 파라미터 제거
                 this.parameters = this.parameters.filter(param => param.type !== 'outputFile');
@@ -244,8 +267,13 @@ export default {
                 this.parameters.push(outputParameter);
             }
         },
+        showAlertandFillContent(title, messages) {
+            this.alertContent.title = title;
+            this.alertContent.messages = messages;
+            this.alertContent.isShowAlertModal = true;
+        },
         closeAlertModal() {
-            this.showAlertModal = false;
+            this.alertContent.isShowAlertModal = false;
         },
         toggleRuleView() {
             this.removeNodeIfNotExists();
@@ -320,7 +348,11 @@ export default {
         },
         addParameter() {
             if (!this.scriptFile) {
-                alert('Please upload a script file first.');
+                const title = "※ Please try again with the following in mind"
+                const messages = [
+                    'Please upload a script file first.',
+                ]
+                this.showAlertandFillContent(title, messages);
                 return;
             }
             const newParam = { ...this.newParameter }; // 객체 복사
@@ -328,8 +360,12 @@ export default {
             if (newParam.type === 'inputFile' || newParam.type === 'outputFile') {
                 newParam.defaultValue = newParam.name + newParam.fileExtension;
             }
-            if (!newParam.name || !newParam.defaultValue) {
-                alert('Please fill in the parameter name and default value.');
+            if (!newParam.name) {
+                const title = "※ Please try again with the following in mind"
+                const messages = [
+                    'Please fill in the parameter name.',
+                ]
+                this.showAlertandFillContent(title, messages);
                 return;
             }
             this.parameters.push(newParam);
@@ -356,7 +392,11 @@ export default {
         createNode() {
             const isDuplicateTitle = this.rules.some(rule => rule.name === this.ruleTitle);
             if (isDuplicateTitle) {
-                alert('The rule title already exists. Please change the rule title.');
+                const title = "※ Please try again with the following in mind"
+                const messages = [
+                    'The rule title already exists. Please change the rule title.',
+                ]
+                this.showAlertandFillContent(title, messages);
                 this.ruleTitle = "";
                 return;
             }
@@ -366,7 +406,11 @@ export default {
 
             // Check if any required data is empty
             if (!this.ruleTitle || inputFiles.length === 0 || outputFiles.length === 0 || !this.scriptFile || this.parameters.length === 0) {
-                alert('All fields must be filled out.');
+                const title = "※ Please try again with the following in mind"
+                const messages = [
+                    'All fields must be filled out.',
+                ]
+                this.showAlertandFillContent(title, messages);
                 return;
             }
 
@@ -382,7 +426,8 @@ export default {
             this.nodeData = nodeData;
 
             // 노드 x,y 좌표를 랜덤으로 생성
-            let nodeX, nodeY = Math.floor(Math.random() * 100) + 10;
+            let nodeX = Math.floor((Math.random() * 500) + 10)
+            let nodeY = Math.floor((Math.random() * 500) + 10)
 
             if (this.isVisualization) {
                 const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'visualizationNode', nodeData, 'ruleNode', 'vue');
@@ -427,8 +472,9 @@ export default {
                 }
             }).join(' ');
 
-            const scriptName = rule.script.name;
+            const scriptName = rule.script.name || rule.script;
             let command = '';
+            console.log("scriptName", scriptName);
             if (scriptName.endsWith('.py')) {
                 command = `/python ${scriptName}`;
             } else if (scriptName.endsWith('.R', 'r')) {
@@ -495,7 +541,11 @@ export default {
                 }
             } else {
                 this.$df.removeSingleConnection(connection.output_id, connection.input_id, connection.output_class, connection.input_class);
-                alert('Connection is not allowed.');
+                const title = "※ Please try again with the following in mind"
+                const messages = [
+                    'Connection is not allowed.',
+                ]
+                this.showAlertandFillContent(title, messages);
             }
         },
         onNodeRemoved(id) {
@@ -569,6 +619,8 @@ export default {
         importDrawflowData() {
             if (this.drawflow && this.drawflow.drawflow) {
                 try {
+                    this.$df.clear();
+                    console.log("importing drawflow data: ", this.drawflow);
                     this.$df.import(this.drawflow);
                 } catch (error) {
                     console.error("Error importing drawflow data: ", error);
@@ -970,12 +1022,12 @@ img {
     z-index: 9997;
 }
 
-.drawflow .drawflow-node {
+#rule-drawflow .drawflow .drawflow-node {
     display: flex;
     background: #ffffff;
     color: #000000;
     border: 2px solid #000000;
-    border-radius: 4px;
+    border-radius: 1rem;
     min-height: 40px;
     width: auto;
     min-width: 160px;
@@ -985,25 +1037,25 @@ img {
     box-shadow: 0px 2px 15px 2px #000000;
 }
 
-.drawflow .drawflow-node:hover {
+#rule-drawflow .drawflow .drawflow-node:hover {
     background: #ffffff;
     color: #000000;
     border: 2px solid #000000;
-    border-radius: 4px;
+    border-radius: 1rem;
     -webkit-box-shadow: 0px 2px 15px 2px rgba(255, 255, 255, 1);
     box-shadow: 0px 2px 15px 2px rgba(255, 255, 255, 1);
 }
 
-.drawflow .drawflow-node.selected {
+#rule-drawflow .drawflow .drawflow-node.selected {
     background: rgba(230, 230, 230, 0.75);
     color: rgba(0, 0, 0, 1);
     border: 2px solid #000000;
-    border-radius: 4px;
+    border-radius: 1rem;
     -webkit-box-shadow: 0px 2px 15px 2px rgba(0, 0, 0, 1);
     box-shadow: 0px 2px 15px 2px rgba(0, 0, 0, 1);
 }
 
-.drawflow .drawflow-node .input {
+#rule-drawflow .drawflow .drawflow-node .input {
     left: -25px;
     background: #ffffff;
     border: 2px solid #000000;
@@ -1012,17 +1064,17 @@ img {
     width: 13px;
 }
 
-.drawflow .drawflow-node .input:hover {
+#rule-drawflow .drawflow .drawflow-node .input:hover {
     background: #ffffff;
     border: 2px solid #000000;
     border-radius: 50px;
 }
 
-.drawflow .drawflow-node .outputs {
+#rule-drawflow .drawflow .drawflow-node .outputs {
     float: none;
 }
 
-.drawflow .drawflow-node .output {
+#rule-drawflow .drawflow .drawflow-node .output {
     right: -8px;
     background: #ffffff;
     border: 2px solid #000000;
@@ -1031,38 +1083,38 @@ img {
     width: 13px;
 }
 
-.drawflow .drawflow-node .output:hover {
+#rule-drawflow .drawflow .drawflow-node .output:hover {
     background: #ffffff;
     border: 2px solid #000000;
     border-radius: 50px;
 }
 
-.drawflow .connection .main-path {
+#rule-drawflow .drawflow .connection .main-path {
     stroke-width: 5px;
     stroke: #4682b4;
 }
 
-.drawflow .connection .main-path:hover {
+#rule-drawflow .drawflow .connection .main-path:hover {
     stroke: #4682b4;
 }
 
-.drawflow .connection .main-path.selected {
+#rule-drawflow .drawflow .connection .main-path.selected {
     stroke: #43b993;
 }
 
-.drawflow .connection .point {
+#rule-drawflow .drawflow .connection .point {
     stroke: #000000;
     stroke-width: 2px;
     fill: #ffffff;
 }
 
-.drawflow .connection .point:hover {
+#rule-drawflow .drawflow .connection .point:hover {
     stroke: #000000;
     stroke-width: 2px;
     fill: #ffffff;
 }
 
-.drawflow-delete {
+#rule-drawflow .drawflow-delete {
     /* display: block; */
     display: none;
     color: #ffffff;
@@ -1071,11 +1123,11 @@ img {
     border-radius: 50px;
 }
 
-.parent-node .drawflow-delete {
+#rule-drawflow .parent-node .drawflow-delete {
     top: -15px;
 }
 
-.drawflow-delete:hover {
+#rule-drawflow .drawflow-delete:hover {
     color: #000000;
     background: #ffffff;
     border: 2px solid #000000;

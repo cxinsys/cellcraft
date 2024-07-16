@@ -161,20 +161,36 @@ function validationPlugin(plugin, rules, drawflow) {
     rules,
     drawflow,
   };
-  
-  return instance.post("/routes/plugin/validation", data)
+
+  return instance.post("/routes/plugin/validation", data);
 }
 
 function uploadPluginMetadata(pluginCreate) {
-  return instance.post("/routes/plugin/upload", pluginCreate)
+  return instance.post("/routes/plugin/upload", pluginCreate);
 }
 
 function uploadPluginScripts(formData) {
   return instance.post("/routes/plugin/upload_scripts", formData, {
     headers: {
-      'Content-Type': 'multipart/form-data'
-    }
+      "Content-Type": "multipart/form-data",
+    },
   });
+}
+
+function getPlugins() {
+  return instance.get("/routes/plugin/list");
+}
+
+function associatePlugin(plugin_id) {
+  return instance.post("/routes/plugin/associate", { plugin_id : plugin_id });
+}
+
+function dissociatePlugin(plugin_id) {
+  return instance.post("/routes/plugin/dissociate", { plugin_id : plugin_id });
+}
+
+function getPluginTemplate(plugin_id) {
+  return instance.get(`/routes/plugin/template/${plugin_id}`);
 }
 
 export {
@@ -212,4 +228,8 @@ export {
   validationPlugin,
   uploadPluginMetadata,
   uploadPluginScripts,
+  getPlugins,
+  associatePlugin,
+  dissociatePlugin,
+  getPluginTemplate,
 };

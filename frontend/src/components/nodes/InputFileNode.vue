@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="nodeBox" ref="nodeBox">
-      <img class="nodeBox__icon" src="@/assets/algorithm2.png" draggable="false" />
+      <img class="nodeBox__icon" src="@/assets/input_file.png" draggable="false" />
     </div>
     <div class="nodeTitleBox">
       <input type="text" class="nodeTitle" v-model="nodeTitle" @input="updateTitle" df-title />
@@ -31,7 +31,7 @@ export default {
     nodeTitle: {
       get() {
         if (this.nodeId == null) {
-          return "Algorithm"; // 또는 기본 타이틀 반환
+          return "Input File"; // 또는 기본 타이틀 반환
         }
         const node = this.$store.getters.getNodeInfo(this.nodeId);
         return node.title;
@@ -66,11 +66,96 @@ export default {
   object-fit: contain;
 }
 
+.layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-layout {
+  margin: 20px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-layout__row {
+  width: 100%;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fileUpload-form {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.fileUpload-form__button {
+  display: inline-block;
+  width: 46%;
+  height: 1.5rem;
+  padding-top: 10px;
+  border: 1px solid black;
+  color: black;
+  background: white;
+  margin-bottom: 5px;
+  cursor: pointer;
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+.fileUpload-form input[type="file"],
+.fileUpload-form input[type="submit"] {
+  position: absolute;
+  width: 0;
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+}
+
+.fileUpload-form__title {
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+/* .fileUpload-form__info{
+  
+  } */
+
+.fileUpload-form__arrow {
+  color: black;
+  width: 1.5rem;
+  height: auto;
+}
+
+.toggle-icon {
+  background: rgb(227, 243, 252);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 .nodeTitleBox {
   margin-top: 0.2rem;
-  width: 8rem;
+  width: 10rem;
   height: 1.5rem;
-  left: calc(50% - 4rem);
+  left: calc(50% - 5rem);
   display: flex;
   position: absolute;
   align-items: center;
@@ -98,8 +183,8 @@ export default {
 
 @media (prefers-color-scheme: dark) {
   /* .nodeBox__icon {
-    filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg)
-      brightness(107%) contrast(101%);
-  } */
+      filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg)
+        brightness(107%) contrast(101%);
+    } */
 }
 </style>
