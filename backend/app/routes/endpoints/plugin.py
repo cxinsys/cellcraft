@@ -9,6 +9,7 @@ from app.routes import dep
 from app.database.schemas.plugin import PluginData, PluginCreate, PluginAssociate
 from app.database.crud import crud_plugin
 from app.database import models
+from app.common import plugin_utils
 
 router = APIRouter()
 
@@ -179,3 +180,20 @@ def dissociate_plugin(
         return { "message": "Plugin dissociated from user successfully", "plugin": plugin }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/template/{plugin_id}")
+def get_plugin_template(
+    *,
+    db: Session = Depends(dep.get_db),
+    plugin_id: int,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    try:
+        # Get the plugin by ID
+        plugin = crud_plugin.get_plugin_by_id(db, plugin_id)
+        
+        # Generate the drawflow template
+        drawflow = plugin_utils.generate_plugin_drawflow_template(plugin.drawflow, plugin.name)
+        
+        return { "drawflow": drawflow }
+    except Exception as e:

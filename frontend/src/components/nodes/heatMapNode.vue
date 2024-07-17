@@ -1,15 +1,10 @@
 <template>
   <div>
     <div class="nodeBox" ref="nodeBox">
-      <img class="nodeBox__icon" src="@/assets/heatMap2.png" />
+      <img class="nodeBox__icon" src="@/assets/heatMap2.png" draggable="false" />
     </div>
     <div class="nodeTitleBox">
-      <input
-        type="text"
-        class="nodeTitle"
-        v-model="nodeTitle"
-        @input="updateTitle"
-      />
+      <input type="text" class="nodeTitle" v-model="nodeTitle" @input="updateTitle" />
     </div>
   </div>
 </template>
@@ -64,17 +59,20 @@ export default {
   justify-content: center;
   text-align: center;
 }
+
 .nodeBox__icon {
   width: 55%;
   height: 55%;
   object-fit: contain;
 }
+
 .layout {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
 }
+
 .toggle-layout {
   margin: 20px;
   border-radius: 10px;
@@ -83,6 +81,7 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
 .toggle-layout__row {
   width: 100%;
   height: auto;
@@ -90,6 +89,7 @@ export default {
   align-items: center;
   justify-content: space-between;
 }
+
 .fileUpload-form {
   width: 100%;
   height: 100%;
@@ -99,6 +99,7 @@ export default {
   justify-content: center;
   text-align: center;
 }
+
 .fileUpload-form__button {
   display: inline-block;
   width: 46%;
@@ -137,6 +138,7 @@ export default {
   width: 1.5rem;
   height: auto;
 }
+
 .toggle-icon {
   background: rgb(227, 243, 252);
   width: 20px;
@@ -148,6 +150,7 @@ export default {
   justify-content: center;
   text-align: center;
 }
+
 .nodeTitleBox {
   margin-top: 0.2rem;
   width: 8rem;
@@ -158,6 +161,7 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
 .nodeTitle {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -170,11 +174,13 @@ export default {
   border: none;
   text-overflow: ellipsis;
 }
+
 .nodeTitle:focus {
   outline: none;
   background: rgba(255, 255, 255, 0.442);
   border-radius: 4px;
 }
+
 @media (prefers-color-scheme: dark) {
   /* .nodeBox__icon {
     filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg)

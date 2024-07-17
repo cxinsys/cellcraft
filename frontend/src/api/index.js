@@ -189,6 +189,10 @@ function dissociatePlugin(plugin_id) {
   return instance.post("/routes/plugin/dissociate", { plugin_id : plugin_id });
 }
 
+function getPluginTemplate(plugin_id) {
+  return instance.get(`/routes/plugin/template/${plugin_id}`);
+}
+
 export {
   registerUser,
   loginUser,
@@ -227,4 +231,5 @@ export {
   getPlugins,
   associatePlugin,
   dissociatePlugin,
+  getPluginTemplate,
 };

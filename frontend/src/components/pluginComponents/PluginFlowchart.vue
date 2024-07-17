@@ -1022,12 +1022,12 @@ img {
     z-index: 9997;
 }
 
-.drawflow .drawflow-node {
+#rule-drawflow .drawflow .drawflow-node {
     display: flex;
     background: #ffffff;
     color: #000000;
     border: 2px solid #000000;
-    border-radius: 4px;
+    border-radius: 1rem;
     min-height: 40px;
     width: auto;
     min-width: 160px;
@@ -1037,25 +1037,25 @@ img {
     box-shadow: 0px 2px 15px 2px #000000;
 }
 
-.drawflow .drawflow-node:hover {
+#rule-drawflow .drawflow .drawflow-node:hover {
     background: #ffffff;
     color: #000000;
     border: 2px solid #000000;
-    border-radius: 4px;
+    border-radius: 1rem;
     -webkit-box-shadow: 0px 2px 15px 2px rgba(255, 255, 255, 1);
     box-shadow: 0px 2px 15px 2px rgba(255, 255, 255, 1);
 }
 
-.drawflow .drawflow-node.selected {
+#rule-drawflow .drawflow .drawflow-node.selected {
     background: rgba(230, 230, 230, 0.75);
     color: rgba(0, 0, 0, 1);
     border: 2px solid #000000;
-    border-radius: 4px;
+    border-radius: 1rem;
     -webkit-box-shadow: 0px 2px 15px 2px rgba(0, 0, 0, 1);
     box-shadow: 0px 2px 15px 2px rgba(0, 0, 0, 1);
 }
 
-.drawflow .drawflow-node .input {
+#rule-drawflow .drawflow .drawflow-node .input {
     left: -25px;
     background: #ffffff;
     border: 2px solid #000000;
@@ -1064,17 +1064,17 @@ img {
     width: 13px;
 }
 
-.drawflow .drawflow-node .input:hover {
+#rule-drawflow .drawflow .drawflow-node .input:hover {
     background: #ffffff;
     border: 2px solid #000000;
     border-radius: 50px;
 }
 
-.drawflow .drawflow-node .outputs {
+#rule-drawflow .drawflow .drawflow-node .outputs {
     float: none;
 }
 
-.drawflow .drawflow-node .output {
+#rule-drawflow .drawflow .drawflow-node .output {
     right: -8px;
     background: #ffffff;
     border: 2px solid #000000;
@@ -1083,38 +1083,38 @@ img {
     width: 13px;
 }
 
-.drawflow .drawflow-node .output:hover {
+#rule-drawflow .drawflow .drawflow-node .output:hover {
     background: #ffffff;
     border: 2px solid #000000;
     border-radius: 50px;
 }
 
-.drawflow .connection .main-path {
+#rule-drawflow .drawflow .connection .main-path {
     stroke-width: 5px;
     stroke: #4682b4;
 }
 
-.drawflow .connection .main-path:hover {
+#rule-drawflow .drawflow .connection .main-path:hover {
     stroke: #4682b4;
 }
 
-.drawflow .connection .main-path.selected {
+#rule-drawflow .drawflow .connection .main-path.selected {
     stroke: #43b993;
 }
 
-.drawflow .connection .point {
+#rule-drawflow .drawflow .connection .point {
     stroke: #000000;
     stroke-width: 2px;
     fill: #ffffff;
 }
 
-.drawflow .connection .point:hover {
+#rule-drawflow .drawflow .connection .point:hover {
     stroke: #000000;
     stroke-width: 2px;
     fill: #ffffff;
 }
 
-.drawflow-delete {
+#rule-drawflow .drawflow-delete {
     /* display: block; */
     display: none;
     color: #ffffff;
@@ -1123,11 +1123,11 @@ img {
     border-radius: 50px;
 }
 
-.parent-node .drawflow-delete {
+#rule-drawflow .parent-node .drawflow-delete {
     top: -15px;
 }
 
-.drawflow-delete:hover {
+#rule-drawflow .drawflow-delete:hover {
     color: #000000;
     background: #ffffff;
     border: 2px solid #000000;
