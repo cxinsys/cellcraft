@@ -185,7 +185,7 @@ export default {
       isHide: false,
       show_files: false,
       show_jobs: false,
-      on_progress: false, // 나중에 false로 바꾸기
+      on_progress: false,
       eventSources: {}, // Use an object to manage multiple event sources
       taskList: [],
       taskTitleList: [],
@@ -249,7 +249,7 @@ export default {
       this.$store.commit("changeNode", node.id);
 
       //노드 생성시 현재 워크플로우의 상태 업데이트
-      setUpLinkedNodes();
+      this.setUpLinkedNodes();
 
       const currentWorkflow = await this.setCurrentWorkflow();
       // console.log(currentWorkflow);
@@ -269,7 +269,7 @@ export default {
             this.currentTab = this.currentTab;
           }
         }
-        setUpLinkedNodes();
+        this.setUpLinkedNodes();
       });
 
       //노드 삭제시 노드 상태 업데이트
@@ -309,7 +309,7 @@ export default {
       });
       this.$store.commit("shareConnectionFile");
 
-      setUpLinkedNodes();
+      this.setUpLinkedNodes();
 
       const currentWorkflow = await this.setCurrentWorkflow();
       console.log(currentWorkflow);
@@ -324,7 +324,7 @@ export default {
         parseInt(ev.input_id),
       ]);
 
-      setUpLinkedNodes();
+      this.setUpLinkedNodes();
 
       const currentWorkflow = await this.setCurrentWorkflow();
       // console.log(currentWorkflow);
