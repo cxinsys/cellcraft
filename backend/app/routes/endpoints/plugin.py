@@ -197,4 +197,3 @@ def get_plugin_template(
         
         return { "drawflow": drawflow }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
