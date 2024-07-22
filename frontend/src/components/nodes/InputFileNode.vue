@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="nodeBox" ref="nodeBox">
-      <img class="nodeBox__icon" src="@/assets/input_file.png" draggable="false" />
+      <img class="nodeBox__icon" src="@/assets/InputFile_logo.png" draggable="false" />
     </div>
     <div class="nodeTitleBox">
       <input type="text" class="nodeTitle" v-model="nodeTitle" @input="updateTitle" df-title />

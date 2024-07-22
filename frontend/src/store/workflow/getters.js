@@ -5,6 +5,9 @@ export default {
   getThumbnail(state) {
     return state.thumbnail;
   },
+  getWorkflowInfo(state) {
+    return state.workflow_info;
+  },
   getNodeInfo(state) {
     return (id) => {
       return state.nodes.find((node) => node.id === id);
