@@ -53,7 +53,7 @@ export default {
             };
             this.tabList.push(newTab);
             this.currentTab = this.tabList.length - 1;
-            this.componentChange(newTab.name);
+            this.componentChange(newTab);
         },
         removeTab(id) {
             const index = this.tabList.findIndex(tab => tab.id === id);
@@ -64,7 +64,7 @@ export default {
                     this.currentTab = this.currentTab === 0 ? 0 : this.currentTab - 1;
                 }
                 if (this.tabList.length > 0) {
-                    this.componentChange(this.tabList[this.currentTab].name);
+                    this.componentChange(this.tabList[this.currentTab]);
                 }
             }
         },
@@ -76,30 +76,36 @@ export default {
                 this.createTab(node);
             }
             if (this.tabList.length > 0) {
-                this.componentChange(this.tabList[this.currentTab].name);
+                this.componentChange(this.tabList[this.currentTab]);
             }
         },
         tabClick(idx) {
             this.currentTab = idx;
-            this.componentChange(this.tabList[idx].name);
+            this.componentChange(this.tabList[idx]);
         },
-        componentChange(name) {
-            let newPath = `/workflow/${name.toLowerCase()}`;
+        componentChange(tab) {
+            let newPath = `/workflow/${tab.name.toLowerCase()}`;
 
             if (this.$route.path === newPath) {
                 this.$router.push({
                     path: newPath,
                     query: {
                         id: this.currentWorkflowId,
+                        node: tab.id,
                         forceReload: Date.now(),
                     },
                 });
             } else {
                 this.$router.push({
                     path: newPath,
-                    query: { id: this.currentWorkflowId },
+                    query: { 
+                        id: this.currentWorkflowId,
+                        node: tab.id,
+                    },
                 });
             }
+
+            this.$emit('update-workflow')
         }
     }
 }

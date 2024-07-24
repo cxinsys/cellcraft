@@ -10,67 +10,26 @@
             <h1 class="cloud-textbox__directory">Files directory ></h1>
           </div>
         </router-link>
-        <li
-          class="folder__item"
-          v-for="(folder, idx) in folders_list"
-          :key="idx + 'O'"
-          v-bind:class="{ toggleFolder: toggleFolder === idx }"
-          @click="folderClick(idx, folder[0])"
-        >
+        <li class="folder__item" v-for="(folder, idx) in folders_list" :key="idx + 'O'"
+          v-bind:class="{ toggleFolder: toggleFolder === idx }" @click="folderClick(idx, folder[0])">
           <div class="folder__item--col">
-            <img
-              class="folder__item--arrow"
-              src="@/assets/arrow-right.png"
-              v-if="toggleFolder === idx"
-            />
-            <img
-              class="folder__item--arrow"
-              src="@/assets/arrow-right.png"
-              v-else
-            />
-            <img
-              class="folder__item--icon"
-              src="@/assets/open-folder.png"
-              v-if="toggleFolder === idx"
-            />
+            <img class="folder__item--arrow" src="@/assets/arrow-right.png" v-if="toggleFolder === idx" />
+            <img class="folder__item--arrow" src="@/assets/arrow-right.png" v-else />
+            <img class="folder__item--icon" src="@/assets/open-folder.png" v-if="toggleFolder === idx" />
             <img class="folder__item--icon" src="@/assets/folder.png" v-else />
           </div>
           <p class="folder__name">{{ folder[0] }}</p>
         </li>
-        <!-- <li
-          class="file__item"
-          v-for="(file, idx) in files_list"
-          :key="idx + 'I'"
-          v-bind:class="{ toggleFile: toggleFile === idx }"
-          @click="fileClick(idx, file.file_name)"
-        >
-          <div class="folder__item--col">
-            <img class="folder__item--arrow" src="@/assets/arrow-right.png" />
-            <img class="folder__item--icon" src="@/assets/file-icon.png" />
-          </div>
-          <p class="folder__name">{{ file.file_name }}</p>
-        </li> -->
       </ul>
       <div class="fileUpload">
         <div class="form-row">
           <div class="form__selectFile">
             <ul class="form__fileList">
-              <li
-                class="file__item"
-                v-for="(file, idx) in files_list"
-                :key="idx + 'I'"
-                v-bind:class="{ toggleFile: toggleFile === idx }"
-                @click="fileClick(idx, file.file_name)"
-              >
+              <li class="file__item" v-for="(file, idx) in files_list" :key="idx + 'I'"
+                v-bind:class="{ toggleFile: toggleFile === idx }" @click="fileClick(idx, file.file_name)">
                 <div class="folder__item--col">
-                  <img
-                    class="folder__item--arrow"
-                    src="@/assets/arrow-right.png"
-                  />
-                  <img
-                    class="folder__item--icon"
-                    src="@/assets/file-icon.png"
-                  />
+                  <img class="folder__item--arrow" src="@/assets/arrow-right.png" />
+                  <img class="folder__item--icon" src="@/assets/file-icon.png" />
                 </div>
                 <p class="folder__name">{{ file.file_name }}</p>
               </li>
@@ -131,6 +90,7 @@ export default {
       recentFiles_list: [],
       apply: false,
       isLoading: false,
+      nodeId: this.$route.query.node,
     };
   },
   methods: {
@@ -190,15 +150,19 @@ export default {
         }
       }
     },
-    async applyFile() {
+    applyFile() {
       this.isLoading = true;
       try {
-        const file = await convertFile({
-          file_name: this.selectFile.file_name,
-        });
+        // const file = await convertFile({
+        //   file_name: this.selectFile.file_name,
+        // });
         this.apply = true;
-        this.$store.commit("changeFile", file.data.file_name);
-        this.$store.commit("shareConnectionFile");
+        const file_info = {
+          file_name: this.selectFile.file_name,
+          id: this.nodeId,
+        };
+        this.$store.commit("setWorkflowFile", file_info);
+        this.$store.commit("shareWorkflowFile", this.nodeId);
       } catch (error) {
         console.error(error);
       }
@@ -206,7 +170,7 @@ export default {
     },
   },
   async mounted() {
-    const currentFile = this.$store.getters.getCurrentFile;
+    const currentFile = this.$store.getters.getFileInfo(this.nodeId);
     await this.getFinder();
     if (currentFile.file !== "") {
       try {
@@ -220,7 +184,6 @@ export default {
         console.error(error);
       }
     }
-    // await this.getFinder();
   },
   filters: {
     formatBytes(a, b) {
@@ -233,11 +196,6 @@ export default {
       return parseFloat((a / Math.pow(c, f)).toFixed(d)) + " " + e[f];
     },
   },
-  computed: {
-    checkCurrentNode() {
-      return this.$store.getters.getCurrentNode;
-    },
-  },
 };
 </script>
 
@@ -246,6 +204,7 @@ export default {
   width: 100%;
   height: 100%;
 }
+
 .fileUpload-form {
   width: 100%;
   height: 100%;
@@ -253,6 +212,7 @@ export default {
   display: flex;
   align-items: flex-start;
 }
+
 .cloud-form {
   width: 45%;
   height: 95%;
@@ -266,6 +226,7 @@ export default {
   box-sizing: border-box;
   background-color: rgb(255, 255, 255);
 }
+
 .folder__list {
   width: 45%;
   height: 95%;
@@ -277,6 +238,7 @@ export default {
   box-sizing: border-box;
   background-color: rgb(255, 255, 255);
 }
+
 .folder__item {
   width: 100%;
   height: 5%;
@@ -285,6 +247,7 @@ export default {
   color: #ffffff;
   margin-bottom: 0.5rem;
 }
+
 .file__item {
   width: 90%;
   height: 5%;
@@ -294,43 +257,52 @@ export default {
   margin-bottom: 0.5rem;
   /* background: #ffffff; */
 }
+
 .folder__item:hover {
   background: rgb(231, 233, 238);
 }
+
 .toggleFolder {
   background: rgb(231, 233, 238);
 }
+
 .toggleFile {
   background: rgb(231, 233, 238);
 }
+
 .folder__item--col {
   width: 5rem;
   height: 100%;
   display: flex;
   align-items: center;
 }
+
 .folder__item--arrow {
   width: 1rem;
   height: 1rem;
   object-fit: contain;
   margin: 0 0.5rem;
 }
+
 .folder__list--back {
   margin: 0 0 0.5rem 0.5rem;
   color: #2f2f2f;
   cursor: pointer;
   font-weight: 300;
 }
+
 .folder__list--back:hover {
   /* color: #000000; */
   font-weight: 400;
 }
+
 .folder__item--icon {
   width: 1.5rem;
   height: 1.5rem;
   object-fit: contain;
   margin: 0 0.5rem;
 }
+
 .folder__name {
   display: flex;
   align-items: center;
@@ -341,6 +313,7 @@ export default {
   line-height: 1rem;
   color: black;
 }
+
 .cloud-row {
   width: 100%;
   padding: 5% 0;
@@ -349,9 +322,11 @@ export default {
   align-items: center;
   text-decoration: none;
 }
+
 .cloud-row:first-child:hover {
   cursor: pointer;
 }
+
 .cloud-textbox {
   width: 17rem;
   height: 3rem;
@@ -361,28 +336,33 @@ export default {
   justify-content: center;
   padding: 0 0 0 0rem;
 }
+
 .cloud-textbox__title {
   color: rgb(51, 51, 51);
   font-size: 2rem;
   font-weight: 400;
 }
+
 .cloud-textbox__desc {
   color: rgb(51, 51, 51);
   font-size: 1rem;
   font-weight: 200;
   padding: 0.2rem 0 0 0;
 }
+
 .cloud-textbox__directory {
   color: rgb(109, 158, 235);
   font-size: 1.2rem;
   font-weight: 400;
 }
+
 .cloud-textbox__directory__desc {
   color: rgb(51, 51, 51);
   font-size: 0.8rem;
   font-weight: 200;
   padding: 0.2rem 0 0 0;
 }
+
 .fileUpload {
   width: 55%;
   height: 100%;
@@ -391,17 +371,20 @@ export default {
   flex-direction: column;
   align-items: center;
 }
+
 .form-row {
   width: 100%;
   height: 10%;
   position: relative;
 }
+
 .form-row:first-child {
   height: 75%;
   margin: 1rem;
   /* background: #3498db; */
   padding: 0;
 }
+
 .form-row:last-child {
   display: flex;
   flex-direction: row;
@@ -411,6 +394,7 @@ export default {
   padding: 0 2rem;
   box-sizing: border-box;
 }
+
 .form__name {
   width: 100%;
   height: 100%;
@@ -424,12 +408,14 @@ export default {
   line-height: 1.4rem;
   color: rgb(51, 51, 51);
 }
+
 .form__selectFile {
   width: 100%;
   height: 90%;
   display: flex;
   padding: 0 0 0 2rem;
 }
+
 .form__fileList {
   width: 84%;
   height: 100%;
@@ -441,6 +427,7 @@ export default {
   border-radius: 1rem;
   background-color: rgb(255, 255, 255);
 }
+
 .fileList__item {
   width: 90%;
   padding: 0.5rem;
@@ -449,6 +436,7 @@ export default {
   border-radius: 0.5rem;
   margin-bottom: 0.5rem;
 }
+
 .fileList__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -457,6 +445,7 @@ export default {
   line-height: 1rem;
   color: rgb(53, 54, 58);
 }
+
 .fileList__text--blank {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -465,6 +454,7 @@ export default {
   line-height: 1rem;
   color: rgba(51, 51, 51, 0.5);
 }
+
 .form__button {
   width: 4rem;
   height: 4rem;
@@ -473,6 +463,7 @@ export default {
   justify-content: center;
   margin: 1rem;
 }
+
 .form__addfile {
   width: 9rem;
   min-width: 9rem;
@@ -484,9 +475,11 @@ export default {
   border-radius: 2rem;
   margin-top: -4rem;
 }
+
 .form__addfile:hover {
   background: rgb(96, 146, 246);
 }
+
 .form__button--plusicon {
   width: 1rem;
   height: 1rem;
@@ -495,6 +488,7 @@ export default {
   top: 2rem;
   right: 2rem;
 }
+
 .form__button--foldericon {
   width: 7rem;
   height: 7rem;
@@ -503,6 +497,7 @@ export default {
   top: 1rem;
   right: 1rem;
 }
+
 .form__input {
   position: absolute;
   width: 0;
@@ -511,6 +506,7 @@ export default {
   overflow: hidden;
   border: 0;
 }
+
 .form__info {
   width: 80%;
   height: 60%;
@@ -521,6 +517,7 @@ export default {
   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   border-radius: 0.5rem;
 }
+
 .form__info--type {
   width: 20%;
   height: 100%;
@@ -528,11 +525,13 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
 .form__info--img {
   width: 2rem;
   height: 2rem;
   object-fit: cover;
 }
+
 .form__info--name,
 .form__info--size {
   width: 80%;
@@ -545,9 +544,12 @@ export default {
   font-size: 0.9rem;
   line-height: 0.9rem;
   color: rgb(51, 51, 51);
-  overflow-wrap: break-word; /* 줄바꿈 처리 */
-  overflow: hidden; /* 넘치는 내용 숨기기 */
+  overflow-wrap: break-word;
+  /* 줄바꿈 처리 */
+  overflow: hidden;
+  /* 넘치는 내용 숨기기 */
 }
+
 .form__info--blank {
   width: 100%;
   height: 100%;
@@ -561,6 +563,7 @@ export default {
   line-height: 1rem;
   color: rgba(51, 51, 51, 0.5);
 }
+
 .form__button--apply {
   cursor: pointer;
   position: absolute;
@@ -582,12 +585,15 @@ export default {
   line-height: 1rem;
   color: rgb(244, 246, 251);
 }
+
 .form__button--apply:hover {
   background: rgb(75, 119, 209);
 }
+
 .activate {
   background: rgb(40, 197, 105);
 }
+
 .activate:hover {
   background: rgb(40, 197, 105);
   /* background: rgb(75, 232, 140); */
@@ -610,6 +616,7 @@ export default {
   height: 20px;
   animation: spin 2s linear infinite;
 }
+
 /* @media (prefers-color-scheme: dark) {
   .form__button--foldericon {
     filter: invert(97%) sepia(99%) saturate(0%) hue-rotate(123deg)

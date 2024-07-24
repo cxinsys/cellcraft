@@ -33,18 +33,18 @@ export default {
         if (this.nodeId == null) {
           return "DataTable"; // 또는 기본 타이틀 반환
         }
-        const node = this.$store.getters.getNodeInfo(this.nodeId);
-        return node.title;
+        const node = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
+        return node.data.title || node.name;
       },
       set(newTitle) {
-        this.updateNodeTitle({ nodeId: this.nodeId, newTitle });
+        this.updateWorkflowNodeTitle({ nodeId: this.nodeId, newTitle });
       },
     },
   },
   methods: {
-    ...mapMutations(["updateNodeTitle"]),
+    ...mapMutations(["updateWorkflowNodeTitle"]),
     updateTitle() {
-      this.updateNodeTitle({ nodeId: this.nodeId, newTitle: this.nodeTitle });
+      this.updateWorkflowNodeTitle({ nodeId: this.nodeId, newTitle: this.nodeTitle });
     },
   },
 };

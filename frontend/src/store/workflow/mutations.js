@@ -32,6 +32,76 @@ export default {
   clearWorkflow(state) {
     state.workflow_info = null;
   },
+  setWorkflowFile(state, file_info) {
+    if (state.workflow_info.drawflow.Home.data[file_info.id]) {
+      console.log("setWorkflowFile this node data : " + state.workflow_info.drawflow.Home.data[file_info.id].data);
+      console.log("file : " + file_info.file_name);
+      state.workflow_info.drawflow.Home.data[file_info.id].data.file = file_info.file_name;
+    } else {
+      console.error(`No object found with id: ${file_info.id}`);
+    }
+  },
+  shareWorkflowFile(state, id) {
+    const node = state.workflow_info.drawflow.Home.data[id];
+    console.log("implement shareWorkflowFile this node : " + node);
+
+    if (!node) {
+        console.error(`No node found with id: ${id}`);
+        return;
+    }
+
+    if (node.name === 'Algorithm') {
+        console.log(`Node with id: ${id} is of type 'Algorithm'. Function execution stopped.`);
+        return;
+    }
+
+    const file_name = node.data.file;
+    if (!file_name) {
+        console.error(`No file found in node with id: ${id}`);
+        return;
+    }
+
+    if (!Object.keys(node.outputs).some(outputKey => node.outputs[outputKey].connections.length > 0)) {
+        console.log(`No connections found for node with id: ${id}`);
+        return;
+    }
+
+    let files = {};
+
+    // Iterate over outputs to find connections and add file data to connected nodes
+    Object.keys(node.outputs).forEach(outputKey => {
+        node.outputs[outputKey].connections.forEach(connection => {
+            const targetNode = state.workflow_info.drawflow.Home.data[connection.node];
+            
+            if (targetNode) {
+                if (!targetNode.data.files) {
+                    targetNode.data.files = {};
+                }
+                targetNode.data.files[id] = file_name;
+
+                // If target node has its own file, add it to the files object
+                if (targetNode.data.file) {
+                    files[connection.node] = targetNode.data.file;
+                }
+
+                // Recursively call shareWorkflowFile on the target node
+                // this.shareWorkflowFile(state, connection.node);
+            }
+        });
+    });
+
+    // After updating connected nodes, add the files object to the current node's data
+    if (Object.keys(files).length > 0) {
+        node.data.files = files;
+    }
+  },
+  updateWorkflowNodeTitle(state, { nodeId, newTitle }) {
+    if (state.workflow_info.drawflow.Home.data[nodeId]) {
+      state.workflow_info.drawflow.Home.data[nodeId].data.title = newTitle;
+    } else {
+      console.error(`No object found with id: ${nodeId}`);
+    }
+  },
   createNode(state, node) {
     state.nodes.push(node);
   },

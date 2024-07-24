@@ -77,11 +77,6 @@ export default {
       }
     }
   },
-  computed: {
-    checkCurrentNode() {
-      return this.$store.getters.getCurrentNode;
-    },
-  },
 };
 </script>
 

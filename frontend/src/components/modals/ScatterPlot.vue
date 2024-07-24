@@ -569,11 +569,6 @@ export default {
       this.updateChart();
     },
   },
-  computed: {
-    checkCurrentNode() {
-      return this.$store.getters.getCurrentNode;
-    },
-  },
 };
 </script>
 

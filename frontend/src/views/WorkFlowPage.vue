@@ -31,7 +31,7 @@
       </button>
     </div>
     <TabComponent ref="tabComponent" :initialTabList="initialTabList" :isTabView="isTabView"
-      @update:isTabView="updateIsTabView" />
+      @update:isTabView="updateIsTabView" @update-workflow="updateWorkflowInfo" />
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
       <!-- <p class="message__text">{{ messageContent }}</p> -->
       <img class="message__status" src="@/assets/succes.png" v-if="messageStatus === 'success'" />
@@ -61,9 +61,9 @@ import TabComponent from "@/components/workflowComponents/TabComponent.vue"
 // import heatMap from "@/components/nodes/heatMapNode.vue";
 // import barPlot from "@/components/nodes/barPlotNode.vue";
 import InputFile from "@/components/nodes/InputFileNode.vue";
-import dataTable from "@/components/nodes/DataTableNode.vue";
-import scatterPlot from "@/components/nodes/ScatterPlotNode.vue";
-import algorithm from "@/components/nodes/algorithmNode.vue";
+import DataTable from "@/components/nodes/DataTableNode.vue";
+import ScatterPlot from "@/components/nodes/ScatterPlotNode.vue";
+import Algorithm from "@/components/nodes/AlgorithmNode.vue";
 import ResultFile from "@/components/nodes/ResultFileNode.vue";
 import Visualize from "@/components/nodes/VisualizeNode.vue";
 
@@ -173,9 +173,9 @@ export default {
     // this.$df.registerNode("HeatMap", heatMap, {}, {});
     // this.$df.registerNode("BarPlot", barPlot, {}, {});
     this.$df.registerNode("InputFile", InputFile, {}, {});
-    this.$df.registerNode("DataTable", dataTable, {}, {});
-    this.$df.registerNode("ScatterPlot", scatterPlot, {}, {});
-    this.$df.registerNode("Algorithm", algorithm, {}, {});
+    this.$df.registerNode("DataTable", DataTable, {}, {});
+    this.$df.registerNode("ScatterPlot", ScatterPlot, {}, {});
+    this.$df.registerNode("Algorithm", Algorithm, {}, {});
     this.$df.registerNode("ResultFile", ResultFile, {}, {});
     this.$df.registerNode("Visualize", Visualize, {}, {});
 
@@ -207,8 +207,6 @@ export default {
       this.setCurrentWorkflowInfo();
     });
     this.$df.on("nodeDataChanged", (ev) => {
-      // nodeData 바뀌게 되면 Connection Update
-      // console.log(ev)
       const node = this.$df.getNodeFromId(ev);
       console.log(node);
 
@@ -346,8 +344,9 @@ export default {
         console.error(error);
       }
     },
-    importdf(drawflow) {
-      this.$df.import(drawflow);
+    updateWorkflowInfo() {
+      const workflow_info = this.$store.getters.getWorkflowInfo
+      this.$df.import(workflow_info);
     },
     drag(event) {
       event.dataTransfer.setData(

@@ -708,9 +708,6 @@ export default {
     await this.refreshGenerated();
   },
   computed: {
-    checkCurrentNode() {
-      return this.$store.getters.getCurrentNode;
-    },
     checkSelectedIndices() {
       return Object.keys(this.$store.getters.getCurrentLinkedNodes[0]).includes(
         "selectedIndices"

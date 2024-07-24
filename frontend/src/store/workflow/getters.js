@@ -8,6 +8,21 @@ export default {
   getWorkflowInfo(state) {
     return state.workflow_info;
   },
+  getWorkflowNodeInfo(state) {
+    return (id) => {
+      return state.workflow_info.drawflow.Home.data[id];
+    };
+  },
+  getFileInfo(state) {
+    return (id) => {
+        const node = state.workflow_info.drawflow.Home.data[id];
+        if (node && node.data && node.data.file) {
+            return node.data.file;
+        } else {
+            return null;
+        }
+    };
+  },
   getNodeInfo(state) {
     return (id) => {
       return state.nodes.find((node) => node.id === id);

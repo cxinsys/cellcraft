@@ -172,27 +172,48 @@ export default {
   },
   async mounted() {
     try {
-      const profile = await getUser();
-      this.profile = profile.data;
-      const currentUser = profile.data.username;
+      const [userResult, workflowsResult, pluginsResult] = await Promise.allSettled([
+        getUser(),
+        getWorkflows(),
+        getPlugins()
+      ]);
 
-      const workflows = await getWorkflows();
-      workflows.data.sort((a, b) => {
-        return new Date(b.updated_at) - new Date(a.updated_at);
-      });
-      this.workflows = workflows.data;
+      // Handle getUser result
+      if (userResult.status === "fulfilled") {
+        const profile = userResult.value;
+        this.profile = profile.data;
+        const currentUser = profile.data.username;
 
-      const plugins = await getPlugins();
-      console.log(plugins.data.plugins);
-      this.plugins = plugins.data.plugins.map(plugin => {
-        const userIncluded = plugin.users.some(user => user.username === currentUser);
-        return {
-          ...plugin,
-          checked: userIncluded,
-        };
-      });
+        // Handle getWorkflows result
+        if (workflowsResult.status === "fulfilled") {
+          const workflows = workflowsResult.value;
+          workflows.data.sort((a, b) => {
+            return new Date(b.updated_at) - new Date(a.updated_at);
+          });
+          this.workflows = workflows.data;
+        } else {
+          console.error("Failed to fetch workflows:", workflowsResult.reason);
+        }
+
+        // Handle getPlugins result
+        if (pluginsResult.status === "fulfilled") {
+          const plugins = pluginsResult.value;
+          console.log(plugins.data.plugins);
+          this.plugins = plugins.data.plugins.map(plugin => {
+            const userIncluded = plugin.users.some(user => user.username === currentUser);
+            return {
+              ...plugin,
+              checked: userIncluded,
+            };
+          });
+        } else {
+          console.error("Failed to fetch plugins:", pluginsResult.reason);
+        }
+      } else {
+        console.error("Failed to fetch user profile:", userResult.reason);
+      }
     } catch (error) {
-      console.error(error);
+      console.error("Unexpected error:", error);
     }
   },
   filters: {
