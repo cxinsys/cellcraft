@@ -170,7 +170,7 @@ export default {
     },
   },
   async mounted() {
-    const currentFile = this.$store.getters.getFileInfo(this.nodeId);
+    const currentFile = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
     await this.getFinder();
     if (currentFile.file !== "") {
       try {
@@ -529,7 +529,7 @@ export default {
 .form__info--img {
   width: 2rem;
   height: 2rem;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .form__info--name,

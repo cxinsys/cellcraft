@@ -1,31 +1,32 @@
 <template>
   <div class="layout">
-    <div v-if="current_file === null">
+    <div v-if="current_files === null">
       <span> NO DATA FOR TABLE</span>
     </div>
-    <div v-else-if="isLoading" class="loading-layout">
-      <span v-if="current_file !== null"> </span>
-    </div>
+    <!-- <div v-else-if="isLoading" class="loading-layout">
+      <span v-if="current_files !== null"></span>
+    </div> -->
     <div v-else class="table-layout">
-      <vue-good-table
-        class="dataTable"
-        :columns="columns"
-        :rows="rows"
-        theme="polar-bear"
-      />
+      <vue-good-table class="dataTable" :columns="columns" :rows="rows" mode="remote" @on-page-change="onPageChange"
+        @on-sort-change="onSortChange" @on-column-filter="onColumnFilter" @on-per-page-change="onPerPageChange"
+        :line-numbers="true" theme="polar-bear" max-height="31.5rem" :isLoading.sync="isLoading"
+        :totalRows="totalRecords" :pagination-options="{
+          enabled: true,
+          perPageDropdownEnabled: false,
+          jumpFirstOrLast : true,
+          firstLabel: 'First Page',
+          lastLabel: 'Last Page'
+        }"></vue-good-table>
     </div>
   </div>
 </template>
 
 <script>
-import { getResult } from "@/api/index";
+import { getDataTableFile } from "@/api/index";
 import "vue-good-table/dist/vue-good-table.css";
 import { VueGoodTable } from "vue-good-table";
 
 export default {
-  props: {
-    file_name: null,
-  },
   components: {
     VueGoodTable,
   },
@@ -33,10 +34,11 @@ export default {
     return {
       node_name: "DataTable",
       dataTable: null,
-      current_file: null,
+      current_files: null,
       lines: null,
       firstLine: null,
       isLoading: true,
+      nodeId: this.$route.query.node,
       columns: [
         // columns 데이터 형식
         // {
@@ -48,28 +50,95 @@ export default {
         // rows 데이터 형식
         // { id: 1, name: "John", age: 20, createdAt: "", score: 0.03343 }
       ],
+      serverParams: {
+        file_name: "",
+        columnFilters: {
+        },
+        sort: [
+          {
+            field: '',
+            type: ''
+          }
+        ],
+        page: 1,
+        perPage: 10
+      },
+      totalRecords: 0,
     };
   },
+  methods: {
+    updateParams(newProps) {
+      this.serverParams = Object.assign({}, this.serverParams, newProps);
+    },
+    async onPageChange(params) {
+      try {
+        console.log(params);
+        this.updateParams({ page: params.currentPage });
+        console.log(this.serverParams);
+        const dataTableResult = await getDataTableFile(this.serverParams);
+        const { columns, rows, totalRecords } = dataTableResult.data;
+        this.rows = rows;
+        this.totalRecords = totalRecords;
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    async onSortChange(params) {
+      try {
+        console.log(params);
+        this.updateParams({
+          sort: params,
+        });
+        const dataTableResult = await getDataTableFile(this.serverParams);
+        const { columns, rows, totalRecords } = dataTableResult.data;
+        this.rows = rows;
+        this.totalRecords = totalRecords;
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    async onColumnFilter(params) {
+      try {
+        console.log(params);
+        this.updateParams(params);
+        const dataTableResult = await getDataTableFile(this.serverParams);
+        const { columns, rows, totalRecords } = dataTableResult.data;
+        this.rows = rows;
+        this.totalRecords = totalRecords;
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    async onPerPageChange(params) {
+      try {
+        this.updateParams({ per_page: params.currentPerPage });
+        const dataTableResult = await getDataTableFile(this.serverParams);
+        const { columns, rows, totalRecords } = dataTableResult.data;
+        this.rows = rows;
+        this.totalRecords = totalRecords;
+      } catch (error) {
+        console.error(error);
+      }
+    },
+  },
   async mounted() {
-    this.current_file = this.$store.getters.getCurrentFile.file;
-    if (this.current_file !== "") {
+    this.current_files = this.$store.getters.getWorkflowNodeFilesInfo(this.nodeId);
+    console.log(this.current_files);
+    const initial_file_ids = Object.keys(this.current_files);
+    if (initial_file_ids.length > 0) {
       this.isLoading = true;
       try {
-        const dataTableResult = await getResult({
-          filename: this.current_file,
-        });
+        this.serverParams.file_name = this.current_files[initial_file_ids[0]];
+        const dataTableResult = await getDataTableFile(this.serverParams);
 
-        //백엔드에서 넘겨준 dataTable 데이터
-        this.lines = dataTableResult.data.split("\n").map((x) => x.split(","));
-        this.firstLine = this.lines.splice(0, 1)[0];
-        this.columns = this.firstLine.slice(1).map((x) => {
-          return { label: x, field: x };
-        });
-        this.rows = this.lines.map((x) => {
-          return Object.assign(
-            ...this.firstLine.map((k, i) => ({ [k]: x[i] }))
-          );
-        });
+        console.log(dataTableResult.data);
+
+        const { columns, rows, totalRecords } = dataTableResult.data;
+        console.log(columns, rows);
+        this.columns = columns;
+        this.rows = rows;
+        this.totalRecords = totalRecords;
+
         this.isLoading = false;
       } catch (error) {
         console.error(error);
@@ -88,6 +157,7 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
 .table-layout {
   width: 90%;
   height: 90%;
@@ -96,10 +166,11 @@ export default {
   border-radius: 0.5rem;
   padding: 0.5rem;
 }
+
 .dataTable {
   width: 100%;
   height: 100%;
-  overflow: scroll;
+  overflow: auto;
 }
 
 .loading-layout {

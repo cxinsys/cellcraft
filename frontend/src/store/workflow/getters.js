@@ -13,11 +13,21 @@ export default {
       return state.workflow_info.drawflow.Home.data[id];
     };
   },
-  getFileInfo(state) {
+  getWorkflowNodeFileInfo(state) {
     return (id) => {
         const node = state.workflow_info.drawflow.Home.data[id];
         if (node && node.data && node.data.file) {
             return node.data.file;
+        } else {
+            return null;
+        }
+    };
+  },
+  getWorkflowNodeFilesInfo(state) {
+    return (id) => {
+        const node = state.workflow_info.drawflow.Home.data[id];
+        if (node && node.data && node.data.files) {
+            return node.data.files;
         } else {
             return null;
         }

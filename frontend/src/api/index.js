@@ -126,15 +126,15 @@ function deleteWorkflow(workflow) {
 }
 
 function taskMonitoring(taskId) {
-  return instance.get(`/routes/workflow/task/${taskId}`);
+  return instance.get(`/routes/task/info/${taskId}`);
 }
 
 function userTaskMonitoring() {
-  return instance.get("/routes/workflow/monitoring");
+  return instance.get("/routes/task/monitoring");
 }
 
 function revokeTask(taskId) {
-  return instance.delete(`/routes/workflow/revoke/${taskId}`);
+  return instance.delete(`/routes/task/revoke/${taskId}`);
 }
 
 function getHtml(filename) {
@@ -193,6 +193,10 @@ function getPluginTemplate(plugin_id) {
   return instance.get(`/routes/plugin/template/${plugin_id}`);
 }
 
+function getDataTableFile(vgt_info) {
+  return instance.post("/routes/datatable/load_data", vgt_info);
+}
+
 export {
   registerUser,
   loginUser,
@@ -232,4 +236,5 @@ export {
   associatePlugin,
   dissociatePlugin,
   getPluginTemplate,
+  getDataTableFile,
 };

@@ -31,7 +31,7 @@
       </button>
     </div>
     <TabComponent ref="tabComponent" :initialTabList="initialTabList" :isTabView="isTabView"
-      @update:isTabView="updateIsTabView" @update-workflow="updateWorkflowInfo" />
+      @update:isTabView="updateIsTabView" @process-workflow-nodes="processWorkflowNodes" />
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
       <!-- <p class="message__text">{{ messageContent }}</p> -->
       <img class="message__status" src="@/assets/succes.png" v-if="messageStatus === 'success'" />
@@ -161,6 +161,7 @@ export default {
       toggleMessage: false,
       messageContent: "",
       messageStatus: "",
+      notRemoveConnectionOutputId: "",
     };
   },
   async mounted() {
@@ -197,13 +198,71 @@ export default {
       this.setCurrentWorkflowInfo();
     });
     this.$df.on("connectionCreated", async (ev) => {
-      // const input_id = this.$df.getNodeFromId(ev.input_id);
-      // const output_id = this.$df.getNodeFromId(ev.output_id);
+      const input_node = this.$df.getNodeFromId(ev.input_id);
+      const output_node = this.$df.getNodeFromId(ev.output_id);
+      console.log(input_node, output_node);
+
+      // InputFile 노드 : DataTable, ScatterPlot, Algorithm 제외하고 연결 불가능
+      if (output_node.name === "InputFile") {
+        if (input_node.name !== "DataTable" && input_node.name !== "ScatterPlot" && input_node.name !== "Algorithm") {
+          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+          this.setMessage("error", "InputFile node must be connected to DataTable, ScatterPlot, Algorithm node");
+          return;
+        }
+      }
+      // DataTable 노드 - ScatterPlot, Algorithm 제외하고 연결 불가능
+      if (output_node.name === "DataTable") {
+        if (input_node.name !== "ScatterPlot" && input_node.name !== "Algorithm") {
+          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+          this.setMessage("error", "DataTable node must be connected to ScatterPlot, Algorithm node");
+          return;
+        }
+      }
+      // ScatterPlot 노드 - DataTable, Algorithm 제외하고 연결 불가능
+      if (output_node.name === "ScatterPlot") {
+        if (input_node.name !== "DataTable" && input_node.name !== "Algorithm") {
+          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+          this.setMessage("error", "ScatterPlot node must be connected to DataTable, Algorithm node");
+          return;
+        }
+      }
+      // Algorithm 노드 - ResultFile, Visualize 제외하고 연결 불가능
+      if (output_node.name === "Algorithm") {
+        if (input_node.name !== "ResultFile" && input_node.name !== "Visualize") {
+          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+          this.setMessage("error", "Algorithm node must be connected to ResultFile, Visualize node");
+          return;
+        }
+      }
+      // ResultFile 노드 - Visualize 제외하고 연결 불가능
+      if (output_node.name === "ResultFile") {
+        if (input_node.name !== "Visualize") {
+          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+          this.setMessage("error", "ResultFile node must be connected to Visualize node");
+          return;
+        }
+      }
+      // input_node의 name이 Algorithm, Visualize 아닌 경우, 다중 연결 검토
+      if (input_node.name !== "Algorithm" && input_node.name !== "Visualize") {
+        // 다중 연결 시, 이전 연결 끊어주기지만,, 일단 현재 연결 끊어주는 것으로 대체하기
+        // this.checkAndRemoveConnection(input_node, output_node);
+        this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+        this.setMessage("error", `${input_node.name} node is multiple connections are not allowed`);
+      }
+      console.log(ev);
       this.setCurrentWorkflowInfo();
     });
     this.$df.on("connectionRemoved", async (ev) => {
       // const input_id = this.$df.getNodeFromId(ev.input_id);
       // const output_id = this.$df.getNodeFromId(ev.output_id);
+
+      // this.notRemoveConnectionOutputId가 ev.output_id와 같은 경우, 연결 끊어주지 않기
+      if (this.notRemoveConnectionOutputId === ev.output_id) {
+        this.$df.addConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_classs)
+        this.notRemoveConnectionOutputId = "";
+        return;
+      }
+
       this.setCurrentWorkflowInfo();
     });
     this.$df.on("nodeDataChanged", (ev) => {
@@ -347,6 +406,17 @@ export default {
     updateWorkflowInfo() {
       const workflow_info = this.$store.getters.getWorkflowInfo
       this.$df.import(workflow_info);
+    },
+    processWorkflowNodes() {
+      const workflow_info = this.$store.getters.getWorkflowInfo;
+      const nodes = workflow_info.drawflow.Home.data;
+
+      for (const nodeId in nodes) {
+        if (nodes.hasOwnProperty(nodeId)) {
+          const node = nodes[nodeId];
+          this.$df.updateNodeDataFromId(node.id, node.data);
+        }
+      }
     },
     drag(event) {
       event.dataTransfer.setData(
@@ -637,6 +707,27 @@ export default {
     removeTab(id) {
       this.$refs.tabComponent.removeTab(id);
     },
+    checkAndRemoveConnection(input_node, output_node) {
+      // Check if input_node.inputs.input_1.connections exists and has a length of 2 or more
+      const input_node_id = String(input_node.id);
+      const output_node_id = String(output_node.id);
+      if (input_node.inputs && input_node.inputs.input_1 && input_node.inputs.input_1.connections.length >= 2) {
+        // Find the connection with output_node.id
+        const connectionIndex = input_node.inputs.input_1.connections.findIndex(connection => connection.node === output_node_id);
+        console.log(connectionIndex);
+        // If the connection with output_node.id exists
+        if (connectionIndex !== -1) {
+          const otherConnection = input_node.inputs.input_1.connections.find((_, index) => index !== connectionIndex);
+          if (otherConnection) {
+            this.$df.removeConnectionNodeId("node-" + otherConnection.node);
+            this.notRemoveConnectionOutputId = otherConnection.node;
+            // this.$df.removeSingleConnection(otherConnection.node, input_node_id, "output_1", "input_1");
+            console.log(otherConnection.node, input_node_id, "output_1", "input_1");
+          }
+        }
+      }
+    }
+
   },
   beforeDestroy() {
     // Close all the event source connections before the component is destroyed

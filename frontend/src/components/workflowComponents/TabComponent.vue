@@ -105,7 +105,7 @@ export default {
                 });
             }
 
-            this.$emit('update-workflow')
+            this.$emit('process-workflow-nodes')
         }
     }
 }
