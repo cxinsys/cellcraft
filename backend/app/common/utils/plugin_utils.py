@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict, List
 
-def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name: str) -> Dict[str, Any]:
+def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name: str):
     original_data = drawflow_data['drawflow']['Home']['data']
 
     # 각 노드의 ID를 생성합니다.
@@ -36,12 +36,12 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
     pos_y_resultfile = pos_y_start
     pos_y_visualize = pos_y_start
 
-    # 새로운 노드를 저장할 리스트
+    # 새로운 노드를 저장할 리스트 초기화
     new_nodes = []
     resultfile_nodes = []
     visualize_nodes = []
 
-    # 원래 노드들을 순회하며 새로운 노드를 생성합니다.
+    # 기존 노드를 순회하며 새로운 노드를 생성합니다.
     for key, node in original_data.items():
         # inputs를 확인하여 connections가 비어있는 경우 새로운 노드 생성
         for input_key, input_val in node['inputs'].items():
@@ -60,7 +60,7 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
                         "inputs": {},
                         "outputs": {
                             "output_1": {
-                                "connections": []
+                                "connections": [{"node": str(node_id + 1), "input": "input_1"}]
                             }
                         },
                         "pos_x": pos_x_inputfile,
@@ -81,17 +81,12 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
                         "typenode": "vue",
                         "inputs": {
                             "input_1": {
-                                "connections": [
-                                    {
-                                        "node": str(inputfile_node_id),
-                                        "input": "output_1"
-                                    }
-                                ]
+                                "connections": [{"node": str(inputfile_node_id), "input": "output_1"}]
                             }
                         },
                         "outputs": {
                             "output_1": {
-                                "connections": []
+                                "connections": [{"node": str(node_id + 1), "input": "input_1"}]
                             }
                         },
                         "pos_x": pos_x_datatable,
@@ -112,12 +107,7 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
                         "typenode": "vue",
                         "inputs": {
                             "input_1": {
-                                "connections": [
-                                    {
-                                        "node": str(datatable_node_id),
-                                        "input": "output_1"
-                                    }
-                                ]
+                                "connections": [{"node": str(datatable_node_id), "input": "output_1"}]
                             }
                         },
                         "outputs": {
@@ -234,6 +224,10 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
                 "node": str(new_node['id']),
                 "input": "output_1"
             })
+            new_node["outputs"]["output_1"]["connections"].append({
+                "node": str(algorithm_node['id']),
+                "input": "input_1"
+            })
 
     new_drawflow["drawflow"]["Home"]["data"][str(node_id)] = algorithm_node
     algorithm_node_id = node_id
@@ -256,6 +250,11 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
             {"node": str(resultfile_node['id']), "input": "output_1"}
             for resultfile_node in resultfile_nodes
         ]
+        for resultfile_node in resultfile_nodes:
+            resultfile_node["outputs"]["output_1"]["connections"].append({
+                "node": str(visualize_node['id']),
+                "input": "input_1"
+            })
 
     # 생성된 new_drawflow 데이터를 출력합니다.
     print(json.dumps(new_drawflow, indent=2))

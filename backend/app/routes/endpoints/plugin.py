@@ -9,7 +9,7 @@ from app.routes import dep
 from app.database.schemas.plugin import PluginData, PluginCreate, PluginAssociate
 from app.database.crud import crud_plugin
 from app.database import models
-from app.common import plugin_utils
+from app.common.utils import plugin_utils
 
 router = APIRouter()
 
@@ -197,3 +197,4 @@ def get_plugin_template(
         
         return { "drawflow": drawflow }
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

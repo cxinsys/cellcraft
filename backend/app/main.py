@@ -4,7 +4,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.routes.api import api_router
 from app.common.config import settings
-from app.common.celery_utils import create_celery
+from app.common.utils.celery_utils import create_celery
 from app.database import models
 from app.database.conn import engine
 from celery.signals import worker_shutting_down

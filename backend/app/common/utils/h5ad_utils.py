@@ -14,6 +14,16 @@ import numpy as np
 class InvalidPseudotimeError(Exception):
     pass
 
+def convert_h5ad_to_df(input_filepath):
+    '''
+    h5ad 파일을 csv 파일로 변환합니다.
+    '''
+
+    adata = sc.read_h5ad(input_filepath)
+    # Process and combine data to form the desired dataframe structure
+    df = pd.concat([adata.obs, pd.DataFrame(adata.obsm['X_umap'], columns=['X', 'Y'], index=adata.obs.index)], axis=1)
+    return df
+
 def organize_column_dtypes(data_frame):
     '''
     dataframe의 각 column의 dtype을 정리합니다. 범주형 변수의 dtype은

@@ -1,18 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
-from sse_starlette.sse import EventSourceResponse
 from typing import Any
 from sqlalchemy.orm import Session
-from celery.result import AsyncResult
-from celery.states import REVOKED
 import os
 import json
-import asyncio
-from datetime import datetime
+from fastapi.responses import FileResponse
 
-from app.common.celery_utils import get_task_info
-from app.common.snakemake_utils import create_snakefile, filter_and_add_suffix
-from app.database.crud import crud_workflow, crud_task
+from app.common.utils.celery_utils import get_task_info
+from app.common.utils.snakemake_utils import create_snakefile, filter_and_add_suffix
+from app.database.crud import crud_workflow
 from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowResult, WorkflowFind
 from app.routes import dep
 from app.database import models
@@ -192,12 +187,12 @@ def get_user_workflow(
             workflow_res = {
                 'id': item.id, 
                 'title': item.title, 
-                'thumbnail': item.thumbnail, # 시현 추가
+                'thumbnail': item.thumbnail,
                 'updated_at': item.updated_at, 
                 'user_id': item.user_id
             }
             res.append(workflow_res)
-            # print(res)
+        print(res)
         return res
     else:
         raise HTTPException(
@@ -217,7 +212,7 @@ def find_user_workflow(
     if user_workflow:
         return {
             'title': user_workflow.title,
-            'thumbnail': user_workflow.thumbnail, # 시현 추가
+            'thumbnail': user_workflow.thumbnail,
             'workflow_info': user_workflow.workflow_info,
             'nodes': user_workflow.nodes,
             'linked_nodes': user_workflow.linked_nodes,
@@ -253,72 +248,3 @@ def getResults(current_user: models.User = Depends(dep.get_current_active_user))
     file_list = os.listdir(PATH_COMPILE_RESULT)
 
     return file_list
-
-@router.get("/task/{task_id}")
-async def get_task_status(task_id: str) -> dict:
-    """
-    Return the status of the submitted Task
-    """
-    async def event_generator():
-        while True:
-            if task_id:
-                task = get_task_info(task_id)
-                if task['task_status'] == 'SUCCESS' or task['task_status'] == 'FAILURE' or task['task_status'] == 'REVOKED' or task['task_status'] == 'RETRY':
-                    yield f"{task['task_status']}"
-                    break
-                print(task['task_status'])
-                yield f"{task['task_status']}"
-                await asyncio.sleep(5)
-            else:
-                break
-    return EventSourceResponse(event_generator())
-
-@router.get("/monitoring")
-async def get_task_monitoring(
-    *,
-    db: Session = Depends(dep.get_db),
-    current_user: models.User = Depends(dep.get_current_active_user)
-    ) -> Any :
-    """
-    Return the status of the all User Task
-    """
-    user_task = crud_task.get_user_task(db, current_user.id)
-    if user_task:
-        return user_task
-    else:
-        raise HTTPException(
-                status_code=400,
-                detail="this user not exists task",
-                )
-
-@router.delete("/revoke/{task_id}")
-def revoke_task(
-    *,
-    db: Session = Depends(dep.get_db),
-    current_user: models.User = Depends(dep.get_current_active_user),
-    task_id: str
-    ) -> dict:
-    """
-    Revoke the task
-    """
-    from app.main import get_celery_app
-    celery = get_celery_app()
-    celery.control.revoke(task_id, terminate=True, signal='SIGTERM')
-    task = get_task_info(task_id)
-
-    print(task)
-
-    # task_info가 사전 형식인 경우 상태를 접근하는 방식
-    task_status = task.get("status")
-    if task_status == 'REVOKED':
-        return {"message": "Task Revoked", "task_id": task_id}
-    else:
-        # 태스크 상태를 'REVOKED'로 업데이트
-        crud_task.end_task(current_user.id, task_id, datetime.now(), 'REVOKED')
-        # 태스크가 업데이트 되었는지 확인
-        task = get_task_info(task_id)
-        task_status = task.get("status")
-        if task_status == 'REVOKED':
-            return {"message": "Task Revoked", "task_id": task_id}
-        else:
-            return {"message": "Task Revoked Failed", "task_id": task_id}

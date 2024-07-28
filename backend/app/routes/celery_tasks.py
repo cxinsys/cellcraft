@@ -4,7 +4,7 @@ from celery.signals import worker_process_init
 import os
 import time
 
-from app.common.snakemake_utils import snakemakeProcess
+from app.common.utils.snakemake_utils import snakemakeProcess
 from app.database.crud.crud_task import start_task, end_task
 
 class MyTask(Task):

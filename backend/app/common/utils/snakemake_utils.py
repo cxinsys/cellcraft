@@ -1,7 +1,4 @@
-import os, signal
-import sys
-from datetime import datetime
-from threading import Thread
+import os
 
 def snakemakeProcess(target, snakefile_path):
     from subprocess import Popen, PIPE
