@@ -1,6 +1,6 @@
 <template>
   <div class="layout">
-    <div v-if="current_files === null">
+    <div v-if="current_file === null">
       <span> NO DATA FOR TABLE</span>
     </div>
     <!-- <div v-else-if="isLoading" class="loading-layout">
@@ -34,6 +34,7 @@ export default {
     return {
       node_name: "DataTable",
       dataTable: null,
+      current_file: null,
       current_files: null,
       lines: null,
       firstLine: null,
@@ -122,13 +123,13 @@ export default {
     },
   },
   async mounted() {
-    this.current_files = this.$store.getters.getWorkflowNodeFilesInfo(this.nodeId);
-    console.log(this.current_files);
-    const initial_file_ids = Object.keys(this.current_files);
-    if (initial_file_ids.length > 0) {
+    this.current_file = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
+    console.log(this.current_file);
+    // const initial_file_ids = Object.keys(this.current_files);
+    if (this.current_file) {
       this.isLoading = true;
       try {
-        this.serverParams.file_name = this.current_files[initial_file_ids[0]];
+        this.serverParams.file_name = this.current_file
         const dataTableResult = await getDataTableFile(this.serverParams);
 
         console.log(dataTableResult.data);

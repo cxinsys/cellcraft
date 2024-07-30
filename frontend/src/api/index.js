@@ -70,31 +70,31 @@ function getFiles() {
 }
 
 function findFile(fileInfo) {
-  return instance.post("routes/files/find", fileInfo);
+  return instance.post("/routes/files/find", fileInfo);
 }
 
 function findFolder(folder) {
-  return instance.post("routes/files/folder", folder);
+  return instance.post("/routes/files/folder", folder);
 }
 
 function deleteFile(file) {
-  return instance.post("routes/files/delete", file);
+  return instance.post("/routes/files/delete", file);
 }
 
 function convertFile(file) {
-  return instance.post("routes/files/convert", file);
+  return instance.post("/routes/files/convert", file);
 }
 
 function checkOptions() {
-  return instance.get("routes/files/setup/check");
+  return instance.get("/routes/files/setup/check");
 }
 
 function getOptions(file) {
-  return instance.get(`routes/files/setup/${file}`);
+  return instance.get(`/routes/files/setup/${file}`);
 }
 
 function checkConvert(file) {
-  return instance.get(`routes/files/check/${file}`);
+  return instance.get(`/routes/files/check/${file}`);
 }
 
 function getColumns(fileInfo) {
@@ -110,11 +110,11 @@ function setupAlgorithm(options) {
 }
 
 function getWorkflows() {
-  return instance.get("routes/workflow/me");
+  return instance.get("/routes/workflow/me");
 }
 
 function findWorkflow(workflowInfo) {
-  return instance.post("routes/workflow/find", workflowInfo);
+  return instance.post("/routes/workflow/find", workflowInfo);
 }
 
 function saveWorkflow(workflow) {
@@ -123,6 +123,22 @@ function saveWorkflow(workflow) {
 
 function deleteWorkflow(workflow) {
   return instance.post("/routes/workflow/delete", workflow);
+}
+
+function saveWorkflowNodeFile(workflowNodeFileInfo) {
+  return instance.post("/routes/workflow/node/save", workflowNodeFileInfo);
+}
+
+function deleteWorkflowNodeFile(workflowNodeFileInfo) {
+  return instance.post("/routes/workflow/node/delete", workflowNodeFileInfo);
+}
+
+function readWorkflowNodeFile(workflowNodeFileInfo) {
+  return instance.post("/routes/workflow/node/read", workflowNodeFileInfo);
+}
+
+function updateWorkflowNodeFile(workflowNodeFileInfo) {
+  return instance.post("/routes/workflow/node/update", workflowNodeFileInfo);
 }
 
 function taskMonitoring(taskId) {
@@ -237,4 +253,8 @@ export {
   dissociatePlugin,
   getPluginTemplate,
   getDataTableFile,
+  saveWorkflowNodeFile,
+  deleteWorkflowNodeFile,
+  readWorkflowNodeFile,
+  updateWorkflowNodeFile,
 };

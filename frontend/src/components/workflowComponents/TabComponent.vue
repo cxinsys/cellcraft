@@ -32,6 +32,10 @@ export default {
         isTabView: {
             type: Boolean,
             required: true
+        },
+        currentWorkflowId: {
+            type: Number,
+            required: true
         }
     },
     components: {

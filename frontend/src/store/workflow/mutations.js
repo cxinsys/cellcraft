@@ -84,10 +84,16 @@ export default {
                   const targetNode = state.workflow_info.drawflow.Home.data[connection.node];
   
                   if (targetNode) {
-                      if (!targetNode.data.files) {
-                          targetNode.data.files = {};
+                      if (targetNode.name === 'Algorithm') {
+                          console.log(`Node with id: ${targetNode.id} is of type 'Algorithm'. Stopping.`);
+                          if (!targetNode.data.files) {
+                              targetNode.data.files = {};
+                          }
+                          targetNode.data.files[id] = file_name;
+                          return;
                       }
-                      targetNode.data.files[id] = file_name;
+
+                      targetNode.data.file = file_name;
   
                       // Add the connected node to the next nodes to process
                       nextNodes.push(connection.node);
@@ -97,6 +103,66 @@ export default {
       }
   
       currentNodes = nextNodes;
+    }
+  },
+  removeWorkflowFile(state, id) {
+    const node = state.workflow_info.drawflow.Home.data[id];
+    if (!node) {
+        console.error(`No node found with id: ${id}`);
+        return;
+    }
+
+    if (!node.data.file) {
+        console.error(`No file found in node with id: ${id}`);
+        return;
+    }
+
+    if (!Object.keys(node.outputs).some(outputKey => node.outputs[outputKey].connections.length > 0)) {
+        console.log(`No connections found for node with id: ${id}`);
+        return;
+    }
+
+    let currentNodes = [id];
+    while (currentNodes.length > 0) {
+        const nextNodes = [];
+        for (const currentNodeId of currentNodes) {
+            const currentNode = state.workflow_info.drawflow.Home.data[currentNodeId];
+
+            if (!currentNode) {
+                console.error(`No node found with id: ${currentNodeId}`);
+                continue;
+            }
+
+            // Check if the current node is of type "Algorithm"
+            if (currentNode.name === 'Algorithm') {
+                console.log(`Node with id: ${currentNodeId} is of type 'Algorithm'. Stopping.`);
+                return;
+            }
+
+            // Iterate over the outputs to find connections
+            Object.keys(currentNode.outputs).forEach(outputKey => {
+                currentNode.outputs[outputKey].connections.forEach(connection => {
+                    const targetNode = state.workflow_info.drawflow.Home.data[connection.node];
+
+                    if (targetNode) {
+                        if (targetNode.name === 'Algorithm') {
+                            console.log(`Node with id: ${targetNode.id} is of type 'Algorithm'. Stopping.`);
+                            if (targetNode.data.files) {
+                                delete targetNode.data.files[id];
+                            }
+                            return;
+                        }
+
+                        targetNode.data.file = null;
+
+                        // Add the connected node to the next nodes to process
+                        nextNodes.push(connection.node);
+                    }
+                });
+            });
+        }
+
+        currentNodes = nextNodes;
     }
   },
   updateWorkflowNodeTitle(state, { nodeId, newTitle }) {

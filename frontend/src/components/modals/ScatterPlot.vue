@@ -99,7 +99,7 @@
 </template>
 
 <script>
-import { getResult } from "@/api/index";
+import { getResult, saveWorkflowNodeFile, readWorkflowNodeFile, updateWorkflowNodeFile } from "@/api/index";
 import Plotly from "plotly.js-dist-min";
 
 export default {
@@ -139,6 +139,7 @@ export default {
       appliedSelectedIndices: [],
       disableApplyButton: false,
       scatterResult: null,
+      nodeId: this.$route.query.node,
     };
   },
   async mounted() {
@@ -165,7 +166,7 @@ export default {
         displaylogo: false,
       },
     });
-    this.current_file = this.$store.getters.getCurrentFile.file;
+    this.current_file = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
     const tmpIndices = this.$store.getters.getCurrentFile.selectedIndices;
     if (tmpIndices != null) {
       if (tmpIndices.length > 0) {

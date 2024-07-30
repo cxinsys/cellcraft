@@ -31,7 +31,8 @@
       </button>
     </div>
     <TabComponent ref="tabComponent" :initialTabList="initialTabList" :isTabView="isTabView"
-      @update:isTabView="updateIsTabView" @process-workflow-nodes="processWorkflowNodes" />
+      :currentWorkflowId="currentWorkflowId" @update:isTabView="updateIsTabView"
+      @process-workflow-nodes="processWorkflowNodes" />
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
       <!-- <p class="message__text">{{ messageContent }}</p> -->
       <img class="message__status" src="@/assets/succes.png" v-if="messageStatus === 'success'" />
@@ -195,6 +196,7 @@ export default {
 
     this.$df.on("nodeRemoved", async (ev) => {
       this.removeTab(parseInt(ev));
+      this.$store.commit("removeWorkflowFile", parseInt(ev));
       this.setCurrentWorkflowInfo();
     });
     this.$df.on("connectionCreated", async (ev) => {
@@ -262,6 +264,8 @@ export default {
         this.notRemoveConnectionOutputId = "";
         return;
       }
+
+      this.$store.commit("removeWorkflowFile", parseInt(ev.output_id));
 
       this.setCurrentWorkflowInfo();
     });
@@ -657,21 +661,23 @@ export default {
       }, 5000);
     },
     async setCurrentWorkflow() {
-      this.setCurrentWorkflowInfo();
-      await this.captureWorkflow();
-      const title = this.$store.getters.getTitle;
-      const thumbnail = this.$store.getters.getThumbnail;
-      const workflow = {
-        id: this.currentWorkflowId,
-        title: title,
-        thumbnail: thumbnail,
-        workflow_info: this.exportValue,
-        // nodes: nodes,
-        // linked_nodes: linked_nodes,
-      };
-      const workflow_data = await saveWorkflow(workflow);
-      this.currentWorkflowId = workflow_data.data.id;
-      return workflow_data.data;
+      try {
+        this.setCurrentWorkflowInfo();
+        await this.captureWorkflow();
+        const title = this.$store.getters.getTitle;
+        const thumbnail = this.$store.getters.getThumbnail;
+        const workflow = {
+          id: this.currentWorkflowId,
+          title: title,
+          thumbnail: thumbnail,
+          workflow_info: this.exportValue,
+        };
+        const workflow_data = await saveWorkflow(workflow);
+        this.currentWorkflowId = workflow_data.data.id;
+        return workflow_data.data;
+      } catch (error) {
+        console.error(error);
+      }
     },
     setCurrentWorkflowInfo() {
       this.exportValue = this.$df.export();
