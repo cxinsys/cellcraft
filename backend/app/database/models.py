@@ -46,8 +46,6 @@ class Workflow(Base):
     title = Column(String, nullable=False)
     thumbnail = Column(Text, nullable=True)
     workflow_info = Column(JSONB, nullable=False)
-    nodes = Column(ARRAY(JSON), nullable=False)
-    linked_nodes = Column(ARRAY(JSON), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"))
 
     user = relationship("User", back_populates="workflows")

@@ -191,6 +191,13 @@ def get_plugin_template(
     try:
         # Get the plugin by ID
         plugin = crud_plugin.get_plugin_by_id(db, plugin_id)
+
+        if plugin is None:
+            raise HTTPException(status_code=404, detail="Plugin not found")
+        
+        # Convert plugin.drawflow to dictionary if it's a JSON string
+        if isinstance(plugin.drawflow, str):
+            plugin.drawflow = json.loads(plugin.drawflow)
         
         # Generate the drawflow template
         drawflow = plugin_utils.generate_plugin_drawflow_template(plugin.drawflow, plugin.name)
