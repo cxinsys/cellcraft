@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from app.common.utils.celery_utils import get_task_info
 from app.common.utils.snakemake_utils import create_snakefile, filter_and_add_suffix
 from app.database.crud import crud_workflow
-from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowResult, WorkflowFind, WorkflowNodeFileCreate, WorkflowNodeFileDelete, WorkflowNodeFileUpdate, WorkflowNodeFileRead
+from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowResult, WorkflowFind, WorkflowNodeFileCreate, WorkflowNodeFileDelete, WorkflowNodeFileRead
 from app.routes import dep
 from app.database import models
 from app.routes.celery_tasks import process_data_task
@@ -266,7 +266,9 @@ def saveNodeData(
         file_name = f"{workflowNodeFileInfo.node_name}_{workflowNodeFileInfo.node_id}.{workflowNodeFileInfo.file_extension}"
         # user 폴더에 파일 생성
         with open(f"{workflow_path}/{file_name}", "w") as f:
+            # workflowNodeFileInfo.file_content가 List이면 json.dump으로 파일 생성
             if workflowNodeFileInfo.file_extension == "json":
+                print(workflowNodeFileInfo.file_content)
                 json.dump(workflowNodeFileInfo.file_content, f)
             if workflowNodeFileInfo.file_extension == "txt" or workflowNodeFileInfo.file_extension == "tsv" or workflowNodeFileInfo.file_extension == "csv":
                 f.write(workflowNodeFileInfo.file_content)
@@ -290,6 +292,7 @@ def readNodeData(
         # user 폴더에 workflow 폴더 존재하지 않으면 에러 발생
         user_path = f"./user/{current_user.username}/"
         workflow_path = f"{user_path}workflow{workflowNodeFileInfo.id}"
+        print(workflow_path)
         if not os.path.exists(workflow_path):
             raise HTTPException(
                 status_code=400,
@@ -298,7 +301,10 @@ def readNodeData(
         # workflowNodeFileInfo.node_name이랑 workflowNodeFileInfo.node_id로 파일 읽어오기
         file_name = f"{workflowNodeFileInfo.node_name}_{workflowNodeFileInfo.node_id}.{workflowNodeFileInfo.file_extension}"
         with open(f"{workflow_path}/{file_name}", "r") as f:
-            file_content = f.read()
+            if workflowNodeFileInfo.file_extension == "json":
+                file_content = json.load(f)
+            else:
+                file_content = f.read()
 
         return {
             'id': workflowNodeFileInfo.id,
@@ -338,44 +344,6 @@ def deleteNodeData(
             'id': workflowNodeFileInfo.id,
             'node_id': workflowNodeFileInfo.node_id,
             'node_name': workflowNodeFileInfo.node_name,
-            'file_extension': workflowNodeFileInfo.file_extension
-        }
-    else:
-        raise HTTPException(
-                status_code=400,
-                detail="this workflow not exists in your workflows",
-                )
-    
-#update workflow node modal data
-@router.post("/node/update")
-def updateNodeData(
-    *,
-    db: Session = Depends(dep.get_db),
-    workflowNodeFileInfo: WorkflowNodeFileUpdate, 
-    current_user: models.User = Depends(dep.get_current_active_user)
-    ):
-    user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflowNodeFileInfo.id)
-    if user_workflow:
-        # user 폴더에 workflow 폴더 존재하지 않으면 에러 발생
-        user_path = f"./user/{current_user.username}/"
-        workflow_path = f"{user_path}workflow{workflowNodeFileInfo.id}"
-        if not os.path.exists(workflow_path):
-            raise HTTPException(
-                status_code=400,
-                detail="this workflow not exists in your workflows",
-                )
-        # workflowNodeFileInfo.node_name이랑 workflowNodeFileInfo.node_id로 파일 읽어오기
-        file_name = f"{workflowNodeFileInfo.node_name}_{workflowNodeFileInfo.node_id}.{workflowNodeFileInfo.file_extension}"
-        with open(f"{workflow_path}/{file_name}", "w") as f:
-            if workflowNodeFileInfo.file_extension == "json":
-                json.dump(workflowNodeFileInfo.file_content, f)
-            if workflowNodeFileInfo.file_extension == "txt" or workflowNodeFileInfo.file_extension == "tsv" or workflowNodeFileInfo.file_extension == "csv":
-                f.write(workflowNodeFileInfo.file_content)
-        return {
-            'id': workflowNodeFileInfo.id,
-            'node_id': workflowNodeFileInfo.node_id,
-            'node_name': workflowNodeFileInfo.node_name,
-            'file_content': workflowNodeFileInfo.file_content,
             'file_extension': workflowNodeFileInfo.file_extension
         }
     else:

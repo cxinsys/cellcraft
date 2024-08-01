@@ -15,6 +15,7 @@ from app.database.crud import crud_file
 from app.database import models
 from app.database.schemas.file import FileCreate, FileDelete, FileUpdate, FileFind, FolderFind, FileSetup, FileGet, FileResultFind
 from app.common.utils.h5ad_utils import organize_column_dtypes, get_annotation_columns, get_pseudotime_columns
+from app.common.utils.workflow_utils import load_tab_file
 
 router = APIRouter()
 
@@ -399,3 +400,22 @@ async def download_result_file(
     ) -> Any:
     folder_path = './user' + '/' + current_user.username + "/result/"
     return FileResponse(folder_path + filename ,filename=filename)
+
+@router.get("/data/{filename}")
+async def download_data_file(
+    *,
+    current_user: models.User = Depends(dep.get_current_active_user),
+    filename: str,
+    ) -> Any:
+    PATH_DATA_FILE = './user' + '/' + current_user.username + "/data/" + filename
+    # 파일이 존재하는지 확인
+    if not os.path.isfile(PATH_DATA_FILE):
+        raise HTTPException(
+                status_code=400,
+                detail="this file not exists in your files",
+        )
+
+    if filename.endswith('.h5ad'):
+        df = load_tab_file(PATH_DATA_FILE)
+        return df.to_dict(orient="records")
+    return FileResponse(PATH_DATA_FILE, filename=filename)

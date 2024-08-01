@@ -2,7 +2,8 @@ import os
 import pandas as pd
 import scanpy as sc
 
-def load_tab_file(file_path: str, max_rows: int = 5000):
+# def load_tab_file(file_path: str, max_rows: int = 5000):
+def load_tab_file(file_path: str):
     # Check if the file exists
     if not os.path.isfile(file_path):
         raise FileNotFoundError(f"The file {file_path} does not exist.")
@@ -19,14 +20,16 @@ def load_tab_file(file_path: str, max_rows: int = 5000):
         # Process and combine data to form the desired dataframe structure
         df = pd.concat([adata.obs, pd.DataFrame(adata.obsm['X_umap'], columns=['X', 'Y'], index=adata.obs.index)], axis=1)
         # slice the dataframe to the maximum number of rows
-        df_trimmed = df.head(max_rows)
-        return df_trimmed
+        # df_trimmed = df.head(max_rows)
+        # return df_trimmed
+        return df
     else :
         # Determine the separator based on the file extension
         sep = ',' if file_extension == '.csv' else '\t'
         
         # Load the file with pandas
-        df = pd.read_csv(file_path, sep=sep, nrows=max_rows)
+        # df = pd.read_csv(file_path, sep=sep, nrows=max_rows)
+        df = pd.read_csv(file_path, sep=sep)
         
         # Return the trimmed dataframe
         return df

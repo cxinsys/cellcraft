@@ -33,25 +33,24 @@ class WorkflowNodeFileBase(BaseModel):
     id: Optional[int] = None
     node_id: Optional[str] = None
     node_name: Optional[str] = None
-    file_content: Optional[Dict] = None
+    file_content: Optional[List] = None
     file_extension: Optional[str] = None
 
 class WorkflowNodeFileCreate(WorkflowNodeFileBase):
     id: int
     node_id: str
     node_name: str
-    file_content: Optional[Dict]
+    file_content: Optional[List] = None
     file_extension: str
 
 class WorkflowNodeFileDelete(WorkflowNodeFileBase):
     id: int
     node_id: str
-
-class WorkflowNodeFileUpdate(WorkflowNodeFileBase):
-    id: int
-    node_id: str
-    file_content: Optional[Dict]
+    node_name: str
+    file_extension: str
 
 class WorkflowNodeFileRead(WorkflowNodeFileBase):
     id: int
     node_id: str
+    node_name: str
+    file_extension: str
