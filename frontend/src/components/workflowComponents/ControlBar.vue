@@ -4,7 +4,7 @@
             <li class="control-bar__button" @click="toggleFile">
                 <img class="control-bar__icon" src="@/assets/control_files.png" />
             </li>
-            <li class="control-bar__button" @click="downloadDrawflow">
+            <li class="control-bar__button" @click="saveWorkflowProject">
                 <img class="control-bar__icon" src="@/assets/control_save.png" />
             </li>
             <li class="control-bar__button">
@@ -54,9 +54,9 @@ export default {
         toggleTabView() {
             this.$emit('toggle-tab-view');
         },
-        downloadDrawflow() {
-            this.$emit('download-drawflow');
-        }
+        // downloadDrawflow() {
+        //     this.$emit('download-drawflow');
+        // }
     }
 };
 </script>

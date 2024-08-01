@@ -21,7 +21,7 @@
     <JobTable :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" />
     <ControlBar :on_progress="on_progress" :isTabView="isTabView" @toggle-file="toggleFile"
       @save-workflow-project="saveWorkflowProject" @run-workflow="runWorkflow" @toggle-task="toggleTask"
-      @toggle-tab-view="toggleTabView" @download-drawflow="downloadDrawflow" />
+      @toggle-tab-view="toggleTabView" />
     <div v-if="!isRuleView" class="node-zoom-buttons">
       <button class="node-zoom-button" @click="zoomIn">
         <img src="@/assets/zoom_in.png">

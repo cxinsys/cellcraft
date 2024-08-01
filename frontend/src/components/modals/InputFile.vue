@@ -71,8 +71,6 @@ import {
   getFiles,
   findFolder,
   findFile,
-  convertFile,
-  checkConvert,
 } from "@/api/index";
 
 export default {
@@ -98,18 +96,6 @@ export default {
       if (this.$refs.selectFile.files.length > 0) {
         this.selectFile = this.$refs.selectFile.files[0];
       }
-    },
-    filterAndAddSuffix(inputString) {
-      // Check if the inputString contains an underscore
-      if (inputString.includes("_")) {
-        // "_"로 구분된 문자열을 배열로 변환
-        const segments = inputString.split("_");
-        // 마지막 두 요소를 제외한 나머지를 합침
-        const fileName = segments.slice(0, -2).join("_") + ".h5ad";
-        return fileName;
-      }
-      // If no underscore found, return the original string
-      return inputString;
     },
     async getFinder() {
       this.getFile = true;
@@ -142,20 +128,11 @@ export default {
           file_name: fileName,
         });
         this.selectFile = file.data;
-        try {
-          await checkConvert(this.selectFile.file_name);
-          // this.apply = false;
-        } catch (error) {
-          console.error(error);
-        }
       }
     },
     applyFile() {
       this.isLoading = true;
       try {
-        // const file = await convertFile({
-        //   file_name: this.selectFile.file_name,
-        // });
         this.apply = true;
         const file_info = {
           file_name: this.selectFile.file_name,
@@ -170,16 +147,16 @@ export default {
     },
   },
   async mounted() {
-    const currentFile = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
     await this.getFinder();
-    if (currentFile.file !== "") {
+    const currentFile = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
+
+    if (currentFile !== "") {
+      this.apply = true;
       try {
         const file = await findFile({
-          file_name: this.filterAndAddSuffix(currentFile.file),
+          file_name: currentFile,
         });
         this.selectFile = file.data;
-        await checkConvert(this.filterAndAddSuffix(currentFile.file));
-        this.apply = true;
       } catch (error) {
         console.error(error);
       }

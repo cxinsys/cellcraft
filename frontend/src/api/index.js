@@ -109,6 +109,10 @@ function setupAlgorithm(options) {
   return instance.post("/routes/files/setup", options);
 }
 
+function getFileData(filename) {
+  return instance.get(`/routes/files/data/${filename}`);
+}
+
 function getWorkflows() {
   return instance.get("/routes/workflow/me");
 }
@@ -135,10 +139,6 @@ function deleteWorkflowNodeFile(workflowNodeFileInfo) {
 
 function readWorkflowNodeFile(workflowNodeFileInfo) {
   return instance.post("/routes/workflow/node/read", workflowNodeFileInfo);
-}
-
-function updateWorkflowNodeFile(workflowNodeFileInfo) {
-  return instance.post("/routes/workflow/node/update", workflowNodeFileInfo);
 }
 
 function taskMonitoring(taskId) {
@@ -256,5 +256,5 @@ export {
   saveWorkflowNodeFile,
   deleteWorkflowNodeFile,
   readWorkflowNodeFile,
-  updateWorkflowNodeFile,
+  getFileData,
 };

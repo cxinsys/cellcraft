@@ -4,56 +4,27 @@
       <div id="plotly__scatter"></div>
     </div>
     <div class="options-layout" v-if="!refreshOptionsLayout">
-      <input
-        type="text"
-        placeholder="Title"
-        class="options__textInput"
-        @input="titleChangeFunc($event)"
-      />
+      <input type="text" placeholder="Title" class="options__textInput" @input="titleChangeFunc($event)" />
       <div class="options__item">
         X - axis&nbsp;
-        <select
-          class="options__item__select"
-          :value="selectedX"
-          @change="setSelectX($event)"
-        >
-          <option
-            v-for="(item, index) in numList"
-            :key="index"
-            :value="item.value"
-          >
+        <select class="options__item__select" :value="selectedX" @change="setSelectX($event)">
+          <option v-for="(item, index) in numList" :key="index" :value="item.value">
             {{ item.name }}
           </option>
         </select>
       </div>
       <div class="options__item">
         Y - axis&nbsp;
-        <select
-          class="options__item__select"
-          :value="selectedY"
-          @change="setSelectY($event)"
-        >
-          <option
-            v-for="(item, index) in numList"
-            :key="index"
-            :value="item.value"
-          >
+        <select class="options__item__select" :value="selectedY" @change="setSelectY($event)">
+          <option v-for="(item, index) in numList" :key="index" :value="item.value">
             {{ item.name }}
           </option>
         </select>
       </div>
       <div class="options__item">
         Group&nbsp;
-        <select
-          class="options__item__select"
-          :value="selectedCluster"
-          @change="setSelectCluster($event)"
-        >
-          <option
-            v-for="(item, index) in clusterList"
-            :key="index"
-            :value="item.value"
-          >
+        <select class="options__item__select" :value="selectedCluster" @change="setSelectCluster($event)">
+          <option v-for="(item, index) in clusterList" :key="index" :value="item.value">
             {{ item.name }}
           </option>
         </select>
@@ -61,36 +32,18 @@
 
       <div class="options__item">
         Marker Size&nbsp;
-        <img
-          class="options__item__button__minus"
-          src="@/assets/button_minus.png"
-          alt="-"
-          v-on:click="markerSizeMinus"
-        />
+        <img class="options__item__button__minus" src="@/assets/button_minus.png" alt="-"
+          v-on:click="markerSizeMinus" />
         <label class="options__item__degree">{{ markerSize }}</label>
-        <img
-          class="options__item__button__plus"
-          src="@/assets/button_plus.png"
-          alt="-"
-          v-on:click="markerSizePlus"
-        />
+        <img class="options__item__button__plus" src="@/assets/button_plus.png" alt="-" v-on:click="markerSizePlus" />
       </div>
       <div class="options__item">
         Download Plot Image&nbsp;
-        <img
-          class="downloadPlot_button"
-          src="@/assets/download.png"
-          alt="Save Plot"
-          @click="downloadPlot"
-        />
+        <img class="downloadPlot_button" src="@/assets/download.png" alt="Save Plot" @click="downloadPlot" />
       </div>
       <div class="options__item">
         <button id="reset-button" @click="resetSelect">reset</button>
-        <button
-          id="apply-button"
-          @click="cellselect"
-          :disabled="disableApplyButton"
-        >
+        <button id="apply-button" @click="cellselect" :disabled="disableApplyButton">
           {{ disableApplyButton ? "Select Applied" : "Select Apply " }}
         </button>
       </div>
@@ -99,7 +52,7 @@
 </template>
 
 <script>
-import { getResult, saveWorkflowNodeFile, readWorkflowNodeFile, updateWorkflowNodeFile } from "@/api/index";
+import { getFileData, saveWorkflowNodeFile, readWorkflowNodeFile, deleteWorkflowNodeFile } from "@/api/index";
 import Plotly from "plotly.js-dist-min";
 
 export default {
@@ -139,115 +92,146 @@ export default {
       appliedSelectedIndices: [],
       disableApplyButton: false,
       scatterResult: null,
+      workflowId: this.$route.query.id,
       nodeId: this.$route.query.node,
     };
   },
   async mounted() {
-    Plotly.newPlot("plotly__scatter", {
-      data: [{ type: this.chartType }],
-      layout: {
-        autosize: true,
-        automargin: true,
-        width: 600, // !--조정필요
-        height: 570, // !--조정필요
-        legend: {
-          itemsizing: "constant",
-          font: {
-            size: 15,
+    try {
+      Plotly.newPlot("plotly__scatter", {
+        data: [{ type: this.chartType }],
+        layout: {
+          autosize: true,
+          automargin: true,
+          width: 600, // !--조정필요
+          height: 570, // !--조정필요
+          legend: {
+            itemsizing: "constant",
+            font: {
+              size: 15,
+            },
           },
+          paper_bgcolor: "#ffffff00",
+          plot_bgcolor: "#ffffff00",
         },
-        paper_bgcolor: "#ffffff00",
-        plot_bgcolor: "#ffffff00",
-      },
-      config: {
-        responsive: true,
-        scrollZoom: true,
-        displayModeBar: true,
-        displaylogo: false,
-      },
-    });
-    this.current_file = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
-    const tmpIndices = this.$store.getters.getCurrentFile.selectedIndices;
+        config: {
+          responsive: true,
+          scrollZoom: true,
+          displayModeBar: true,
+          displaylogo: false,
+        },
+      });
+    } catch (error) {
+      console.error("Error initializing Plotly:", error);
+    }
+
+    try {
+      this.current_file = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
+    } catch (error) {
+      console.error("Error getting current file info:", error);
+    }
+
+    let savedIndices;
+    try {
+      savedIndices = await readWorkflowNodeFile({
+        id: this.workflowId,
+        node_id: String(this.nodeId),
+        node_name: "ScatterPlot",
+        file_extension: "json",
+      });
+    } catch (error) {
+      console.error("Error reading workflow node file:", error);
+    }
+
+    const tmpIndices = savedIndices?.data?.file_content;
+    console.log(tmpIndices);
+    console.log(savedIndices);
     if (tmpIndices != null) {
       if (tmpIndices.length > 0) {
         this.appliedSelectedIndices = tmpIndices;
         this.disableApplyButton = true;
       }
     }
+
     if (this.current_file !== "") {
-      const scatterResult = await getResult({
-        filename: this.current_file,
-      });
-      //백엔드에서 넘겨준 plot 데이터
-      // scatterResult.data;
-      // lines, keys, areNum 업데이트
-      this.scatterResult = scatterResult;
-      this.lines = scatterResult.data.split("\n").map((x) => x.split(","));
-      this.keys = this.lines.splice(0, 1)[0];
-      this.keys.push("INDEX");
-      // this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
-      this.areNum = this.lines[0].map((x) => !isNaN(x));
-
-      for (let i = 0; i < this.lines.length; i++) {
-        this.lines[i].push(i);
+      let scatterResult;
+      try {
+        scatterResult = await getFileData(this.current_file);
+      } catch (error) {
+        console.error("Error getting file data:", error);
       }
 
-      if (this.appliedSelectedIndices != null) {
-        if (this.appliedSelectedIndices.length > 0) {
-          this.lines = this.lines.filter((_, index) =>
-            this.appliedSelectedIndices.includes(index)
-          );
-          this.disableApplyButton = true;
+      if (scatterResult) {
+        this.scatterResult = scatterResult.data;
+        console.log(this.scatterResult);
+
+        this.processScatterResult(this.scatterResult);
+
+        for (let i = 0; i < this.lines.length; i++) {
+          this.lines[i].push(i);
+        }
+
+        if (this.appliedSelectedIndices != null) {
+          if (this.appliedSelectedIndices.length > 0) {
+            this.lines = this.lines.filter((_, index) =>
+              this.appliedSelectedIndices.includes(index)
+            );
+            this.disableApplyButton = true;
+          }
+        }
+
+        this.numList = [{ name: "None", value: null }];
+        for (let i = 0; i < this.keys.length; i++) {
+          if (this.areNum[i] == true) {
+            this.numList.push({ name: this.keys[i], value: i });
+          }
+        }
+
+        this.keyList = [{ name: "None", value: null }];
+        for (let i = 0; i < this.keys.length; i++) {
+          this.keyList.push({ name: this.keys[i], value: i });
+        }
+
+        this.clusterList = [{ name: "None", value: null, isTooVarious: null }];
+        for (let i = 1; i < this.keys.length; i++) {
+          const countUnique = new Set(this.lines.map((x) => x[i])).size;
+          if (countUnique < this.numClusterConstraint) {
+            this.clusterList.push({
+              name: this.keys[i],
+              value: i,
+              isTooVarious: false,
+            });
+          } else {
+            this.clusterList.push({
+              name: this.keys[i],
+              value: i,
+              isTooVarious: true,
+            });
+          }
+        }
+
+        if (this.keys.indexOf("X") != -1) {
+          this.selectedX = this.keys.indexOf("X");
+        }
+        if (this.keys.indexOf("Y") != -1) {
+          this.selectedY = this.keys.indexOf("Y");
+        }
+        if (this.keys.indexOf("leiden") != -1) {
+          this.selectedCluster = this.keys.indexOf("leiden");
+        }
+        if (this.keys.indexOf("INDEX") != -1) {
+          this.selectedName = this.keys.indexOf("INDEX");
+        }
+
+        try {
+          this.updateChart();
+        } catch (error) {
+          console.error("Error updating chart:", error);
         }
       }
-
-      this.numList = [{ name: "None", value: null }];
-      for (let i = 0; i < this.keys.length; i++) {
-        if (this.areNum[i] == true) {
-          this.numList.push({ name: this.keys[i], value: i });
-        }
-      }
-
-      this.keyList = [{ name: "None", value: null }];
-      for (let i = 0; i < this.keys.length; i++) {
-        this.keyList.push({ name: this.keys[i], value: i });
-      }
-
-      this.clusterList = [{ name: "None", value: null, isTooVarious: null }];
-      for (let i = 1; i < this.keys.length; i++) {
-        const countUnique = new Set(this.lines.map((x) => x[i])).size;
-        if (countUnique < this.numClusterConstraint) {
-          this.clusterList.push({
-            name: this.keys[i],
-            value: i,
-            isTooVarious: false,
-          });
-        } else {
-          this.clusterList.push({
-            name: this.keys[i],
-            value: i,
-            isTooVarious: true,
-          });
-        }
-      }
-
-      if (this.keys.indexOf("X") != -1) {
-        this.selectedX = this.keys.indexOf("X");
-      }
-      if (this.keys.indexOf("Y") != -1) {
-        this.selectedY = this.keys.indexOf("Y");
-      }
-      if (this.keys.indexOf("leiden") != -1) {
-        this.selectedCluster = this.keys.indexOf("leiden");
-      }
-
-      if (this.keys.indexOf("INDEX") != -1) {
-        this.selectedName = this.keys.indexOf("INDEX");
-      }
-
-      this.updateChart();
-      this.refreshOptionsLayout = false;
     }
+
+    this.refreshOptionsLayout = false;
   },
   methods: {
     // 차트 업데이트
@@ -494,12 +478,20 @@ export default {
         filename: "CELLCRAFT_Plot",
       });
     },
-    cellselect() {
+    async cellselect() {
       if (this.selectedIndices.length > 0) {
-        this.$store.commit("setSelectedIndices", [
-          this.keys[this.selectedCluster],
-          this.selectedIndices,
-        ]);
+        // this.$store.commit("setSelectedIndices", [
+        //   this.keys[this.selectedCluster],
+        //   this.selectedIndices,
+        // ]);
+        const selectIndicesInfo = await saveWorkflowNodeFile({
+          id: this.workflowId,
+          node_id: String(this.nodeId),
+          node_name: "ScatterPlot",
+          file_content: this.selectedIndices,
+          file_extension: "json",
+        });
+        console.log(selectIndicesInfo);
         this.appliedSelectedIndices = this.selectedIndices;
         this.lines = this.lines.filter((_, index) =>
           this.appliedSelectedIndices.includes(index)
@@ -508,67 +500,90 @@ export default {
         this.disableApplyButton = true;
       }
     },
-    resetSelect() {
-      this.$store.commit("setSelectedIndices", ["", []]);
-      this.appliedSelectedIndices = null;
-      this.selectedIndices = [];
-      this.disableApplyButton = false;
-      this.markerSize = 3;
-      this.lines = this.scatterResult.data.split("\n").map((x) => x.split(","));
-      this.keys = this.lines.splice(0, 1)[0];
-      this.keys.push("INDEX");
-      // this.keys[0] = "INDEX"; // keys의 [0]을 ""로 받아오기 때문에 "INDEX로 변환"
-      this.areNum = this.lines[0].map((x) => !isNaN(x));
+    async resetSelect() {
+      try {
+        // this.$store.commit("setSelectedIndices", ["", []]);
+        const resetIndicesInfo = await deleteWorkflowNodeFile({
+          id: this.workflowId,
+          node_id: String(this.nodeId),
+          node_name: "ScatterPlot",
+          file_extension: "json",
+        });
+        console.log(resetIndicesInfo);
+        this.appliedSelectedIndices = null;
+        this.selectedIndices = [];
+        this.disableApplyButton = false;
+        this.markerSize = 3;
 
-      for (let i = 0; i < this.lines.length; i++) {
-        this.lines[i].push(i);
-      }
+        this.processScatterResult(this.scatterResult);
 
-      this.numList = [{ name: "None", value: null }];
-      for (let i = 0; i < this.keys.length; i++) {
-        if (this.areNum[i] == true) {
-          this.numList.push({ name: this.keys[i], value: i });
+        for (let i = 0; i < this.lines.length; i++) {
+          this.lines[i].push(i);
         }
-      }
 
-      this.keyList = [{ name: "None", value: null }];
-      for (let i = 0; i < this.keys.length; i++) {
-        this.keyList.push({ name: this.keys[i], value: i });
-      }
-
-      this.clusterList = [{ name: "None", value: null, isTooVarious: null }];
-      for (let i = 1; i < this.keys.length; i++) {
-        const countUnique = new Set(this.lines.map((x) => x[i])).size;
-        if (countUnique < this.numClusterConstraint) {
-          this.clusterList.push({
-            name: this.keys[i],
-            value: i,
-            isTooVarious: false,
-          });
-        } else {
-          this.clusterList.push({
-            name: this.keys[i],
-            value: i,
-            isTooVarious: true,
-          });
+        this.numList = [{ name: "None", value: null }];
+        for (let i = 0; i < this.keys.length; i++) {
+          if (this.areNum[i] == true) {
+            this.numList.push({ name: this.keys[i], value: i });
+          }
         }
-      }
 
-      if (this.keys.indexOf("X") != -1) {
-        this.selectedX = this.keys.indexOf("X");
-      }
-      if (this.keys.indexOf("Y") != -1) {
-        this.selectedY = this.keys.indexOf("Y");
-      }
-      if (this.keys.indexOf("leiden") != -1) {
-        this.selectedCluster = this.keys.indexOf("leiden");
-      }
+        this.keyList = [{ name: "None", value: null }];
+        for (let i = 0; i < this.keys.length; i++) {
+          this.keyList.push({ name: this.keys[i], value: i });
+        }
 
-      if (this.keys.indexOf("INDEX") != -1) {
-        this.selectedName = this.keys.indexOf("INDEX");
+        this.clusterList = [{ name: "None", value: null, isTooVarious: null }];
+        for (let i = 1; i < this.keys.length; i++) {
+          const countUnique = new Set(this.lines.map((x) => x[i])).size;
+          if (countUnique < this.numClusterConstraint) {
+            this.clusterList.push({
+              name: this.keys[i],
+              value: i,
+              isTooVarious: false,
+            });
+          } else {
+            this.clusterList.push({
+              name: this.keys[i],
+              value: i,
+              isTooVarious: true,
+            });
+          }
+        }
+
+        if (this.keys.indexOf("X") != -1) {
+          this.selectedX = this.keys.indexOf("X");
+        }
+        if (this.keys.indexOf("Y") != -1) {
+          this.selectedY = this.keys.indexOf("Y");
+        }
+        if (this.keys.indexOf("leiden") != -1) {
+          this.selectedCluster = this.keys.indexOf("leiden");
+        }
+
+        if (this.keys.indexOf("INDEX") != -1) {
+          this.selectedName = this.keys.indexOf("INDEX");
+        }
+        this.updateChart();
+      } catch (error) {
+        console.error("Error resetting selection:", error);
       }
-      this.updateChart();
     },
+    processScatterResult(scatterResult) {
+      // Extract keys from the first object
+      this.keys = Object.keys(scatterResult[0]);
+      this.keys.push("INDEX");
+
+      // Map the scatterResult to an array of values and add the index
+      this.lines = scatterResult.map((item, index) => {
+        const values = Object.values(item);
+        values.push(index);
+        return values;
+      });
+
+      // Determine which columns are numeric
+      this.areNum = this.lines[0].map((x) => !isNaN(x));
+    }
   },
 };
 </script>
@@ -582,6 +597,7 @@ export default {
   justify-content: center;
   flex-direction: row;
 }
+
 .plotly-layout {
   width: 70%;
   height: 95%;
@@ -596,6 +612,7 @@ export default {
   box-sizing: border-box;
   background-color: rgb(255, 255, 255);
 }
+
 .options-layout {
   width: 25%;
   height: 95%;
@@ -607,6 +624,7 @@ export default {
   flex-direction: column;
   z-index: 9997;
 }
+
 .options__textInput {
   color: black;
   padding: 5px;
@@ -617,6 +635,7 @@ export default {
   text-align: center;
   margin-bottom: 5px;
 }
+
 .options__item {
   /* margin: auto; */
   font-weight: 600;
@@ -625,6 +644,7 @@ export default {
   left: 10px;
   margin-top: 15px;
 }
+
 .options__item__select {
   position: absolute;
   margin-top: -10px;
@@ -635,22 +655,26 @@ export default {
   border-color: #e7eaff;
   color: #545454;
 }
+
 .options__item__button__minus {
   position: absolute;
   right: 80px;
   width: 15px;
   height: 15px;
 }
+
 .options__item__button__plus {
   position: absolute;
   right: 10px;
   width: 15px;
   height: 15px;
 }
+
 .options__item__degree {
   position: absolute;
   right: 50px;
 }
+
 button {
   background-color: #ffffff;
   border: 1px solid #999999;
@@ -668,6 +692,7 @@ button:hover {
   background-color: #e7eaff;
   border-color: #b3b3b3;
 }
+
 /* The switch - the box around the slider_button */
 .switch {
   position: absolute;
@@ -710,15 +735,15 @@ button:hover {
   transition: 0.4s;
 }
 
-input:checked + .slider_button {
+input:checked+.slider_button {
   background-color: #53b2ff;
 }
 
-input:focus + .slider_button {
+input:focus+.slider_button {
   box-shadow: 0 0 1px #53b2ff;
 }
 
-input:checked + .slider_button:before {
+input:checked+.slider_button:before {
   -webkit-transform: translateX(26px);
   -ms-transform: translateX(26px);
   transform: translateX(26px);
@@ -742,50 +767,72 @@ input:checked + .slider_button:before {
   height: 1.5rem;
   opacity: 0.8;
 }
+
 .downloadPlot_button:hover {
   opacity: 1;
   cursor: pointer;
 }
 
 #apply-button {
-  background-color: #2d2fbf; /* 버튼 배경색 */
+  background-color: #2d2fbf;
+  /* 버튼 배경색 */
   width: 8.5rem;
-  color: white; /* 글자색 */
-  padding: 10px 0px; /* 상하 10px, 좌우 20px의 여백 */
-  border: none; /* 테두리 없앰 */
-  border-radius: 4px; /* 테두리 모서리 둥글게 */
-  cursor: pointer; /* 마우스 오버 시 커서 변경 */
-  font-size: 16px; /* 글자 크기 */
-  transition: background-color 0.3s; /* 배경색 변경시 트랜지션 효과 */
+  color: white;
+  /* 글자색 */
+  padding: 10px 0px;
+  /* 상하 10px, 좌우 20px의 여백 */
+  border: none;
+  /* 테두리 없앰 */
+  border-radius: 4px;
+  /* 테두리 모서리 둥글게 */
+  cursor: pointer;
+  /* 마우스 오버 시 커서 변경 */
+  font-size: 16px;
+  /* 글자 크기 */
+  transition: background-color 0.3s;
+  /* 배경색 변경시 트랜지션 효과 */
   box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.4);
 }
 
 #apply-button:hover {
-  background-color: #4655ff; /* 마우스 오버시 버튼의 배경색 변경 */
+  background-color: #4655ff;
+  /* 마우스 오버시 버튼의 배경색 변경 */
 }
 
 #apply-button:disabled {
-  background-color: #ccc; /* 비활성화 상태의 배경색 */
-  color: #666; /* 비활성화 상태의 글자색 */
-  cursor: not-allowed; /* 비활성화 상태에서의 커서 */
+  background-color: #ccc;
+  /* 비활성화 상태의 배경색 */
+  color: #666;
+  /* 비활성화 상태의 글자색 */
+  cursor: not-allowed;
+  /* 비활성화 상태에서의 커서 */
 }
 
 #reset-button {
-  background-color: #616161; /* 버튼 배경색 */
+  background-color: #616161;
+  /* 버튼 배경색 */
   width: 3.5rem;
-  color: white; /* 글자색 */
-  padding: 10px 0px; /* 상하 10px, 좌우 20px의 여백 */
-  border: none; /* 테두리 없앰 */
-  border-radius: 4px; /* 테두리 모서리 둥글게 */
-  cursor: pointer; /* 마우스 오버 시 커서 변경 */
-  font-size: 16px; /* 글자 크기 */
-  transition: background-color 0.3s; /* 배경색 변경시 트랜지션 효과 */
+  color: white;
+  /* 글자색 */
+  padding: 10px 0px;
+  /* 상하 10px, 좌우 20px의 여백 */
+  border: none;
+  /* 테두리 없앰 */
+  border-radius: 4px;
+  /* 테두리 모서리 둥글게 */
+  cursor: pointer;
+  /* 마우스 오버 시 커서 변경 */
+  font-size: 16px;
+  /* 글자 크기 */
+  transition: background-color 0.3s;
+  /* 배경색 변경시 트랜지션 효과 */
   /* margin-left: 10px; */
   margin-right: 0.5rem;
   box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.4);
 }
 
 #reset-button:hover {
-  background-color: #797979; /* 마우스 오버시 버튼의 배경색 변경 */
+  background-color: #797979;
+  /* 마우스 오버시 버튼의 배경색 변경 */
 }
 </style>
