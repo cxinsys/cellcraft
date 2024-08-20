@@ -6,10 +6,10 @@ import time
 import json
 
 from app.routes import dep
-from app.database.schemas.plugin import PluginData, PluginCreate, PluginAssociate
+from app.database.schemas.plugin import PluginData, PluginCreate, PluginUpdate, PluginAssociate
 from app.database.crud import crud_plugin
 from app.database import models
-from app.common import plugin_utils
+from app.common.utils import plugin_utils
 
 router = APIRouter()
 
@@ -25,22 +25,23 @@ def validate_plugin(
         # Simulate validation process taking 5 seconds
         time.sleep(5)
 
+        # Convert PluginInfo.dependencyFiles to a dictionary
+        dependencies_dict = {dep.fileName: dep.file for dep in plugin_data.plugin.dependencyFiles}
+        rules_dict = {index: rule for index, rule in enumerate(plugin_data.rules)}
+
         # Convert PluginData to PluginCreate
         plugin_upload_data = PluginCreate(
             name=plugin_data.plugin.name,
             description=plugin_data.plugin.description,
             author=current_user.username,  # Assuming the current user is the author
             plugin_path=f"./plugin/{plugin_data.plugin.name}/",  # Assuming this is the correct path
-            dependencies=plugin_data.plugin.dependencyFiles,
+            dependencies=dependencies_dict if dependencies_dict else None,
             drawflow=plugin_data.drawflow,
-            rules=plugin_data.rules,
+            rules=rules_dict,
         )
 
-        #rules의 각 rule 안에 있는 script를 취합해서, 리스트로 변수 할당
-        scripts = []
-        for rule in plugin_data.rules:
-            if rule.script:
-                scripts.append(rule.script)
+        # Collect scripts from rules
+        scripts = [rule.script for rule in plugin_data.rules if rule.script]
 
         return { "message": "Plugin data validated", "plugin": plugin_upload_data, "scripts": scripts }
     except Exception as e:
@@ -66,9 +67,6 @@ def upload_plugin(
             # 중복되지 않은 경우 새로운 플러그인 생성
             db_plugin = crud_plugin.create_plugin(db=db, plugin=plugin_data)
 
-        # 데이터베이스에 새로운 플러그인 생성
-        db_plugin = crud_plugin.create_plugin(db=db, plugin=plugin_data)
-
         # 플러그인 폴더 생성
         if not os.path.exists(plugin_folder):
             os.makedirs(plugin_folder)
@@ -76,15 +74,15 @@ def upload_plugin(
         # dependency 폴더 생성
         if not os.path.exists(dependency_folder):
             os.makedirs(dependency_folder)
+
+        print(plugin_data.dependencies)
         
         # dependency 파일 생성
-        for dep in plugin_data.dependencies:
-            dep_path = os.path.join(dependency_folder, dep.fileName)
+        for file_name, file_content in plugin_data.dependencies.items():
+            dep_path = os.path.join(dependency_folder, file_name)
             with open(dep_path, 'w') as f:
-                f.write(dep.file)
-        
-        # Rule 객체를 사전으로 변환
-        rules_dict = [rule.dict() for rule in plugin_data.rules]
+                f.write(file_content)
+
         
         # metadata.json 파일 생성
         metadata = {
@@ -92,7 +90,7 @@ def upload_plugin(
             "author": plugin_data.author,
             "description": plugin_data.description,
             "drawflow": plugin_data.drawflow,
-            "rules": rules_dict
+            "rules": plugin_data.rules
         }
         metadata_path = os.path.join(plugin_folder, "metadata.json")
         with open(metadata_path, 'w') as f:
@@ -140,8 +138,16 @@ def list_plugins(
         for plugin in plugins:
             plugin_dict = plugin.__dict__
             plugin_dict['users'] = [user.__dict__ for user in plugin.users]
+
+            # Convert rules dictionary to an array
+            if 'rules' in plugin_dict:
+                rules_dict = plugin_dict['rules']
+                rules_array = [rules_dict[str(i)] for i in range(len(rules_dict))]
+                plugin_dict['rules'] = rules_array
+            
             plugin_list.append(plugin_dict)
-        return { "plugins": plugin_list }
+        
+        return {"plugins": plugin_list}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -191,9 +197,17 @@ def get_plugin_template(
     try:
         # Get the plugin by ID
         plugin = crud_plugin.get_plugin_by_id(db, plugin_id)
+
+        if plugin is None:
+            raise HTTPException(status_code=404, detail="Plugin not found")
+        
+        # Convert plugin.drawflow to dictionary if it's a JSON string
+        if isinstance(plugin.drawflow, str):
+            plugin.drawflow = json.loads(plugin.drawflow)
         
         # Generate the drawflow template
         drawflow = plugin_utils.generate_plugin_drawflow_template(plugin.drawflow, plugin.name)
         
         return { "drawflow": drawflow }
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

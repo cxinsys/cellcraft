@@ -1,19 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
-from sse_starlette.sse import EventSourceResponse
 from typing import Any
 from sqlalchemy.orm import Session
-from celery.result import AsyncResult
-from celery.states import REVOKED
 import os
+import shutil
 import json
-import asyncio
-from datetime import datetime
+from fastapi.responses import FileResponse
 
-from app.common.celery_utils import get_task_info
-from app.common.snakemake_utils import create_snakefile, filter_and_add_suffix
-from app.database.crud import crud_workflow, crud_task
-from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowResult, WorkflowFind
+from app.common.utils.celery_utils import get_task_info
+from app.common.utils.snakemake_utils import create_snakefile, filter_and_add_suffix
+from app.database.crud import crud_workflow
+from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowResult, WorkflowFind, WorkflowNodeFileCreate, WorkflowNodeFileDelete, WorkflowNodeFileRead
 from app.routes import dep
 from app.database import models
 from app.routes.celery_tasks import process_data_task
@@ -145,7 +141,6 @@ def exportData(
 #save workflow data
 @router.post("/save")
 def update_user_workflow(
-
     *,
     db: Session = Depends(dep.get_db),
     workflow: WorkflowCreate, 
@@ -154,10 +149,10 @@ def update_user_workflow(
     user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflow.id)
     if user_workflow:
         # workflow 수정
-        return crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info, workflow.nodes, workflow.linked_nodes)
+        return crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info)
     else :
         # workflow 생성
-        return crud_workflow.create_workflow(db, workflow.title, workflow.thumbnail, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
+        return crud_workflow.create_workflow(db, workflow.title, workflow.thumbnail, workflow.workflow_info, current_user.id)
 
 #User workflow delete
 @router.post("/delete")
@@ -170,7 +165,10 @@ def delete_user_workflow(
     user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflowInfo.id)
     if user_workflow:
         delete_workflow = crud_workflow.delete_user_workflow(db, current_user.id, workflowInfo.id)
-        print(delete_workflow)
+        user_path = f"./user/{current_user.username}/"
+        workflow_path = f"{user_path}workflow{workflowInfo.id}"
+        if os.path.exists(workflow_path):
+            shutil.rmtree(workflow_path)
         return delete_workflow
     else:
         raise HTTPException(
@@ -192,12 +190,12 @@ def get_user_workflow(
             workflow_res = {
                 'id': item.id, 
                 'title': item.title, 
-                'thumbnail': item.thumbnail, # 시현 추가
+                'thumbnail': item.thumbnail,
                 'updated_at': item.updated_at, 
                 'user_id': item.user_id
             }
             res.append(workflow_res)
-            # print(res)
+        print(res)
         return res
     else:
         raise HTTPException(
@@ -217,10 +215,8 @@ def find_user_workflow(
     if user_workflow:
         return {
             'title': user_workflow.title,
-            'thumbnail': user_workflow.thumbnail, # 시현 추가
+            'thumbnail': user_workflow.thumbnail,
             'workflow_info': user_workflow.workflow_info,
-            'nodes': user_workflow.nodes,
-            'linked_nodes': user_workflow.linked_nodes,
         }
     else:
         raise HTTPException(
@@ -254,71 +250,107 @@ def getResults(current_user: models.User = Depends(dep.get_current_active_user))
 
     return file_list
 
-@router.get("/task/{task_id}")
-async def get_task_status(task_id: str) -> dict:
-    """
-    Return the status of the submitted Task
-    """
-    async def event_generator():
-        while True:
-            if task_id:
-                task = get_task_info(task_id)
-                if task['task_status'] == 'SUCCESS' or task['task_status'] == 'FAILURE' or task['task_status'] == 'REVOKED' or task['task_status'] == 'RETRY':
-                    yield f"{task['task_status']}"
-                    break
-                print(task['task_status'])
-                yield f"{task['task_status']}"
-                await asyncio.sleep(5)
-            else:
-                break
-    return EventSourceResponse(event_generator())
-
-@router.get("/monitoring")
-async def get_task_monitoring(
+#save workflow node modal data
+@router.post("/node/save")
+def saveNodeData(
     *,
     db: Session = Depends(dep.get_db),
+    workflowNodeFileInfo: WorkflowNodeFileCreate, 
     current_user: models.User = Depends(dep.get_current_active_user)
-    ) -> Any :
-    """
-    Return the status of the all User Task
-    """
-    user_task = crud_task.get_user_task(db, current_user.id)
-    if user_task:
-        return user_task
+    ):
+    user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflowNodeFileInfo.id)
+    if user_workflow:
+        # workflowNodeFileInfo.id로 사용자 폴더에 workflow 폴더 생성
+        user_path = f"./user/{current_user.username}/"
+        workflow_path = f"{user_path}workflow{workflowNodeFileInfo.id}"
+        # user 폴더에 workflow 폴더 존재하지 않으면 생성
+        if not os.path.exists(workflow_path):
+            os.makedirs(workflow_path)
+        # workflowNodeFileInfo.node_name이랑 workflowNodeFileInfo.node_id로 파일 이름 생성
+        file_name = f"{workflowNodeFileInfo.node_name}_{workflowNodeFileInfo.node_id}.{workflowNodeFileInfo.file_extension}"
+        # user 폴더에 파일 생성
+        with open(f"{workflow_path}/{file_name}", "w") as f:
+            # workflowNodeFileInfo.file_content가 List이면 json.dump으로 파일 생성
+            if workflowNodeFileInfo.file_extension == "json":
+                json.dump(workflowNodeFileInfo.file_content, f)
+            if workflowNodeFileInfo.file_extension == "txt" or workflowNodeFileInfo.file_extension == "tsv" or workflowNodeFileInfo.file_extension == "csv":
+                f.write(workflowNodeFileInfo.file_content)
+        return workflowNodeFileInfo
     else:
         raise HTTPException(
                 status_code=400,
-                detail="this user not exists task",
+                detail="this workflow not exists in your workflows",
                 )
 
-@router.delete("/revoke/{task_id}")
-def revoke_task(
+#read workflow node modal data
+@router.post("/node/read")
+def readNodeData(
     *,
     db: Session = Depends(dep.get_db),
-    current_user: models.User = Depends(dep.get_current_active_user),
-    task_id: str
-    ) -> dict:
-    """
-    Revoke the task
-    """
-    from app.main import get_celery_app
-    celery = get_celery_app()
-    celery.control.revoke(task_id, terminate=True, signal='SIGTERM')
-    task = get_task_info(task_id)
+    workflowNodeFileInfo: WorkflowNodeFileRead, 
+    current_user: models.User = Depends(dep.get_current_active_user)
+    ):
+    user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflowNodeFileInfo.id)
+    if user_workflow:
+        # user 폴더에 workflow 폴더 존재하지 않으면 에러 발생
+        user_path = f"./user/{current_user.username}/"
+        workflow_path = f"{user_path}workflow{workflowNodeFileInfo.id}"
+        print(workflow_path)
+        if not os.path.exists(workflow_path):
+            raise HTTPException(
+                status_code=400,
+                detail="this workflow not exists in your workflows",
+                )
+        # workflowNodeFileInfo.node_name이랑 workflowNodeFileInfo.node_id로 파일 읽어오기
+        file_name = f"{workflowNodeFileInfo.node_name}_{workflowNodeFileInfo.node_id}.{workflowNodeFileInfo.file_extension}"
+        with open(f"{workflow_path}/{file_name}", "r") as f:
+            if workflowNodeFileInfo.file_extension == "json":
+                file_content = json.load(f)
+            else:
+                file_content = f.read()
 
-    print(task)
-
-    # task_info가 사전 형식인 경우 상태를 접근하는 방식
-    task_status = task.get("status")
-    if task_status == 'REVOKED':
-        return {"message": "Task Revoked", "task_id": task_id}
+        return {
+            'id': workflowNodeFileInfo.id,
+            'node_id': workflowNodeFileInfo.node_id,
+            'node_name': workflowNodeFileInfo.node_name,
+            'file_content': file_content,
+            'file_extension': workflowNodeFileInfo.file_extension
+        }
     else:
-        # 태스크 상태를 'REVOKED'로 업데이트
-        crud_task.end_task(current_user.id, task_id, datetime.now(), 'REVOKED')
-        # 태스크가 업데이트 되었는지 확인
-        task = get_task_info(task_id)
-        task_status = task.get("status")
-        if task_status == 'REVOKED':
-            return {"message": "Task Revoked", "task_id": task_id}
-        else:
-            return {"message": "Task Revoked Failed", "task_id": task_id}
+        raise HTTPException(
+                status_code=400,
+                detail="this workflow not exists in your workflows",
+                )
+
+#delete workflow node modal data
+@router.post("/node/delete")
+def deleteNodeData(
+    *,
+    db: Session = Depends(dep.get_db),
+    workflowNodeFileInfo: WorkflowNodeFileDelete, 
+    current_user: models.User = Depends(dep.get_current_active_user)
+    ):
+    user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflowNodeFileInfo.id)
+    if user_workflow:
+        # user 폴더에 workflow 폴더 존재하지 않으면 에러 발생
+        user_path = f"./user/{current_user.username}/"
+        workflow_path = f"{user_path}workflow{workflowNodeFileInfo.id}"
+        if not os.path.exists(workflow_path):
+            raise HTTPException(
+                status_code=400,
+                detail="this workflow not exists in your workflows",
+                )
+        # workflowNodeFileInfo.node_name이랑 workflowNodeFileInfo.node_id로 파일 삭제
+        file_name = f"{workflowNodeFileInfo.node_name}_{workflowNodeFileInfo.node_id}.{workflowNodeFileInfo.file_extension}"
+        os.remove(f"{workflow_path}/{file_name}")
+        return {
+            'id': workflowNodeFileInfo.id,
+            'node_id': workflowNodeFileInfo.node_id,
+            'node_name': workflowNodeFileInfo.node_name,
+            'file_extension': workflowNodeFileInfo.file_extension
+        }
+    else:
+        raise HTTPException(
+                status_code=400,
+                detail="this workflow not exists in your workflows",
+                )

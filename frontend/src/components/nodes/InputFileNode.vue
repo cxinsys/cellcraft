@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="nodeBox" ref="nodeBox">
-      <img class="nodeBox__icon" src="@/assets/input_file.png" draggable="false" />
+      <img class="nodeBox__icon" src="@/assets/InputFile_logo.png" draggable="false" />
     </div>
     <div class="nodeTitleBox">
       <input type="text" class="nodeTitle" v-model="nodeTitle" @input="updateTitle" df-title />
@@ -33,18 +33,18 @@ export default {
         if (this.nodeId == null) {
           return "Input File"; // 또는 기본 타이틀 반환
         }
-        const node = this.$store.getters.getNodeInfo(this.nodeId);
-        return node.title;
+        const node = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
+        return node.data.title;
       },
       set(newTitle) {
-        this.updateNodeTitle({ nodeId: this.nodeId, newTitle });
+        this.updateWorkflowNodeTitle({ nodeId: this.nodeId, newTitle });
       },
     },
   },
   methods: {
-    ...mapMutations(["updateNodeTitle"]),
+    ...mapMutations(["updateWorkflowNodeTitle"]),
     updateTitle() {
-      this.updateNodeTitle({ nodeId: this.nodeId, newTitle: this.nodeTitle });
+      this.updateWorkflowNodeTitle({ nodeId: this.nodeId, newTitle: this.nodeTitle });
     },
   },
 };

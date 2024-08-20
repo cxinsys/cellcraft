@@ -89,7 +89,7 @@ export default {
       selectedPlugin: {
         name: "",
         description: "",
-        dependencies: [],
+        dependencies: {},
         drawflow: {},
         rules: [],
       },
@@ -136,7 +136,7 @@ export default {
       this.selectedPlugin = {
         name: "",
         description: "",
-        dependencies: [],
+        dependencies: {},
         drawflow: {},
         rules: [],
       };

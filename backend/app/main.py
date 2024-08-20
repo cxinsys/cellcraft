@@ -4,9 +4,9 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.routes.api import api_router
 from app.common.config import settings
-from app.common.celery_utils import create_celery
+from app.common.utils.celery_utils import create_celery
 from app.database import models
-from app.database.conn import engine
+from app.database.conn import engine, initialize_plugins_from_csv
 from celery.signals import worker_shutting_down
 
 # Celery 이벤트 핸들러를 정의합니다
@@ -45,3 +45,8 @@ celery = app.celery_app
 
 def get_celery_app():
     return celery
+
+# 서버 시작 시 CSV 파일로부터 플러그인 데이터를 초기화
+@app.on_event("startup")
+async def startup_event():
+    initialize_plugins_from_csv("./app/database/initial_data/plugin_initialization.csv")

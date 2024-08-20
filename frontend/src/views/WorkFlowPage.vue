@@ -21,8 +21,8 @@
     <JobTable :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" />
     <ControlBar :on_progress="on_progress" :isTabView="isTabView" @toggle-file="toggleFile"
       @save-workflow-project="saveWorkflowProject" @run-workflow="runWorkflow" @toggle-task="toggleTask"
-      @toggle-tab-view="toggleTabView" @download-drawflow="downloadDrawflow" />
-    <div v-if="!isRuleView" class="node-zoom-buttons">
+      @toggle-tab-view="toggleTabView" />
+    <div class="node-zoom-buttons">
       <button class="node-zoom-button" @click="zoomIn">
         <img src="@/assets/zoom_in.png">
       </button>
@@ -30,26 +30,9 @@
         <img src="@/assets/zoom_out.png">
       </button>
     </div>
-    <VueDragResize contentClass="content-component" v-if="tabList.length != 0 && isTabView" :isActive="true" :x="600"
-      :y="64" :w="880" :h="672" :minw="820" :minh="540" :stickSize="14" :sticks="['tl', 'ml', 'tr', 'bl', 'br']">
-      <ul class="content-tab" v-if="tabList.length != 0 && isTabView">
-        <li class="tab__item" v-for="(tab, idx) in tabList" :key="idx" v-bind:class="{ currentTab: currentTab === idx }"
-          @click="tabClick(idx)">
-          <div class="tab__name">
-            <img class="tab__icon" :src="tab.img" />
-            <p class="tab__text">
-              <!-- {{ tab_names_map.get(tab.name) || "Error" }} -->
-              {{ getNodeTitleById(tab.id) || "Error" }}
-            </p>
-          </div>
-          <img class="tab__close" @click="closeTab" src="@/assets/close.png" />
-        </li>
-        <div class="tab__hide" @click="isTabView = false"></div>
-      </ul>
-      <div class="content-view" v-if="tabList.length != 0 && isTabView" @mousedown.stop>
-        <router-view :key="$route.fullPath"></router-view>
-      </div>
-    </VueDragResize>
+    <TabComponent ref="tabComponent" :initialTabList="initialTabList" :isTabView="isTabView"
+      :currentWorkflowId="currentWorkflowId" @update:isTabView="updateIsTabView"
+      @process-workflow-nodes="processWorkflowNodes" />
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
       <!-- <p class="message__text">{{ messageContent }}</p> -->
       <img class="message__status" src="@/assets/succes.png" v-if="messageStatus === 'success'" />
@@ -66,24 +49,22 @@
 
 <script>
 import Vue from "vue";
-import VueDragResize from "vue-drag-resize";
 import moment from "moment";
 /* eslint-disable */
-// import Drawflow from 'drawflow'
-// import styleDrawflow from 'drawflow/dist/drawflow.min.css' // eslint-disable-line no-use-before-define
 
 import FileTable from "@/components/workflowComponents/PopupFileTable.vue"
 import JobTable from "@/components/workflowComponents/PopupJobTable.vue"
 import ControlBar from "@/components/workflowComponents/ControlBar.vue"
+import TabComponent from "@/components/workflowComponents/TabComponent.vue"
 
 //노드 import (3번)
 // import fileUpload from "@/components/nodes/fileUploadNode.vue";
 // import heatMap from "@/components/nodes/heatMapNode.vue";
 // import barPlot from "@/components/nodes/barPlotNode.vue";
 import InputFile from "@/components/nodes/InputFileNode.vue";
-import dataTable from "@/components/nodes/DataTableNode.vue";
-import scatterPlot from "@/components/nodes/scatterPlotNode.vue";
-import algorithm from "@/components/nodes/algorithmNode.vue";
+import DataTable from "@/components/nodes/DataTableNode.vue";
+import ScatterPlot from "@/components/nodes/ScatterPlotNode.vue";
+import Algorithm from "@/components/nodes/AlgorithmNode.vue";
 import ResultFile from "@/components/nodes/ResultFileNode.vue";
 import Visualize from "@/components/nodes/VisualizeNode.vue";
 
@@ -99,14 +80,13 @@ import {
 
 export default {
   components: {
-    VueDragResize,
     FileTable,
     JobTable,
     ControlBar,
+    TabComponent,
   },
   data() {
     return {
-      editor: null,
       exportValue: null,
       isTabView: true,
       // 왼쪽에 보여지는 노드 목록 (1번)
@@ -119,37 +99,37 @@ export default {
         // },
         {
           name: "InputFile",
-          img: require("@/assets/input_file.png"),
+          img: require("@/assets/InputFile_logo.png"),
           input: 0,
           output: 1,
         },
         {
           name: "DataTable",
-          img: require("@/assets/table2.png"),
+          img: require("@/assets/DataTable_logo.png"),
           input: 1,
           output: 1,
         },
         {
           name: "ScatterPlot",
-          img: require("@/assets/scatter-plot2.png"),
+          img: require("@/assets/ScatterPlot_logo.png"),
           input: 1,
           output: 1,
         },
         {
           name: "Algorithm",
-          img: require("@/assets/algorithm2.png"),
+          img: require("@/assets/Algorithm_logo.png"),
           input: 1,
           output: 1,
         },
         {
           name: "ResultFile",
-          img: require("@/assets/result_file.png"),
+          img: require("@/assets/ResultFile_logo.png"),
           input: 1,
-          output: 0,
+          output: 1,
         },
         {
           name: "Visualize",
-          img: require("@/assets/visualize.png"),
+          img: require("@/assets/Visualize_logo.png"),
           input: 1,
           output: 0,
         },
@@ -166,29 +146,13 @@ export default {
         //   output: 1,
         // },
       ],
-      tabList: [],
-      is_show_modal: false,
-      is_show_info: false,
-      show_modal: null,
-      compile_check: null,
-      node_info: {
-        name: null,
-        desc: null,
-        input: null,
-        output: null,
-        content: null,
-      },
-      node_connection: [],
-      selected_file: null,
-      file_name: null,
+      initialTabList: [],
       currentTab: 0,
-      isHide: false,
       show_files: false,
       show_jobs: false,
       on_progress: false,
       eventSources: {}, // Use an object to manage multiple event sources
       taskList: [],
-      taskTitleList: [],
       currentTime: new Date(),
       timeInterval: null,
       files_list: [],
@@ -198,12 +162,12 @@ export default {
       toggleMessage: false,
       messageContent: "",
       messageStatus: "",
+      notRemoveConnectionOutputId: "",
     };
   },
   async mounted() {
     const id = document.getElementById("drawflow");
     Vue.prototype.$df = new Drawflow(id, Vue, this);
-    //this.$df == editor
     this.$df.start();
 
     //노드 등록 (2번)
@@ -211,9 +175,9 @@ export default {
     // this.$df.registerNode("HeatMap", heatMap, {}, {});
     // this.$df.registerNode("BarPlot", barPlot, {}, {});
     this.$df.registerNode("InputFile", InputFile, {}, {});
-    this.$df.registerNode("DataTable", dataTable, {}, {});
-    this.$df.registerNode("ScatterPlot", scatterPlot, {}, {});
-    this.$df.registerNode("Algorithm", algorithm, {}, {});
+    this.$df.registerNode("DataTable", DataTable, {}, {});
+    this.$df.registerNode("ScatterPlot", ScatterPlot, {}, {});
+    this.$df.registerNode("Algorithm", Algorithm, {}, {});
     this.$df.registerNode("ResultFile", ResultFile, {}, {});
     this.$df.registerNode("Visualize", Visualize, {}, {});
 
@@ -225,148 +189,102 @@ export default {
     this.$df.on("nodeCreated", async (ev) => {
       // 노드 생성시 탭 생성
       const node = this.$df.getNodeFromId(ev);
-      this.tabList.push({
-        id: node.id,
-        name: node.name,
-        img: require(`@/assets/${node.name}.png`),
-      });
-      // console.log(node);
-      // console.log(this.currentTab);
-
-      //TabList가 1개 이상일 때, 현재 탭을 마지막 탭으로 설정
-      if (this.tabList.length !== 1) {
-        this.currentTab = this.tabList.length - 1;
-      }
-      this.componentChange(node.name);
-
-      //노드 생성시 노드 상태 업데이트
-      this.$store.commit("createNode", {
-        id: node.id,
-        name: node.name,
-        file: "",
-        title: node.name,
-      });
-      this.$store.commit("changeNode", node.id);
-
-      //노드 생성시 현재 워크플로우의 상태 업데이트
-      this.setUpLinkedNodes();
-
-      const currentWorkflow = await this.setCurrentWorkflow();
-      // console.log(currentWorkflow);
+      console.log(node);
+      this.createNewTab(node);
+      this.setCurrentWorkflowInfo();
     });
 
     this.$df.on("nodeRemoved", async (ev) => {
-      //forEach 말고 다른 방법으로 findIndex를 사용해보자
-      this.tabList.forEach((ele, idx) => {
-        if (ele.id === parseInt(ev)) {
-          this.tabList.splice(idx, 1);
-          //현재 탭이 지워지는 탭일 때
-          if (this.currentTab === idx) {
-            this.currentTab -= 1;
-          } else if (this.currentTab > idx) {
-            this.currentTab -= 1;
-          } else if (this.currentTab < idx) {
-            this.currentTab = this.currentTab;
-          }
-        }
-        this.setUpLinkedNodes();
-      });
-
-      //노드 삭제시 노드 상태 업데이트
-      this.$store.commit("deleteNode", {
-        id: parseInt(ev),
-      });
-
-      this.$store.commit("changeNode", this.tabList[this.currentTab].id);
-
-      const currentWorkflow = await this.setCurrentWorkflow();
-      // console.log(currentWorkflow);
+      this.removeTab(parseInt(ev));
+      this.$store.commit("removeWorkflowFile", parseInt(ev));
+      this.setCurrentWorkflowInfo();
     });
     this.$df.on("connectionCreated", async (ev) => {
-      // ev 값에 따라 기능 구분
-      // console.log(ev);
-      // const input_id = this.$df.getNodeFromId(ev.input_id);
-      // const output_id = this.$df.getNodeFromId(ev.output_id);
-      const lastNodeInfo = this.$store.getters.getNodeInfo(
-        parseInt(ev.input_id)
-      );
-      // console.log(lastNodeInfo.name);
-      this.$store.commit("createConnection", {
-        connection: [parseInt(ev.output_id), parseInt(ev.input_id)],
-        file: "",
-        lastNode: lastNodeInfo.name,
-        algorithmOptions: {
-          algorithm: "TENET",
-          optionName: "Untitled",
-          commonOptions: {
-            annotationColumn: "",
-            pseudotimeColumn: "",
-            clusterColumn: [],
-          },
-          tenetOptions: null,
-          optionFilePath: null,
-        },
-      });
-      this.$store.commit("shareConnectionFile");
+      const input_node = this.$df.getNodeFromId(ev.input_id);
+      const output_node = this.$df.getNodeFromId(ev.output_id);
+      console.log(input_node, output_node);
 
-      this.setUpLinkedNodes();
-
-      const currentWorkflow = await this.setCurrentWorkflow();
-      console.log(currentWorkflow);
+      // InputFile 노드 : DataTable, ScatterPlot, Algorithm 제외하고 연결 불가능
+      if (output_node.name === "InputFile") {
+        if (input_node.name !== "DataTable" && input_node.name !== "ScatterPlot" && input_node.name !== "Algorithm") {
+          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+          this.setMessage("error", "InputFile node must be connected to DataTable, ScatterPlot, Algorithm node");
+          return;
+        }
+      }
+      // DataTable 노드 - ScatterPlot, Algorithm 제외하고 연결 불가능
+      if (output_node.name === "DataTable") {
+        if (input_node.name !== "ScatterPlot" && input_node.name !== "Algorithm") {
+          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+          this.setMessage("error", "DataTable node must be connected to ScatterPlot, Algorithm node");
+          return;
+        }
+      }
+      // ScatterPlot 노드 - DataTable, Algorithm 제외하고 연결 불가능
+      if (output_node.name === "ScatterPlot") {
+        if (input_node.name !== "DataTable" && input_node.name !== "Algorithm") {
+          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+          this.setMessage("error", "ScatterPlot node must be connected to DataTable, Algorithm node");
+          return;
+        }
+      }
+      // Algorithm 노드 - ResultFile, Visualize 제외하고 연결 불가능
+      if (output_node.name === "Algorithm") {
+        if (input_node.name !== "ResultFile" && input_node.name !== "Visualize") {
+          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+          this.setMessage("error", "Algorithm node must be connected to ResultFile, Visualize node");
+          return;
+        }
+      }
+      // ResultFile 노드 - Visualize 제외하고 연결 불가능
+      if (output_node.name === "ResultFile") {
+        if (input_node.name !== "Visualize") {
+          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+          this.setMessage("error", "ResultFile node must be connected to Visualize node");
+          return;
+        }
+      }
+      // input_node의 name이 Algorithm, Visualize 아닌 경우, 다중 연결 검토
+      if (input_node.name !== "Algorithm" && input_node.name !== "Visualize") {
+        // 다중 연결 시, 이전 연결 끊어주기지만,, 일단 현재 연결 끊어주는 것으로 대체하기
+        // this.checkAndRemoveConnection(input_node, output_node);
+        this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+        this.setMessage("error", `${input_node.name} node is multiple connections are not allowed`);
+      }
+      console.log(ev);
+      this.setCurrentWorkflowInfo();
     });
     this.$df.on("connectionRemoved", async (ev) => {
-      // ev 값에 따라 기능 구분
-      // console.log(ev);
       // const input_id = this.$df.getNodeFromId(ev.input_id);
       // const output_id = this.$df.getNodeFromId(ev.output_id);
-      this.$store.commit("deleteConnection", [
-        parseInt(ev.output_id),
-        parseInt(ev.input_id),
-      ]);
 
-      this.setUpLinkedNodes();
+      // this.notRemoveConnectionOutputId가 ev.output_id와 같은 경우, 연결 끊어주지 않기
+      if (this.notRemoveConnectionOutputId === ev.output_id) {
+        this.$df.addConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_classs)
+        this.notRemoveConnectionOutputId = "";
+        return;
+      }
 
-      const currentWorkflow = await this.setCurrentWorkflow();
-      // console.log(currentWorkflow);
+      this.$store.commit("removeWorkflowFile", parseInt(ev.output_id));
+
+      this.setCurrentWorkflowInfo();
     });
     this.$df.on("nodeDataChanged", (ev) => {
-      // nodeData 바뀌게 되면 Connection Update
-      // console.log(ev)
       const node = this.$df.getNodeFromId(ev);
-      // console.log(node);
-      this.$df.updateConnectionNodes(ev);
+      console.log(node);
+
+      this.setCurrentWorkflowInfo();
     });
     this.$df.on("clickEnd", (ev) => {
       // ev 값에 따라 기능 구분
       console.dir(ev.target.className);
       if (ev.detail === 2 && this.$df.node_selected) {
-        // 해당 노드와 연결되어 있는 File 정보 추출
         this.isTabView = true;
 
         const node_id = this.$df.node_selected.id.replace(/node-/g, "");
-        //Vuex 에서의 Current Node 변경
-        this.$store.commit("changeNode", parseInt(node_id));
-        //this.tabList에 추가
-        const node = this.$store.getters.getNodeInfo(parseInt(node_id));
-        // console.log(node);
-        const index = this.tabList.findIndex(
-          (listItem) => listItem.id === node.id
-        );
-
-        // If index is -1, it means node.id is not in tabList, so we add it
-        if (index === -1) {
-          this.tabList.push({
-            id: node.id,
-            name: node.name,
-            img: require(`@/assets/${node.name}.png`),
-          });
-          this.currentTab = this.tabList.length - 1;
-        } else {
-          // If the node.id is already in tabList, set currentTab to its index
-          this.currentTab = index;
-        }
-        this.componentChange(node.name);
-        // console.log(this.tabList);
+        const node = this.$df.getNodeFromId(node_id);
+        console.log(node);
+        this.adjustCurrentTab(node);
       }
     });
 
@@ -378,8 +296,6 @@ export default {
         const workflow_data = await findWorkflow(workflowInfo);
         // console.log(workflow_data.data);
         this.$df.import(workflow_data.data.workflow_info);
-        this.$store.commit("setNodes", workflow_data.data.nodes);
-        this.$store.commit("setLinkedNodes", workflow_data.data.linked_nodes);
         this.$store.commit("setTitle", workflow_data.data.title);
         this.$store.commit("setThumbnail", workflow_data.data.thumbnail);
       }
@@ -393,16 +309,12 @@ export default {
       // console.log(workflow_data);
       if (workflow_data.workflow.workflow_info) {
         this.$df.import(workflow_data.workflow.workflow_info);
-        this.$store.commit("setNodes", workflow_data.workflow.nodes);
-        this.$store.commit(
-          "setLinkedNodes",
-          workflow_data.workflow.linked_nodes
-        );
         this.$store.commit("setTitle", workflow_data.workflow.title);
         this.$store.commit("setThumbnail", workflow_data.workflow.thumbnail);
       }
     }
 
+    // Task 모니터링
     try {
       const userTasks = await userTaskMonitoring();
       console.log(userTasks.data);
@@ -458,34 +370,22 @@ export default {
       }
     },
     async runWorkflow() {
-      // getter.getCurrentFile에서 algorithmOptions.optionFilePath 존재하지 않으면 export 불가능
-      const currentFile = this.$store.getters.getCurrentFile;
-      if (currentFile.algorithmOptions.optionFilePath === null) {
-        this.setMessage(
-          "error",
-          "Please select the Algorithm node option file to run the workflow"
-        );
-        return;
-      }
+      // 1. algorithm node의 데이터를 확인해서 화면에 띄우기
+      // 2. 화면에서 확인 후, 실행할 것인지 확인
 
       try {
         this.exportValue = this.$df.export();
-        const nodes = this.$store.getters.getNodes;
-        const linked_nodes = this.$store.getters.getLinkedNodes;
         const title = this.$store.getters.getTitle;
         const thumbnail = this.$store.getters.getThumbnail;
         // console.log(JSON.stringify(this.exportValue));
         console.log(this.$df.drawflow.drawflow[this.$df.module]);
+        // *수정* nodes, linked_nodes 없이 workflow 생성
         const workflow = {
           id: this.currentWorkflowId,
           title: title,
           thumbnail: thumbnail,
           workflow_info: this.exportValue,
-          nodes: nodes,
-          linked_nodes: linked_nodes,
         };
-        // console.log(workflow);
-        // this.compile_check = "loading";
         const workflow_data = await exportData(workflow);
         this.createEventSource(workflow_data.data.task_id);
         if (this.show_jobs) {
@@ -496,8 +396,20 @@ export default {
         console.error(error);
       }
     },
-    importdf(drawflow) {
-      this.$df.import(drawflow);
+    updateWorkflowInfo() {
+      const workflow_info = this.$store.getters.getWorkflowInfo
+      this.$df.import(workflow_info);
+    },
+    processWorkflowNodes() {
+      const workflow_info = this.$store.getters.getWorkflowInfo;
+      const nodes = workflow_info.drawflow.Home.data;
+
+      for (const nodeId in nodes) {
+        if (nodes.hasOwnProperty(nodeId)) {
+          const node = nodes[nodeId];
+          this.$df.updateNodeDataFromId(node.id, node.data);
+        }
+      }
     },
     drag(event) {
       event.dataTransfer.setData(
@@ -543,86 +455,12 @@ export default {
         pos_x,
         pos_y,
         name,
-        {},
+        { "title": name },
         name,
         "vue"
       );
     },
-    tabClick(idx) {
-      if (this.currentTab !== idx) {
-        this.currentTab = idx;
-        this.$store.commit("changeNode", this.tabList[idx].id);
-        this.componentChange(this.tabList[idx].name);
-      }
-    },
-    componentChange(name) {
-      let newPath = `/workflow/${name.toLowerCase()}`;
 
-      // If the path is the same as the current path, we can change the query parameter to force the component to reload
-      if (this.$route.path === newPath) {
-        this.$router.push({
-          path: newPath,
-          query: {
-            id: this.currentWorkflowId,
-            // Include a random number in the query to force the component to reload
-            forceReload: Date.now(),
-          },
-        });
-      } else {
-        // Otherwise, navigate to the new path
-        this.$router.push({
-          path: newPath,
-          query: { id: this.currentWorkflowId },
-        });
-      }
-    },
-    hideContent(event) {
-      this.isHide = !this.isHide;
-      console.log(event);
-    },
-    moveResizing(event) {
-      console.log(event);
-    },
-    closeTab(event) {
-      setTimeout(() => {
-        console.log(this.tabList);
-        const currentNodeId = this.$store.getters.getCurrentNode;
-        console.log(currentNodeId);
-        const index = this.tabList.findIndex(
-          (listItem) => listItem.id === currentNodeId
-        );
-
-        // If index is -1, it means node.id is not in tabList
-        if (index !== -1) {
-          this.tabList.splice(index, 1);
-          this.currentTab -= 1;
-        } else {
-          console.log("Node is not in tabList");
-        }
-
-        console.log(this.tabList);
-        // If tabList is empty, redirect to workflow page
-        if (this.tabList.length === 0) {
-          this.$router.push({
-            path: "/workflow",
-            query: { id: this.currentWorkflowId },
-          });
-        } else {
-          this.$store.commit("changeNode", this.tabList[this.currentTab].id);
-          this.componentChange(this.tabList[this.currentTab].name);
-        }
-      }, "100");
-    },
-    // linked_Nodes 한번씩 정리하는 함수
-    setUpLinkedNodes() {
-      // removeDuplicateLinkedNodes
-      // removeInvalidLinkedNodes
-      // fillAlgorithmOptions
-      // 위 3개 함수를 실행하는 this.$store.commit("함수명") 코드
-      this.$store.commit("removeDuplicateLinkedNodes");
-      this.$store.commit("removeInvalidLinkedNodes");
-      this.$store.commit("fillAlgorithmOptions");
-    },
     async saveWorkflowProject() {
       try {
         const currentWorkflow = await this.setCurrentWorkflow();
@@ -812,28 +650,32 @@ export default {
       }, 5000);
     },
     async setCurrentWorkflow() {
+      try {
+        this.setCurrentWorkflowInfo();
+        await this.captureWorkflow();
+        const title = this.$store.getters.getTitle;
+        const thumbnail = this.$store.getters.getThumbnail;
+        const workflow = {
+          id: this.currentWorkflowId,
+          title: title,
+          thumbnail: thumbnail,
+          workflow_info: this.exportValue,
+        };
+        console.log("currentWorkflowId : " + workflow.id);
+        const workflow_data = await saveWorkflow(workflow);
+        this.currentWorkflowId = workflow_data.data.id;
+        return workflow_data.data;
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    setCurrentWorkflowInfo() {
       this.exportValue = this.$df.export();
       this.$store.commit("setWorkflow", this.exportValue);
-      await this.captureWorkflow();
-      const nodes = this.$store.getters.getNodes;
-      const linked_nodes = this.$store.getters.getLinkedNodes;
-      const title = this.$store.getters.getTitle;
-      const thumbnail = this.$store.getters.getThumbnail;
-      const workflow = {
-        id: this.currentWorkflowId,
-        title: title,
-        thumbnail: thumbnail,
-        workflow_info: this.exportValue,
-        nodes: nodes,
-        linked_nodes: linked_nodes,
-      };
-      const workflow_data = await saveWorkflow(workflow);
-      this.currentWorkflowId = workflow_data.data.id;
-      return workflow_data.data;
     },
     getNodeTitleById(id) {
-      const node = this.$store.getters.getNodeInfo(id);
-      return node.title;
+      const node = this.$df.getNodeFromId(id);
+      return node.data.title;
     },
     toggleTabView() {
       this.isTabView = !this.isTabView;
@@ -849,6 +691,39 @@ export default {
       a.download = "workflow.json";
       a.click();
     },
+    updateIsTabView(newIsTabView) {
+      this.isTabView = newIsTabView;
+    },
+    createNewTab(node) {
+      this.$refs.tabComponent.createTab(node);
+    },
+    adjustCurrentTab(node) {
+      this.$refs.tabComponent.adjustCurrentTab(node);
+    },
+    removeTab(id) {
+      this.$refs.tabComponent.removeTab(id);
+    },
+    checkAndRemoveConnection(input_node, output_node) {
+      // Check if input_node.inputs.input_1.connections exists and has a length of 2 or more
+      const input_node_id = String(input_node.id);
+      const output_node_id = String(output_node.id);
+      if (input_node.inputs && input_node.inputs.input_1 && input_node.inputs.input_1.connections.length >= 2) {
+        // Find the connection with output_node.id
+        const connectionIndex = input_node.inputs.input_1.connections.findIndex(connection => connection.node === output_node_id);
+        console.log(connectionIndex);
+        // If the connection with output_node.id exists
+        if (connectionIndex !== -1) {
+          const otherConnection = input_node.inputs.input_1.connections.find((_, index) => index !== connectionIndex);
+          if (otherConnection) {
+            this.$df.removeConnectionNodeId("node-" + otherConnection.node);
+            this.notRemoveConnectionOutputId = otherConnection.node;
+            // this.$df.removeSingleConnection(otherConnection.node, input_node_id, "output_1", "input_1");
+            console.log(otherConnection.node, input_node_id, "output_1", "input_1");
+          }
+        }
+      }
+    }
+
   },
   beforeDestroy() {
     // Close all the event source connections before the component is destroyed
@@ -914,146 +789,6 @@ export default {
   height: 100%;
   overflow: hidden;
   z-index: -1;
-}
-
-.content-component {
-  width: 55rem;
-  height: 42rem;
-  position: absolute;
-  right: -55rem;
-  top: calc(50% - 21rem);
-}
-
-.tab_actvie {
-  right: 0;
-}
-
-.tab_hide {
-  left: 100%;
-}
-
-.content-tab {
-  width: 100%;
-  height: 2.5rem;
-  display: flex;
-  z-index: 9998;
-  background: rgba(223, 225, 229, 0.3);
-  position: relative;
-  border-radius: 0.5rem 0.5rem 0 0;
-}
-
-.tab__item {
-  cursor: pointer;
-  width: 10rem;
-  height: 100%;
-  border-radius: 0.5rem 0.5rem 0 0;
-  border-right: 1px solid #7f7f7f;
-  display: flex;
-  align-items: center;
-  background: rgba(149, 151, 154, 0.6);
-  color: rgb(255, 255, 255);
-  position: relative;
-  opacity: 1;
-  box-shadow: inset 0 -5px 10px -5px rgba(0, 0, 0, 0.3);
-}
-
-.tab__item:last-child {
-  border-right: none;
-}
-
-.currentTab {
-  background: rgba(244, 246, 251, 0.5);
-  color: rgb(51, 51, 51);
-  box-shadow: inset 0 -5px 10px -5px rgba(0, 0, 0, 0);
-}
-
-.tab__name {
-  width: 8rem;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  position: absolute;
-  left: 0.5rem;
-}
-
-.tab__text {
-  font-family: "Montserrat", sans-serif;
-  font-style: normal;
-  font-weight: 400;
-  font-size: 0.8rem;
-  line-height: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  overflow: hidden;
-}
-
-.tab__icon {
-  width: 1rem;
-  height: 1rem;
-  object-fit: contain;
-  margin-right: 0.5rem;
-}
-
-.tab__close {
-  width: 0.7rem;
-  height: 0.7rem;
-  object-fit: contain;
-  position: absolute;
-  right: 1rem;
-}
-
-.tab__hide {
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-  position: absolute;
-  right: 1rem;
-  top: calc(1.1rem - 0.5rem);
-  background: rgb(255, 60, 60);
-  border: 1px solid rgb(255, 60, 60);
-  opacity: 0.5;
-  cursor: pointer;
-}
-
-.tab__hide:hover {
-  opacity: 1;
-}
-
-.content-view {
-  width: 100%;
-  height: calc(100% - 2rem);
-  background: rgba(244, 248, 251, 0.6);
-  border-radius: 0 0 0.5rem 0.5rem;
-}
-
-.content__handle {
-  position: absolute;
-  left: -0.75rem;
-  top: calc(50% - 2rem);
-
-  cursor: pointer;
-  width: 1.5rem;
-  height: 2rem;
-  border-radius: 3px;
-  box-shadow: rgba(6, 24, 44, 0.4) 0px 0px 0px 2px,
-    rgba(6, 24, 44, 0.65) 0px 4px 6px -1px,
-    rgba(255, 255, 255, 0.08) 0px 1px 0px inset;
-  background: rgb(255, 255, 255);
-  z-index: 9998;
-
-  display: flex;
-  align-items: center;
-}
-
-.handle--img {
-  width: 1.5rem;
-  height: 1.5rem;
-  object-fit: contain;
-}
-
-.isResizing {
-  right: -55rem;
 }
 
 .node-bar {

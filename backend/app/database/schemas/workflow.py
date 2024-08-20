@@ -11,8 +11,6 @@ class WorkflowCreate(WorkflowBase):
     title: str = None
     thumbnail: str = None
     workflow_info: Dict = None
-    nodes: List = None
-    linked_nodes: List = None
     option_file: str = None
 
 class WorkflowFind(WorkflowBase):
@@ -30,3 +28,29 @@ class Workflow(WorkflowBase):
 
 class WorkflowResult(BaseModel):
     filename: Optional[str] = None
+
+class WorkflowNodeFileBase(BaseModel):
+    id: Optional[int] = None
+    node_id: Optional[str] = None
+    node_name: Optional[str] = None
+    file_content: Optional[List] = None
+    file_extension: Optional[str] = None
+
+class WorkflowNodeFileCreate(WorkflowNodeFileBase):
+    id: int
+    node_id: str
+    node_name: str
+    file_content: Optional[List] = None
+    file_extension: str
+
+class WorkflowNodeFileDelete(WorkflowNodeFileBase):
+    id: int
+    node_id: str
+    node_name: str
+    file_extension: str
+
+class WorkflowNodeFileRead(WorkflowNodeFileBase):
+    id: int
+    node_id: str
+    node_name: str
+    file_extension: str

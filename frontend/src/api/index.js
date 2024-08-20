@@ -70,51 +70,55 @@ function getFiles() {
 }
 
 function findFile(fileInfo) {
-  return instance.post("routes/files/find", fileInfo);
+  return instance.post("/routes/files/find", fileInfo);
 }
 
 function findFolder(folder) {
-  return instance.post("routes/files/folder", folder);
+  return instance.post("/routes/files/folder", folder);
 }
 
 function deleteFile(file) {
-  return instance.post("routes/files/delete", file);
+  return instance.post("/routes/files/delete", file);
 }
 
 function convertFile(file) {
-  return instance.post("routes/files/convert", file);
+  return instance.post("/routes/files/convert", file);
 }
 
 function checkOptions() {
-  return instance.get("routes/files/setup/check");
+  return instance.get("/routes/files/setup/check");
 }
 
 function getOptions(file) {
-  return instance.get(`routes/files/setup/${file}`);
+  return instance.get(`/routes/files/setup/${file}`);
 }
 
 function checkConvert(file) {
-  return instance.get(`routes/files/check/${file}`);
+  return instance.get(`/routes/files/check/${file}`);
 }
 
 function getColumns(fileInfo) {
   return instance.post("/routes/files/columns", fileInfo);
 }
 
-function getClusters(fileInfo, annotation) {
-  return instance.post("/routes/files/clusters", fileInfo, annotation);
+function getClusters(fileInfo) {
+  return instance.post("/routes/files/clusters", fileInfo);
 }
 
 function setupAlgorithm(options) {
   return instance.post("/routes/files/setup", options);
 }
 
+function getFileData(filename) {
+  return instance.get(`/routes/files/data/${filename}`);
+}
+
 function getWorkflows() {
-  return instance.get("routes/workflow/me");
+  return instance.get("/routes/workflow/me");
 }
 
 function findWorkflow(workflowInfo) {
-  return instance.post("routes/workflow/find", workflowInfo);
+  return instance.post("/routes/workflow/find", workflowInfo);
 }
 
 function saveWorkflow(workflow) {
@@ -125,16 +129,28 @@ function deleteWorkflow(workflow) {
   return instance.post("/routes/workflow/delete", workflow);
 }
 
+function saveWorkflowNodeFile(workflowNodeFileInfo) {
+  return instance.post("/routes/workflow/node/save", workflowNodeFileInfo);
+}
+
+function deleteWorkflowNodeFile(workflowNodeFileInfo) {
+  return instance.post("/routes/workflow/node/delete", workflowNodeFileInfo);
+}
+
+function readWorkflowNodeFile(workflowNodeFileInfo) {
+  return instance.post("/routes/workflow/node/read", workflowNodeFileInfo);
+}
+
 function taskMonitoring(taskId) {
-  return instance.get(`/routes/workflow/task/${taskId}`);
+  return instance.get(`/routes/task/info/${taskId}`);
 }
 
 function userTaskMonitoring() {
-  return instance.get("/routes/workflow/monitoring");
+  return instance.get("/routes/task/monitoring");
 }
 
 function revokeTask(taskId) {
-  return instance.delete(`/routes/workflow/revoke/${taskId}`);
+  return instance.delete(`/routes/task/revoke/${taskId}`);
 }
 
 function getHtml(filename) {
@@ -193,6 +209,10 @@ function getPluginTemplate(plugin_id) {
   return instance.get(`/routes/plugin/template/${plugin_id}`);
 }
 
+function getDataTableFile(vgt_info) {
+  return instance.post("/routes/datatable/load_data", vgt_info);
+}
+
 export {
   registerUser,
   loginUser,
@@ -232,4 +252,9 @@ export {
   associatePlugin,
   dissociatePlugin,
   getPluginTemplate,
+  getDataTableFile,
+  saveWorkflowNodeFile,
+  deleteWorkflowNodeFile,
+  readWorkflowNodeFile,
+  getFileData,
 };

@@ -14,11 +14,12 @@ from app.routes import dep
 from app.database.crud import crud_file
 from app.database import models
 from app.database.schemas.file import FileCreate, FileDelete, FileUpdate, FileFind, FolderFind, FileSetup, FileGet, FileResultFind
-from app.common.h5ad_utils import organize_column_dtypes, get_annotation_columns, get_pseudotime_columns
+from app.common.utils.h5ad_utils import organize_column_dtypes, get_annotation_columns, get_pseudotime_columns
+from app.common.utils.workflow_utils import load_tab_file
 
 router = APIRouter()
 
-#workflow file-upload
+#h5ad file-upload
 @router.post("/upload")
 async def fileUpload(
     *,
@@ -214,11 +215,6 @@ def h5ad_columns (
     ) -> Any:
     user_file = crud_file.get_user_file(db, current_user.id, fileInfo.file_name)
     if user_file:
-        # 해당 유저의 폴더에 있는 파일을 가져와서 csv로 변환
-        # 변환된 파일을 해당 유저의 폴더에 저장
-        # 변환된 파일의 정보를 db에 저장
-        # 유저 폴더 내 파일 경로 "user/{username}/data/{filename}.h5ad"
-        # 변환된 파일 경로 "user/{username}/result/{filename}.csv"
         folder_path = './user' + '/' + current_user.username
         input_filename = fileInfo.file_name
         input_filepath = f"{folder_path}/data/{input_filename}"
@@ -399,3 +395,22 @@ async def download_result_file(
     ) -> Any:
     folder_path = './user' + '/' + current_user.username + "/result/"
     return FileResponse(folder_path + filename ,filename=filename)
+
+@router.get("/data/{filename}")
+async def download_data_file(
+    *,
+    current_user: models.User = Depends(dep.get_current_active_user),
+    filename: str,
+    ) -> Any:
+    PATH_DATA_FILE = './user' + '/' + current_user.username + "/data/" + filename
+    # 파일이 존재하는지 확인
+    if not os.path.isfile(PATH_DATA_FILE):
+        raise HTTPException(
+                status_code=400,
+                detail="this file not exists in your files",
+        )
+
+    if filename.endswith('.h5ad'):
+        df = load_tab_file(PATH_DATA_FILE)
+        return df.to_dict(orient="records")
+    return FileResponse(PATH_DATA_FILE, filename=filename)

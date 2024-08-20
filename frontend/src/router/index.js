@@ -27,29 +27,29 @@ export default new Router({
       component: () => import("@/views/WorkFlowPage.vue"),
       children: [
         {
-          path: "dataTable",
-          component: () => import("@/components/modals/datatable.vue"),
+          path: "InputFile",
+          component: () => import("@/components/modals/InputFile.vue"),
         },
         {
-          path: "file",
-          component: () => import("@/components/modals/fileupload.vue"),
+          path: "Datatable",
+          component: () => import("@/components/modals/DataTable.vue"),
         },
         {
-          path: "scatterPlot",
-          component: () => import("@/components/modals/scatterPlot.vue"),
+          path: "ScatterPlot",
+          component: () => import("@/components/modals/ScatterPlot.vue"),
         },
         {
-          path: "heatMap",
-          component: () => import("@/components/modals/heatMap.vue"),
+          path: "Algorithm",
+          component: () => import("@/components/modals/Algorithm.vue"),
         },
-        {
-          path: "barPlot",
-          component: () => import("@/components/modals/barPlot.vue"),
-        },
-        {
-          path: "algorithm",
-          component: () => import("@/components/modals/algorithm.vue"),
-        },
+        // {
+        //   path: "heatMap",
+        //   component: () => import("@/components/modals/heatMap.vue"),
+        // },
+        // {
+        //   path: "barPlot",
+        //   component: () => import("@/components/modals/barPlot.vue"),
+        // },
       ],
     },
     {

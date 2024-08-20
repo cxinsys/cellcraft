@@ -60,7 +60,7 @@ services:
     ipc: host
     build:
       context: ./backend
-      dockerfile: Dockerfile.celery
+      dockerfile: Dockerfile.dev.celery
     volumes:
       - ./backend:/app
     depends_on:

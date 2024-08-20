@@ -69,7 +69,7 @@
                     <div class="checkbox-group" v-if="this.scriptFile && this.ruleTitle != ''">
                         <input type="checkbox" id="isVisualization" v-model="isVisualization"
                             @change="showAlertAndAddOutput" />
-                        <label for="isVisualization">Is Visualization Node</label>
+                        <label for="isVisualization">Visualization Node</label>
                     </div>
                 </div>
 
@@ -80,6 +80,7 @@
                         <select v-model="newParameter.type" class="parameter-type" @change="resetParameterOption">
                             <option value="inputFile">Input File</option>
                             <option value="outputFile">Output File</option>
+                            <option v-if="isSelectedH5ad" value="h5adParameter">h5ad Parameter</option>
                             <option value="string">String</option>
                             <option value="int">Integer</option>
                             <option value="float">Float</option>
@@ -92,10 +93,19 @@
                             class="file-extension-input" />
                         <select v-model="selectedFileExtension" @change="updateFileExtension"
                             class="file-extension-select">
-                            <option value="">Direct Input</option>
+                            <option value="">Enter directly</option>
+                            <option value=".h5ad">.h5ad</option>
                             <option value=".txt">.txt</option>
                             <option value=".csv">.csv</option>
                             <option value=".json">.json</option>
+                        </select>
+                    </div>
+                    <div v-else-if="newParameter.type === 'h5adParameter'" class="col-input-group">
+                        <select v-model="newParameter.name" class="file-extension-select">
+                            <option value="">Please select h5ad parameter</option>
+                            <option value="cellgroup">cellgroup</option>
+                            <option value="clusters">clusters</option>
+                            <option value="pseudotime">pseudotime column</option>
                         </select>
                     </div>
                     <div v-else class="col-input-group">
@@ -186,6 +196,7 @@ export default {
                 messages: [],
             },
             drawflowInstance: null,
+            isSelectedH5ad: false,
         };
     },
     mounted() {
@@ -330,7 +341,7 @@ export default {
                 if (p.type === 'inputFile' || p.type === 'outputFile') {
                     return `${p.defaultValue}(${p.type})`;
                 } else {
-                    return `${p.name}(${p.type}:${p.defaultValue})`;
+                    return `${p.name}(${p.type})`;
                 }
             }).join(' ');
 
@@ -369,6 +380,9 @@ export default {
                 return;
             }
             this.parameters.push(newParam);
+            if (newParam.type === 'inputFile' && newParam.fileExtension === '.h5ad') {
+                this.isSelectedH5ad = true;
+            }
             this.resetNewParameter();
             this.updateShellCommand();
         },
@@ -436,6 +450,7 @@ export default {
                 const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'ruleNode', nodeData, 'ruleNode', 'vue');
                 console.log(nodeId, nodeData);
             }
+            this.isSelectedH5ad = false;
             this.closeCreateModal();
         },
         addNewRule(id, nodeData) {
@@ -487,7 +502,7 @@ export default {
             return `${command}`;
         },
         checkAndConnectNodes() {
-            const nodeIds = this.$df.getNodesFromName('ruleNode')
+            const nodeIds = this.$df.getNodesFromName('ruleNode');
 
             // 노드 ID와 규칙을 매핑
             const nodeToRuleMap = new Map();
@@ -503,16 +518,30 @@ export default {
                 const ruleA = nodeToRuleMap.get(nodeAId);
                 if (!ruleA) return;
 
-                nodeIds.slice(i + 1).forEach(nodeBId => {
+                nodeIds.forEach((nodeBId, j) => {
+                    if (i === j) return;
+
                     const ruleB = nodeToRuleMap.get(nodeBId);
                     if (!ruleB) return;
 
+                    // nodeA의 output과 nodeB의 input 비교
                     ruleA.output.forEach((output, outputIndex) => {
                         ruleB.input.forEach((input, inputIndex) => {
                             if (output === input) {
-                                console.log("log connection check", nodeAId, nodeBId, outputIndex + 1, inputIndex + 1);
+                                console.log("log connection check (A to B)", nodeAId, nodeBId, outputIndex + 1, inputIndex + 1);
                                 this.allowRuleEdit = true;
                                 this.$df.addConnection(nodeAId, nodeBId, `output_${outputIndex + 1}`, `input_${inputIndex + 1}`);
+                            }
+                        });
+                    });
+
+                    // nodeB의 output과 nodeA의 input 비교
+                    ruleB.output.forEach((output, outputIndex) => {
+                        ruleA.input.forEach((input, inputIndex) => {
+                            if (output === input) {
+                                console.log("log connection check (B to A)", nodeBId, nodeAId, outputIndex + 1, inputIndex + 1);
+                                this.allowRuleEdit = true;
+                                this.$df.addConnection(nodeBId, nodeAId, `output_${outputIndex + 1}`, `input_${inputIndex + 1}`);
                             }
                         });
                     });
