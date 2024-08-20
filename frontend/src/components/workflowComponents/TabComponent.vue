@@ -94,7 +94,7 @@ export default {
                 this.$router.push({
                     path: newPath,
                     query: {
-                        id: this.currentWorkflowId,
+                        workflow_id: this.currentWorkflowId,
                         node: tab.id,
                         forceReload: Date.now(),
                     },
@@ -103,7 +103,7 @@ export default {
                 this.$router.push({
                     path: newPath,
                     query: { 
-                        id: this.currentWorkflowId,
+                        workflow_id: this.currentWorkflowId,
                         node: tab.id,
                     },
                 });

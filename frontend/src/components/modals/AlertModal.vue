@@ -63,6 +63,7 @@ export default {
     font-size: 1.1rem;
     font-weight: bold;
     margin-bottom: 1rem;
+    color: red;
 }
 
 ul {

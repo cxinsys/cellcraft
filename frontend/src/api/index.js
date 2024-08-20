@@ -101,8 +101,8 @@ function getColumns(fileInfo) {
   return instance.post("/routes/files/columns", fileInfo);
 }
 
-function getClusters(fileInfo, annotation) {
-  return instance.post("/routes/files/clusters", fileInfo, annotation);
+function getClusters(fileInfo) {
+  return instance.post("/routes/files/clusters", fileInfo);
 }
 
 function setupAlgorithm(options) {

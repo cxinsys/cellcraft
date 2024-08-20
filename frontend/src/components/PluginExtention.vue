@@ -39,7 +39,7 @@ export default {
       required: true
     },
     editDependencies: {
-      type: Array,
+      type: Object,
       required: true
     },
     editDrawflow: {

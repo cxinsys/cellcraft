@@ -39,6 +39,7 @@ export default {
       lines: null,
       firstLine: null,
       isLoading: true,
+      workflowId: this.$route.query.workflow_id,
       nodeId: this.$route.query.node,
       columns: [
         // columns 데이터 형식

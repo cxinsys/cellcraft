@@ -88,6 +88,7 @@ export default {
       recentFiles_list: [],
       apply: false,
       isLoading: false,
+      workflowId: this.$route.query.workflow_id,
       nodeId: this.$route.query.node,
     };
   },
@@ -151,12 +152,12 @@ export default {
     const currentFile = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
 
     if (currentFile !== "") {
-      this.apply = true;
       try {
         const file = await findFile({
           file_name: currentFile,
         });
         this.selectFile = file.data;
+        this.apply = true;
       } catch (error) {
         console.error(error);
       }

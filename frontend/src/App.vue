@@ -155,15 +155,18 @@ export default {
 </script>
 
 <style>
+body {
+  overflow-x: hidden;
+}
+
 .app {
   width: 100vw;
-  /* Changed from 100vw to 80vw */
   overflow-x: hidden;
 }
 
 .main__app {
-  width: calc(100vw - 15px);
-  /* Changed from 100vw to 80vw */
+  width: calc(100vw);
+  overflow-x: hidden;
 }
 
 .header-component {

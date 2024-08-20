@@ -22,7 +22,7 @@
     <ControlBar :on_progress="on_progress" :isTabView="isTabView" @toggle-file="toggleFile"
       @save-workflow-project="saveWorkflowProject" @run-workflow="runWorkflow" @toggle-task="toggleTask"
       @toggle-tab-view="toggleTabView" />
-    <div v-if="!isRuleView" class="node-zoom-buttons">
+    <div class="node-zoom-buttons">
       <button class="node-zoom-button" @click="zoomIn">
         <img src="@/assets/zoom_in.png">
       </button>
@@ -370,16 +370,8 @@ export default {
       }
     },
     async runWorkflow() {
-      // getter.getCurrentFile에서 algorithmOptions.optionFilePath 존재하지 않으면 export 불가능
-      // *수정* drawflow 객체에서 현재 파일 정보 추출하는 코드로 수정하기
-      const currentFile = this.$store.getters.getCurrentFile;
-      if (currentFile.algorithmOptions.optionFilePath === null) {
-        this.setMessage(
-          "error",
-          "Please select the Algorithm node option file to run the workflow"
-        );
-        return;
-      }
+      // 1. algorithm node의 데이터를 확인해서 화면에 띄우기
+      // 2. 화면에서 확인 후, 실행할 것인지 확인
 
       try {
         this.exportValue = this.$df.export();
@@ -393,10 +385,7 @@ export default {
           title: title,
           thumbnail: thumbnail,
           workflow_info: this.exportValue,
-          // nodes: nodes,
-          // linked_nodes: linked_nodes,
         };
-        // console.log(workflow);
         const workflow_data = await exportData(workflow);
         this.createEventSource(workflow_data.data.task_id);
         if (this.show_jobs) {
@@ -672,6 +661,7 @@ export default {
           thumbnail: thumbnail,
           workflow_info: this.exportValue,
         };
+        console.log("currentWorkflowId : " + workflow.id);
         const workflow_data = await saveWorkflow(workflow);
         this.currentWorkflowId = workflow_data.data.id;
         return workflow_data.data;

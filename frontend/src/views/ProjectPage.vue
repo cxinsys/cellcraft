@@ -47,15 +47,29 @@
       <ul ref="filesMenu" class="files_menu" v-bind:class="{ open: R_Mouse_isActive }"
         :style="{ left: xPosition, top: yPosition }">
         <li @click="openWorkflow">Open</li>
-        <!-- <li>Copy Link</li>
-        <li>Rename</li> -->
-        <li @click="removeWorkflow">Delete</li>
+        <li @click="confirmDelete">Delete</li>
       </ul>
     </div>
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
-      <p class="message__text">{{ messageContent }}</p>
-      <p class="message__undo" @click="undoDeletion">undo</p>
+      <img class="message__status" src="@/assets/succes.png" v-if="messageStatus === 'success'" />
+      <img class="message__status" src="@/assets/error.png" v-else-if="messageStatus === 'error'" />
+      <div class="message__box">
+        <p class="message__text" v-for="(content, index) in filteredMessageContent" :key="index">
+          {{ content }}
+        </p>
+      </div>
       <img class="message__close" @click="toggleMessage = !toggleMessage" src="@/assets/close.png" />
+    </div>
+    <!-- Modal for delete confirmation -->
+    <div class="delete-modal" v-if="showDeleteModal">
+      <div class="delete-modal__content">
+        <p>Are you sure you want to delete this workflow ?</p>
+        <ul class="delete-modal__buttons">
+          <button @click="removeWorkflow">Yes</button>
+          <button @click="showDeleteModal = !showDeleteModal">No</button>
+        </ul>
+        <img class="delete-modal__close" @click="showDeleteModal = !showDeleteModal" src="@/assets/close.png" />
+      </div>
     </div>
     <div v-if="isSelectModalVisible" class="plugin-select-modal">
       <div class="plugin-select-modal__content">
@@ -99,11 +113,12 @@ export default {
       xPosition: 0,
       yPosition: 0,
       toggleMessage: false,
-      deletionTimer: null,
-      messageContent: "",
       targetWorkflow: null,
       plugins: [],
       isSelectModalVisible: false,
+      showDeleteModal: false,
+      messageStatus: "",
+      messageContent: "",
     };
   },
   methods: {
@@ -134,29 +149,22 @@ export default {
     ClickOut() {
       this.R_Mouse_isActive = false;
     },
-    async removeWorkflow() {
+    confirmDelete() {
       this.targetWorkflow = this.workflows[this.list_idx];
-      this.workflows.splice(this.list_idx, 1);
-      this.toggleMessage = true;
-      // 10초 안에 toggleMessage가 false로 바뀌면 deleteFile 실행 안 함, 안 바뀌면 실행
-      this.messageContent = `${this.targetWorkflow.title} is deleted`;
-      this.deletionTimer = setTimeout(async () => {
-        try {
-          const workflow = {
-            id: this.workflow_id,
-          };
-          await deleteWorkflow(workflow);
-          this.workflows.splice(this.list_idx, 1);
-        } catch (error) {
-          console.error(error);
-        }
-        this.toggleMessage = false;
-      }, 3000);
+      this.showDeleteModal = true;
     },
-    undoDeletion() {
-      this.workflows.push(this.targetWorkflow);
-      this.toggleMessage = false;
-      clearTimeout(this.deletionTimer);
+    async removeWorkflow() {
+      try {
+        const workflow = {
+          id: this.workflow_id,
+        };
+        await deleteWorkflow(workflow);
+        this.workflows.splice(this.list_idx, 1);
+        this.showDeleteModal = false;
+        this.setMessage("success", "Workflow deleted successfully");
+      } catch (error) {
+        console.error(error);
+      }
     },
     closeSelectModal() {
       this.isSelectModalVisible = false;
@@ -168,7 +176,15 @@ export default {
         path: "/workflow",
         query: { plugin_id: plugin_id },
       });
-    }
+    },
+    setMessage(status, content) {
+      this.toggleMessage = true;
+      this.messageStatus = status;
+      this.messageContent = content;
+      setTimeout(() => {
+        this.toggleMessage = false;
+      }, 5000);
+    },
   },
   async mounted() {
     try {
@@ -230,7 +246,10 @@ export default {
   computed: {
     filteredPlugins() {
       return this.plugins.filter(plugin => plugin.checked);
-    }
+    },
+    filteredMessageContent() {
+      return this.messageContent.split(".").filter(Boolean);
+    },
   },
 };
 </script>
@@ -473,38 +492,179 @@ export default {
   background: #e5e5e5;
 }
 
+.delete-modal {
+  display: block;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+  background-color: rgb(0, 0, 0);
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* .delete-modal__content {
+  background-color: #fefefe;
+  margin: 15% auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+} */
+
+.delete-modal__content {
+  position: relative;
+  width: 90%;
+  max-width: 400px;
+  margin: 25% auto;
+  background: #FFF;
+  border-radius: .25em .25em .4em .4em;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+  -webkit-transform: translateY(-40px);
+  -moz-transform: translateY(-40px);
+  -ms-transform: translateY(-40px);
+  -o-transform: translateY(-40px);
+  transform: translateY(-40px);
+  /* Force Hardware Acceleration in WebKit */
+  -webkit-backface-visibility: hidden;
+  -webkit-transition-property: -webkit-transform;
+  -moz-transition-property: -moz-transform;
+  transition-property: transform;
+  -webkit-transition-duration: 0.3s;
+  -moz-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+}
+
+.delete-modal__content p {
+  padding: 2.5rem 1rem;
+}
+
+.delete-modal__content .delete-modal__buttons:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+.delete-modal__content .delete-modal__buttons button {
+  float: left;
+  width: 50%;
+  border: 0;
+  cursor: pointer;
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.25rem;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 1rem 0.5rem;
+}
+
+.delete-modal__content .delete-modal__buttons a {
+  display: block;
+  height: 60px;
+  line-height: 60px;
+  text-transform: uppercase;
+  color: #FFF;
+  -webkit-transition: background-color 0.2s;
+  -moz-transition: background-color 0.2s;
+  transition: background-color 0.2s;
+}
+
+.delete-modal__content .delete-modal__buttons button:first-child {
+  background: #fc7169;
+  border-radius: 0 0 0 .25em;
+}
+
+.no-touch .delete-modal__content .delete-modal__buttons button:first-child:hover {
+  background-color: #fc8982;
+}
+
+.delete-modal__content .delete-modal__buttons button:last-child {
+  background: #b6bece;
+  border-radius: 0 0 .25em 0;
+}
+
+.no-touch .delete-modal__content .delete-modal__buttons button:last-child:hover {
+  background-color: #c5ccd8;
+}
+
+.delete-modal__content .delete-modal__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  object-fit: contain;
+}
+
+.delete-modal__content .delete-modal__close::before,
+.delete-modal__content .delete-modal__close::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  width: 14px;
+  height: 3px;
+  background-color: #8f9cb5;
+}
+
+.delete-modal__content .delete-modal__close::before {
+  -webkit-transform: rotate(45deg);
+  -moz-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  -o-transform: rotate(45deg);
+  transform: rotate(45deg);
+  left: 8px;
+}
+
+.delete-modal__content .delete-modal__close::after {
+  -webkit-transform: rotate(-45deg);
+  -moz-transform: rotate(-45deg);
+  -ms-transform: rotate(-45deg);
+  -o-transform: rotate(-45deg);
+  transform: rotate(-45deg);
+  right: 8px;
+}
+
 .message {
-  width: 20rem;
-  height: 3rem;
+  width: 30rem;
+  height: 6rem;
   display: flex;
   align-items: center;
   justify-content: space-around;
   position: absolute;
-  bottom: 1rem;
-  left: calc(50% - 10rem);
+  bottom: 5rem;
+  left: calc(50% - 16rem);
   background: rgba(0, 0, 0, 0.8);
   border-radius: 1rem;
   padding: 0 1rem;
+}
+
+.message__status {
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+  margin: 0 1rem;
+}
+
+.message__box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
 .message__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
-  font-size: 1rem;
-  line-height: 1rem;
+  font-size: 1.1rem;
+  line-height: 1.4rem;
   color: #ffffff;
-}
-
-.message__undo {
-  font-family: "Montserrat", sans-serif;
-  font-style: normal;
-  font-weight: 500;
-  font-size: 1rem;
-  line-height: 1rem;
-  color: #9196ff;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 .message__close {

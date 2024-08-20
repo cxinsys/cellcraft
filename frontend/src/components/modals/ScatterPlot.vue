@@ -92,7 +92,7 @@ export default {
       appliedSelectedIndices: [],
       disableApplyButton: false,
       scatterResult: null,
-      workflowId: this.$route.query.id,
+      workflowId: this.$route.query.workflow_id,
       nodeId: this.$route.query.node,
     };
   },
