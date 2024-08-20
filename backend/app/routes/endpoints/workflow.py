@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import Any
 from sqlalchemy.orm import Session
 import os
+import shutil
 import json
 from fastapi.responses import FileResponse
 
@@ -164,7 +165,10 @@ def delete_user_workflow(
     user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflowInfo.id)
     if user_workflow:
         delete_workflow = crud_workflow.delete_user_workflow(db, current_user.id, workflowInfo.id)
-        print(delete_workflow)
+        user_path = f"./user/{current_user.username}/"
+        workflow_path = f"{user_path}workflow{workflowInfo.id}"
+        if os.path.exists(workflow_path):
+            shutil.rmtree(workflow_path)
         return delete_workflow
     else:
         raise HTTPException(
@@ -268,7 +272,6 @@ def saveNodeData(
         with open(f"{workflow_path}/{file_name}", "w") as f:
             # workflowNodeFileInfo.file_content가 List이면 json.dump으로 파일 생성
             if workflowNodeFileInfo.file_extension == "json":
-                print(workflowNodeFileInfo.file_content)
                 json.dump(workflowNodeFileInfo.file_content, f)
             if workflowNodeFileInfo.file_extension == "txt" or workflowNodeFileInfo.file_extension == "tsv" or workflowNodeFileInfo.file_extension == "csv":
                 f.write(workflowNodeFileInfo.file_content)

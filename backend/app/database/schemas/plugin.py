@@ -37,18 +37,18 @@ class PluginCreate(BaseModel):
     description: str
     author: str
     plugin_path: str
-    dependencies: Optional[List[DependencyFile]]
+    dependencies: Optional[Dict[str, str]]
     drawflow: Dict[str, Any]
-    rules: List[Rule]
+    rules: Dict[str, Any]
 
-class PluginUpdate(PluginCreate):
+class PluginUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     author: Optional[str] = None
     plugin_path: Optional[str] = None
-    dependencies: Optional[List[DependencyFile]] = None
+    dependencies: Optional[Dict[str, str]] = None
     drawflow: Optional[Dict[str, Any]] = None
-    rules: Optional[List[Rule]] = None
+    rules: Optional[Dict[str, Any]] = None
 
 class PluginAssociate(BaseModel):
     plugin_id: int

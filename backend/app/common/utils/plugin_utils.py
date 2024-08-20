@@ -48,7 +48,7 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
             if not input_val['connections']:
                 index = int(input_key.split('_')[1]) - 1
                 input_file = node['data']['inputs'][index]
-                if input_file.endswith('.csv'):
+                if input_file.endswith('.csv') or input_file.endswith('.h5ad'):
                     # InputFile 노드 생성
                     inputfile_node = {
                         "id": node_id,

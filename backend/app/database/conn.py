@@ -1,5 +1,6 @@
 from datetime import datetime
 import pandas as pd
+import json
 from sqlalchemy import Column, DateTime, create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base, as_declarative, declared_attr
@@ -39,14 +40,22 @@ def initialize_plugins_from_csv(csv_file_path: str):
         # 플러그인이 이미 존재하는지 확인
         existing_plugin = session.query(models.Plugin).filter_by(name=row['name']).first()
         if not existing_plugin:
+            try:
+                dependencies = json.loads(df.loc[df['name'] == row['name'], 'dependencies'].values[0]) if pd.notna(row['dependencies']) else {}
+                drawflow = json.loads(df.loc[df['name'] == row['name'], 'drawflow'].values[0]) if pd.notna(row['drawflow']) else {}
+                rules = json.loads(df.loc[df['name'] == row['name'], 'rules'].values[0]) if pd.notna(row['rules']) else {}
+            except json.JSONDecodeError as e:
+                print(f"JSONDecodeError: {e}")
+                continue
+
             plugin = models.Plugin(
                 name=row['name'],
                 description=row['description'],
                 author=row['author'],
                 plugin_path=row['plugin_path'],
-                dependencies=row['dependencies'],  # 필요에 따라 변환 필요
-                drawflow=row['drawflow'],  # 필요에 따라 변환 필요
-                rules=row['rules']  # 필요에 따라 변환 필요
+                dependencies=dependencies,
+                drawflow=drawflow,
+                rules=rules
             )
             session.add(plugin)
 

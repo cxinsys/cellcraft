@@ -1,7 +1,7 @@
 FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
 
 # 필요한 패키지 설치
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     wget \
     bzip2 \
     git \
@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev \
     jq \
     openssh-client \
+    r-base \
     && rm -rf /var/lib/apt/lists/*
 
 # Miniconda 설치
@@ -28,28 +29,30 @@ RUN wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-l
 # Conda 환경 변수 설정
 ENV PATH /opt/conda/bin:$PATH
 
+# OpenMPI 설치
+# RUN wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.5.tar.gz && \
+#     tar -xzvf openmpi-4.0.5.tar.gz && \
+#     cd openmpi-4.0.5 && \
+#     ./configure --prefix=/usr/local/openmpi && \
+#     make all && \
+#     make install
+
+# OpenMPI 환경 변수 설정
+# ENV PATH="/usr/local/openmpi/bin:${PATH}"
+# ENV LD_LIBRARY_PATH="/usr/local/openmpi/lib:${LD_LIBRARY_PATH}"
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
 # Conda 환경 설정
 COPY environment.yml ./
 RUN conda env create -f environment.yml
 
-# OpenMPI 설치
-RUN wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.5.tar.gz && \
-    tar -xzvf openmpi-4.0.5.tar.gz && \
-    cd openmpi-4.0.5 && \
-    ./configure --prefix=/usr/local/openmpi && \
-    make all && \
-    make install
-
-# OpenMPI 환경 변수 설정
-ENV PATH="/usr/local/openmpi/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/openmpi/lib:${LD_LIBRARY_PATH}"
-ENV OMPI_MCA_plm_rsh_agent=ssh
-
-# 작업 디렉토리 설정
-WORKDIR /app
+# R 패키지 설치
+RUN R -e "install.packages(c('ggplot2', 'pheatmap', 'plotly', 'jsonlite'), repos='http://cran.rstudio.com/')"
 
 # 애플리케이션 소스 코드 복사
 COPY . .
 
 # Celery 애플리케이션 실행
-CMD ["/opt/conda/envs/cellcraft/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "--loglevel=info", "-E", "-Q", "workflow_task"]
+CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "--loglevel=info", "-E", "-Q", "workflow_task"]

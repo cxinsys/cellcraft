@@ -1,0 +1,379 @@
+{
+    "name": "FastTENET",
+    "author": "testuser",
+    "description": "FastTENET is an accelerated TENET algorithm based on manycore computing.\n",
+    "drawflow": {
+        "drawflow": {
+            "Home": {
+                "data": {
+                    "5": {
+                        "id": 5,
+                        "name": "ruleNode",
+                        "data": {
+                            "title": "tenet_input",
+                            "inputs": [
+                                "h5ad.h5ad"
+                            ],
+                            "outputs": [
+                                "expMatrix.csv",
+                                "pseudotime.csv",
+                                "cellSelect.csv"
+                            ],
+                            "script": {},
+                            "parameters": [
+                                {
+                                    "name": "h5ad",
+                                    "type": "inputFile",
+                                    "defaultValue": "h5ad.h5ad",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ".h5ad"
+                                },
+                                {
+                                    "name": "expMatrix",
+                                    "type": "outputFile",
+                                    "defaultValue": "expMatrix.csv",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ".csv"
+                                },
+                                {
+                                    "name": "pseudotime",
+                                    "type": "outputFile",
+                                    "defaultValue": "pseudotime.csv",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ".csv"
+                                },
+                                {
+                                    "name": "cellSelect",
+                                    "type": "outputFile",
+                                    "defaultValue": "cellSelect.csv",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ".csv"
+                                },
+                                {
+                                    "name": "clusters",
+                                    "type": "h5adParameter",
+                                    "defaultValue": "",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ""
+                                },
+                                {
+                                    "name": "pseudotime",
+                                    "type": "h5adParameter",
+                                    "defaultValue": "",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ""
+                                },
+                                {
+                                    "name": "cellgroup",
+                                    "type": "h5adParameter",
+                                    "defaultValue": "",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ""
+                                }
+                            ],
+                            "isVisualization": false
+                        },
+                        "class": "ruleNode",
+                        "html": "ruleNode",
+                        "typenode": "vue",
+                        "inputs": {
+                            "input_1": {
+                                "connections": []
+                            }
+                        },
+                        "outputs": {
+                            "output_1": {
+                                "connections": [
+                                    {
+                                        "node": "6",
+                                        "output": "input_1"
+                                    }
+                                ]
+                            },
+                            "output_2": {
+                                "connections": [
+                                    {
+                                        "node": "6",
+                                        "output": "input_2"
+                                    }
+                                ]
+                            },
+                            "output_3": {
+                                "connections": [
+                                    {
+                                        "node": "6",
+                                        "output": "input_3"
+                                    }
+                                ]
+                            }
+                        },
+                        "pos_x": 67,
+                        "pos_y": 109
+                    },
+                    "6": {
+                        "id": 6,
+                        "name": "ruleNode",
+                        "data": {
+                            "title": "run_notf",
+                            "inputs": [
+                                "expMatrix.csv",
+                                "pseudotime.csv",
+                                "cellSelect.csv"
+                            ],
+                            "outputs": [
+                                "resultMatrix.txt"
+                            ],
+                            "script": {},
+                            "parameters": [
+                                {
+                                    "name": "expMatrix",
+                                    "type": "inputFile",
+                                    "defaultValue": "expMatrix.csv",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ".csv"
+                                },
+                                {
+                                    "name": "pseudotime",
+                                    "type": "inputFile",
+                                    "defaultValue": "pseudotime.csv",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ".csv"
+                                },
+                                {
+                                    "name": "cellSelect",
+                                    "type": "inputFile",
+                                    "defaultValue": "cellSelect.csv",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ".csv"
+                                },
+                                {
+                                    "name": "resultMatrix",
+                                    "type": "outputFile",
+                                    "defaultValue": "resultMatrix.txt",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ".txt"
+                                },
+                                {
+                                    "name": "device",
+                                    "type": "string",
+                                    "defaultValue": "gpu",
+                                    "min": null,
+                                    "max": null,
+                                    "fileExtension": ""
+                                },
+                                {
+                                    "name": "num_devices",
+                                    "type": "int",
+                                    "defaultValue": "8",
+                                    "min": 1,
+                                    "max": 32,
+                                    "fileExtension": ""
+                                },
+                                {
+                                    "name": "batch_size",
+                                    "type": "int",
+                                    "defaultValue": "30",
+                                    "min": 2,
+                                    "max": null,
+                                    "fileExtension": ""
+                                }
+                            ],
+                            "isVisualization": false
+                        },
+                        "class": "ruleNode",
+                        "html": "ruleNode",
+                        "typenode": "vue",
+                        "inputs": {
+                            "input_1": {
+                                "connections": [
+                                    {
+                                        "node": "5",
+                                        "input": "output_1"
+                                    }
+                                ]
+                            },
+                            "input_2": {
+                                "connections": [
+                                    {
+                                        "node": "5",
+                                        "input": "output_2"
+                                    }
+                                ]
+                            },
+                            "input_3": {
+                                "connections": [
+                                    {
+                                        "node": "5",
+                                        "input": "output_3"
+                                    }
+                                ]
+                            }
+                        },
+                        "outputs": {
+                            "output_1": {
+                                "connections": []
+                            }
+                        },
+                        "pos_x": 422,
+                        "pos_y": 347
+                    }
+                }
+            }
+        }
+    },
+    "rules": {
+        "0": {
+            "name": "tenet_input",
+            "input": [
+                "h5ad.h5ad"
+            ],
+            "output": [
+                "expMatrix.csv",
+                "pseudotime.csv",
+                "cellSelect.csv"
+            ],
+            "script": "tenet_input.py",
+            "parameters": [
+                {
+                    "name": "h5ad",
+                    "type": "inputFile",
+                    "defaultValue": "h5ad.h5ad",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".h5ad"
+                },
+                {
+                    "name": "expMatrix",
+                    "type": "outputFile",
+                    "defaultValue": "expMatrix.csv",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".csv"
+                },
+                {
+                    "name": "pseudotime",
+                    "type": "outputFile",
+                    "defaultValue": "pseudotime.csv",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".csv"
+                },
+                {
+                    "name": "cellSelect",
+                    "type": "outputFile",
+                    "defaultValue": "cellSelect.csv",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".csv"
+                },
+                {
+                    "name": "clusters",
+                    "type": "h5adParameter",
+                    "defaultValue": "",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ""
+                },
+                {
+                    "name": "pseudotime",
+                    "type": "h5adParameter",
+                    "defaultValue": "",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ""
+                },
+                {
+                    "name": "cellgroup",
+                    "type": "h5adParameter",
+                    "defaultValue": "",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ""
+                }
+            ],
+            "nodeId": 5
+        },
+        "1": {
+            "name": "run_notf",
+            "input": [
+                "expMatrix.csv",
+                "pseudotime.csv",
+                "cellSelect.csv"
+            ],
+            "output": [
+                "resultMatrix.txt"
+            ],
+            "script": "run_notf.py",
+            "parameters": [
+                {
+                    "name": "expMatrix",
+                    "type": "inputFile",
+                    "defaultValue": "expMatrix.csv",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".csv"
+                },
+                {
+                    "name": "pseudotime",
+                    "type": "inputFile",
+                    "defaultValue": "pseudotime.csv",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".csv"
+                },
+                {
+                    "name": "cellSelect",
+                    "type": "inputFile",
+                    "defaultValue": "cellSelect.csv",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".csv"
+                },
+                {
+                    "name": "resultMatrix",
+                    "type": "outputFile",
+                    "defaultValue": "resultMatrix.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt"
+                },
+                {
+                    "name": "device",
+                    "type": "string",
+                    "defaultValue": "gpu",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ""
+                },
+                {
+                    "name": "num_devices",
+                    "type": "int",
+                    "defaultValue": "8",
+                    "min": 1,
+                    "max": 32,
+                    "fileExtension": ""
+                },
+                {
+                    "name": "batch_size",
+                    "type": "int",
+                    "defaultValue": "30",
+                    "min": 2,
+                    "max": null,
+                    "fileExtension": ""
+                }
+            ],
+            "nodeId": 6
+        }
+    }
+}

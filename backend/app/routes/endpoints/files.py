@@ -215,11 +215,6 @@ def h5ad_columns (
     ) -> Any:
     user_file = crud_file.get_user_file(db, current_user.id, fileInfo.file_name)
     if user_file:
-        # 해당 유저의 폴더에 있는 파일을 가져와서 csv로 변환
-        # 변환된 파일을 해당 유저의 폴더에 저장
-        # 변환된 파일의 정보를 db에 저장
-        # 유저 폴더 내 파일 경로 "user/{username}/data/{filename}.h5ad"
-        # 변환된 파일 경로 "user/{username}/result/{filename}.csv"
         folder_path = './user' + '/' + current_user.username
         input_filename = fileInfo.file_name
         input_filepath = f"{folder_path}/data/{input_filename}"

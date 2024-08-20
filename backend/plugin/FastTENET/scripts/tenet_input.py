@@ -104,14 +104,13 @@ def tenet_input_make(adata, path_exp, path_pseudo, path_cell_select, pseudotime_
     except Exception as e:
         print(f"Error: {e}")
 
-gene_list = sys.argv[1]
-h5ad = sys.argv[2]
-expMatrix = sys.argv[3]
-pseudotime = sys.argv[4]
-cellSelect = sys.argv[5]
-anno_of_interest = sys.argv[6]
-pseudo_of_interest = sys.argv[7]
-clusters_of_interest = sys.argv[8]
+h5ad = sys.argv[1]
+expMatrix = sys.argv[2]
+pseudotime = sys.argv[3]
+cellSelect = sys.argv[4]
+anno_of_interest = sys.argv[5]
+pseudo_of_interest = sys.argv[6]
+clusters_of_interest = sys.argv[7]
 
 orig_data = sc.read_h5ad(h5ad)
 adata = orig_data.copy()
@@ -132,4 +131,4 @@ if adata.shape[0] == 0:
 synch_raw_counts(adata)
     
 # tenet inputfile 생성
-tenet_input_make(adata, expMatrix, pseudotime, cellSelect,pseudotime_column = pseudo_of_interest, gene_list = gene_list)
+tenet_input_make(adata, expMatrix, pseudotime, cellSelect,pseudotime_column = pseudo_of_interest)

@@ -73,8 +73,8 @@ class Plugin(Base):
     description = Column(String, nullable=False)
     author = Column(String, nullable=False)
     plugin_path = Column(String, nullable=False)
-    dependencies = Column(ARRAY(JSON), nullable=True)
+    dependencies = Column(JSONB, nullable=True)
     drawflow = Column(JSONB, nullable=False)
-    rules = Column(ARRAY(JSON), nullable=False)
+    rules = Column(JSONB, nullable=False)
 
     users = relationship("User", secondary=user_plugin_association, back_populates="plugins")
