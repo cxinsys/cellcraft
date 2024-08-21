@@ -18,7 +18,11 @@ jobs:
         eval "$(ssh-agent -s)"  # SSH 에이전트 시작
         echo "${{ secrets.SSH_KEY }}" | tr -d '\r' | ssh-add -  # SSH 키 추가
       shell: bash
-    
+
+    - name: Check loaded SSH keys
+      run: ssh-add -l
+      shell: bash
+
     - name: Debug SSH connection
       run: |
         ssh -vvv -p 10000 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
