@@ -17,12 +17,11 @@ jobs:
       run: |
         echo "${{ secrets.SSH_KEY }}" > id_ed25519
         chmod 600 id_ed25519
-
-    - name: Debug SSH connection
+    
+    - name: Test SSH connection
       run: |
-        ssh -vvv -p 10000 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
-      shell: bash
-
+        ssh -i id_ed25519 -o StrictHostKeyChecking=no -p 10000 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo Connection successful"
+    
     - name: Run commands on remote server
       run: |
         ssh -i id_ed25519 -o StrictHostKeyChecking=no -p 10000 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
@@ -32,6 +31,6 @@ jobs:
           docker compose -f docker-compose.prod.yml up -d
         EOF
       shell: bash
-
-    - name: Remove SSH key file
+    
+    - name: Clean up SSH key
       run: rm -f id_ed25519
