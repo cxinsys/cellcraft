@@ -13,12 +13,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Start SSH agent
+    - name: Create SSH key file
       run: |
-        eval "$(ssh-agent -s)"  # SSH 에이전트 시작
-        echo "${{ secrets.SSH_KEY }}" | tr -d '\r' | ssh-add -  # SSH 키 추가
-        ssh-add -l  # 추가된 SSH 키 확인
-      shell: bash
+        echo "${{ secrets.SSH_KEY }}" > id_ed25519
+        chmod 600 id_ed25519
 
     - name: Debug SSH connection
       run: |
@@ -34,3 +32,6 @@ jobs:
           docker compose -f docker-compose.prod.yml up -d
         EOF
       shell: bash
+
+    - name: Remove SSH key file
+      run: rm -f id_ed25519
