@@ -16,7 +16,8 @@ jobs:
     - name: Start SSH agent
       run: |
         eval "$(ssh-agent -s)"  # SSH 에이전트 시작
-        ssh-add - <<< "${{ secrets.SSH_KEY }}"  # SSH 키 추가
+        echo "${{ secrets.SSH_KEY }}" | tr -d '\r' | ssh-add -  # SSH 키 추가
+      shell: bash
 
     - name: Run Docker Compose on remote server
       run: |
