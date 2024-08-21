@@ -1,8 +1,7 @@
-# tiangolo/uvicorn-gunicorn 베이스 이미지 사용
-FROM tiangolo/uvicorn-gunicorn:python3.10
+FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
 
 # 필요한 패키지 설치
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     wget \
     bzip2 \
     git \
@@ -31,16 +30,16 @@ RUN wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-l
 ENV PATH /opt/conda/bin:$PATH
 
 # OpenMPI 설치
-RUN wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.5.tar.gz && \
-    tar -xzvf openmpi-4.0.5.tar.gz && \
-    cd openmpi-4.0.5 && \
-    ./configure --prefix=/usr/local/openmpi && \
-    make all && \
-    make install
+# RUN wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.5.tar.gz && \
+#     tar -xzvf openmpi-4.0.5.tar.gz && \
+#     cd openmpi-4.0.5 && \
+#     ./configure --prefix=/usr/local/openmpi && \
+#     make all && \
+#     make install
 
 # OpenMPI 환경 변수 설정
-ENV PATH="/usr/local/openmpi/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/openmpi/lib:${LD_LIBRARY_PATH}"
+# ENV PATH="/usr/local/openmpi/bin:${PATH}"
+# ENV LD_LIBRARY_PATH="/usr/local/openmpi/lib:${LD_LIBRARY_PATH}"
 
 # 작업 디렉토리 설정
 WORKDIR /app

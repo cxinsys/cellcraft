@@ -79,6 +79,7 @@ export default {
         console.log(this.serverParams);
         const dataTableResult = await getDataTableFile(this.serverParams);
         const { columns, rows, totalRecords } = dataTableResult.data;
+        console.log(columns);
         this.rows = rows;
         this.totalRecords = totalRecords;
       } catch (error) {
@@ -93,6 +94,7 @@ export default {
         });
         const dataTableResult = await getDataTableFile(this.serverParams);
         const { columns, rows, totalRecords } = dataTableResult.data;
+        console.log(columns);
         this.rows = rows;
         this.totalRecords = totalRecords;
       } catch (error) {
@@ -105,6 +107,7 @@ export default {
         this.updateParams(params);
         const dataTableResult = await getDataTableFile(this.serverParams);
         const { columns, rows, totalRecords } = dataTableResult.data;
+        console.log(columns);
         this.rows = rows;
         this.totalRecords = totalRecords;
       } catch (error) {
@@ -116,6 +119,7 @@ export default {
         this.updateParams({ per_page: params.currentPerPage });
         const dataTableResult = await getDataTableFile(this.serverParams);
         const { columns, rows, totalRecords } = dataTableResult.data;
+        console.log(columns);
         this.rows = rows;
         this.totalRecords = totalRecords;
       } catch (error) {

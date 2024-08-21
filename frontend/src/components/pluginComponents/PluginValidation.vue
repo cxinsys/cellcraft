@@ -147,7 +147,7 @@ export default {
                     const formData = new FormData();
 
                     // 비동기 작업을 처리하기 위한 Promise 배열
-                    const promises = scriptCreate.map((script, index) => {
+                    const promises = scriptCreate.map((script) => {
                         return new Promise((resolve, reject) => {
                             const reader = new FileReader();
                             reader.onload = (event) => {
