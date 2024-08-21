@@ -13,15 +13,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up SSH
-      uses: webfactory/ssh-agent@v0.5.3
-      with:
-        ssh-private-key: ${{ secrets.SSH_KEY }}
+    - name: Add SSH key
+      run: |
+        echo "${{ secrets.SSH_KEY }}" | tr -d '\r' | ssh-add -
+      shell: bash
 
     - name: Run Docker Compose on remote server
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          set -e  # 명령어 실패 시 즉시 종료
           cd /home/dmshin/cellcraft
           docker compose -f docker-compose.prod.yml build
           docker compose -f docker-compose.prod.yml up -d
         EOF
+      shell: bash
