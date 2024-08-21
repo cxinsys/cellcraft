@@ -3,34 +3,35 @@ name: Deploy on update
 on:
   push:
     branches:
-      - main  # main 브랜치에 push가 있을 때마다 실행
+      - main # main 브랜치에 push가 있을 때마다 실행
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Create SSH key file
-      run: |
-        echo "${{ secrets.SSH_KEY }}" > id_ed25519
-        chmod 600 id_ed25519
-    
-    - name: Test SSH connection
-      run: |
-        ssh -i id_ed25519 -o StrictHostKeyChecking=no -p 10000 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo Connection successful"
-    
-    - name: Run commands on remote server
-      run: |
-        ssh -i id_ed25519 -o StrictHostKeyChecking=no -p 10000 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-          set -e
-          cd /home/dmshin/cellcraft
-          docker compose -f docker-compose.prod.yml build
-          docker compose -f docker-compose.prod.yml up -d
-        EOF
-      shell: bash
-    
-    - name: Clean up SSH key
-      run: rm -f id_ed25519
+      - name: Create SSH key file
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > id_ed25519
+          chmod 600 id_ed25519
+
+      - name: Test SSH connection
+        run: |
+          ssh -i id_ed25519 -o StrictHostKeyChecking=no -p 10000 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo Connection successful"
+
+      - name: Pull latest changes and deploy
+        run: |
+          ssh -i id_ed25519 -o StrictHostKeyChecking=no -p 10000 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            set -e
+            cd /home/dmshin/cellcraft
+            git pull origin main  # 최신 변경 사항을 가져옵니다.
+            docker compose -f docker-compose.prod.yml build
+            docker compose -f docker-compose.prod.yml up -d
+          EOF
+        shell: bash
+
+      - name: Clean up SSH key
+        run: rm -f id_ed25519
