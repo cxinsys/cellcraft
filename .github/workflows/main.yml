@@ -13,15 +13,24 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up SSH
-      uses: webfactory/ssh-agent@v0.5.3
-      with:
-        ssh-private-key: ${{ secrets.SSH_KEY }}
-
-    - name: Run Docker Compose on remote server
+    - name: Create SSH key file
       run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+        echo "${{ secrets.SSH_KEY }}" > id_ed25519
+        chmod 600 id_ed25519
+    
+    - name: Test SSH connection
+      run: |
+        ssh -i id_ed25519 -o StrictHostKeyChecking=no -p 10000 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo Connection successful"
+    
+    - name: Run commands on remote server
+      run: |
+        ssh -i id_ed25519 -o StrictHostKeyChecking=no -p 10000 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          set -e
           cd /home/dmshin/cellcraft
           docker compose -f docker-compose.prod.yml build
           docker compose -f docker-compose.prod.yml up -d
         EOF
+      shell: bash
+    
+    - name: Clean up SSH key
+      run: rm -f id_ed25519
