@@ -20,7 +20,7 @@ jobs:
 
     - name: Run Docker Compose on remote server
       run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+        ssh -p 10000 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           set -e  # 명령어 실패 시 즉시 종료
           cd /home/dmshin/cellcraft
           docker compose -f docker-compose.prod.yml build
