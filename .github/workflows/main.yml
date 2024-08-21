@@ -13,6 +13,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
+    - name: Start SSH agent
+      run: |
+        eval "$(ssh-agent -s)"  # SSH 에이전트 시작
+
     - name: Add SSH key
       run: |
         echo "${{ secrets.SSH_KEY }}" | tr -d '\r' | ssh-add -
