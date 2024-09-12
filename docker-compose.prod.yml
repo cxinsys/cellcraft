@@ -9,7 +9,6 @@ services:
       - "8080:8080"
     volumes:
       - ./frontend:/app
-      - ./frontend/dist:/usr/share/nginx/html
     networks:
       - web_network
     restart: always
