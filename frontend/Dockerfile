@@ -1,5 +1,5 @@
 # Step 1: Build the Vue.js application
-FROM node:14 AS build-stage
+FROM node:alpine AS build-stage
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy built files from build-stage
-COPY --from=build-stage /app/dist /usr/share/nginx/html
+COPY dist /usr/share/nginx/html
 
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
