@@ -44,12 +44,14 @@ function exportData(data) {
   return instance.post("/routes/workflow/compile", data);
 }
 
-function getResult(filename) {
-  return instance.post("/routes/workflow/result", filename);
+function getResult(WorkflowResult) {
+  return instance.post("/routes/workflow/result", WorkflowResult, {
+    responseType: "blob", // 서버로부터 받은 데이터를 blob 형태로 처리
+  });
 }
 
-function getResults() {
-  return instance.post("/routes/workflow/results");
+function getResults(WorkflowResult) {
+  return instance.post("/routes/workflow/results", WorkflowResult);
 }
 
 function uploadForm(formData, onUploadProgress) {

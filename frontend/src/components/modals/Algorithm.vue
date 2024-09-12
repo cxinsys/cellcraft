@@ -19,9 +19,9 @@
           <div class="algorithm-logo">{{ selectedPlugin.name }}</div>
         </div>
         <div class="algorithm-parts">
-          <div v-for="rule in selectedPluginRules" :key="rule.name" v-show="rule.parameters.length != 0">
-            <div class="part-title">{{ rule.name }}</div>
-            <div v-for="parameter in rule.parameters" :key="parameter.name">
+          <div v-for="rule in selectedPluginRules" :key="rule.name">
+            <div class="part-title" v-show="rule.parameters.length != 0">{{ rule.name }}</div>
+            <div v-for="parameter in rule.parameters" :key="parameter.name" v-show="rule.parameters.length != 0">
               <div class="parameters">
                 <span class="parameter-id">
                   {{ parameter.name }}
@@ -66,6 +66,9 @@
                 </div>
               </div>
             </div>
+          </div>
+          <div class="algorithm-alert" v-show="allParametersEmpty">
+            No parameters in this plugin.
           </div>
         </div>
       </div>
@@ -154,7 +157,11 @@ export default {
       }
 
       this.selectedPluginInputOutput = this.activatePlugin(result.filteredInputOutput, this.currentNodeConnection);
-      this.loadColumns();
+
+      // this.selectedPluginInputOutput의 type이 'inputFile'이고 fileExtension이 '.h5ad'인 항목을 찾으면 loadColumns 함수 실행
+      if (this.selectedPluginInputOutput.some((item) => item.type === "inputFile" && item.fileExtension === ".h5ad")) {
+        this.loadColumns();
+      }
     } catch (error) {
       console.error(error);
     }
@@ -196,6 +203,12 @@ export default {
       },
       deep: true,
     },
+  },
+  computed: {
+    allParametersEmpty() {
+      // selectedPluginRules를 순회하면서 모든 parameters가 비어 있는지 확인
+      return this.selectedPluginRules.every(rule => rule.parameters.length === 0);
+    }
   },
   methods: {
     activateClusters() {
@@ -244,12 +257,18 @@ export default {
 
       return selectedPluginInputOutput.map(item => {
         let activate = false;
+        let file_name = null; // file_name 초기값 설정
 
         if (item.type === 'inputFile') {
           // inputFile 타입의 경우
-          activate = currentNodeConnection.some(connection =>
+          const matchingConnection = currentNodeConnection.find(connection =>
             connection.data && connection.data.file && connection.data.file.includes(item.fileExtension)
           );
+
+          if (matchingConnection) {
+            activate = true; // 파일이 일치하면 활성화
+            file_name = matchingConnection.data.file; // 해당 connection의 data.file을 file_name으로 할당
+          }
         } else if (item.type === 'outputFile') {
           // outputFile 타입의 경우
           if (resultFileIndex < resultFileCount) {
@@ -260,7 +279,8 @@ export default {
 
         return {
           ...item,
-          activate
+          activate,
+          file_name
         };
       });
     },
@@ -599,6 +619,7 @@ export default {
 }
 
 .algorithm-parts {
+  position: relative;
   align-content: start;
   width: 100%;
   margin-bottom: 2rem;
@@ -1144,6 +1165,16 @@ input[type="radio"] {
 .reset-button:hover {
   opacity: 0.5;
   cursor: pointer;
+}
+
+.algorithm-alert {
+  margin-top: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  font-size: 1.5rem;
+  color: #353535;
 }
 
 .checkbox-wrapper-9 {
