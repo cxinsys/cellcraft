@@ -1,16 +1,16 @@
 {
     "name": "FastTENET",
-    "author": "testuser",
-    "description": "FastTENET is an accelerated TENET algorithm based on manycore computing.\n",
+    "author": "testuseruser",
+    "description": "FastTENET is an accelerated TENET algorithm based on manycore computing.",
     "drawflow": {
         "drawflow": {
             "Home": {
                 "data": {
-                    "5": {
-                        "id": 5,
+                    "1": {
+                        "id": 1,
                         "name": "ruleNode",
                         "data": {
-                            "title": "tenet_input",
+                            "title": "TenetInput",
                             "inputs": [
                                 "h5ad.h5ad"
                             ],
@@ -92,7 +92,7 @@
                             "output_1": {
                                 "connections": [
                                     {
-                                        "node": "6",
+                                        "node": "2",
                                         "output": "input_1"
                                     }
                                 ]
@@ -100,7 +100,7 @@
                             "output_2": {
                                 "connections": [
                                     {
-                                        "node": "6",
+                                        "node": "2",
                                         "output": "input_2"
                                     }
                                 ]
@@ -108,20 +108,20 @@
                             "output_3": {
                                 "connections": [
                                     {
-                                        "node": "6",
+                                        "node": "2",
                                         "output": "input_3"
                                     }
                                 ]
                             }
                         },
-                        "pos_x": 67,
-                        "pos_y": 109
+                        "pos_x": 205,
+                        "pos_y": 87
                     },
-                    "6": {
-                        "id": 6,
+                    "2": {
+                        "id": 2,
                         "name": "ruleNode",
                         "data": {
-                            "title": "run_notf",
+                            "title": "RunNoTF",
                             "inputs": [
                                 "expMatrix.csv",
                                 "pseudotime.csv",
@@ -165,7 +165,7 @@
                                     "fileExtension": ".txt"
                                 },
                                 {
-                                    "name": "device",
+                                    "name": "backend",
                                     "type": "string",
                                     "defaultValue": "gpu",
                                     "min": null,
@@ -173,17 +173,17 @@
                                     "fileExtension": ""
                                 },
                                 {
-                                    "name": "num_devices",
+                                    "name": "numDevices",
                                     "type": "int",
-                                    "defaultValue": "8",
+                                    "defaultValue": "4",
                                     "min": 1,
-                                    "max": 32,
+                                    "max": 64,
                                     "fileExtension": ""
                                 },
                                 {
-                                    "name": "batch_size",
+                                    "name": "batchSize",
                                     "type": "int",
-                                    "defaultValue": "30",
+                                    "defaultValue": "32768",
                                     "min": 2,
                                     "max": null,
                                     "fileExtension": ""
@@ -198,7 +198,7 @@
                             "input_1": {
                                 "connections": [
                                     {
-                                        "node": "5",
+                                        "node": "1",
                                         "input": "output_1"
                                     }
                                 ]
@@ -206,7 +206,7 @@
                             "input_2": {
                                 "connections": [
                                     {
-                                        "node": "5",
+                                        "node": "1",
                                         "input": "output_2"
                                     }
                                 ]
@@ -214,7 +214,7 @@
                             "input_3": {
                                 "connections": [
                                     {
-                                        "node": "5",
+                                        "node": "1",
                                         "input": "output_3"
                                     }
                                 ]
@@ -225,8 +225,8 @@
                                 "connections": []
                             }
                         },
-                        "pos_x": 422,
-                        "pos_y": 347
+                        "pos_x": 643,
+                        "pos_y": 82
                     }
                 }
             }
@@ -234,7 +234,7 @@
     },
     "rules": {
         "0": {
-            "name": "tenet_input",
+            "name": "TenetInput",
             "input": [
                 "h5ad.h5ad"
             ],
@@ -302,10 +302,10 @@
                     "fileExtension": ""
                 }
             ],
-            "nodeId": 5
+            "nodeId": 1
         },
         "1": {
-            "name": "run_notf",
+            "name": "RunNoTF",
             "input": [
                 "expMatrix.csv",
                 "pseudotime.csv",
@@ -349,7 +349,7 @@
                     "fileExtension": ".txt"
                 },
                 {
-                    "name": "device",
+                    "name": "backend",
                     "type": "string",
                     "defaultValue": "gpu",
                     "min": null,
@@ -357,23 +357,23 @@
                     "fileExtension": ""
                 },
                 {
-                    "name": "num_devices",
+                    "name": "numDevices",
                     "type": "int",
-                    "defaultValue": "8",
+                    "defaultValue": "4",
                     "min": 1,
-                    "max": 32,
+                    "max": 64,
                     "fileExtension": ""
                 },
                 {
-                    "name": "batch_size",
+                    "name": "batchSize",
                     "type": "int",
-                    "defaultValue": "30",
+                    "defaultValue": "32768",
                     "min": 2,
                     "max": null,
                     "fileExtension": ""
                 }
             ],
-            "nodeId": 6
+            "nodeId": 2
         }
     }
 }

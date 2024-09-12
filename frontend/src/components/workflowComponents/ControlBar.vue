@@ -12,14 +12,14 @@
                     <img class="control-bar__icon" src="@/assets/control_run.png" />
                 </button>
             </li>
-            <li>
+            <li class="control-bar__button">
                 <div class="loader" @click="toggleTask" v-if="on_progress == true"></div>
                 <div class="loader_done" @click="toggleTask" v-else></div>
             </li>
             <li class="control-bar__button">
-                <img class="control-bar__icon white margin__top-4" v-if="isTabView" src="@/assets/view.png"
+                <img class="control-bar__icon" v-if="isTabView" src="@/assets/view.png"
                     @click="toggleTabView" />
-                <img class="control-bar__icon white margin__top-4" v-else src="@/assets/view_hide.png"
+                <img class="control-bar__icon" v-else src="@/assets/view_hide.png"
                     @click="toggleTabView" />
             </li>
         </ul>
@@ -80,20 +80,24 @@ export default {
     width: 100%;
     height: 100%;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: space-evenly;
 }
 
 .control-bar__button {
-    width: 24px;
-    height: 24px;
-    margin: 0 8px;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
     align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 
 .control-bar__icon {
-    max-width: 24px;
-    max-height: 24px;
+    /* max-width: 24px;
+    max-height: 24px; */
+    width: 100%;
+    height: 100%;
     object-fit: contain;
     object-position: center;
     opacity: 0.6;
@@ -111,10 +115,8 @@ export default {
 .loader_done {
   border: 4px solid #f3f3f3bf;
   border-radius: 50%;
-  margin-left: 8px;
-  margin-right: 6px;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   opacity: 0.5;
 }
 

@@ -1,26 +1,22 @@
 import os
+from subprocess import Popen, PIPE
 
-def snakemakeProcess(target, snakefile_path):
-    from subprocess import Popen, PIPE
-    print("Target:", target)
+def snakemakeProcess(targets, snakefile_path):
+    print("Targets:", targets)
     print("Snakefile path:", snakefile_path)
     print("Environment PATH:", os.environ["PATH"])
 
     # Snakemake 명령어 구성
     command = [
         '/opt/conda/envs/snakemake/bin/snakemake',
-        target,
+        *targets,  # 여러 개의 타겟을 명령어에 추가
         '--snakefile', snakefile_path,
-        '-j',
+        '-j',  # 병렬 실행을 위한 옵션
     ]
 
     # Snakemake 프로세스 실행
     process = Popen(command, stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
-
-    print("STDOUT:", stdout.decode())
-    print("STDERR:", stderr.decode())
-
 
     # 종료 요청을 감지하고 프로세스에 신호를 보냄
     # while True:
@@ -29,7 +25,10 @@ def snakemakeProcess(target, snakefile_path):
     #         break
     #     if process.poll() is not None:
     #         break
-        
+
+    print("STDOUT:", stdout.decode())
+    print("STDERR:", stderr.decode())
+
     return {"returncode": process.returncode, "stdout": stdout.decode(), "stderr": stderr.decode()}
 
 def read_stream(stream, output):
@@ -88,18 +87,17 @@ def filter_and_add_suffix(input_string):
     # 밑줄이 없는 경우, 원래 문자열을 반환
     return input_string
 
-def create_snakefile(file_path, user_input):
+def change_snakefile_parameter(snakefile_path, output_path, user_input):
     # 기존 Snakefile 읽기
-    with open("./workflow/Snakefile", 'r') as file:
+    with open(snakefile_path, 'r') as file:
         content = file.read()
 
-    # {input...}과 {output...}을 제외한 {}로 감싸진 부분을 사용자 입력 값으로 대체
     for key, value in user_input.items():
         content = content.replace(f"{{{key}}}", value)
 
     # 새로운 Snakefile 생성
-    with open(file_path, 'w') as file:
+    with open(output_path, 'w') as file:
         file.write(content)
 
     # 생성된 파일 경로를 반환
-    return file_path
+    return output_path

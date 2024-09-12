@@ -7,7 +7,8 @@ import json
 from fastapi.responses import FileResponse
 
 from app.common.utils.celery_utils import get_task_info
-from app.common.utils.snakemake_utils import create_snakefile, filter_and_add_suffix
+from app.common.utils.snakemake_utils import change_snakefile_parameter, filter_and_add_suffix
+from app.common.utils.workflow_utils import extract_algorithm_data, generate_user_input, extract_target_data
 from app.database.crud import crud_workflow
 from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowResult, WorkflowFind, WorkflowNodeFileCreate, WorkflowNodeFileDelete, WorkflowNodeFileRead
 from app.routes import dep
@@ -27,115 +28,53 @@ def exportData(
     try:
         user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflow.id)
         user_path = f"./user/{current_user.username}/"
-        notAlgoCount = 0
         if user_workflow:
-            crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info, workflow.nodes, workflow.linked_nodes)
-            linked_nodes = workflow.linked_nodes
-            num = 0
-            for nodes in linked_nodes:
-                # nodes["lastNode"]가 Algorithm이 아니면 for문을 돌지 않음
-                if nodes["lastNode"] != "Algorithm":
-                    notAlgoCount += 1
-                    continue
-                num += 1
-                workflow_path = f"{user_path}workflow{num}"
-                # user 폴더에 workflow 폴더 존재하지 않으면 생성
-                if not os.path.exists(workflow_path):
-                    os.makedirs(workflow_path)
-                # workflow.option_file(option.json 파일 경로) 가져와서 해당 경로에 있는 json 파일 load
-                with open(user_path + "data/" + nodes["algorithmOptions"]["optionFilePath"], "r") as f:
-                    options = json.load(f)
+            crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info)
+            extract_workflow = extract_algorithm_data(user_workflow.workflow_info['drawflow']['Home']['data'])
 
-                # user_input 데이터를 생성
-                user_input = {
-                    'userName': current_user.username,  # 현재 사용자 이름
-                    'fileName': filter_and_add_suffix(nodes['file']), # 파일 이름
-                    'optionFileName': nodes["algorithmOptions"]["optionFilePath"],  # 옵션 파일 이름
-                    'numOfThreads': str(options['num_of_threads']), # 스레드 개수
-                    'historyLength': str(options['history_length']), # 히스토리 길이
-                    'cutoffForFdr': str(options['cutoff_for_fdr']),  # FDR 기준
-                    'numOfLinks': str(options['num_of_links']), # 링크 개수
-                    'species': options['species'], # 종
-                    'trimmingIndirectEdges': str(options['trimming_indirect_edges'])  # 간접 에지 자르기
-                }
-                # user 폴더에 snakefile 생성
-                snakefile_path = create_snakefile(workflow_path + "/snakefile", user_input)
+            print(extract_workflow)
 
-                # target을 nodes.algorithmOptions.algorithm이 TENET일 때랑 TENET_TF일 때로 나눠서 처리
-                if nodes["algorithmOptions"]["algorithm"] == "TENET":
-                    target = f"workflow/data/DownstreamAnalysis_{current_user.username}_{filter_and_add_suffix(nodes['file'])}.txt"
-                elif nodes["algorithmOptions"]["algorithm"] == "TENET_TF":
-                    target = f"workflow/data/DownstreamAnalysisTF_{current_user.username}_{filter_and_add_suffix(nodes['file'])}.txt"
+            user_input = generate_user_input(extract_workflow['selectedPluginInputOutput'], extract_workflow['selectedPluginRules'])
 
-                process_task = process_data_task.apply_async(
-                    (current_user.username, snakefile_path, target),
-                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id }
-                )
-                message = "Tasks added to queue"
-                task_id = process_task.id
-                result = get_task_info(process_task.id)
-        else:
-            workflow_info = crud_workflow.create_workflow(db, workflow.title, workflow.thumbnail, workflow.workflow_info, workflow.nodes, workflow.linked_nodes, current_user.id)
-            linked_nodes = workflow.linked_nodes
-            num = 0
-            for nodes in linked_nodes:
-                # nodes["lastNode"]가 Algorithm이 아니면 for문을 돌지 않음
-                if nodes["lastNode"] != "Algorithm":
-                    notAlgoCount += 1
-                    continue
-                num += 1
-                workflow_path = f"{user_path}workflow{num}"
-                # user 폴더에 workflow 폴더 존재하지 않으면 생성
-                if not os.path.exists(workflow_path):
-                    os.makedirs(workflow_path)
+            target_list = extract_target_data(extract_workflow['selectedPluginInputOutput'])
 
-                # print(nodes)
+            additional_data = {
+                "user_name": current_user.username,
+                "workflow_id": str(workflow.id),
+                "algorithm_id": str(extract_workflow['id']),
+                "plugin_name": extract_workflow['selectedPlugin']['name'],
+            }
+            
+            # user_input에 추가
+            user_input.update(additional_data)
+            print("user_input:", user_input)
 
-                # workflow.option_file(option.json 파일 경로) 가져와서 해당 경로에 있는 json 파일 load
-                with open(user_path + "data/" + nodes["algorithmOptions"]["optionFilePath"], "r") as f:
-                    options = json.load(f)
+            user_workflow_task_path = f"{user_path}workflow_{workflow.id}/algorithm_{extract_workflow['id']}"
+            # user_workflow_task_path 생성
+            if not os.path.exists(user_workflow_task_path):
+                os.makedirs(user_workflow_task_path)
 
-                # user_input 데이터를 생성
-                user_input = {
-                    'userName': current_user.username,  # 현재 사용자 이름
-                    'fileName': filter_and_add_suffix(nodes['file']), # 파일 이름
-                    'optionFileName': nodes["algorithmOptions"]["optionFilePath"],  # 옵션 파일 이름
-                    'numOfThreads': str(options['num_of_threads']), # 스레드 개수
-                    'historyLength': str(options['history_length']), # 히스토리 길이
-                    'cutoffForFdr': str(options['cutoff_for_fdr']),  # FDR 기준
-                    'numOfLinks': str(options['num_of_links']), # 링크 개수
-                    'species': options['species'], # 종
-                    'trimmingIndirectEdges': str(options['trimming_indirect_edges'])  # 간접 에지 자르기
-                }
-                # user 폴더에 snakefile 생성
-                snakefile_path = create_snakefile(workflow_path + "/snakefile", user_input)
+            plugin_snakefile_path = f"./plugin/{extract_workflow['selectedPlugin']['name']}/Snakefile"
+            user_snakefile_path = change_snakefile_parameter(plugin_snakefile_path, user_workflow_task_path + "/Snakefile", user_input)
 
-                # target을 nodes.algorithmOptions.algorithm이 TENET일 때랑 TENET_TF일 때로 나눠서 처리
-                if nodes["algorithmOptions"]["algorithm"] == "TENET":
-                    target = f"workflow/data/DownstreamAnalysis_{current_user.username}_{filter_and_add_suffix(nodes['file'])}.txt"
-                elif nodes["algorithmOptions"]["algorithm"] == "TENET_TF":
-                    target = f"workflow/data/DownstreamAnalysisTF_{current_user.username}_{filter_and_add_suffix(nodes['file'])}.txt"
+            process_task = process_data_task.apply_async(
+                (current_user.username, user_snakefile_path, target_list),
+                kwargs={'user_id': current_user.id, 'workflow_id': workflow.id }
+            )
+            message = "Tasks added to queue"
+            task_id = process_task.id
+            result = get_task_info(process_task.id)
 
-                process_task = process_data_task.apply_async(
-                    (current_user.username, snakefile_path, target),
-                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id }
-                )
-                message = "Tasks added to queue"
-                task_id = process_task.id
-                result = get_task_info(process_task.id)
-        
-        if notAlgoCount == len(linked_nodes):
-            # 에러 일으키기
-            raise HTTPException(
+            return {
+                "message": message,
+                "task_id": task_id,
+                "result": result
+            }
+    except Exception as e:
+        raise HTTPException(
                 status_code=400,
-                detail="please select last node as Algorithm",
+                detail=str(e),
                 )
-
-    except json.JSONDecodeError:
-        workflow = None
-        message = "Received data is not a valid JSON"
-        task_id = {}
-    return {"message": message, "recived_data": workflow, "task_id": task_id, "result": result}
 
 
 #save workflow data
@@ -224,14 +163,38 @@ def find_user_workflow(
                 detail="this workflow not exists in your workflows",
                 )
 
+#response workflow results
+@router.post("/results")
+def getResults(
+    WorkflowResult: WorkflowResult, 
+    current_user: models.User = Depends(dep.get_current_active_user)
+):
+    PATH_COMPILE_RESULT = f'./user/{current_user.username}/workflow_{WorkflowResult.id}/algorithm_{WorkflowResult.algorithm_id}/results'
+    
+    # 파일 리스트와 각 파일의 부가 정보 가져오기
+    file_info_list = []
+    if os.path.exists(PATH_COMPILE_RESULT):
+        for file_name in os.listdir(PATH_COMPILE_RESULT):
+            file_path = os.path.join(PATH_COMPILE_RESULT, file_name)
+            if os.path.isfile(file_path):
+                file_info = {
+                    "name": file_name,
+                    "size": os.path.getsize(file_path),  # 파일 크기
+                    "modified_time": os.path.getmtime(file_path)  # 마지막 수정 시간
+                }
+                file_info_list.append(file_info)
+    else:
+        raise HTTPException(status_code=404, detail="Results directory not found.")
+    
+    return file_info_list
 
 #response workflow result
 @router.post("/result")
-def checkResult(filename: WorkflowResult, current_user: models.User = Depends(dep.get_current_active_user)):
-    PATH_COMPILE_RESULT = f'./user/{current_user.username}/result'
+def checkResult(WorkflowResult: WorkflowResult, current_user: models.User = Depends(dep.get_current_active_user)):
+    PATH_COMPILE_RESULT = f'./user/{current_user.username}/workflow_{WorkflowResult.id}/algorithm_{WorkflowResult.algorithm_id}/results'
     file_list = os.listdir(PATH_COMPILE_RESULT)
     # print(file_list)
-    FILE_NAME = filename.filename
+    FILE_NAME = WorkflowResult.filename
     
     for item_file in file_list:
         if FILE_NAME in item_file:
@@ -241,14 +204,6 @@ def checkResult(filename: WorkflowResult, current_user: models.User = Depends(de
     # print(FILE_PATH)
 
     return FileResponse(FILE_PATH)
-
-#response workflow result
-@router.post("/results")
-def getResults(current_user: models.User = Depends(dep.get_current_active_user)):
-    PATH_COMPILE_RESULT = f'./user/{current_user.username}/result'
-    file_list = os.listdir(PATH_COMPILE_RESULT)
-
-    return file_list
 
 #save workflow node modal data
 @router.post("/node/save")

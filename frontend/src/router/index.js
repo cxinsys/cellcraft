@@ -43,6 +43,10 @@ export default new Router({
           path: "Algorithm",
           component: () => import("@/components/modals/Algorithm.vue"),
         },
+        {
+          path: "ResultFile",
+          component: () => import("@/components/modals/ResultFile.vue"),
+        },
         // {
         //   path: "heatMap",
         //   component: () => import("@/components/modals/heatMap.vue"),

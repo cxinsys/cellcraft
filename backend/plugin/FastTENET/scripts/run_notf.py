@@ -9,7 +9,7 @@ if __name__ == "__main__":
     pseudotime = sys.argv[2]
     cell_select = sys.argv[3]
     result_matrix = sys.argv[4]
-    device = sys.argv[5]
+    backend = sys.argv[5]
     num_devices = int(sys.argv[6])
     batch_size = int(sys.argv[7])
 
@@ -20,7 +20,7 @@ if __name__ == "__main__":
                            spath_result_matrix=result_matrix,  # Optional
                            make_binary=True)  # Optional, default: False
 
-    result_matrix = worker.run(device=device,
+    result_matrix = worker.run(backend=backend,
                                device_ids=num_devices,
                                procs_per_device=1,
                                batch_size=batch_size,  # k1 - 2080ti: 2**15, 3090: 2**16 / k3 - 2**14, 2**15

@@ -9,34 +9,13 @@
         </div>
       </div>
       <ul class="folder__list">
-        <li
-          class="folder__item"
-          v-for="(folder, idx) in folders_list"
-          :key="idx"
-          v-bind:class="{ toggleFolder: toggleFolder === idx }"
-          @click="folderClick(idx, folder[0])"
-        >
+        <li class="folder__item" v-for="(folder, idx) in folders_list" :key="idx"
+          v-bind:class="{ toggleFolder: toggleFolder === idx }" @click="folderClick(idx, folder[0])">
           <div class="folder__item--col">
-            <img
-              class="folder__item--icon"
-              src="@/assets/arrow-bottom.png"
-              v-if="toggleFolder === idx"
-            />
-            <img
-              class="folder__item--icon"
-              src="@/assets/arrow-right.png"
-              v-else
-            />
-            <img
-              class="folder__item--icon large"
-              src="@/assets/open-folder.png"
-              v-if="toggleFolder === idx"
-            />
-            <img
-              class="folder__item--icon large"
-              src="@/assets/folder.png"
-              v-else
-            />
+            <img class="folder__item--icon" src="@/assets/arrow-bottom.png" v-if="toggleFolder === idx" />
+            <img class="folder__item--icon" src="@/assets/arrow-right.png" v-else />
+            <img class="folder__item--icon large" src="@/assets/open-folder.png" v-if="toggleFolder === idx" />
+            <img class="folder__item--icon large" src="@/assets/folder.png" v-else />
           </div>
           <p class="folder__name">{{ folder[0] }}</p>
         </li>
@@ -55,18 +34,9 @@
         /> -->
         <div class="header__column right">
           <label class="files__button">
-            <img
-              class="files__button--icon"
-              src="@/assets/upload-file-black.png"
-            />
+            <img class="files__button--icon" src="@/assets/upload-file-black.png" />
             <h1>Upload File</h1>
-            <input
-              class="files__input"
-              type="file"
-              name="file"
-              ref="selectFile"
-              @change.prevent="uploadFile"
-            />
+            <input class="files__input" type="file" name="file" ref="selectFile" @change.prevent="uploadFile" />
           </label>
           <div class="progress__box" v-if="uploadPercentage > 0">
             <progress :value="uploadPercentage" max="100"></progress>
@@ -85,14 +55,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr
-            class="files__item"
-            v-for="(file, idx) in files_list"
-            :key="idx"
-            @contextmenu.prevent
-            @click.right="RMouseClick($event, file.file_name, idx)"
-            v-bind:class="{ select: R_Mouse_isActive }"
-          >
+          <tr class="files__item" v-for="(file, idx) in files_list" :key="idx" @contextmenu.prevent
+            @click.right="RMouseClick($event, file.file_name, idx)" v-bind:class="{ select: R_Mouse_isActive }">
             <td>{{ file.file_name | cutFromDotName }}</td>
             <td>{{ file.created_at | cutFromT }}</td>
             <td>{{ file.file_name | cutFromDotType }}</td>
@@ -100,12 +64,8 @@
           </tr>
         </tbody>
       </table>
-      <ul
-        ref="filesMenu"
-        class="files_menu"
-        v-bind:class="{ open: R_Mouse_isActive }"
-        :style="{ left: xPosition, top: yPosition }"
-      >
+      <ul ref="filesMenu" class="files_menu" v-bind:class="{ open: R_Mouse_isActive }"
+        :style="{ left: xPosition, top: yPosition }">
         <!-- <li>view</li>
         <li>plot</li>
         <li>rename</li> -->
@@ -115,11 +75,7 @@
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
       <p class="message__text">{{ messageContent }}</p>
       <p class="message__undo" @click="undoDeletion">undo</p>
-      <img
-        class="message__close"
-        @click="toggleMessage = !toggleMessage"
-        src="@/assets/close.png"
-      />
+      <img class="message__close" @click="toggleMessage = !toggleMessage" src="@/assets/close.png" />
     </div>
   </div>
 </template>
@@ -178,14 +134,20 @@ export default {
     },
     async uploadFile() {
       if (this.$refs.selectFile.files.length > 0) {
-        // file이 .h5ad 확장자가 아니면 오류 발생
-        if (this.$refs.selectFile.files[0].name.includes(".h5ad") === false) {
-          alert("Please upload .h5ad file");
+        const file = this.$refs.selectFile.files[0];
+
+        // 파일 이름에서 확장자를 추출하여 검사
+        const fileExtension = file.name.split('.').pop().toLowerCase(); // 확장자를 소문자로 변환하여 검사
+
+        // file이 .h5ad, .csv 확장자가 아니면 오류 발생
+        if (fileExtension !== 'h5ad' && fileExtension !== 'csv') {
+          alert("Please upload .h5ad or .csv file");
           return;
         }
+
         this.selectFile = new File(
-          [this.$refs.selectFile.files[0]],
-          `${this.currentFolder}_${this.$refs.selectFile.files[0].name}`
+          [file],
+          `${this.currentFolder}_${file.name}`
         );
 
         const form = new FormData();
@@ -280,6 +242,7 @@ export default {
   position: relative;
   overflow: hidden;
 }
+
 .folder {
   width: 18rem;
   height: 100%;
@@ -290,6 +253,7 @@ export default {
   background: #cfcfcf;
   border-right: 1px solid #afafaf; */
 }
+
 .folder__header {
   width: 90%;
   height: 10%;
@@ -299,6 +263,7 @@ export default {
   position: relative;
   color: rgba(0, 0, 0, 0.8);
 }
+
 .folder__title {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -307,11 +272,13 @@ export default {
   line-height: 1.25rem;
   color: rgba(0, 0, 0, 0.8);
 }
+
 .folder__createBtn {
   width: 6rem;
   height: 2rem;
   vertical-align: middle;
 }
+
 .folder__createBtn--icon {
   width: 2rem;
   height: 2rem;
@@ -319,11 +286,13 @@ export default {
   margin: 0 0.5rem;
   opacity: 0.8;
 }
+
 .folder__list {
   width: 85%;
   height: 90%;
   margin: auto;
 }
+
 .folder__item {
   width: 100%;
   height: 5%;
@@ -332,28 +301,34 @@ export default {
   display: flex;
   cursor: pointer;
 }
+
 .folder__item:hover {
   background: rgb(176, 177, 178);
 }
+
 .toggleFolder {
   background: rgb(176, 177, 178);
 }
+
 .folder__item--col {
   width: 5rem;
   height: 100%;
   display: flex;
   align-items: center;
 }
+
 .folder__item--icon {
   width: 1rem;
   height: 1rem;
   object-fit: contain;
   margin: 0 0.5rem;
 }
+
 .large {
   width: 1.5rem;
   height: 1.5rem;
 }
+
 .folder__name {
   display: flex;
   align-items: center;
@@ -363,11 +338,13 @@ export default {
   font-size: 1rem;
   line-height: 1rem;
 }
+
 .files {
   width: 75%;
   height: 100%;
   background: #ffffff;
 }
+
 .files__header {
   width: 100%;
   height: 10%;
@@ -376,20 +353,24 @@ export default {
   justify-content: center;
   position: relative;
 }
+
 .header__column {
   width: 50%;
   height: 100%;
   display: flex;
   align-items: center;
 }
+
 .right {
   position: absolute;
   right: 0;
 }
+
 .left {
   position: absolute;
   left: 0;
 }
+
 .files__folder {
   margin-left: 2rem;
   font-family: "Montserrat", sans-serif;
@@ -400,6 +381,7 @@ export default {
   color: rgba(0, 0, 0, 0.8);
   /* text-transform: capitalize; */
 }
+
 .files__button {
   width: 9rem;
   height: 2rem;
@@ -413,10 +395,12 @@ export default {
   margin-right: 1rem;
   box-shadow: rgba(0, 0, 0, 0.15) 0px 0px 4px;
 }
+
 .files__button:hover {
   cursor: pointer;
   box-shadow: rgba(0, 0, 0, 0.35) 0px 0px 4px;
 }
+
 .files__button--icon {
   width: 1.75rem;
   height: 1.75rem;
@@ -424,9 +408,11 @@ export default {
   opacity: 0.8;
   margin-right: 0.5rem;
 }
+
 .files__input {
   display: none;
 }
+
 .files__search {
   width: 300px;
   height: 2.5rem;
@@ -436,19 +422,23 @@ export default {
   outline-style: none;
   background: #f7f7f7;
 }
+
 .files__search:focus {
   border: 1px solid #bcbcbc;
 }
+
 .files__table {
   width: 95%;
   height: auto;
   margin: auto;
   border-collapse: collapse;
 }
+
 .files__table thead {
   height: 3rem;
   border-bottom: 1px solid #e1e1e1;
 }
+
 .files__table th {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -462,6 +452,7 @@ export default {
 
   color: rgba(0, 0, 0, 0.5);
 }
+
 .files__table td {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -471,25 +462,30 @@ export default {
   vertical-align: middle;
   padding: 1rem;
 }
+
 .files__item:hover {
   cursor: pointer;
   background: rgb(204, 218, 245);
 }
+
 .files__header__img {
   margin-left: 5px;
   width: 15px;
 }
+
 .font-setting {
   font-size: 1vw;
   font-weight: bold;
   color: rgb(70, 70, 70);
 }
+
 .files__contents {
   width: 100vw;
   height: 75vh;
 
   margin-top: 20px;
 }
+
 .files__contents__item {
   display: flex;
   align-items: center;
@@ -497,6 +493,7 @@ export default {
   width: 100%;
   height: 40px;
 }
+
 /* .files__contents__item.select{
     background-color: #242F9B;
     color: white;
@@ -521,17 +518,20 @@ export default {
   z-index: 999999;
   text-transform: capitalize;
 }
+
 .files_menu.open {
   display: block;
   opacity: 1;
   position: absolute;
 }
-.files_menu > li {
+
+.files_menu>li {
   border-left: 3px solid transparent;
   transition: ease 0.2s;
   padding: 10px;
 }
-.files_menu > li:hover {
+
+.files_menu>li:hover {
   background: #e5e5e5;
 }
 
@@ -548,6 +548,7 @@ export default {
   border-radius: 1rem;
   padding: 0 1rem;
 }
+
 .message__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -556,6 +557,7 @@ export default {
   line-height: 1rem;
   color: #ffffff;
 }
+
 .message__undo {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -566,6 +568,7 @@ export default {
   text-decoration: underline;
   cursor: pointer;
 }
+
 .message__close {
   cursor: pointer;
   width: 1rem;
@@ -573,9 +576,9 @@ export default {
   object-fit: contain;
   margin: 0 0.5rem;
   opacity: 0.5;
-  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%)
-    contrast(100%);
+  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
 }
+
 .toggleMessage {
   display: none;
 }
@@ -590,22 +593,29 @@ export default {
 
 /* progress bar */
 progress {
-  width: 100%; /* 전체 너비를 차지하도록 설정 */
-  height: 100%; /* 높이 설정 */
-  background-color: #eee; /* 배경색 설정 */
-  border-radius: 10px; /* 모서리 둥글게 처리 */
+  width: 100%;
+  /* 전체 너비를 차지하도록 설정 */
+  height: 100%;
+  /* 높이 설정 */
+  background-color: #eee;
+  /* 배경색 설정 */
+  border-radius: 10px;
+  /* 모서리 둥글게 처리 */
   margin-right: 0.5rem;
 }
 
 progress::-webkit-progress-bar {
-  background-color: #eee; /* 크롬, 사파리 등 WebKit 기반 브라우저에서의 배경색 */
+  background-color: #eee;
+  /* 크롬, 사파리 등 WebKit 기반 브라우저에서의 배경색 */
 }
 
 progress::-webkit-progress-value {
-  background-color: #4caf50; /* 크롬, 사파리 등 WebKit 기반 브라우저에서의 진행률 색상 */
+  background-color: #4caf50;
+  /* 크롬, 사파리 등 WebKit 기반 브라우저에서의 진행률 색상 */
 }
 
 progress::-moz-progress-bar {
-  background-color: #4caf50; /* 파이어폭스에서의 진행률 색상 */
+  background-color: #4caf50;
+  /* 파이어폭스에서의 진행률 색상 */
 }
 </style>
