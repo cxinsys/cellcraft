@@ -11,7 +11,6 @@ class WorkflowCreate(WorkflowBase):
     title: str = None
     thumbnail: str = None
     workflow_info: Dict = None
-    option_file: str = None
 
 class WorkflowFind(WorkflowBase):
     id: int
@@ -27,6 +26,8 @@ class Workflow(WorkflowBase):
         orm_mode = True
 
 class WorkflowResult(BaseModel):
+    id: Optional[int] = None
+    algorithm_id: Optional[int] = None
     filename: Optional[str] = None
 
 class WorkflowNodeFileBase(BaseModel):

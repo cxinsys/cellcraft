@@ -1,1 +1,1 @@
-fasttenet==1.0.3
+fasttenet==1.0.5

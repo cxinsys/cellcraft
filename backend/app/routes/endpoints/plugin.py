@@ -74,15 +74,20 @@ def upload_plugin(
         # dependency 폴더 생성
         if not os.path.exists(dependency_folder):
             os.makedirs(dependency_folder)
-
-        print(plugin_data.dependencies)
         
-        # dependency 파일 생성
-        for file_name, file_content in plugin_data.dependencies.items():
-            dep_path = os.path.join(dependency_folder, file_name)
-            with open(dep_path, 'w') as f:
-                f.write(file_content)
-
+        # 디버깅: plugin_data.dependencies 데이터 형식 확인
+        print("Dependencies:", plugin_data.dependencies)
+        if plugin_data.dependencies is None:
+            plugin_data.dependencies = {}
+        elif isinstance(plugin_data.dependencies, dict):
+            # dependency 파일 생성
+            for file_name, file_content in plugin_data.dependencies.items():
+                dep_path = os.path.join(dependency_folder, file_name)
+                with open(dep_path, 'w') as f:
+                    f.write(file_content)
+        else:
+            print("Error: dependencies should be a dictionary. Found type:", type(plugin_data.dependencies))
+            raise HTTPException(status_code=400, detail="Invalid dependencies format")
         
         # metadata.json 파일 생성
         metadata = {
@@ -95,6 +100,16 @@ def upload_plugin(
         metadata_path = os.path.join(plugin_folder, "metadata.json")
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f, indent=4)
+
+        # 디버깅: plugin_data.rules 데이터 형식 확인
+        print("Rules:", plugin_data.rules)
+        if not isinstance(plugin_data.rules, dict):
+            print("Error: rules should be a dictionary. Found type:", type(plugin_data.rules))
+            raise HTTPException(status_code=400, detail="Invalid rules format")
+
+        # Snakefile 생성
+        snakefile_path = os.path.join(plugin_folder, "Snakefile")
+        plugin_utils.generate_snakemake_code(plugin_data.rules, snakefile_path)
 
         return { "message": "Plugin data uploaded", "plugin": db_plugin }
     except Exception as e:

@@ -31,16 +31,12 @@ async def fileUpload(
     UPLOAD_DIRECTORY = f'./user/{current_user.username}/data'
     for item_file in files:
         contents = await item_file.read()
-        # print(item_file.filename.split("_", 1))
-        # item_file.filename에 h5ad가 포함되어 있으면 다음 과정 진행
-        # 포함되어 있지 않으면 DB에 저장하지 않고 파일 생성만 진행
-        if 'h5ad' not in item_file.filename:
-            # 폴더 안에 파일이 있는지 확인
-            # 있으면 파일 이름을 그대로 파일 내용만 변경해서 저장
-            # 없으면 그냥 저장
-            with open(os.path.join(UPLOAD_DIRECTORY, item_file.filename), "wb") as f:
-                f.write(contents)
-            return {'file_name': item_file.filename}
+
+        # 이 과정은 어디에 써먹을려고 한거지? 모르겠음..
+        # if 'h5ad' not in item_file.filename:
+        #     with open(os.path.join(UPLOAD_DIRECTORY, item_file.filename), "wb") as f:
+        #         f.write(contents)
+        #     return {'file_name': item_file.filename}
 
         folder_file = item_file.filename.split('_', 1)
         with open(os.path.join(UPLOAD_DIRECTORY, folder_file[1]), "wb") as f:

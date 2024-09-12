@@ -3,6 +3,9 @@ from datetime import datetime
 from celery.signals import worker_process_init
 import os
 import time
+from typing import List
+from billiard import Pool, cpu_count
+import amqp
 
 from app.common.utils.snakemake_utils import snakemakeProcess
 from app.database.crud.crud_task import start_task, end_task
@@ -39,44 +42,37 @@ def configure_worker(conf=None, **kwargs):
     os.environ['CONDA_DEFAULT_ENV'] = 'snakemake'
 
 @shared_task(bind=True, base=MyTask, name="workflow_task:process_data_task")
-def process_data_task(self, username: str, snakefile_path: str, target: str, user_id: int, workflow_id: int):
-    from billiard import Pool, cpu_count
-    import amqp
+def process_data_task(self, username: str, snakefile_path: str, targets: List[str], user_id: int, workflow_id: int):
 
     try:
+        print(f'Processing data for user {username}...')
+        print(f'Creating a new process pool with {cpu_count()} processes...')
+        print(f'Targets: {targets}')
+        print(f'Snakefile path: {snakefile_path}')
+
+        p = Pool(cpu_count())
+        snakemake_process = p.apply_async(snakemakeProcess, (targets, snakefile_path))
+        
+        while not snakemake_process.ready():
             try:
-                print(f'Processing data for user {username}...')
-                print(f'Creating a new process pool with {cpu_count()} processes...')
-                print(f'target: {target}')
-                print(f'snakefile_path: {snakefile_path}')
-
-                p = Pool(cpu_count())
-                snakemake_process = p.apply_async(snakemakeProcess, (target, snakefile_path))
-                result = snakemake_process.get()
-
-                while not snakemake_process.ready():
-                    try:
-                        # Celery 작업의 취소 상태 확인
-                        revoked_tasks = self.app.control.inspect().revoked()
-                        if revoked_tasks is not None and self.request.id in revoked_tasks.get(self.request.id, []):
-                            print(f"Task {self.request.id} was revoked.")
-                            snakemake_process.terminate()
-                            break
-                    except Exception as e:
-                        print(f"오류 발생: {e}")
-                
-                p.close()
-                p.join()
-
-                if result["returncode"] != 0:
-                    raise RuntimeError(f"Snakemake process failed: {result['stderr']}")
-
-                print('Data processing complete.')
-                return {"status": "Success", "message": "Processing complete"}
-
+                # Celery 작업의 취소 상태 확인
+                revoked_tasks = self.app.control.inspect().revoked()
+                if revoked_tasks is not None and self.request.id in revoked_tasks.get(self.request.id, []):
+                    print(f"Task {self.request.id} was revoked.")
+                    snakemake_process.terminate()
+                    break
             except Exception as e:
-                # 오류 발생 시 on_failure 메서드가 자동으로 호출됨
-                raise e
+                print(f"오류 발생: {e}")
+
+        result = snakemake_process.get()
+        p.close()
+        p.join()
+
+        if result["returncode"] != 0:
+            raise RuntimeError(f"Snakemake process failed: {result['stderr']}")
+
+        print('Data processing complete.')
+        return {"status": "Success", "message": "Processing complete"}
 
     except amqp.exceptions.PreconditionFailed as e:
         print(f"메시지 브로커 연결 오류 발생: {e}")
@@ -87,3 +83,6 @@ def process_data_task(self, username: str, snakefile_path: str, target: str, use
         except Exception as e:
             print(f"재연결 시도 실패: {e}")
             raise e
+    except Exception as e:
+        # 오류 발생 시 on_failure 메서드가 자동으로 호출됨
+        raise e
