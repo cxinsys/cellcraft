@@ -58,7 +58,33 @@ def upload_plugin(
         plugin_folder = f"./plugin/{plugin_data.name}/"
         dependency_folder = os.path.join(plugin_folder, "dependency")
 
-        # 중복 검사
+         # 1. 플러그인 폴더 및 의존성 폴더 생성
+        plugin_utils.create_plugin_folder(plugin_folder)
+        plugin_utils.create_dependency_folder(dependency_folder, plugin_data.dependencies)
+        
+        # 2. 메타데이터 생성
+        metadata = {
+            "name": plugin_data.name,
+            "author": plugin_data.author,
+            "description": plugin_data.description,
+            "drawflow": plugin_data.drawflow,
+            "rules": plugin_data.rules
+        }
+        plugin_utils.create_metadata_file(plugin_folder, metadata)
+        
+        # 3. Snakefile 생성
+        snakefile_path = os.path.join(plugin_folder, "Snakefile")
+        plugin_utils.generate_snakemake_code(plugin_data.rules, snakefile_path)
+
+        # 4. 의존성 설치
+        # requirements.txt, environment.yml, renv.lock 파일을 확인 후 설치
+        for dependency_file in ['requirements.txt', 'environment.yml', 'renv.lock']:
+            dependency_file_path = os.path.join(dependency_folder, dependency_file)
+            if os.path.exists(dependency_file_path):
+                print(f"Installing dependencies from {dependency_file}...")
+                plugin_utils.install_dependencies(dependency_file_path)
+
+        # 5. 중복 검사 및 플러그인 생성 또는 업데이트
         db_existing_plugin = db.query(models.Plugin).filter(models.Plugin.name == plugin_data.name).first()
         if db_existing_plugin:
             # 중복된 경우 업데이트
@@ -67,52 +93,12 @@ def upload_plugin(
             # 중복되지 않은 경우 새로운 플러그인 생성
             db_plugin = crud_plugin.create_plugin(db=db, plugin=plugin_data)
 
-        # 플러그인 폴더 생성
-        if not os.path.exists(plugin_folder):
-            os.makedirs(plugin_folder)
-        
-        # dependency 폴더 생성
-        if not os.path.exists(dependency_folder):
-            os.makedirs(dependency_folder)
-        
-        # 디버깅: plugin_data.dependencies 데이터 형식 확인
-        print("Dependencies:", plugin_data.dependencies)
-        if plugin_data.dependencies is None:
-            plugin_data.dependencies = {}
-        elif isinstance(plugin_data.dependencies, dict):
-            # dependency 파일 생성
-            for file_name, file_content in plugin_data.dependencies.items():
-                dep_path = os.path.join(dependency_folder, file_name)
-                with open(dep_path, 'w') as f:
-                    f.write(file_content)
-        else:
-            print("Error: dependencies should be a dictionary. Found type:", type(plugin_data.dependencies))
-            raise HTTPException(status_code=400, detail="Invalid dependencies format")
-        
-        # metadata.json 파일 생성
-        metadata = {
-            "name": plugin_data.name,
-            "author": plugin_data.author,
-            "description": plugin_data.description,
-            "drawflow": plugin_data.drawflow,
-            "rules": plugin_data.rules
-        }
-        metadata_path = os.path.join(plugin_folder, "metadata.json")
-        with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=4)
-
-        # 디버깅: plugin_data.rules 데이터 형식 확인
-        print("Rules:", plugin_data.rules)
-        if not isinstance(plugin_data.rules, dict):
-            print("Error: rules should be a dictionary. Found type:", type(plugin_data.rules))
-            raise HTTPException(status_code=400, detail="Invalid rules format")
-
-        # Snakefile 생성
-        snakefile_path = os.path.join(plugin_folder, "Snakefile")
-        plugin_utils.generate_snakemake_code(plugin_data.rules, snakefile_path)
-
         return { "message": "Plugin data uploaded", "plugin": db_plugin }
     except Exception as e:
+        # 에러 발생 시 업로드된 파일이 포함된 플러그인 폴더 삭제
+        if os.path.exists(plugin_folder):
+            os.rmdir(plugin_folder)
+
         raise HTTPException(status_code=500, detail=str(e))
     
 @router.post("/upload_scripts")

@@ -1,6 +1,8 @@
 import json
 from typing import Any, Dict, List
 import os
+import subprocess
+from fastapi import HTTPException
 
 def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name: str):
     original_data = drawflow_data['drawflow']['Home']['data']
@@ -317,3 +319,96 @@ def generate_snakemake_code(rules_data, output_file_path):
         file.write(snakemake_code)
 
     print(f"Snakemake code has been generated and saved to {output_file_path}.")
+
+def install_dependencies(dependency_file_name: str):
+    """
+    Install dependencies based on the given file name in the /opt/conda/envs/snakemake environment.
+    
+    Parameters:
+        dependency_file_name (str): The name of the dependency file (requirements.txt, environment.yml, renv.lock)
+    """
+    # Set the path to the conda environment
+    conda_env_path = "/opt/conda/envs/snakemake"
+    python_executable = f"{conda_env_path}/bin/python"
+    pip_executable = f"{conda_env_path}/bin/pip"
+    conda_executable = f"{conda_env_path}/bin/conda"
+    rscript_executable = f"{conda_env_path}/bin/Rscript"
+
+    if dependency_file_name == "requirements.txt":
+        print(f"Installing dependencies from {dependency_file_name} using pip...")
+        # Install dependencies using pip in the conda environment
+        subprocess.run([pip_executable, "install", "-r", dependency_file_name], check=True)
+
+    elif dependency_file_name == "environment.yml":
+        print(f"Installing dependencies from {dependency_file_name} using conda...")
+        # Install dependencies using conda in the conda environment
+        subprocess.run([conda_executable, "env", "update", "--file", dependency_file_name, "--prune"], check=True)
+
+    elif dependency_file_name == "renv.lock":
+        print(f"Installing R dependencies from {dependency_file_name} using renv...")
+        # Install R dependencies using renv in the conda environment
+        subprocess.run([rscript_executable, "-e", f'renv::restore(lockfile = "{dependency_file_name}")'], check=True)
+
+    else:
+        print(f"Unsupported file: {dependency_file_name}. Please provide a valid dependency file.")
+        return
+
+    print(f"Dependencies from {dependency_file_name} have been installed successfully.")
+
+def create_plugin_folder(plugin_folder: str):
+    """
+    Create the plugin folder if it doesn't exist.
+    
+    Parameters:
+        plugin_folder (str): Path to the plugin folder.
+    """
+    if not os.path.exists(plugin_folder):
+        os.makedirs(plugin_folder)
+        print(f"Plugin folder created at {plugin_folder}")
+    else:
+        print(f"Plugin folder already exists at {plugin_folder}")
+
+
+def create_dependency_folder(dependency_folder: str):
+    """
+    Create the dependency folder and add dependency files.
+
+    Parameters:
+        dependency_folder (str): Path to the dependency folder.
+        dependencies (dict): A dictionary where the keys are file names and values are file contents.
+    
+    Raises:
+        HTTPException: If the format of dependencies is invalid.
+    """
+    # Check if the dependency folder exists, create it if necessary
+    if not os.path.exists(dependency_folder):
+        os.makedirs(dependency_folder)
+        print(f"Dependency folder created at {dependency_folder}")
+    else:
+        print(f"Dependency folder already exists at {dependency_folder}")
+
+    # Validate dependencies format and create files
+    if dependencies is None:
+        dependencies = {}
+    elif isinstance(dependencies, dict):
+        for file_name, file_content in dependencies.items():
+            dep_path = os.path.join(dependency_folder, file_name)
+            with open(dep_path, 'w') as f:
+                f.write(file_content)
+            print(f"Dependency file created: {dep_path}")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid dependencies format")
+
+
+def create_metadata_file(plugin_folder: str, metadata: dict):
+    """
+    Create the metadata.json file in the plugin folder.
+    
+    Parameters:
+        plugin_folder (str): Path to the plugin folder.
+        metadata (dict): Metadata dictionary to be saved as metadata.json.
+    """
+    metadata_path = os.path.join(plugin_folder, "metadata.json")
+    with open(metadata_path, 'w') as f:
+        json.dump(metadata, f, indent=4)
+    print(f"Metadata file created at {metadata_path}")

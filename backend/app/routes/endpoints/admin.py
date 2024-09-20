@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List,Optional,Any
 from sqlalchemy.orm import Session
+import psutil
 
 from app.routes import dep  # get_db를 정의한 python 파일을 import
 from app.database.schemas.user import User  # User를 정의한 python 파일을 import
@@ -44,3 +45,26 @@ def get_users_count(
 ):
     users_num = crud_user.get_users_count(db)
     return users_num
+
+@router.get("/system/stats", response_model=Any)
+def get_system_stats():
+    # CPU 사용량
+    cpu_usage = psutil.cpu_percent(interval=1)
+    
+    # 메모리 사용량
+    memory_info = psutil.virtual_memory()
+    memory_usage = memory_info.percent
+    total_memory = memory_info.total
+    available_memory = memory_info.available
+    used_memory = memory_info.used
+
+    # 반환할 데이터
+    system_stats = {
+        "cpu_usage_percent": cpu_usage,
+        "memory_usage_percent": memory_usage,
+        "total_memory_bytes": total_memory,
+        "available_memory_bytes": available_memory,
+        "used_memory_bytes": used_memory
+    }
+
+    return system_stats
