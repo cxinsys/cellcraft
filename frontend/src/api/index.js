@@ -40,6 +40,10 @@ function getUsersCount() {
   return instance.get("/routes/admin/users_count");
 }
 
+function getSystemResources() {
+  return instance.get("/routes/admin/system/stats");
+}
+
 function exportData(data) {
   return instance.post("/routes/workflow/compile", data);
 }
@@ -259,4 +263,5 @@ export {
   deleteWorkflowNodeFile,
   readWorkflowNodeFile,
   getFileData,
+  getSystemResources,
 };

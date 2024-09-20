@@ -17,11 +17,12 @@
         </li>
       </ul>
     </section>
+    <CompileCheck v-if="compile_check" @deactivate-compile-check="deactivateCompileCheck" />
     <FileTable :show_files="show_files" :files_list="files_list" />
     <JobTable :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" />
     <ControlBar :on_progress="on_progress" :isTabView="isTabView" @toggle-file="toggleFile"
-      @save-workflow-project="saveWorkflowProject" @run-workflow="runWorkflow" @toggle-task="toggleTask"
-      @toggle-tab-view="toggleTabView" />
+      @save-workflow-project="saveWorkflowProject" @activate-compile-check="activateCompileCheck"
+      @toggle-task="toggleTask" @toggle-tab-view="toggleTabView" />
     <div class="node-zoom-buttons">
       <button class="node-zoom-button" @click="zoomIn">
         <img src="@/assets/zoom_in.png">
@@ -56,6 +57,7 @@ import FileTable from "@/components/workflowComponents/PopupFileTable.vue"
 import JobTable from "@/components/workflowComponents/PopupJobTable.vue"
 import ControlBar from "@/components/workflowComponents/ControlBar.vue"
 import TabComponent from "@/components/workflowComponents/TabComponent.vue"
+import CompileCheck from "@/components/workflowComponents/CompileCheck.vue"
 
 //노드 import (3번)
 // import fileUpload from "@/components/nodes/fileUploadNode.vue";
@@ -84,6 +86,7 @@ export default {
     JobTable,
     ControlBar,
     TabComponent,
+    CompileCheck,
   },
   data() {
     return {
@@ -151,6 +154,7 @@ export default {
       show_files: false,
       show_jobs: false,
       on_progress: false,
+      compile_check: false,
       eventSources: {}, // Use an object to manage multiple event sources
       taskList: [],
       currentTime: new Date(),
@@ -368,6 +372,12 @@ export default {
         this.eventSources[task_id].close();
         delete this.eventSources[task_id];
       }
+    },
+    activateCompileCheck() {
+      this.compile_check = true;
+    },
+    deactivateCompileCheck() {
+      this.compile_check = false;
     },
     async runWorkflow() {
       // 1. algorithm node의 데이터를 확인해서 화면에 띄우기

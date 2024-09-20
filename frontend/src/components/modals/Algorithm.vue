@@ -165,6 +165,30 @@ export default {
     } catch (error) {
       console.error(error);
     }
+
+    if (this.selectedPlugin) {
+      const dataObject = {
+        "selectedPlugin": this.selectedPlugin,
+      };
+      const nodeId = this.nodeId;
+      this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });
+    }
+
+    if (this.selectedPluginRules) {
+      const dataObject = {
+        "selectedPluginRules": this.selectedPluginRules,
+      };
+      const nodeId = this.nodeId;
+      this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });
+    }
+
+    if (this.selectedPluginInputOutput) {
+      const dataObject = {
+        "selectedPluginInputOutput": this.selectedPluginInputOutput,
+      };
+      const nodeId = this.nodeId;
+      this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });
+    }
   },
   watch: {
     selectedPlugin: {
