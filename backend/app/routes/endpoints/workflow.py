@@ -6,9 +6,10 @@ import shutil
 import json
 from fastapi.responses import FileResponse
 
+from app.common.utils.plugin_utils import verify_dependencies
 from app.common.utils.celery_utils import get_task_info
-from app.common.utils.snakemake_utils import change_snakefile_parameter, filter_and_add_suffix
-from app.common.utils.workflow_utils import extract_algorithm_data, generate_user_input, extract_target_data
+from app.common.utils.snakemake_utils import change_snakefile_parameter
+from app.common.utils.workflow_utils import extract_algorithm_data, generate_user_input, generate_plugin_params, extract_target_data
 from app.database.crud import crud_workflow
 from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowResult, WorkflowFind, WorkflowNodeFileCreate, WorkflowNodeFileDelete, WorkflowNodeFileRead
 from app.routes import dep
@@ -32,11 +33,24 @@ def exportData(
             crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info)
             extract_workflow = extract_algorithm_data(user_workflow.workflow_info['drawflow']['Home']['data'])
 
-            print(extract_workflow)
+            selected_plugin = extract_workflow['selectedPlugin']['name']
+            user_workflow_task_path = f"{user_path}workflow_{workflow.id}/algorithm_{extract_workflow['id']}"
 
-            user_input = generate_user_input(extract_workflow['selectedPluginInputOutput'], extract_workflow['selectedPluginRules'])
+            # 플러그인 폴더 내의 dependency 폴더에 있는 파일 리스트를 순회하면서 검증
+            plugin_dependency_path = f"./plugin/{selected_plugin}/dependency"
+            
+            # #plugin_dependency_path에 있는 파일 리스트를 가져옴
+            # dependency_files = os.listdir(plugin_dependency_path)
+            # #dependency_files 안에 파일이 1개 이상 있을 경우, dependency_files를 순회하면서 verify_dependencies 함수를 호출
+            # if len(dependency_files) > 0:
+            #     for dependency_file in dependency_files:
+            #         print(f"Verifying dependency file: {dependency_file}")
+            #         dependency_file_path = os.path.join(plugin_dependency_path, dependency_file)
+            #         verify_dependencies(dependency_file_path)
 
-            target_list = extract_target_data(extract_workflow['selectedPluginInputOutput'])
+            user_input = generate_user_input(extract_workflow['selectedPluginInputOutput'])
+            plugin_params = generate_plugin_params(extract_workflow['selectedPluginRules'])
+            target_list = extract_target_data(extract_workflow['selectedPluginInputOutput'], user_workflow_task_path)
 
             additional_data = {
                 "user_name": current_user.username,
@@ -48,17 +62,18 @@ def exportData(
             # user_input에 추가
             user_input.update(additional_data)
             print("user_input:", user_input)
+            print("plugin_params:", plugin_params)
+            print("target_list:", target_list)
 
-            user_workflow_task_path = f"{user_path}workflow_{workflow.id}/algorithm_{extract_workflow['id']}"
             # user_workflow_task_path 생성
             if not os.path.exists(user_workflow_task_path):
                 os.makedirs(user_workflow_task_path)
 
             plugin_snakefile_path = f"./plugin/{extract_workflow['selectedPlugin']['name']}/Snakefile"
-            user_snakefile_path = change_snakefile_parameter(plugin_snakefile_path, user_workflow_task_path + "/Snakefile", user_input)
+            user_snakefile_path = change_snakefile_parameter(plugin_snakefile_path, user_workflow_task_path + "/Snakefile", user_input, plugin_params)
 
             process_task = process_data_task.apply_async(
-                (current_user.username, user_snakefile_path, target_list),
+                (current_user.username, user_snakefile_path, plugin_dependency_path, target_list),
                 kwargs={'user_id': current_user.id, 'workflow_id': workflow.id }
             )
             message = "Tasks added to queue"

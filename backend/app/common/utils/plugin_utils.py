@@ -3,6 +3,8 @@ from typing import Any, Dict, List
 import os
 import subprocess
 from fastapi import HTTPException
+import yaml
+import re
 
 def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name: str):
     original_data = drawflow_data['drawflow']['Home']['data']
@@ -265,13 +267,15 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
 
 def generate_snakemake_code(rules_data, output_file_path):
     snakemake_code = ""
-    output_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results"
-    input_path = "user/{user_name}/data"
+    input_output_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results"
+    logs_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs"
+    unique_input_path = "user/{user_name}/data"
 
     # Find all outputs across all rules to determine unique inputs not present in outputs
     all_outputs = {out for rule in rules_data.values() for out in rule['output']}
     all_inputs = {inp for rule in rules_data.values() for inp in rule['input']}
     unique_inputs = [inp for inp in all_inputs if inp not in all_outputs]  # Non-duplicated inputs compared to outputs
+    scripts_log_word = "> {log.stdout} 2> {log.stderr}"
 
     # Iterate through each rule in the dictionary
     for rule_id, rule in rules_data.items():
@@ -281,7 +285,8 @@ def generate_snakemake_code(rules_data, output_file_path):
         # Input section
         if 'input' in rule and rule['input']:
             input_files = ",\n        ".join([
-                f"{os.path.splitext(os.path.basename(inp))[0]}=\"{input_path}/{{{inp}}}\""
+                f"{os.path.splitext(os.path.basename(inp))[0]}=\"{unique_input_path}/{{{inp}}}\"" if inp in unique_inputs
+                else f"{os.path.splitext(os.path.basename(inp))[0]}=\"{input_output_path}/{inp}\""
                 for inp in rule['input']
             ])
             snakemake_code += f"    input:\n        {input_files}\n"
@@ -289,10 +294,29 @@ def generate_snakemake_code(rules_data, output_file_path):
         # Output section
         if 'output' in rule and rule['output']:
             output_files = ",\n        ".join([
-                f"{os.path.splitext(os.path.basename(out))[0]}=\"{output_path}/{out}\""
+                f"{os.path.splitext(os.path.basename(out))[0]}=\"{input_output_path}/{out}\""
                 for out in rule['output']
             ])
             snakemake_code += f"    output:\n        {output_files}\n"
+
+        # Params section
+        if 'parameters' in rule and rule['parameters']:
+            param_list = []
+            for param in rule['parameters']:
+                if param['name'] == "clusters" and param['type'] == "h5adParameter":
+                    # Add clusters using ";".join for a list
+                    param_list.append(f'clusters=lambda wc: ";".join({{{param["name"]}}})')
+                elif param['type'] != 'inputFile' and param['type'] != 'outputFile':
+                    param_list.append(f"{param['name']}={{{param['name']}}}")
+            
+            if param_list:
+                param_list_str = ",\n        ".join(param_list)
+                snakemake_code += f"    params:\n        {param_list_str}\n"
+
+        # Log section
+        snakemake_code += f"    log:\n"
+        snakemake_code += f"        stdout=\"{logs_path}/{rule['name']}.stdout\",\n"
+        snakemake_code += f"        stderr=\"{logs_path}/{rule['name']}.stderr\"\n"
         
         # Shell section based on script type
         if 'script' in rule and rule['script']:
@@ -304,12 +328,24 @@ def generate_snakemake_code(rules_data, output_file_path):
             else:
                 shell_command = script_path  # For other script types (e.g., .sh)
 
-            # Add parameters to shell command
+            # Add parameters to shell command with input/output/params distinction
             if 'parameters' in rule and rule['parameters']:
-                param_list = " ".join([f"{{{param['name']}}}" for param in rule['parameters']])
-                shell_command = f"{shell_command} {param_list}"
+                param_list = []
+                for param in rule['parameters']:
+                    if param['type'] == 'inputFile':
+                        param_list.append(f"{{input.{param['name']}}}")
+                    elif param['type'] == 'outputFile':
+                        param_list.append(f"{{output.{param['name']}}}")
+                    elif param['name'] == "clusters" and param['type'] == "h5adParameter":
+                        param_list.append(f"\'{{params.{param['name']}}}\'")
+                    else:
+                        param_list.append(f"{{params.{param['name']}}}")
+                
+                # Join all the parameters with a space
+                param_list_str = " ".join(param_list)
+                shell_command = f"{shell_command} {param_list_str}"
 
-            snakemake_code += f"    shell:\n        \"{shell_command}\"\n"
+            snakemake_code += f"    shell:\n        \"{shell_command} {scripts_log_word}\"\n"
 
         # Add a newline for separation between rules
         snakemake_code += "\n"
@@ -334,17 +370,17 @@ def install_dependencies(dependency_file_name: str):
     conda_executable = f"{conda_env_path}/bin/conda"
     rscript_executable = f"{conda_env_path}/bin/Rscript"
 
-    if dependency_file_name == "requirements.txt":
+    if "requirements.txt" in dependency_file_name:
         print(f"Installing dependencies from {dependency_file_name} using pip...")
         # Install dependencies using pip in the conda environment
         subprocess.run([pip_executable, "install", "-r", dependency_file_name], check=True)
 
-    elif dependency_file_name == "environment.yml":
+    elif "environment.yml" in dependency_file_name or "environment.yaml" in dependency_file_name:
         print(f"Installing dependencies from {dependency_file_name} using conda...")
         # Install dependencies using conda in the conda environment
         subprocess.run([conda_executable, "env", "update", "--file", dependency_file_name, "--prune"], check=True)
 
-    elif dependency_file_name == "renv.lock":
+    elif "renv.lock" in dependency_file_name:
         print(f"Installing R dependencies from {dependency_file_name} using renv...")
         # Install R dependencies using renv in the conda environment
         subprocess.run([rscript_executable, "-e", f'renv::restore(lockfile = "{dependency_file_name}")'], check=True)
@@ -368,8 +404,7 @@ def create_plugin_folder(plugin_folder: str):
     else:
         print(f"Plugin folder already exists at {plugin_folder}")
 
-
-def create_dependency_folder(dependency_folder: str):
+def create_dependency_folder(dependency_folder: str, dependencies: dict):
     """
     Create the dependency folder and add dependency files.
 
@@ -399,7 +434,6 @@ def create_dependency_folder(dependency_folder: str):
     else:
         raise HTTPException(status_code=400, detail="Invalid dependencies format")
 
-
 def create_metadata_file(plugin_folder: str, metadata: dict):
     """
     Create the metadata.json file in the plugin folder.
@@ -412,3 +446,162 @@ def create_metadata_file(plugin_folder: str, metadata: dict):
     with open(metadata_path, 'w') as f:
         json.dump(metadata, f, indent=4)
     print(f"Metadata file created at {metadata_path}")
+
+def normalize_pkg_name(name: str) -> str:
+    """Normalize package names for consistent comparison."""
+    return name.lower().replace("-", "_")
+
+def check_requirements_txt(requirements_file: str):
+    """Check if dependencies in requirements.txt are installed."""
+    
+    # Check if the requirements file exists
+    if not os.path.exists(requirements_file):
+        raise FileNotFoundError(f"{requirements_file} not found.")
+    
+    # Get installed packages via pip freeze
+    installed_packages = subprocess.run(
+        ["/opt/conda/envs/snakemake/bin/pip", "freeze"],
+        stdout=subprocess.PIPE,
+        text=True
+    ).stdout.splitlines()
+
+    # Read the requirements.txt file
+    with open(requirements_file, 'r') as f:
+        required_packages = f.read().splitlines()
+
+    # Parse installed packages to a dict
+    installed_dict = {normalize_pkg_name(re.split(r"==|>=|<=|~=", pkg)[0]): pkg for pkg in installed_packages}
+
+    installed = []
+    missing = []
+
+    # Check each requirement
+    for req in required_packages:
+        pkg_name = normalize_pkg_name(re.split(r"==|>=|<=|~=", req)[0])
+        if pkg_name in installed_dict:
+            installed.append(pkg_name)
+        else:
+            missing.append(pkg_name)
+
+    # Return result in dict form
+    if len(missing) > 0:
+        return {
+            "installed_status": False,
+            "missing_packages": missing
+        }
+    
+    return {
+        "installed_status": True
+    }
+
+def check_environment_yml(environment_file: str):
+    """Check if dependencies in environment.yml are installed, including pip packages."""
+    
+    # Check if the environment file exists
+    if not os.path.exists(environment_file):
+        raise FileNotFoundError(f"{environment_file} not found.")
+    
+    # Get installed conda packages via conda list
+    installed_conda_packages = subprocess.run(
+        ["/opt/conda/envs/snakemake/bin/conda", "list"],
+        stdout=subprocess.PIPE,
+        text=True
+    ).stdout.splitlines()
+
+    # Get installed pip packages via pip freeze
+    installed_pip_packages = subprocess.run(
+        ["/opt/conda/envs/snakemake/bin/pip", "freeze"],
+        stdout=subprocess.PIPE,
+        text=True
+    ).stdout.splitlines()
+
+    # Parse installed pip packages to a dict
+    installed_pip_dict = {pkg.split("==")[0] for pkg in installed_pip_packages}
+
+    # Parse the environment.yml file using the yaml module
+    try:
+        with open(environment_file, 'r') as f:
+            env_data = yaml.safe_load(f)  # Parse the environment.yml
+    except yaml.YAMLError as e:
+        raise ValueError(f"Error parsing {environment_file}: {e}")
+
+    required_conda_packages = []
+    required_pip_packages = []
+
+    # Ensure there are dependencies to process
+    if 'dependencies' in env_data:
+        for dep in env_data['dependencies']:
+            # Check for pip section, if it's a pip section add to pip package list
+            if isinstance(dep, dict) and 'pip' in dep:
+                # Ensure that 'dep['pip']' is a list of strings, handle each package individually
+                for pip_pkg in dep['pip']:
+                    if isinstance(pip_pkg, str):
+                        required_pip_packages.append(pip_pkg)
+            # Otherwise, it's a conda package
+            elif isinstance(dep, str):
+                required_conda_packages.append(normalize_pkg_name(dep.split("=")[0].strip()))
+
+    installed_dict = {normalize_pkg_name(pkg.split()[0]) for pkg in installed_conda_packages if len(pkg.split()) > 0}
+
+    conda_installed = []
+    conda_missing = []
+    pip_installed = []
+    pip_missing = []
+
+    # Check Conda packages
+    for req in required_conda_packages:
+        pkg_name = normalize_pkg_name(req.split("=")[0].strip())
+        if pkg_name in installed_dict:
+            conda_installed.append(pkg_name)
+        else:
+            conda_missing.append(pkg_name)
+
+    # Check Pip packages
+    for req in required_pip_packages:
+        pkg_name = normalize_pkg_name(req.split("==")[0].strip())
+        if pkg_name in installed_pip_dict:
+            pip_installed.append(pkg_name)
+        else:
+            pip_missing.append(pkg_name)
+
+    # Combine missing packages
+    missing_packages = conda_missing + pip_missing
+
+    # Return result in dict form
+    if len(missing_packages) > 0:
+        return {
+            "installed_status": False,
+            "missing_packages": missing_packages
+        }
+    
+    return {
+        "installed_status": True
+    }
+
+def verify_dependencies(dependency_file_name: str):
+    """
+    Verify if dependencies from the given file are correctly installed.
+    
+    Parameters:
+        dependency_file_name (str): The name of the dependency file (requirements.txt, environment.yml, renv.lock)
+    
+    Returns:
+        dict: Installed status and missing packages if any.
+    """
+    
+    # Ensure dependency_file_name is a valid string
+    if not isinstance(dependency_file_name, str):
+        raise ValueError(f"Invalid file name: {dependency_file_name}")
+
+    # Check for requirements.txt
+    if "requirements.txt" in dependency_file_name:
+        return check_requirements_txt(dependency_file_name)
+    # Check for environment.yml or environment.yaml
+    elif "environment.yml" in dependency_file_name or "environment.yaml" in dependency_file_name:
+        return check_environment_yml(dependency_file_name)
+    else:
+        print(f"Unsupported dependency file: {dependency_file_name}")
+        return {
+            "installed_status": False,
+            "message": f"Unsupported file: {dependency_file_name}"
+        }

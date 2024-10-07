@@ -17,6 +17,7 @@ __pycache__/
 
 /user/*
 /plugin/*
+/lightning_logs/*
 
 .env
 .env.development.local

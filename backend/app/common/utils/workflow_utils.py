@@ -73,18 +73,8 @@ def extract_algorithm_data(workflow_info):
     # "Algorithm" 클래스를 가진 객체가 없을 경우 빈 딕셔너리 반환
     return {}
 
-def generate_user_input(selectedPluginInputOutput, selectedPluginRules):
-    # 사용자 입력 초기화
+def generate_user_input(selectedPluginInputOutput):
     user_input = {}
-    
-    # selectedPluginRules에서 파라미터 추출 및 사용자 입력에 추가
-    for rule in selectedPluginRules:
-        for parameter in rule.get("parameters", []):
-            # 파라미터 이름 추출
-            parameter_name = parameter.get("name")
-            
-            # 사용자 입력에 추가
-            user_input[parameter_name] = parameter.get("defaultValue")
 
     # selectedPluginInputOutput에서 type이 "input"인 파라미터 추출 및 사용자 입력에 추가
     for parameter in selectedPluginInputOutput:
@@ -94,19 +84,31 @@ def generate_user_input(selectedPluginInputOutput, selectedPluginRules):
             
             # 사용자 입력에 추가
             user_input[parameter_key] = parameter.get("file_name")
-
-    print(user_input)
     
-    # 사용자 입력 반환
     return user_input
 
-def extract_target_data(selectedPluginInputOutput):
+def generate_plugin_params(selectedPluginRules):
+    plugin_params = {}
+
+    # selectedPluginRules에서 파라미터 추출 및 사용자 입력에 추가
+    for rule in selectedPluginRules:
+        for parameter in rule.get("parameters", []):
+            # 파라미터 이름 추출
+            parameter_name = parameter.get("name")
+            
+            plugin_params[parameter_name] = parameter.get("defaultValue")
+
+    return plugin_params
+
+def extract_target_data(selectedPluginInputOutput, user_workflow_task_path):
     data_list = []
+
+    user_workflow_task_path = os.path.join(user_workflow_task_path, "results")
 
     # type이 "output"인 데이터들 중, activated가 True인 데이터들을 찾아서 리스트에 추가
     for data in selectedPluginInputOutput:
-        if data.get("type") == "output" and data.get("activate"):
-            data_list.append(data.get("defaultValue"))
+        if data.get("type") == "outputFile" and data.get("activate"):
+            data_list.append(os.path.join(user_workflow_task_path, data.get("defaultValue")))
 
     # 데이터 리스트 반환
     return data_list

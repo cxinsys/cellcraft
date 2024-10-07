@@ -18,7 +18,7 @@ class Rule(BaseModel):
     name: str
     input: List[str]
     output: List[str]
-    script: str
+    script: Optional[str] = None
     parameters: List[Parameter]
     nodeId: int
 

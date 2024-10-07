@@ -78,11 +78,11 @@ def upload_plugin(
 
         # 4. 의존성 설치
         # requirements.txt, environment.yml, renv.lock 파일을 확인 후 설치
-        for dependency_file in ['requirements.txt', 'environment.yml', 'renv.lock']:
-            dependency_file_path = os.path.join(dependency_folder, dependency_file)
-            if os.path.exists(dependency_file_path):
-                print(f"Installing dependencies from {dependency_file}...")
-                plugin_utils.install_dependencies(dependency_file_path)
+        # for dependency_file in ['requirements.txt', 'environment.yml', 'environment.yaml', 'renv.lock']:
+        #     dependency_file_path = os.path.join(dependency_folder, dependency_file)
+        #     if os.path.exists(dependency_file_path):
+        #         print(f"Installing dependencies from {dependency_file}...")
+        #         plugin_utils.install_dependencies(dependency_file_path)
 
         # 5. 중복 검사 및 플러그인 생성 또는 업데이트
         db_existing_plugin = db.query(models.Plugin).filter(models.Plugin.name == plugin_data.name).first()

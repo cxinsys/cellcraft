@@ -16,12 +16,18 @@ def create_celery():
     celery_app.conf.update(result_persistent=True)
     celery_app.conf.update(worker_send_task_events=False)
     celery_app.conf.update(worker_prefetch_multiplier=1)
+
     # 긴 작업을 위한 타임아웃 설정 추가
     celery_app.conf.update(broker_transport_options={
         'visibility_timeout': 400000,  # 긴 작업을 위한 visibility timeout 설정 (초 단위)
         'confirm_publish': True,  # 메시지 발행 확인 활성화
         'confirm_timeout': 60.0  # 메시지 발행 확인을 위한 타임아웃 설정 (초 단위)
     })
+
+    # Task Time Limits 설정 (24시간 제한, 소프트 타임아웃 23시간 56분)
+    celery_app.conf.update(task_time_limit=86400)  # 작업 시간 제한
+    celery_app.conf.update(task_soft_time_limit=86200)  # 소프트 타임아웃 설정
+
     # Celery 설정에서 ampq 연결 끊김 방지를 위한 연결 관련 옵션 조정
     celery_app.conf.update(
         broker_heartbeat=0,  # 브로커 하트비트 비활성화
@@ -32,7 +38,6 @@ def create_celery():
         broker_connection_retry_jitter=False,  # 재시도 간격 랜덤화 비활성화
     )
     celery_app.conf.broker_transport_options = {'confirm_publish': True, 'confirm_timeout': 10.0}
-
 
     return celery_app
 
