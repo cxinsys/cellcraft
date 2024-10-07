@@ -50,6 +50,8 @@ services:
       - "5672:5672"
     environment:
       - TZ=Asia/Seoul
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     restart: always
 
   celery:
