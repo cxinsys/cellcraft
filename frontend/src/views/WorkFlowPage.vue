@@ -17,7 +17,7 @@
         </li>
       </ul>
     </section>
-    <CompileCheck v-if="compile_check" @deactivate-compile-check="deactivateCompileCheck" />
+    <CompileCheck v-if="compile_check" @deactivate-compile-check="deactivateCompileCheck" @run-workflow="runWorkflow" />
     <FileTable :show_files="show_files" :files_list="files_list" />
     <JobTable :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" />
     <ControlBar :on_progress="on_progress" :isTabView="isTabView" @toggle-file="toggleFile"
@@ -380,9 +380,6 @@ export default {
       this.compile_check = false;
     },
     async runWorkflow() {
-      // 1. algorithm node의 데이터를 확인해서 화면에 띄우기
-      // 2. 화면에서 확인 후, 실행할 것인지 확인
-
       try {
         this.exportValue = this.$df.export();
         const title = this.$store.getters.getTitle;

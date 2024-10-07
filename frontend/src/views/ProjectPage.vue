@@ -83,18 +83,6 @@
         </ul>
       </div>
     </div>
-    <div v-if="isSelectModalVisible" class="plugin-select-modal">
-      <div class="plugin-select-modal__content">
-        <!-- <span class="close" @click="closeSelectModal">&times;</span> -->
-        <h2>Select a Plugin Template</h2>
-        <ul>
-          <li class="plugin-item" v-for="plugin in plugins" :key="plugin.id" @click="selectPlugin(plugin)">
-            {{ plugin.name }}
-            <span class="arrow">→</span>
-          </li>
-        </ul>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -245,7 +233,7 @@ export default {
   },
   computed: {
     filteredPlugins() {
-      return this.plugins.filter(plugin => plugin.checked);
+      return this.plugins.filter((plugin) => plugin.checked === true);
     },
     filteredMessageContent() {
       return this.messageContent.split(".").filter(Boolean);

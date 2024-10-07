@@ -97,12 +97,12 @@ export default {
             return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         },
         confirmTask() {
-            // 작업 실행 로직
             alert("Task is being executed...");
             this.closeModal();
             if (this.intervalId) {
                 clearInterval(this.intervalId);
             }
+            this.$emit('run-workflow');
         },
         closeModal() {
             this.$emit('deactivate-compile-check');
