@@ -139,9 +139,9 @@ export default {
         // 파일 이름에서 확장자를 추출하여 검사
         const fileExtension = file.name.split('.').pop().toLowerCase(); // 확장자를 소문자로 변환하여 검사
 
-        // file이 .h5ad, .csv 확장자가 아니면 오류 발생
-        if (fileExtension !== 'h5ad' && fileExtension !== 'csv') {
-          alert("Please upload .h5ad or .csv file");
+        // file이 .h5ad, .csv, .txt 확장자가 아니면 오류 발생
+        if (fileExtension !== 'h5ad' && fileExtension !== 'csv' && fileExtension !== 'txt') {
+          alert("Please upload .h5ad or .csv or .txt file");
           return;
         }
 
@@ -240,7 +240,7 @@ export default {
   height: 100%;
   display: flex;
   position: relative;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .folder {
@@ -466,6 +466,12 @@ export default {
 .files__item:hover {
   cursor: pointer;
   background: rgb(204, 218, 245);
+}
+
+.files__item td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .files__header__img {

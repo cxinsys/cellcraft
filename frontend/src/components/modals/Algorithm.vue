@@ -22,7 +22,7 @@
           <div v-for="rule in selectedPluginRules" :key="rule.name">
             <div class="part-title" v-show="rule.parameters.length != 0">{{ rule.name }}</div>
             <div v-for="parameter in rule.parameters" :key="parameter.name" v-show="rule.parameters.length != 0">
-              <div class="parameters">
+              <div class="parameters" v-show="!(parameter.type === 'string' && parameter.name === 'ScatterPlot')">
                 <span class="parameter-id">
                   {{ parameter.name }}
                 </span>
@@ -34,7 +34,7 @@
                 <input type="checkbox" v-else-if="parameter.type === 'boolean'" class="parameter__input"
                   v-model="parameter.defaultValue">
                 <div v-else-if="parameter.type === 'h5adParameter'" class="parameter__input">
-                  <select v-if="parameter.name === 'cellgroup'" class="parameter__dropdown"
+                  <select v-if="parameter.name === 'cell group'" class="parameter__dropdown"
                     v-model="parameter.defaultValue" @change="selectColumns($event)">
                     <option class="parameter__menu" disabled value="">
                       Select Cell Group
@@ -45,7 +45,7 @@
                   </select>
                   <div v-else-if="parameter.name === 'clusters'" class="parameter__dropdown--checkbox"
                     @click="activateClusters" :class="{ isactive: dropdownIsActive }">
-                    Choose Clusters
+                    Select Clusters
                     <ul class="parameter__dropdown--menu">
                       <li v-for="(column, index) in clusters" :key="index">
                         <label>
@@ -78,7 +78,7 @@
         <div class="setup-title">Plugin Inputs</div>
         <ul class="setup-list__node">
           <li class="setup-item__node" v-for="(item, idx) in selectedPluginInputOutput" :key="idx"
-            v-show="item.type === 'inputFile'" :class="{ checked: item.activate }">
+            v-show="item.type === 'inputFile' || item.type === 'optionalInputFile'" :class="{ checked: item.activate }">
             <div class="checkbox-wrapper-9">
               <input class="tgl tgl-flat" v-model="item.activate" :id="'cb4-9-input-' + idx" type="checkbox" disabled />
               <label :for="'cb4-9-input-' + idx" class="tgl-btn"></label>
@@ -133,7 +133,7 @@ export default {
       this.checkCurrentNodeConnection();
 
       const plugins = await getPlugins();
-      console.log(plugins.data);
+      // console.log(plugins.data);
       this.plugins = plugins.data.plugins;
 
       const nodeInfo = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
@@ -148,7 +148,8 @@ export default {
         });
       }
 
-      const result = this.filterRules(this.selectedPlugin.rules);
+      const selectedPlugin = this.plugins.find((plugin) => plugin.name === this.selectedPlugin.name);
+      const result = this.filterRules(selectedPlugin.rules);
 
       if (nodeInfo.data["selectedPluginRules"]) {
         this.selectedPluginRules = nodeInfo.data.selectedPluginRules;
@@ -168,7 +169,9 @@ export default {
 
     if (this.selectedPlugin) {
       const dataObject = {
-        "selectedPlugin": this.selectedPlugin,
+        "selectedPlugin": {
+          name: this.selectedPlugin.name,
+        },
       };
       const nodeId = this.nodeId;
       this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });
@@ -195,7 +198,9 @@ export default {
       handler(newVal) {
         if (newVal) {
           const dataObject = {
-            "selectedPlugin": newVal,
+            "selectedPlugin": {
+              name: newVal.name,
+            },
           };
           const nodeId = this.nodeId;
           this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });
@@ -206,6 +211,21 @@ export default {
     selectedPluginRules: {
       handler(newVal) {
         if (newVal) {
+          // ScatterPlot 파라미터 처리
+          newVal.forEach(rule => {
+            rule.parameters.forEach(param => {
+              if (param.type === 'string' && param.name === 'ScatterPlot') {
+                const scatterPlotNode = this.currentNodeConnection.find(
+                  node => node.class === 'ScatterPlot' && node.data.lasso_file_path
+                );
+                if (scatterPlotNode) {
+                  param.defaultValue = scatterPlotNode.data.lasso_file_path;
+                }
+              }
+            });
+          });
+
+          // 기존 store commit 로직
           const dataObject = {
             "selectedPluginRules": newVal,
           };
@@ -283,10 +303,14 @@ export default {
         let activate = false;
         let file_name = null; // file_name 초기값 설정
 
-        if (item.type === 'inputFile') {
+        if (item.type === 'inputFile' || item.type === 'optionalInputFile') {
           // inputFile 타입의 경우
           const matchingConnection = currentNodeConnection.find(connection =>
-            connection.data && connection.data.file && connection.data.file.includes(item.fileExtension)
+            connection.data &&
+            connection.data.file &&
+            ((connection.class === 'InputFile' && connection.data.title && connection.data.title.includes(item.defaultValue)) ||
+              ((connection.class === 'DataTable' || connection.class === 'ScatterPlot') &&
+                connection.data.file.includes(item.fileExtension)))
           );
 
           if (matchingConnection) {
@@ -341,27 +365,32 @@ export default {
 
         this.$nextTick(() => {
           this.selectedPluginRules = result.filteredRules;
-          this.selectedPluginInputOutput = result.filteredInputOutput;
+          this.selectedPluginInputOutput = this.activatePlugin(
+            result.filteredInputOutput,
+            this.currentNodeConnection
+          );
         });
       }
     },
     filterRules(rules) {
       const filteredInputOutput = new Set();
 
-      const filteredRules = rules.map(rule => {
-        const filteredParameters = rule.parameters.filter(param => {
-          if (param.type === 'inputFile' || param.type === 'outputFile') {
-            filteredInputOutput.add(JSON.stringify(param));
-            return false;
-          }
-          return true;
-        });
+      const filteredRules = rules
+        .filter(rule => !rule.isVisualization)
+        .map(rule => {
+          const filteredParameters = rule.parameters.filter(param => {
+            if (param.type === 'inputFile' || param.type === 'optionalInputFile' || param.type === 'outputFile') {
+              filteredInputOutput.add(JSON.stringify(param));
+              return false;
+            }
+            return true;
+          });
 
-        return {
-          name: rule.name,
-          parameters: filteredParameters
-        };
-      });
+          return {
+            name: rule.name,
+            parameters: filteredParameters
+          };
+        });
 
       return {
         filteredRules: filteredRules,

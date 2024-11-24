@@ -47,14 +47,10 @@ export default new Router({
           path: "ResultFile",
           component: () => import("@/components/modals/ResultFile.vue"),
         },
-        // {
-        //   path: "heatMap",
-        //   component: () => import("@/components/modals/heatMap.vue"),
-        // },
-        // {
-        //   path: "barPlot",
-        //   component: () => import("@/components/modals/barPlot.vue"),
-        // },
+        {
+          path: "Visualization",
+          component: () => import("@/components/modals/Visualization.vue"),
+        }
       ],
     },
     {

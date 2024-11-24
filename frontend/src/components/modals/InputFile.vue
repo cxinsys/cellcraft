@@ -7,7 +7,7 @@
             <p class="cloud-textbox__directory__desc">
               If you want to upload a new file, please click here.
             </p>
-            <h1 class="cloud-textbox__directory">Files directory ></h1>
+            <h1 class="cloud-textbox__directory">Files Directory ></h1>
           </div>
         </router-link>
         <li class="folder__item" v-for="(folder, idx) in folders_list" :key="idx + 'O'"
@@ -44,10 +44,11 @@
             <li class="form__info--type">
               <img class="form__info--img" src="@/assets/file-icon.png" />
             </li>
-            <li class="form__info--name">
-              {{ selectFile.file_name }}&nbsp;&nbsp;&nbsp;{{
+            <li class="form__info--text">
+              <p class="form__info--name">{{ selectFile.file_name }}</p>
+              <p class="form__info--size">{{
                 selectFile.file_size | formatBytes
-              }}
+              }}</p>
             </li>
           </ul>
           <ul class="form__info" v-else>
@@ -148,19 +149,31 @@ export default {
     },
   },
   async mounted() {
-    await this.getFinder();
-    const currentFile = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
+    try {
+      await this.getFinder();
+      const currentFile = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
 
-    if (currentFile !== "") {
-      try {
-        const file = await findFile({
-          file_name: currentFile,
-        });
-        this.selectFile = file.data;
-        this.apply = true;
-      } catch (error) {
-        console.error(error);
+      if (currentFile !== "") {
+        try {
+          const file = await findFile({
+            file_name: currentFile,
+          });
+          this.selectFile = file.data;
+          this.apply = true;
+        } catch (error) {
+          console.error(error);
+        }
       }
+
+      // folders_list의 첫번째 인덱스에 대해 folderClick 수행
+      if (this.folders_list.length > 0) {
+        const folderFile = await findFolder({
+          folder_name: this.folders_list[0][0],
+        });
+        this.files_list = folderFile.data;
+      }
+    } catch (error) {
+      console.error(error);
     }
   },
   filters: {
@@ -212,7 +225,7 @@ export default {
   flex-direction: column;
   margin: 1rem 0 1rem 1rem;
   padding: 1rem 1rem;
-  border-radius: 1rem;
+  border-radius: 0.5rem;
   box-sizing: border-box;
   background-color: rgb(255, 255, 255);
 }
@@ -221,6 +234,7 @@ export default {
   width: 100%;
   height: 5%;
   display: flex;
+  align-items: center;
   cursor: pointer;
   color: #ffffff;
   margin-bottom: 0.5rem;
@@ -228,9 +242,8 @@ export default {
 
 .file__item {
   width: 90%;
-  height: 5%;
-  margin-left: auto;
   display: flex;
+  align-items: center;
   cursor: pointer;
   margin-bottom: 0.5rem;
   /* background: #ffffff; */
@@ -282,14 +295,16 @@ export default {
 }
 
 .folder__name {
-  display: flex;
-  align-items: center;
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
   font-size: 1rem;
   line-height: 1rem;
   color: black;
+
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .cloud-row {
@@ -352,7 +367,7 @@ export default {
 
 .form-row {
   width: 100%;
-  height: 10%;
+  height: 12.5%;
   position: relative;
 }
 
@@ -367,7 +382,6 @@ export default {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  height: 15%;
   margin: 0rem;
   padding: 0 2rem;
   box-sizing: border-box;
@@ -395,14 +409,14 @@ export default {
 }
 
 .form__fileList {
-  width: 84%;
+  width: 85%;
   height: 100%;
   display: flex;
   padding: 2rem 1rem;
   flex-direction: column;
   align-items: center;
-  overflow: hidden;
-  border-radius: 1rem;
+  overflow: auto;
+  border-radius: 0.5rem;
   background-color: rgb(255, 255, 255);
 }
 
@@ -487,12 +501,11 @@ export default {
 
 .form__info {
   width: 80%;
-  height: 60%;
+  height: 78%;
   display: flex;
   /* margin: auto; */
   top: 0;
   background: #ffffff;
-  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   border-radius: 0.5rem;
 }
 
@@ -510,22 +523,29 @@ export default {
   object-fit: contain;
 }
 
-.form__info--name,
-.form__info--size {
+.form__info--text {
   width: 80%;
   height: 100%;
   display: flex;
   align-items: center;
+}
+
+.form__info--name,
+.form__info--size {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
   font-weight: 400;
   font-size: 0.9rem;
   line-height: 0.9rem;
   color: rgb(51, 51, 51);
-  overflow-wrap: break-word;
-  /* 줄바꿈 처리 */
+}
+
+.form__info--name {
+  width: 70%;
+  margin-right: 0.5rem;
   overflow: hidden;
-  /* 넘치는 내용 숨기기 */
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .form__info--blank {
@@ -545,11 +565,9 @@ export default {
 .form__button--apply {
   cursor: pointer;
   position: absolute;
-  left: 78%;
-  top: 7%;
+  left: 79%;
   width: 20%;
-  height: 46%;
-  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  height: 80%;
   border-radius: 0.5rem;
   display: flex;
   align-items: center;

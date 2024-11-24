@@ -1,14 +1,20 @@
 <template>
     <div class="result__layout">
         <div class="result__download-container">
-            <select v-model="selectedFile" class="result__file-dropdown">
+            <select v-model="selectedFile" class="result__file-dropdown" @change="setupFile = ''">
                 <option value="">Please Select Result File</option>
                 <option v-for="file in fileList" :key="file.name" :value="file">
                     {{ file.name }}
                 </option>
             </select>
 
-            <div class="result__button" @click="downloadFile"
+            <div class="set__button" v-if="setupFile == ''" @click="setFile">
+                <div class="set__button--wrapper">
+                    <div class="set__text">Set up File</div>
+                </div>
+            </div>
+
+            <div class="result__button" v-else @click="downloadFile"
                 :data-tooltip="selectedFile ? formatFileSize(selectedFile.size) : 'Select a file'"
                 :disabled="!selectedFile">
                 <div class="result__button--wrapper">
@@ -39,7 +45,7 @@ export default {
             algorithmId: null,
             fileList: [],
             selectedFile: "",
-            customFileName: "",
+            setupFile: "",
         };
     },
     async mounted() {
@@ -56,6 +62,29 @@ export default {
             this.fileList = response.data;
         } catch (error) {
             console.log(error);
+        }
+
+        if (this.fileList.length !== 0) {
+            const algorithmNodeInfo = this.$store.getters.getWorkflowNodeInfo(this.algorithmId);
+            // algorithmNodeInfo의 data.selectedPluginInputOutput들에서 type이 outputFile이고, activate가 true인 것들만 List로 추출
+            const outputFiles = algorithmNodeInfo.data.selectedPluginInputOutput.filter(output => output.type === 'outputFile' && output.activate);
+
+            console.log(outputFiles);
+
+            // outputFiles 안에 요소들의 name이 fileList의 요소들의 name과 일치하는 것들만 fileList에 남기기
+            this.fileList = this.fileList.filter(file => outputFiles.some(outputFile => outputFile.defaultValue === file.name));
+        }
+
+        const setFileName = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
+        // this.fileList 안에 setFileName이 존재하면 selectedFile에 setFileName을 할당
+        if (this.fileList.some(file => file.name === setFileName)) {
+            this.selectedFile = setFileName;
+            this.setupFile = setFileName;
+        } else {
+            const node_title = current_node.data['title'];
+            this.selectedFile = this.fileList.find(file => file.name.includes(node_title));
+            this.setupFile = setFileName;
+            this.setFile();
         }
     },
     methods: {
@@ -82,6 +111,13 @@ export default {
             } catch (error) {
                 console.error('Error downloading the file:', error);
             }
+        },
+        setFile() {
+            this.setupFile = this.selectedFile;
+            this.$store.commit('setWorkflowFile', {
+                id: this.nodeId,
+                file_name: this.selectedFile
+            });
         },
         formatFileSize(bytes) {
             if (bytes === 0) return '0 Bytes';
@@ -115,6 +151,42 @@ export default {
 .result__file-dropdown {
     margin-right: 10px;
     padding: 5px;
+}
+
+.set__button {
+    --width: 100px;
+    --height: 35px;
+    --tooltip-height: 35px;
+    --tooltip-width: 90px;
+    --gap-between-tooltip-to-button: 18px;
+    --button-color: #1ac951;
+    --tooltip-color: #fff;
+    width: var(--width);
+    height: var(--height);
+    background: var(--button-color);
+    position: relative;
+    text-align: center;
+    border-radius: 0.45em;
+    font-family: "Arial";
+    transition: background 0.3s;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.set__button:hover {
+    background: #0cb843;
+}
+
+.set__button--wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.set__text {
+    color: #fff;
 }
 
 /* 기존 button 스타일을 대체하는 커스텀 버튼 스타일 */
@@ -169,7 +241,8 @@ export default {
     transition: all 0.5s;
 }
 
-.result__text {
+.result__text,
+.set__text {
     display: flex;
     align-items: center;
     justify-content: center;

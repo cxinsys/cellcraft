@@ -121,6 +121,7 @@ export default {
                             script: rule.script.name,
                             parameters: rule.parameters,
                             nodeId: rule.nodeId,
+                            isVisualization: rule.isVisualization
                         };
                     });
                     this.uploadingStep += 1;

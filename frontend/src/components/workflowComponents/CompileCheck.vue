@@ -1,47 +1,121 @@
 <template>
     <div class="modal-content">
-        <h2 class="modal-title">Confirm Task Execution</h2>
+        <div class="modal-container">
+            <h2 class="modal-title">Confirm Task Execution</h2>
 
-        <div class="task-info">
-            <h3 class="task-info__title">Task Information</h3>
-            <div v-for="(task, index) in taskInfoList" :key="index" class="task-info__item">
-                <div><strong>Selected Plugin:</strong> {{ task.pluginName }}</div>
-                <div v-for="(input, inputIndex) in task.inputs" :key="inputIndex">{{ input }}</div>
-                <div v-for="(output, outputIndex) in task.outputs" :key="outputIndex">{{ output }}</div>
-            </div>
-        </div>
+            <div class="task-info">
+                <h3 class="task-info__title">Task Information</h3>
+                <div v-for="(task, index) in taskInfoList" :key="index" class="task-info__item">
+                    <div class="task-plugin">{{ task.pluginName }}</div>
+                    <div class="task-container">
+                        <!-- Input Section -->
+                        <div class="task-inputs">
+                            <div v-for="(input, inputIndex) in task.inputs" :key="inputIndex" class="task-input">
+                                {{ input }}
+                            </div>
+                        </div>
 
-        <div class="resource-info">
-            <h3 class="resource-info__title">Server Resource Status</h3>
+                        <!-- Arrow -->
+                        <div class="task-arrow">→</div>
 
-            <!-- CPU 사용량 표시 -->
-            <div class="resource-bar">
-                <label>CPU Usage: {{ serverResources.cpu_usage_percent }}%</label>
-                <div class="bar">
-                    <div class="fill" :style="{ width: serverResources.cpu_usage_percent + '%' }"></div>
+                        <!-- Output Section -->
+                        <div class="task-outputs">
+                            <div v-for="(output, outputIndex) in task.outputs" :key="outputIndex" class="task-output">
+                                {{ output }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 메모리 사용량 표시 -->
-            <div class="resource-bar">
-                <label>Memory Usage: {{ serverResources.memory_usage_percent }}%</label>
-                <div class="bar">
-                    <div class="fill" :style="{ width: serverResources.memory_usage_percent + '%' }"></div>
+            <div class="resource-info">
+                <h3 class="resource-info__title">Server Resource Status</h3>
+
+                <!-- CPU 정보 표시 -->
+                <div class="resource-bar">
+                    <label>CPU Usage: {{ Number(serverResources.cpu.usage_percent).toFixed(2) }}% ({{
+                        serverResources.cpu.num_cpus }} Cores)</label>
+                    <div class="bar">
+                        <div class="fill" :style="{ width: Math.min(serverResources.cpu.usage_percent, 100) + '%' }">
+                        </div>
+                    </div>
+                    <div class="resource-details">
+                        <p><strong>Total CPU Usage:</strong> {{ formatCPUUsage(serverResources.cpu.total_usage) }}
+                            cycles</p>
+                        <p><strong>System CPU Usage:</strong> {{ formatCPUUsage(serverResources.cpu.system_usage) }}
+                            cycles</p>
+                        <div class="cpu-cores">
+                            <p v-for="(usage, index) in serverResources.cpu.per_cpu_usage" :key="index">
+                                <strong>Core {{ index }}:</strong>
+                                <span :class="getCPUUsageClass(calculateCPUPercentage(usage))">
+                                    {{ calculateCPUPercentage(usage).toFixed(2) }}%
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 메모리 정보 표시 -->
+                <div class="resource-bar">
+                    <label>Memory Usage: {{ Number(serverResources.memory.percent).toFixed(2) }}%</label>
+                    <div class="bar">
+                        <div class="fill" :style="{ width: Math.min(serverResources.memory.percent, 100) + '%' }"></div>
+                    </div>
+                    <div class="resource-details">
+                        <p>
+                            <strong>Total Memory:</strong> {{ formatBytes(serverResources.memory.total_bytes) }}
+                        </p>
+                        <p>
+                            <strong>Used Memory:</strong>
+                            <span :class="getMemoryUsageClass(serverResources.memory.percent)">
+                                {{ formatBytes(serverResources.memory.used_bytes) }}
+                            </span>
+                        </p>
+                        <p>
+                            <strong>Available Memory:</strong> {{ formatBytes(serverResources.memory.available_bytes) }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- GPU 정보 표시 -->
+                <div class="resource-bar" v-if="serverResources.gpu">
+                    <div v-for="(gpu, index) in serverResources.gpu" :key="index" class="gpu-info">
+                        <label>{{ gpu.name }} (GPU {{ gpu.id }})</label>
+                        <div class="resource-sub-bar">
+                            <label>GPU Usage: {{ gpu.utilization_percent }}%</label>
+                            <div class="bar">
+                                <div class="fill" :style="{ width: Math.min(gpu.utilization_percent, 100) + '%' }">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="resource-sub-bar">
+                            <label>Memory Usage: {{ gpu.memory.utilization_percent.toFixed(2) }}%</label>
+                            <div class="bar">
+                                <div class="fill"
+                                    :style="{ width: Math.min(gpu.memory.utilization_percent, 100) + '%' }"></div>
+                            </div>
+                        </div>
+                        <div class="resource-details">
+                            <p>
+                                <strong>Memory:</strong>
+                                {{ formatBytes(gpu.memory.used_bytes) }} / {{ formatBytes(gpu.memory.total_bytes) }}
+                            </p>
+                            <p>
+                                <strong>Temperature:</strong> {{ gpu.temperature_c }}°C
+                            </p>
+                            <p>
+                                <strong>Power:</strong> {{ gpu.power.draw_watts }}W / {{ gpu.power.limit_watts }}W
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 총 메모리와 사용된 메모리, 가용 메모리 표시 -->
-            <div class="resource-details">
-                <p><strong>Total Memory:</strong> {{ formatBytes(serverResources.total_memory_bytes) }}</p>
-                <p><strong>Used Memory:</strong> {{ formatBytes(serverResources.used_memory_bytes) }}</p>
-                <p><strong>Available Memory:</strong> {{ formatBytes(serverResources.available_memory_bytes) }}</p>
+            <!-- 실행/취소 버튼 -->
+            <div class="modal-actions">
+                <button class="btn confirm" @click="confirmTask">Execute</button>
+                <button class="btn cancel" @click="closeModal">Cancel</button>
             </div>
-        </div>
-
-        <!-- 실행/취소 버튼 -->
-        <div class="modal-actions">
-            <button class="btn confirm" @click="confirmTask">Execute</button>
-            <button class="btn cancel" @click="closeModal">Cancel</button>
         </div>
     </div>
 </template>
@@ -52,24 +126,29 @@ import { getSystemResources } from '@/api/index';
 export default {
     data() {
         return {
-            taskInfoList: [
-                {
-                    pluginName: "Plugin A",
-                    inputs: ["Input 1", "Input 2"],
-                    outputs: ["Output 1", "Output 2"]
-                },
-                {
-                    pluginName: "Plugin B",
-                    inputs: ["Input 3", "Input 4"],
-                    outputs: ["Output 3", "Output 4"]
-                }
-            ],
+            taskInfoList: [],
             serverResources: {
-                cpu_usage_percent: 0,
-                memory_usage_percent: 0,
-                total_memory_bytes: 0,
-                used_memory_bytes: 0,
-                available_memory_bytes: 0
+                container_info: {
+                    id: '',
+                    name: '',
+                    status: '',
+                    created: ''
+                },
+                cpu: {
+                    usage_percent: 0,
+                    num_cpus: 0,
+                    total_usage: 0,
+                    system_usage: 0,
+                    per_cpu_usage: []
+                },
+                memory: {
+                    total_bytes: 0,
+                    used_bytes: 0,
+                    available_bytes: 0,
+                    percent: 0
+                },
+                gpu: null,
+                network: {}
             },
             intervalId: null,
         };
@@ -80,7 +159,31 @@ export default {
         this.intervalId = setInterval(async () => {
             const response = await getSystemResources();
             this.serverResources = response.data;
+            console.log(this.serverResources);
         }, 1000);
+
+        // workflow 정보를 통해 Algorithm 노드들의 정보 가져오기
+        try {
+            const workflow_info = this.$store.getters.getWorkflowInfo;
+            console.log(workflow_info);
+
+            const nodes_list = Object.values(workflow_info.drawflow.Home.data);
+            const algorithm_nodes = nodes_list.filter(node => node.class === 'Algorithm');
+            console.log(algorithm_nodes);
+
+            // 각 노드의 정보를 taskInfoList에 추가
+            algorithm_nodes.forEach(node => {
+                const taskInfo = {
+                    pluginName: node.data.selectedPlugin.name,
+                    // node.data.selectedPluginInputOutput에서 activate가 true고 type이 inputFile인 것만 고르기
+                    inputs: node.data.selectedPluginInputOutput.filter(input => input.activate && input.type === 'inputFile').map(input => input.defaultValue),
+                    outputs: node.data.selectedPluginInputOutput.filter(output => output.activate && output.type === 'outputFile').map(output => output.defaultValue)
+                };
+                this.taskInfoList.push(taskInfo);
+            });
+        } catch (error) {
+            console.error(error);
+        }
     },
     beforeDestroy() {
         if (this.intervalId) {
@@ -98,17 +201,42 @@ export default {
         },
         confirmTask() {
             alert("Task is being executed...");
-            this.closeModal();
             if (this.intervalId) {
                 clearInterval(this.intervalId);
             }
+            this.closeModal();
             this.$emit('run-workflow');
         },
         closeModal() {
-            this.$emit('deactivate-compile-check');
             if (this.intervalId) {
                 clearInterval(this.intervalId);
             }
+            this.$emit('deactivate-compile-check');
+        },
+        formatCPUUsage(usage) {
+            return usage ? Number(usage).toLocaleString() : '0';
+        },
+        getCPUUsageClass(usage) {
+            if (usage >= 90) return 'usage-critical';
+            if (usage >= 70) return 'usage-warning';
+            return 'usage-normal';
+        },
+        getMemoryUsageClass(percent) {
+            if (percent >= 90) return 'usage-critical';
+            if (percent >= 70) return 'usage-warning';
+            return 'usage-normal';
+        },
+        calculateCPUPercentage(usage) {
+            if (!this.serverResources.cpu.system_usage) return 0;
+            return (usage / (this.serverResources.cpu.system_usage / this.serverResources.cpu.num_cpus)) * 100;
+        }
+    },
+    computed: {
+        getTotalMemory() {
+            return this.serverResources.available_memory_bytes / (1 - this.serverResources.memory_usage_percent / 100);
+        },
+        getUsedMemory() {
+            return this.getTotalMemory - this.serverResources.available_memory_bytes;
         }
     }
 };
@@ -117,17 +245,25 @@ export default {
 <style scoped>
 /* 모달 콘텐츠 */
 .modal-content {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-container {
     background-color: #2c3e50;
     color: #ecf0f1;
     padding: 1rem;
     border-radius: 1rem;
-    width: 400px;
+    width: 480px;
     max-width: 90%;
     text-align: center;
-
-    position: absolute;
-    top: calc(50% - 300px);
-    left: calc(50% - 200px);
 }
 
 .modal-title {
@@ -137,7 +273,7 @@ export default {
 
 .task-info,
 .resource-info {
-    height: 200px;
+    height: 240px;
     background-color: #34495e;
     padding: 0.5rem;
     border-radius: 1rem;
@@ -193,14 +329,57 @@ export default {
     border-radius: 1rem;
 }
 
+.task-plugin {
+    font-size: 18px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.task-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.task-inputs,
+.task-outputs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.task-input,
+.task-output {
+    padding: 10px;
+    background-color: #1abc9c;
+    color: white;
+    border-radius: 5px;
+    text-align: center;
+    font-size: 0.8rem;
+    width: 144px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.task-arrow {
+    font-size: 24px;
+    color: white;
+    margin: 0 10px;
+}
+
 .resource-bar {
     margin-bottom: 10px;
 }
 
 .bar {
     width: 100%;
-    height: 10px;
-    background-color: #34495e;
+    height: 12px;
+    background-color: #46627e;
     border-radius: 5px;
     overflow: hidden;
     margin-top: 5px;
@@ -226,7 +405,7 @@ export default {
 }
 
 .btn {
-    padding: 10px 20px;
+    padding: 12px 24px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
@@ -247,5 +426,60 @@ export default {
 
 .cancel:hover {
     background-color: #c0392b;
+}
+
+.gpu-info {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #2c3e50;
+    border-radius: 8px;
+}
+
+.resource-sub-bar {
+    margin: 8px 0;
+}
+
+.gpu-info label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.usage-critical {
+    color: #e74c3c;
+}
+
+.usage-warning {
+    color: #f39c12;
+}
+
+.usage-normal {
+    color: #2ecc71;
+}
+
+.cpu-cores {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.usage-normal {
+    color: #2ecc71;
+}
+
+.usage-warning {
+    color: #f1c40f;
+}
+
+.usage-critical {
+    color: #e74c3c;
+}
+
+.resource-details p {
+    margin: 8px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 </style>

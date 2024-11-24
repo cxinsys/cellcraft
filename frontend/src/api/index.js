@@ -58,6 +58,14 @@ function getResults(WorkflowResult) {
   return instance.post("/routes/workflow/results", WorkflowResult);
 }
 
+function runVisualization(WorkflowUpdate) {
+  return instance.post("/routes/workflow/visualization", WorkflowUpdate);
+}
+
+function getVisualizationResult(WorkflowResult) {
+  return instance.post("/routes/workflow/visualization/result", WorkflowResult);
+}
+
 function uploadForm(formData, onUploadProgress) {
   // FormData의 value 확인
   // for (let value of formData.values()) {
@@ -215,8 +223,47 @@ function getPluginTemplate(plugin_id) {
   return instance.get(`/routes/plugin/template/${plugin_id}`);
 }
 
+function getPluginFile(file_info) {
+  return instance.get(`/routes/plugin/file/${file_info.plugin_name}/${file_info.file_name}`, {
+    responseType: "blob", // 서버로부터 받은 데이터를 blob 형태로 처리
+  });
+}
+
 function getDataTableFile(vgt_info) {
   return instance.post("/routes/datatable/load_data", vgt_info);
+}
+
+function getPluginInfo(name) {
+  return instance.get(`/routes/plugin/info/${name}`);
+}
+
+function createTaskEventSource(taskId, callbacks = {}) {
+  const eventSource = new EventSource(`${process.env.VUE_APP_BASE_URL}/routes/task/info/${taskId}`);
+  
+  eventSource.onmessage = (event) => {
+    // 기본 메시지 핸들러
+    if (callbacks.onMessage) {
+      callbacks.onMessage(event);
+    }
+    
+    // 작업 완료시 이벤트소스 자동 종료
+    if (event.data === "SUCCESS" || event.data === "FAILURE" || event.data === "REVOKED") {
+      if (callbacks.onComplete) {
+        callbacks.onComplete(event.data);
+      }
+      eventSource.close();
+    }
+  };
+
+  // 에러 핸들링
+  eventSource.onerror = (error) => {
+    if (callbacks.onError) {
+      callbacks.onError(error);
+    }
+    eventSource.close();
+  };
+
+  return eventSource;
 }
 
 export {
@@ -264,4 +311,9 @@ export {
   readWorkflowNodeFile,
   getFileData,
   getSystemResources,
+  getPluginFile,
+  getPluginInfo,
+  getVisualizationResult,
+  runVisualization,
+  createTaskEventSource,
 };

@@ -60,15 +60,12 @@ import TabComponent from "@/components/workflowComponents/TabComponent.vue"
 import CompileCheck from "@/components/workflowComponents/CompileCheck.vue"
 
 //노드 import (3번)
-// import fileUpload from "@/components/nodes/fileUploadNode.vue";
-// import heatMap from "@/components/nodes/heatMapNode.vue";
-// import barPlot from "@/components/nodes/barPlotNode.vue";
 import InputFile from "@/components/nodes/InputFileNode.vue";
 import DataTable from "@/components/nodes/DataTableNode.vue";
 import ScatterPlot from "@/components/nodes/ScatterPlotNode.vue";
 import Algorithm from "@/components/nodes/AlgorithmNode.vue";
 import ResultFile from "@/components/nodes/ResultFileNode.vue";
-import Visualize from "@/components/nodes/VisualizeNode.vue";
+import Visualization from "@/components/nodes/VisualizationNode.vue";
 
 import {
   exportData,
@@ -78,6 +75,7 @@ import {
   findFolder,
   revokeTask,
   getPluginTemplate,
+  createTaskEventSource,
 } from "@/api/index";
 
 export default {
@@ -131,23 +129,11 @@ export default {
           output: 1,
         },
         {
-          name: "Visualize",
-          img: require("@/assets/Visualize_logo.png"),
+          name: "Visualization",
+          img: require("@/assets/Visualization_logo.png"),
           input: 1,
           output: 0,
         },
-        // {
-        //   name: "BarPlot",
-        //   img: require("@/assets/barPlot2.png"),
-        //   input: 1,
-        //   output: 1,
-        // },
-        // {
-        //   name: "HeatMap",
-        //   img: require("@/assets/heatMap2.png"),
-        //   input: 1,
-        //   output: 1,
-        // },
       ],
       initialTabList: [],
       currentTab: 0,
@@ -175,15 +161,12 @@ export default {
     this.$df.start();
 
     //노드 등록 (2번)
-    // this.$df.registerNode("File", fileUpload, {}, {});
-    // this.$df.registerNode("HeatMap", heatMap, {}, {});
-    // this.$df.registerNode("BarPlot", barPlot, {}, {});
     this.$df.registerNode("InputFile", InputFile, {}, {});
     this.$df.registerNode("DataTable", DataTable, {}, {});
     this.$df.registerNode("ScatterPlot", ScatterPlot, {}, {});
     this.$df.registerNode("Algorithm", Algorithm, {}, {});
     this.$df.registerNode("ResultFile", ResultFile, {}, {});
-    this.$df.registerNode("Visualize", Visualize, {}, {});
+    this.$df.registerNode("Visualization", Visualization, {}, {});
 
     // 노드 수직 연결선
     this.$df.curvature = 0.5;
@@ -232,29 +215,29 @@ export default {
           return;
         }
       }
-      // Algorithm 노드 - ResultFile, Visualize 제외하고 연결 불가능
+      // Algorithm 노드 - ResultFile, Visualization 제외하고 연결 불가능
       if (output_node.name === "Algorithm") {
-        if (input_node.name !== "ResultFile" && input_node.name !== "Visualize") {
+        if (input_node.name !== "ResultFile" && input_node.name !== "Visualization") {
           this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
-          this.setMessage("error", "Algorithm node must be connected to ResultFile, Visualize node");
+          this.setMessage("error", "Algorithm node must be connected to ResultFile, Visualization node");
           return;
         }
       }
-      // ResultFile 노드 - Visualize 제외하고 연결 불가능
+      // ResultFile 노드 - Visualization 제외하고 연결 불가능
       if (output_node.name === "ResultFile") {
-        if (input_node.name !== "Visualize") {
+        if (input_node.name !== "Visualization") {
           this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
-          this.setMessage("error", "ResultFile node must be connected to Visualize node");
+          this.setMessage("error", "ResultFile node must be connected to Visualization node");
           return;
         }
       }
-      // input_node의 name이 Algorithm, Visualize 아닌 경우, 다중 연결 검토
-      if (input_node.name !== "Algorithm" && input_node.name !== "Visualize") {
-        // 다중 연결 시, 이전 연결 끊어주기지만,, 일단 현재 연결 끊어주는 것으로 대체하기
-        // this.checkAndRemoveConnection(input_node, output_node);
-        this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
-        this.setMessage("error", `${input_node.name} node is multiple connections are not allowed`);
-      }
+      // // input_node의 name이 Algorithm, Visualization 아닌 경우, 다중 연결 검토
+      // if (input_node.name !== "Algorithm" && input_node.name !== "Visualization") {
+      //   // 다중 연결 시, 이전 연결 끊어주기지만,, 일단 현재 연결 끊어주는 것으로 대체하기
+      //   // this.checkAndRemoveConnection(input_node, output_node);
+      //   this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+      //   this.setMessage("error", `${input_node.name} node is multiple connections are not allowed`);
+      // }
       console.log(ev);
       this.setCurrentWorkflowInfo();
     });
@@ -285,6 +268,11 @@ export default {
       if (ev.detail === 2 && this.$df.node_selected) {
         this.isTabView = true;
 
+        // 드래그 상태 해제
+        this.$df.drag = false;
+        this.$df.drag_point = false;
+        this.$df.editor_selected = false;
+
         const node_id = this.$df.node_selected.id.replace(/node-/g, "");
         const node = this.$df.getNodeFromId(node_id);
         console.log(node);
@@ -298,7 +286,7 @@ export default {
           id: this.currentWorkflowId,
         };
         const workflow_data = await findWorkflow(workflowInfo);
-        // console.log(workflow_data.data);
+        console.log(workflow_data.data.workflow_info);
         this.$df.import(workflow_data.data.workflow_info);
         this.$store.commit("setTitle", workflow_data.data.title);
         this.$store.commit("setThumbnail", workflow_data.data.thumbnail);
@@ -334,7 +322,7 @@ export default {
       const pluginTemplate = await getPluginTemplate(this.basedPluginId);
       console.log(pluginTemplate.data);
       const drawflow_template = pluginTemplate.data.drawflow
-      console.log(drawflow_template);
+      console.log("Drawflow Template :" + drawflow_template);
       this.$df.import(drawflow_template);
     }
 
@@ -343,29 +331,32 @@ export default {
     console.log(currentWorkflow);
   },
   methods: {
-    // Define a function that returns a task_id and creates a new EventSource instance
     createEventSource(task_id) {
-      // backend로부터 지속적으로 event가 발생하면 task가 실행 중이므로 on_progress를 true로 변경
       this.on_progress = true;
-      // Initialize a new event source with the provided URL
-      this.eventSources[task_id] = new EventSource(
-        `/api/routes/workflow/task/${task_id}`
-      );
 
-      // Event handler for the 'onmessage' event
-      this.eventSources[task_id].onmessage = (event) => {
-        // Log the received event data
-        console.log("Received update: ", event.data);
-        if (event.data === "SUCCESS" || event.data === "FAILURE" || event.data === "REVOKED") {
+      this.eventSources[task_id] = createTaskEventSource(task_id, {
+        onMessage: (event) => {
+          console.log("Received update: ", event.data);
+          // PENDING 상태도 진행 중으로 처리
+          const data = JSON.parse(event.data);
+          if (data.status === "RUNNING" || data.status === "PENDING") {
+            this.on_progress = true;
+          }
+        },
+        onComplete: (status) => {
           console.log("close");
-          // backend로부터 event가 발생했을 때, data 상태에 따라 task가 완료되었다고 판단하여 on_progress를 false로 변경
+          this.on_progress = false;
+          this.closeEventSource(task_id);
+          clearInterval(this.timeInterval);
+        },
+        onError: (error) => {
+          console.error("SSE Error:", error);
           this.on_progress = false;
           this.closeEventSource(task_id);
           clearInterval(this.timeInterval);
         }
-      };
+      });
     },
-    // Define a function to close a specific event source
     closeEventSource(task_id) {
       // If the event source exists, close it
       if (this.eventSources[task_id]) {
@@ -375,18 +366,19 @@ export default {
     },
     activateCompileCheck() {
       this.compile_check = true;
+      this.isTabView = false;
     },
     deactivateCompileCheck() {
       this.compile_check = false;
     },
     async runWorkflow() {
       try {
+        this.updateWorkflowInfo();
         this.exportValue = this.$df.export();
         const title = this.$store.getters.getTitle;
         const thumbnail = this.$store.getters.getThumbnail;
         // console.log(JSON.stringify(this.exportValue));
         console.log(this.$df.drawflow.drawflow[this.$df.module]);
-        // *수정* nodes, linked_nodes 없이 workflow 생성
         const workflow = {
           id: this.currentWorkflowId,
           title: title,
@@ -411,9 +403,13 @@ export default {
       const workflow_info = this.$store.getters.getWorkflowInfo;
       const nodes = workflow_info.drawflow.Home.data;
 
+      // console.log("workflow_info from store :", JSON.stringify(workflow_info, null, 2));
+      // console.log("nodes from drawflow :", JSON.stringify(nodes, null, 2));
+
       for (const nodeId in nodes) {
         if (nodes.hasOwnProperty(nodeId)) {
           const node = nodes[nodeId];
+          // console.log("node :", JSON.stringify(node, null, 2));
           this.$df.updateNodeDataFromId(node.id, node.data);
         }
       }
@@ -504,39 +500,36 @@ export default {
     },
     async toggleTask() {
       try {
-        // 모니터링 탭이 닫혀있을 때
         if (!this.show_jobs) {
-          //유저 Task 가져오기
           const user_tasks = await userTaskMonitoring();
           console.log(user_tasks);
           this.taskList = user_tasks.data;
 
-          //유저 Task가 있을 때 Task 상태에 따라 running_time 계산하거나 interval 시작
           this.taskList.forEach(async (task, idx) => {
-            if (task.status === "SUCCESS" || task.status === "FAILURE" || task.status === "REVOKED" || task.status === "RETRY") {
+            if (task.status === "SUCCESS" ||
+              task.status === "FAILURE" ||
+              task.status === "REVOKED" ||
+              task.status === "RETRY") {
               this.taskList[idx].running_time = this.getTimeDifference(
                 task.start_time,
                 task.end_time
               );
-            } else {
-              // 해당 Task가 실행되고 있다는 가정하에 running_time 계산하는 interval 시작
+            } else if (task.status === "RUNNING" || task.status === "PENDING") {
+              // RUNNING 또는 PENDING 상태일 때 타이머 시작
               this.timeInterval = this.startTimer(idx);
+              // Task가 실행 중이므로 on_progress를 true로 설정
+              this.on_progress = true;
             }
-            console.log(task.workflow_id, typeof task.workflow_id);
-            // Task의 workflow title 가져오기
+
             const workflow = await findWorkflow({
               id: task.workflow_id,
             });
             this.taskList[idx].title = workflow.data.title;
-            console.log(this.taskList[idx].title);
           });
-        }
-        else {
-          // 모니터링 탭 닫힐 때, interval 종료
+        } else {
           clearInterval(this.timeInterval);
         }
-        console.log(this.taskList);
-        // 모니터링 탭 활성화 여부 토글
+
         setTimeout(() => {
           this.show_jobs = !this.show_jobs;
         }, 300);
@@ -579,26 +572,25 @@ export default {
     },
     startTimer(idx) {
       const interval = setInterval(() => {
-        //on_progress가 false일 때(=Task가 완료되었다고 판단할 때) interval 종료
         if (!this.on_progress) {
-          // Task가 완료되었다고 판단할 때, 상태 업데이트 (모니터링 탭 on/off + interval 종료)
           this.show_jobs = false;
           clearInterval(interval);
-
-          // 근데 Task 완료되었다고 판단했는데, Task 상태가 RUNNING으로 잡혀서 interval 종료되지 않았을 때 오류 발생
         }
-        // Task가 진행 중이므로 running_time 계산
-        let currentTime = new Date();
-        let running_time = this.getRunningTime(
-          this.taskList[idx].start_time,
-          currentTime
-        );
-        // task running_time 상태 업데이트
-        // this.taskList[idx].running_time = running_time;
-        this.$set(this.taskList, idx, {
-          ...this.taskList[idx],
-          running_time: running_time,
-        });
+
+        // RUNNING 또는 PENDING 상태일 때 running_time 계산
+        if (this.taskList[idx].status === "RUNNING" ||
+          this.taskList[idx].status === "PENDING") {
+          let currentTime = new Date();
+          let running_time = this.getRunningTime(
+            this.taskList[idx].start_time,
+            currentTime
+          );
+
+          this.$set(this.taskList, idx, {
+            ...this.taskList[idx],
+            running_time: running_time,
+          });
+        }
       }, 1000);
       return interval;
     },
@@ -629,7 +621,7 @@ export default {
 
       const seconds = Math.floor(diff / 1000);
 
-      hours = hours - 9;
+      hours = hours;
       console.log(
         `${hours.toString().padStart(2, "0")}:${minutes
           .toString()
@@ -668,7 +660,7 @@ export default {
           thumbnail: thumbnail,
           workflow_info: this.exportValue,
         };
-        console.log("currentWorkflowId : " + workflow.id);
+        console.log("currentWorkflowId : " + workflow.id + "type : " + typeof workflow.id);
         const workflow_data = await saveWorkflow(workflow);
         this.currentWorkflowId = workflow_data.data.id;
         return workflow_data.data;

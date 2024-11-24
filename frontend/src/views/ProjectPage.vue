@@ -115,14 +115,16 @@ export default {
     },
     openWorkflow(workflow_id) {
       if (workflow_id) {
+        const workflow_id_str = workflow_id.toString();
         this.$router.push({
           path: "/workflow",
-          query: { workflow_id: workflow_id },
+          query: { workflow_id: workflow_id_str },
         });
       } else {
+        const workflow_id_str = this.workflow_id.toString();
         this.$router.push({
           path: "/workflow",
-          query: { workflow_id: this.workflow_id },
+          query: { workflow_id: workflow_id_str },
         });
       }
     },
