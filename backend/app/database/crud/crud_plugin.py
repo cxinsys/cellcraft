@@ -6,6 +6,9 @@ from fastapi import HTTPException
 def get_plugin_by_id(db: Session, plugin_id: int):
     return db.query(models.Plugin).filter(models.Plugin.id == plugin_id).first()
 
+def get_plugin_by_name(db: Session, name: str):
+    return db.query(models.Plugin).filter(models.Plugin.name == name).first()
+
 def get_plugins(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Plugin).offset(skip).limit(limit).all()
 

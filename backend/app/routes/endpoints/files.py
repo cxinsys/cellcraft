@@ -13,7 +13,7 @@ import json
 from app.routes import dep
 from app.database.crud import crud_file
 from app.database import models
-from app.database.schemas.file import FileCreate, FileDelete, FileUpdate, FileFind, FolderFind, FileSetup, FileGet, FileResultFind
+from app.database.schemas.file import FileCreate, FileDelete, FileUpdate, FileFind, FolderFind, FileGet, FileResultFind
 from app.common.utils.h5ad_utils import organize_column_dtypes, get_annotation_columns, get_pseudotime_columns
 from app.common.utils.workflow_utils import load_tab_file
 
@@ -244,69 +244,6 @@ def h5ad_cluster (
         clusters = map(str, adata.obs[fileInfo.anno_column].value_counts().index)
         # print(clusters)
         return {'clusters': list(clusters)}
-    else:
-        raise HTTPException(
-                status_code=400,
-                detail="this file not exists in your files",
-        )
-    
-@router.post("/setup")
-def algorithm_setup (
-    *,
-    db: Session = Depends(dep.get_db),
-    current_user: models.User = Depends(dep.get_current_active_user),
-    options: FileSetup,
-    ) -> Any:
-    current_time = datetime.now().strftime("%Y%m%d%H%M")
-    user_file = crud_file.get_user_file(db, current_user.id, options.file_name)
-    if user_file:
-        folder_path = './user' + '/' + current_user.username + "/data/"
-        input_filename = f"{current_time}_{options.option_name}_{options.file_name}"
-        input_filepath = f"{folder_path}{input_filename}"
-
-        gene_list_filename = options.gene_list
-        gene_list_filepath = f"{folder_path}{gene_list_filename}"
-        # gene_list_filename이 존재하면 해당 파일을 읽어서 gene_list에 할당 (csv 파일)
-        # 존재하지 않으면 gene_list에 None 할당
-        if os.path.isfile(gene_list_filepath):
-            # pd.read_csv(gene_list_filepath, header=None) : csv 파일을 읽어서 dataframe으로 만듦
-            # .iloc[:, 0] : dataframe의 첫번째 열을 가져옴
-            # .tolist() : 첫번째 열을 list로 변환
-            gene_list = pd.read_csv(gene_list_filepath, header=None).iloc[:, 0].tolist()
-        else:
-            gene_list = []
-
-        setOptions = {
-            "algorithm": options.algorithm,
-            "anno_of_interest": options.anno_of_interest,
-            "pseudo_of_interest": options.pseudo_of_interest,
-            "clusters_of_interest": options.clusters_of_interest,
-            "num_of_threads": options.num_of_threads,
-            "history_length": options.history_length,
-            "species": options.species,
-            "gene_list_file": options.gene_list,
-            "gene_list": gene_list,
-            "cutoff_for_fdr": options.cutoff_for_fdr,
-            "num_of_links": options.num_of_links,
-            "trimming_indirect_edges": options.trimming_indirect_edges,
-        }
-
-        if len(options.clusters_of_interest) == 0:
-            setOptions["selected_indices"] = options.selected_indices
-
-        # print(setOptions)
-
-        with open(input_filepath + '_option.json', 'w', encoding='utf-8') as f:
-            json.dump(setOptions, f, ensure_ascii=False, indent=4)
-
-        # 파일 생성 되었는지 확인
-        if os.path.isfile(input_filepath + '_option.json'):
-            return {'file_name': input_filename + '_option.json'}
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail="option file not created",
-            )
     else:
         raise HTTPException(
                 status_code=400,

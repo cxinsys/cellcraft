@@ -1,5 +1,7 @@
 from celery import current_app as current_celery_app
 from celery.result import AsyncResult
+from celery.signals import celeryd_after_setup
+from kombu import Queue, Exchange
 
 from app.common.config import settings
 
@@ -38,6 +40,40 @@ def create_celery():
         broker_connection_retry_jitter=False,  # 재시도 간격 랜덤화 비활성화
     )
     celery_app.conf.broker_transport_options = {'confirm_publish': True, 'confirm_timeout': 10.0}
+
+    # CPU/GPU 큐 설정 수정
+    celery_app.conf.task_routes = {
+        'workflow_task:process_data_task': {
+            'queue': lambda task, args, kwargs: 'gpu_tasks' if kwargs.get('use_gpu', False) else 'cpu_tasks'
+        }
+    }
+
+    # 큐 설정 수정 - exchange type 명시 및 큐별 제한 설정
+    celery_app.conf.task_queues = {
+        'cpu_tasks': {
+            'exchange': 'cpu_tasks',
+            'exchange_type': 'direct',
+            'routing_key': 'cpu_tasks',
+            'queue_arguments': {'x-max-length': 11}  # CPU 태스크 최대 개수 제한
+        },
+        'gpu_tasks': {
+            'exchange': 'gpu_tasks',
+            'exchange_type': 'direct',
+            'routing_key': 'gpu_tasks',
+            'queue_arguments': {'x-max-length': 7}   # GPU 태스크 최대 개수 제한
+        }
+    }
+
+    # 작업자(worker) 동시성 제한 설정 수정
+    celery_app.conf.update(
+        worker_prefetch_multiplier=1,    # 작업자가 한 번에 가져올 수 있는 작업 수
+        task_acks_late=True,             # 작업 완료 후 승인
+        task_track_started=True,         # 작업 상태 추적
+        task_reject_on_worker_lost=True  # 워커 손실 시 작업 거부
+    )
+
+    # CPU/GPU 워커별 동시성 설정 제거 (docker-compose에서 관리)
+    # worker_concurrency=44 설정 제거
 
     return celery_app
 

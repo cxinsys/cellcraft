@@ -30,30 +30,6 @@ class FileUpdate(FileBase):
     file_name: str
     update_name: str
 
-class FileSetup(FileBase):
-    algorithm: str
-    option_name: str
-    file_name: str
-    anno_of_interest: str
-    pseudo_of_interest: str
-    clusters_of_interest: List[Optional[str]]
-    selected_indices: List[int] = None
-    num_of_threads: Optional[int] = None
-    history_length: Optional[int] = None
-    species: Optional[str] = None
-    gene_list: Optional[str] = None
-    cutoff_for_fdr: Optional[float] = None
-    num_of_links: Optional[int] = None
-    trimming_indirect_edges: Optional[float] = None
-    make_binary: Optional[bool] = None
-    device: Optional[str] = None
-    device_ids: Optional[List] = None
-    batch_size: Optional[int] = None
-    kp: Optional[float] = None
-    percentile: Optional[int] = None
-    win_length: Optional[int] = None
-    polyorder: Optional[int] = None
-
 class FileResultFind(FileBase):
     file_name: str
     option_file_name: str

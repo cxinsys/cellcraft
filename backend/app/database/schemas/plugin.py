@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel
 
 class DependencyFile(BaseModel):
@@ -10,8 +10,8 @@ class Parameter(BaseModel):
     name: str
     type: str
     defaultValue: Optional[Any] = None
-    min: Optional[int] = None
-    max: Optional[int] = None
+    min: Optional[Any] = None
+    max: Optional[Any] = None
     fileExtension: Optional[str] = None
 
 class Rule(BaseModel):
@@ -21,6 +21,7 @@ class Rule(BaseModel):
     script: Optional[str] = None
     parameters: List[Parameter]
     nodeId: int
+    isVisualization: Optional[bool] = False
 
 class PluginInfo(BaseModel):
     name: str

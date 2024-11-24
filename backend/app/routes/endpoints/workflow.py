@@ -4,14 +4,14 @@ from sqlalchemy.orm import Session
 import os
 import shutil
 import json
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.common.utils.plugin_utils import verify_dependencies
 from app.common.utils.celery_utils import get_task_info
 from app.common.utils.snakemake_utils import change_snakefile_parameter
-from app.common.utils.workflow_utils import extract_algorithm_data, generate_user_input, generate_plugin_params, extract_target_data
+from app.common.utils.workflow_utils import extract_rule_block, extract_algorithm_data, extract_visualization_data, extract_target_data, generate_user_input, generate_plugin_params, generate_visualization_params
 from app.database.crud import crud_workflow
-from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowResult, WorkflowFind, WorkflowNodeFileCreate, WorkflowNodeFileDelete, WorkflowNodeFileRead
+from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowUpdate, WorkflowResult, WorkflowFind, WorkflowNodeFileCreate, WorkflowNodeFileDelete, WorkflowNodeFileRead
 from app.routes import dep
 from app.database import models
 from app.routes.celery_tasks import process_data_task
@@ -31,32 +31,23 @@ def exportData(
         user_path = f"./user/{current_user.username}/"
         if user_workflow:
             crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info)
-            extract_workflow = extract_algorithm_data(user_workflow.workflow_info['drawflow']['Home']['data'])
+            extract_algorithm = extract_algorithm_data(user_workflow.workflow_info['drawflow']['Home']['data'])
 
-            selected_plugin = extract_workflow['selectedPlugin']['name']
-            user_workflow_task_path = f"{user_path}workflow_{workflow.id}/algorithm_{extract_workflow['id']}"
+            selected_plugin = extract_algorithm['selectedPlugin']['name']
+            user_workflow_task_path = f"{user_path}workflow_{workflow.id}/algorithm_{extract_algorithm['id']}"
 
             # 플러그인 폴더 내의 dependency 폴더에 있는 파일 리스트를 순회하면서 검증
             plugin_dependency_path = f"./plugin/{selected_plugin}/dependency"
-            
-            # #plugin_dependency_path에 있는 파일 리스트를 가져옴
-            # dependency_files = os.listdir(plugin_dependency_path)
-            # #dependency_files 안에 파일이 1개 이상 있을 경우, dependency_files를 순회하면서 verify_dependencies 함수를 호출
-            # if len(dependency_files) > 0:
-            #     for dependency_file in dependency_files:
-            #         print(f"Verifying dependency file: {dependency_file}")
-            #         dependency_file_path = os.path.join(plugin_dependency_path, dependency_file)
-            #         verify_dependencies(dependency_file_path)
 
-            user_input = generate_user_input(extract_workflow['selectedPluginInputOutput'])
-            plugin_params = generate_plugin_params(extract_workflow['selectedPluginRules'])
-            target_list = extract_target_data(extract_workflow['selectedPluginInputOutput'], user_workflow_task_path)
+            user_input = generate_user_input(extract_algorithm['selectedPluginInputOutput'])
+            plugin_params = generate_plugin_params(extract_algorithm['selectedPluginRules'])
+            target_list = extract_target_data(extract_algorithm['selectedPluginInputOutput'], user_workflow_task_path)
 
             additional_data = {
                 "user_name": current_user.username,
                 "workflow_id": str(workflow.id),
-                "algorithm_id": str(extract_workflow['id']),
-                "plugin_name": extract_workflow['selectedPlugin']['name'],
+                "algorithm_id": str(extract_algorithm['id']),
+                "plugin_name": extract_algorithm['selectedPlugin']['name'],
             }
             
             # user_input에 추가
@@ -69,12 +60,14 @@ def exportData(
             if not os.path.exists(user_workflow_task_path):
                 os.makedirs(user_workflow_task_path)
 
-            plugin_snakefile_path = f"./plugin/{extract_workflow['selectedPlugin']['name']}/Snakefile"
+            plugin_snakefile_path = f"./plugin/{extract_algorithm['selectedPlugin']['name']}/Snakefile"
             user_snakefile_path = change_snakefile_parameter(plugin_snakefile_path, user_workflow_task_path + "/Snakefile", user_input, plugin_params)
+
+            use_gpu = extract_algorithm['selectedPlugin']['name'] == 'FastTENET'
 
             process_task = process_data_task.apply_async(
                 (current_user.username, user_snakefile_path, plugin_dependency_path, target_list),
-                kwargs={'user_id': current_user.id, 'workflow_id': workflow.id }
+                kwargs={'user_id': current_user.id, 'workflow_id': workflow.id, 'use_gpu': use_gpu}
             )
             message = "Tasks added to queue"
             task_id = process_task.id
@@ -91,6 +84,118 @@ def exportData(
                 detail=str(e),
                 )
 
+# visualize compile
+@router.post("/visualization")
+def visualizeData(
+    *,
+    db: Session = Depends(dep.get_db),
+    workflow: WorkflowUpdate, 
+    current_user: models.User = Depends(dep.get_current_active_user)
+    ):
+    try:
+        user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflow.id)
+        user_path = f"./user/{current_user.username}/"
+        if user_workflow:
+            crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info)
+            extract_algorithm = extract_algorithm_data(user_workflow.workflow_info['drawflow']['Home']['data'])
+            extract_visualization = extract_visualization_data(user_workflow.workflow_info['drawflow']['Home']['data'], workflow.current_node_id)
+
+            user_task_path = f"{user_path}workflow_{workflow.id}/algorithm_{extract_algorithm['id']}"
+
+            selected_plugin = extract_algorithm['selectedPlugin']['name']
+            # 플러그인 폴더 내의 dependency 폴더에 있는 파일 리스트를 순회하면서 검증
+            plugin_dependency_path = f"./plugin/{selected_plugin}/dependency"
+
+            print("extract_algorithm:", extract_algorithm)
+            print("extract_visualization:", extract_visualization)
+
+            visualization_params, visualization_inputs, visualization_outputs = generate_visualization_params(extract_visualization['selectedVisualizationParams'])
+
+            print("visualization_params:", visualization_params)
+
+            user_workflow_visualization_result_directory = f"{user_task_path}/results"
+            user_workflow_visualization_result_name = ""
+
+            for key in visualization_inputs:
+                user_workflow_visualization_result_name += f"{visualization_inputs[key]}_"
+
+            for key in visualization_params:
+                user_workflow_visualization_result_name += f"{visualization_params[key]}_"
+
+            additional_data = {
+                "user_name": current_user.username,
+                "workflow_id": str(workflow.id),
+                "algorithm_id": str(extract_algorithm['id']),
+                "plugin_name": selected_plugin,
+                "visualization_name": extract_visualization['selectedVisualizationTitle'],
+                "visualization_result_path": user_workflow_visualization_result_name
+            }
+
+            user_workflow_visualization_result_path = user_workflow_visualization_result_directory + "/" + user_workflow_visualization_result_name + f"{visualization_outputs['output']}"
+
+            # user_workflow_visualization_result_path 있는 지 확인 후, 있으면 해당 파일 반환 없으면 코드 계속 실행
+            if os.path.exists(user_workflow_visualization_result_path):
+                print("user_workflow_visualization_result_path:", user_workflow_visualization_result_path)
+                # message로 파일 있다고 반환
+                message = "Visualization result already exists"
+                return {
+                    "message": message,
+                    "result_path": user_workflow_visualization_result_name + f"{visualization_outputs['output']}"
+                }
+
+            else:
+                visualization_snakefile_path = f"./plugin/{extract_algorithm['selectedPlugin']['name']}/visualization_Snakefile"
+                
+                # rule 추출 추가
+                rule_content, rule_path = extract_rule_block(visualization_snakefile_path, extract_visualization['selectedVisualizationTitle'], user_task_path + "/visualization_Snakefile")
+                print("rule_content:", rule_content)
+                visualization_inputs.update(additional_data)
+
+                user_visualization_snakefile_path = change_snakefile_parameter(rule_path, user_task_path + "/visualization_Snakefile", visualization_inputs, visualization_params)
+                # user_workflow_visualization_result_path를 target_list에 추가
+                target_list = [user_workflow_visualization_result_path]
+
+                process_task = process_data_task.apply_async(
+                    (current_user.username, user_visualization_snakefile_path, plugin_dependency_path, target_list),
+                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id }
+                )
+
+                message = "Tasks added to queue"
+                task_id = process_task.id
+                result = get_task_info(process_task.id)
+
+                return {
+                    "message": message,
+                    "task_id": task_id,
+                    "result": result,
+                    "result_path": user_workflow_visualization_result_path
+                }
+
+    except Exception as e:
+        raise HTTPException(
+                status_code=400,
+                detail=str(e),
+                )
+
+# get visualization result
+@router.post("/visualize/result")
+def getVisualizationResult(
+    WorkflowResult: WorkflowResult, 
+    current_user: models.User = Depends(dep.get_current_active_user)
+):
+    PATH_VISUALIZAE_RESULT = WorkflowResult.filename
+    print("PATH_VISUALIZAE_RESULT:", PATH_VISUALIZAE_RESULT)
+
+    try:
+        with open(PATH_VISUALIZAE_RESULT, "r") as f:
+            plotly_data = json.load(f)
+        return JSONResponse(content=plotly_data)
+        
+    except Exception as e:
+        raise HTTPException(
+                status_code=400,
+                detail=str(e),
+                )
 
 #save workflow data
 @router.post("/save")
@@ -220,6 +325,32 @@ def checkResult(WorkflowResult: WorkflowResult, current_user: models.User = Depe
 
     return FileResponse(FILE_PATH)
 
+#response workflow visualization result
+@router.post("/visualization/result")
+def checkVisualizationResult(WorkflowResult: WorkflowResult, current_user: models.User = Depends(dep.get_current_active_user)):
+    PATH_COMPILE_RESULT = f'./user/{current_user.username}/workflow_{WorkflowResult.id}/algorithm_{WorkflowResult.algorithm_id}/results'
+    file_list = os.listdir(PATH_COMPILE_RESULT)
+    # print(file_list)
+    FILE_NAME = WorkflowResult.filename
+    
+    for item_file in file_list:
+        if FILE_NAME in item_file:
+            FILE_NAME = item_file
+    # print(FILE_NAME)
+    FILE_PATH = os.path.join(PATH_COMPILE_RESULT, FILE_NAME)
+    # print(FILE_PATH)
+
+    try:
+        with open(FILE_PATH, "r") as f:
+            plotly_data = json.load(f)
+        return JSONResponse(content=plotly_data)
+        
+    except Exception as e:
+        raise HTTPException(
+                status_code=400,
+                detail=str(e),
+                )
+
 #save workflow node modal data
 @router.post("/node/save")
 def saveNodeData(
@@ -232,20 +363,27 @@ def saveNodeData(
     if user_workflow:
         # workflowNodeFileInfo.id로 사용자 폴더에 workflow 폴더 생성
         user_path = f"./user/{current_user.username}/"
-        workflow_path = f"{user_path}workflow{workflowNodeFileInfo.id}"
+        workflow_path = f"{user_path}workflow_{workflowNodeFileInfo.id}"
         # user 폴더에 workflow 폴더 존재하지 않으면 생성
         if not os.path.exists(workflow_path):
             os.makedirs(workflow_path)
         # workflowNodeFileInfo.node_name이랑 workflowNodeFileInfo.node_id로 파일 이름 생성
         file_name = f"{workflowNodeFileInfo.node_name}_{workflowNodeFileInfo.node_id}.{workflowNodeFileInfo.file_extension}"
+        result_file_path = f"{workflow_path}/{file_name}"
         # user 폴더에 파일 생성
-        with open(f"{workflow_path}/{file_name}", "w") as f:
+        with open(result_file_path, "w") as f:
             # workflowNodeFileInfo.file_content가 List이면 json.dump으로 파일 생성
             if workflowNodeFileInfo.file_extension == "json":
                 json.dump(workflowNodeFileInfo.file_content, f)
             if workflowNodeFileInfo.file_extension == "txt" or workflowNodeFileInfo.file_extension == "tsv" or workflowNodeFileInfo.file_extension == "csv":
                 f.write(workflowNodeFileInfo.file_content)
-        return workflowNodeFileInfo
+        return {
+            'id': workflowNodeFileInfo.id,
+            'node_id': workflowNodeFileInfo.node_id,
+            'node_name': workflowNodeFileInfo.node_name,
+            'file_extension': workflowNodeFileInfo.file_extension,
+            'file_path': result_file_path
+        }
     else:
         raise HTTPException(
                 status_code=400,
