@@ -121,6 +121,7 @@ export default {
                             script: rule.script.name,
                             parameters: rule.parameters,
                             nodeId: rule.nodeId,
+                            isVisualization: rule.isVisualization
                         };
                     });
                     this.uploadingStep += 1;
@@ -134,6 +135,7 @@ export default {
 
                     this.uploadingStep += 1;
                     const scriptNameList = validation_response.data.scripts;
+                    console.log('Script Name List:', scriptNameList);
                     const scriptCreate = this.rules.map(rule => {
                         const scriptName = scriptNameList.find(s => s === rule.script.name);
                         if (scriptName) {

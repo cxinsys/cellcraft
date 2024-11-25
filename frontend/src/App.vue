@@ -68,20 +68,14 @@ export default {
     $route(to, from) {
       if (from.path.includes("/workflow") && !to.path.includes("/workflow")) {
         this.$store.commit("clearWorkflow");
-        this.$store.commit("clearNodes");
-        this.$store.commit("clearLinkedNodes");
         this.$store.commit("clearTitle");
         this.$store.commit("clearThumbnail");
-        this.$store.commit("clearCurrentNode");
       }
 
       if (from.path.includes("/login")) {
         this.$store.commit("clearWorkflow");
-        this.$store.commit("clearNodes");
-        this.$store.commit("clearLinkedNodes");
         this.$store.commit("clearTitle");
         this.$store.commit("clearThumbnail");
-        this.$store.commit("clearCurrentNode");
       }
 
       if (to.path.includes("/main")) {

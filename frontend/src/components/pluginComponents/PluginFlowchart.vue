@@ -27,29 +27,66 @@
             </div>
             <div v-else>
                 <div v-for="(rule, index) in rules" :key="index" class="rule-item">
-                    <h4>rule {{ rule.name }}:</h4>
+                    <div>
+                        <h4 v-if="rule.isEditing">
+                            <input type="text" v-model="rule.name" class="edit-input">
+                        </h4>
+                        <h4 v-else>
+                            rule {{ rule.name }}:
+                        </h4>
+                    </div>
                     <div>
                         <strong>input:</strong>
-                        <div v-for="(value, key) in rule.input" :key="'input-' + key">{{ key }}="{{ value }}"</div>
+                        <div v-for="(value, key) in rule.input" :key="'input-' + key">
+                            <span v-if="rule.isEditing">
+                                <input type="text" v-model="rule.input[key]" class="edit-input">
+                            </span>
+                            <span v-else>
+                                {{ key }}="{{ value }}"
+                            </span>
+                        </div>
                     </div>
                     <div>
                         <strong>output:</strong>
-                        <div v-for="(value, key) in rule.output" :key="'output-' + key">{{ key }}="{{ value }}"</div>
+                        <div v-for="(value, key) in rule.output" :key="'output-' + key">
+                            <span v-if="rule.isEditing">
+                                <input type="text" v-model="rule.output[key]" class="edit-input">
+                            </span>
+                            <span v-else>
+                                {{ key }}="{{ value }}"
+                            </span>
+                        </div>
                     </div>
                     <div v-if="rule.script">
                         <strong>script:</strong>
                         <div class="script-container">
                             <div>{{ generateShellCommand(rule) }}</div>
-                            <draggable class="script-drag-componenet" v-model="rule.parameters" @start="drag = true"
+                            <draggable class="script-drag-component" v-model="rule.parameters" @start="drag = true"
                                 @end="drag = false">
                                 <div class="script-drag-parameter" v-for="(param, paramIndex) in rule.parameters"
                                     :key="paramIndex">
-                                    {{ param.name }} ({{ param.type }})
+                                    <span v-if="rule.isEditing"><input type="text" v-model="param.name"
+                                            class="edit-input"></span><span v-else>{{ param.name }}</span>
+                                    ({{ param.type }})
                                 </div>
                             </draggable>
                         </div>
                     </div>
-                    <button class="rule-remove-button" @click="removeRule(index)">remove</button>
+                    <div class="rule-button-group">
+                        <div class="arrow-buttons">
+                            <button class="rule-arrow-button" @click="moveRuleUp(index)" :disabled="index === 0">
+                                <i class="fas fa-arrow-up"></i>
+                            </button>
+                            <button class="rule-arrow-button" @click="moveRuleDown(index)"
+                                :disabled="index === rules.length - 1">
+                                <i class="fas fa-arrow-down"></i>
+                            </button>
+                        </div>
+                        <button class="rule-edit-button" @click="toggleEditRule(index)">
+                            {{ rule.isEditing ? 'Save' : 'Edit' }}
+                        </button>
+                        <button class="rule-remove-button" @click="removeRule(index)">remove</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -71,6 +108,12 @@
                             @change="showAlertAndAddOutput" />
                         <label for="isVisualization">Visualization Node</label>
                     </div>
+                    <draggable class="script-drag-component" v-model="parameters" @start="drag = true"
+                        @end="drag = false">
+                        <div class="script-drag-parameter" v-for="(param, paramIndex) in parameters" :key="paramIndex">
+                            {{ param.name }} ({{ param.type }})
+                        </div>
+                    </draggable>
                 </div>
 
                 <div class="add-parameter-group">
@@ -79,6 +122,7 @@
                             class="parameter-name" />
                         <select v-model="newParameter.type" class="parameter-type" @change="resetParameterOption">
                             <option value="inputFile">Input File</option>
+                            <option value="optionalInputFile">Input File(Optional)</option>
                             <option value="outputFile">Output File</option>
                             <option v-if="isSelectedH5ad" value="h5adParameter">h5ad Parameter</option>
                             <option value="string">String</option>
@@ -87,7 +131,7 @@
                             <option value="boolean">Boolean</option>
                         </select>
                     </div>
-                    <div v-if="newParameter.type === 'inputFile' || newParameter.type === 'outputFile'"
+                    <div v-if="newParameter.type === 'inputFile' || newParameter.type === 'outputFile' || newParameter.type === 'optionalInputFile'"
                         class="file-inputs">
                         <input type="text" v-model="newParameter.fileExtension" placeholder="File Type"
                             class="file-extension-input" />
@@ -95,6 +139,7 @@
                             class="file-extension-select">
                             <option value="">Enter directly</option>
                             <option value=".h5ad">.h5ad</option>
+                            <option value=".sif">.sif</option>
                             <option value=".txt">.txt</option>
                             <option value=".csv">.csv</option>
                             <option value=".json">.json</option>
@@ -103,14 +148,14 @@
                     <div v-else-if="newParameter.type === 'h5adParameter'" class="col-input-group">
                         <select v-model="newParameter.name" class="file-extension-select">
                             <option value="">Please select h5ad parameter</option>
-                            <option value="cellgroup">cellgroup</option>
+                            <option value="cell group">cell group</option>
                             <option value="clusters">clusters</option>
                             <option value="pseudotime">pseudotime column</option>
                         </select>
                     </div>
                     <div v-else class="col-input-group">
                         <input type="text"
-                            v-if="newParameter.type !== 'inputFile' && newParameter.type !== 'outputFile' && newParameter.type !== 'boolean'"
+                            v-if="newParameter.type !== 'inputFile' && newParameter.type !== 'outputFile' && newParameter.type !== 'optionalInputFile' && newParameter.type !== 'boolean'"
                             v-model="newParameter.defaultValue" placeholder="Default Value"
                             class="default-value-input" />
                         <select v-if="newParameter.type === 'boolean'" v-model="newParameter.defaultValue"
@@ -186,7 +231,10 @@ export default {
             completeRule: '',
             shellCommand: '',
             nodeData: {},
-            rules: [...this.newRules],
+            rules: this.newRules.map(rule => ({
+                ...rule,
+                isEditing: false
+            })),
             drawflow: { ...this.newDrawflow },
             allowRuleEdit: false,
             isVisualization: false,
@@ -338,7 +386,7 @@ export default {
             }
 
             const paramStr = this.parameters.map(p => {
-                if (p.type === 'inputFile' || p.type === 'outputFile') {
+                if (p.type === 'inputFile' || p.type === 'outputFile' || p.type === 'optionalInputFile') {
                     return `${p.defaultValue}(${p.type})`;
                 } else {
                     return `${p.name}(${p.type})`;
@@ -352,10 +400,29 @@ export default {
             this.updateShellCommand();
         },
         updateCompleteRule() {
-            const inputs = this.parameters.filter(p => p.type === 'inputFile').map(p => p.defaultValue).join(', ');
-            const outputs = this.parameters.filter(p => p.type === 'outputFile').map(p => p.defaultValue).join(', ');
+            // inputFile과 outputFile 타입의 요소를 필터링 후 defaultValue를 가져옴
+            const inputs = this.parameters
+                .filter(p => p.type === 'inputFile' || p.type === 'optionalInputFile')
+                .map(p => p.defaultValue)
+                .join(', ');
 
-            this.completeRule = `rule ${this.ruleTitle}:\n  input: ${inputs}\n  output: ${outputs}\n  shell:\n    "${this.shellCommand}"`;
+            const outputs = this.parameters
+                .filter(p => p.type === 'outputFile')
+                .map(p => p.defaultValue)
+                .join(', ');
+
+            // inputFile, outputFile 제외한 나머지 요소들의 defaultValue 가져오기
+            const params = this.parameters
+                .filter(p => p.type !== 'inputFile' && p.type !== 'outputFile' && p.type !== 'optionalInputFile')
+                .map(p => `${p.name}(${p.type})`)
+                .join(', ');
+
+            // completeRule을 구성
+            this.completeRule = `rule ${this.ruleTitle}:\n` +
+                `  input: ${inputs}\n` +
+                `  output: ${outputs}\n` +
+                `  params: ${params}\n` +
+                `  shell:\n`;
         },
         addParameter() {
             if (!this.scriptFile) {
@@ -368,7 +435,7 @@ export default {
             }
             const newParam = { ...this.newParameter }; // 객체 복사
             // newParam.name, newParam.defaultValue 둘 중에 하나라도 비어있으면 추가하지 않음
-            if (newParam.type === 'inputFile' || newParam.type === 'outputFile') {
+            if (newParam.type === 'inputFile' || newParam.type === 'outputFile' || newParam.type === 'optionalInputFile') {
                 newParam.defaultValue = newParam.name + newParam.fileExtension;
             }
             if (!newParam.name) {
@@ -415,7 +482,7 @@ export default {
                 return;
             }
 
-            const inputFiles = this.parameters.filter(p => p.type === 'inputFile').map(p => p.defaultValue);
+            const inputFiles = this.parameters.filter(p => p.type === 'inputFile' || p.type === 'optionalInputFile').map(p => p.defaultValue);
             const outputFiles = this.parameters.filter(p => p.type === 'outputFile').map(p => p.defaultValue);
 
             // Check if any required data is empty
@@ -480,7 +547,7 @@ export default {
         },
         generateShellCommand(rule) {
             const paramStr = rule.parameters.map(p => {
-                if (p.type === 'inputFile' || p.type === 'outputFile') {
+                if (p.type === 'inputFile' || p.type === 'outputFile' || p.type === 'optionalInputFile') {
                     return `${p.defaultValue}(${p.type})`;
                 } else {
                     return `${p.name}(${p.type}:${p.defaultValue})`;
@@ -656,6 +723,28 @@ export default {
                 }
             }
         },
+        toggleEditRule(index) {
+            this.$set(this.rules, index, {
+                ...this.rules[index],
+                isEditing: !this.rules[index].isEditing
+            });
+        },
+        moveRuleUp(index) {
+            if (index > 0) {
+                const temp = this.rules[index];
+                this.$set(this.rules, index, this.rules[index - 1]);
+                this.$set(this.rules, index - 1, temp);
+                this.emitRules();
+            }
+        },
+        moveRuleDown(index) {
+            if (index < this.rules.length - 1) {
+                const temp = this.rules[index];
+                this.$set(this.rules, index, this.rules[index + 1]);
+                this.$set(this.rules, index + 1, temp);
+                this.emitRules();
+            }
+        },
     },
 };
 </script>
@@ -774,21 +863,6 @@ export default {
 
 .rule-item strong {
     margin-right: 5px;
-}
-
-.rule-remove-button {
-    /* red button */
-    background-color: rgb(204, 0, 0);
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-top: 0.5rem;
-}
-
-.rule-remove-button:hover {
-    background-color: #ff5c5c;
 }
 
 img {
@@ -910,13 +984,13 @@ img {
     border-radius: 4px;
     padding: 10px;
     width: 100%;
-    height: 7.5rem;
+    height: 9.5rem;
     /* 기본 높이 설정 */
     margin-bottom: 1rem;
     font-size: 0.9rem;
     line-height: 1.4rem;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: auto;
     position: relative;
 }
 
@@ -926,7 +1000,7 @@ img {
     gap: 0.5rem
 }
 
-.script-drag-componenet {
+.script-drag-component {
     display: flex;
     align-items: center;
     gap: 0.5rem
@@ -1161,5 +1235,72 @@ img {
     background: #ffffff;
     border: 2px solid #000000;
     border-radius: 50px;
+}
+
+.rule-button-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    align-items: center;
+}
+
+.rule-edit-button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.rule-edit-button:hover {
+    background-color: #45a049;
+}
+
+.rule-remove-button {
+    /* red button */
+    background-color: rgb(204, 0, 0);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.rule-remove-button:hover {
+    background-color: #ff5c5c;
+}
+
+.arrow-buttons {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.rule-arrow-button {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.rule-arrow-button:hover:not(:disabled) {
+    background-color: #5a6268;
+}
+
+.rule-arrow-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.edit-input {
+    background: transparent;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: inherit;
+    width: auto;
+    min-width: 50px;
 }
 </style>

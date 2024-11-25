@@ -26,6 +26,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - db
     restart: always
@@ -50,23 +51,28 @@ services:
       - "5672:5672"
     environment:
       - TZ=Asia/Seoul
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     restart: always
 
   celery:
-    environment:
-      - CONDA_DEFAULT_ENV=snakemake
-      - C_FORCE_ROOT=true
-      - TZ=Asia/Seoul
-    ipc: host
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.dev.celery
-    volumes:
-      - ./backend:/app
-    depends_on:
-      - rabbitmq
-      - db
-    restart: always
-
+      environment:
+        - CONDA_DEFAULT_ENV=snakemake
+        - C_FORCE_ROOT=true
+        - TZ=Asia/Seoul
+      ipc: host
+      build:
+        context: ./backend
+        dockerfile: Dockerfile.dev.celery
+      volumes:
+        - ./backend:/app
+      depends_on:
+        - rabbitmq
+        - db
+      deploy:
+        resources:
+          limits:
+            cpus: '44'
+      restart: always
 volumes:
   postgres_data:

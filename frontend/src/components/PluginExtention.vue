@@ -28,6 +28,8 @@ import PluginInformation from "@/components/pluginComponents/PluginInformation.v
 import PluginFlowchart from "@/components/pluginComponents/PluginFlowchart.vue";
 import PluginValidation from "@/components/pluginComponents/PluginValidation.vue";
 
+import { getPluginFile } from "@/api/index";
+
 export default {
   props: {
     editName: {
@@ -74,6 +76,48 @@ export default {
     PluginInformation,
     PluginFlowchart,
     PluginValidation,
+  },
+  async mounted() {
+    const dependencies = Object.keys(this.plugin.dependencyFiles);
+    let dependencyFiles = [];
+    if (dependencies.length > 0) {
+      console.log(dependencies);
+      for (let i = 0; i < dependencies.length; i++) {
+        const dependency = dependencies[i];
+        const file_info = {
+          plugin_name: this.editName,
+          file_name: dependency
+        }
+        const response = await getPluginFile(file_info);
+        const fileBlob = response.data;
+        const file = new File([fileBlob], dependency, { type: fileBlob.type });
+
+        dependencyFiles.push({
+          file: file,
+          fileName: dependency,
+          type: dependency
+        });
+      }
+      
+      this.plugin.dependencyFiles = dependencyFiles;
+    }
+    if (this.rules.length > 0) {
+      console.log(this.rules);
+      // this.rules를 순회하면서 script가 string type일 경우, getPluginFile을 활용해서 파일을 가져온다.
+      for (let i = 0; i < this.rules.length; i++) {
+        if (typeof this.rules[i].script === 'string') {
+          const file_info = {
+            plugin_name: this.editName,
+            file_name: this.rules[i].script
+          }
+          const response = await getPluginFile(file_info);
+          const fileBlob = response.data;
+          const file = new File([fileBlob], this.rules[i].script, { type: fileBlob.type });
+
+          this.rules[i].script = file;
+        }
+      }
+    }
   },
   methods: {
     prevStep() {

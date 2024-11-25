@@ -8,7 +8,7 @@
                 <img class="control-bar__icon" src="@/assets/control_save.png" />
             </li>
             <li class="control-bar__button">
-                <button class="run_button" @click="runWorkflow">
+                <button class="run_button" @click="activateCompileCheck">
                     <img class="control-bar__icon" src="@/assets/control_run.png" />
                 </button>
             </li>
@@ -45,8 +45,8 @@ export default {
         saveWorkflowProject() {
             this.$emit('save-workflow-project');
         },
-        runWorkflow() {
-            this.$emit('run-workflow');
+        activateCompileCheck() {
+            this.$emit('activate-compile-check');
         },
         toggleTask() {
             this.$emit('toggle-task');

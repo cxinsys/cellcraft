@@ -17,6 +17,11 @@ __pycache__/
 
 /user/*
 /plugin/*
+/lightning_logs/*
+
+renv/
+.Rprofile
+Rplots.pdf
 
 .env
 .env.development.local

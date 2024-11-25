@@ -153,9 +153,9 @@ export default {
 
 .nodeTitleBox {
     margin-top: 0.2rem;
-    width: 8rem;
+    width: 12rem;
     height: 1.5rem;
-    left: calc(50% - 4rem);
+    left: calc(50% - 6rem);
     display: flex;
     position: absolute;
     align-items: center;

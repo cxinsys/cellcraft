@@ -1,60 +1,72 @@
 <template>
-    <div class="control-popup__jobs" v-if="show_jobs">
-        <table class="control-popup__table">
-            <thead>
-                <tr>
-                    <th>No.</th>
-                    <th>Name</th>
-                    <th>Start</th>
-                    <th>End</th>
-                    <th>Running time</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="(task, index) in taskList" :key="index">
-                    <td>{{ index + 1 }}</td>
-                    <td>{{ task.title | titleNone }}</td>
-                    <td>{{ task.start_time | formatDateTime }}</td>
-                    <td>{{ task.end_time | formatDateTime }}</td>
-                    <td>{{ task.running_time }}</td>
-                    <td class="task-status">
-                        <div class="status-box__red" v-if="
-                            task.status === 'FAILURE' ||
-                            task.status === 'REVOKED' ||
-                            task.status === 'RETRY'
-                        "></div>
-                        <div class="status-box__yellow" v-if="task.status === 'RUNNING'"></div>
-                        <div class="status-box__green" v-if="task.status === 'SUCCESS'"></div>
-                        {{ task.status }}
-                    </td>
-                    <td>
-                        <img v-if="task.status === 'RUNNING'" @click="cancelTask(task.task_id)"
-                            class="control-bar__icon" src="@/assets/multiply.png" />
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+  <div class="control-popup__jobs" v-if="show_jobs">
+    <table class="control-popup__table">
+      <thead>
+        <tr>
+          <th>No.</th>
+          <th>Name</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Time</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(task, index) in taskList" :key="index">
+          <td>{{ index + 1 }}</td>
+          <td>{{ task.title | titleNone }}</td>
+          <td>{{ task.start_time | formatDateTime }}</td>
+          <td>{{ task.end_time | formatDateTime }}</td>
+          <td>{{ task.running_time }}</td>
+          <td class="task-status">
+            <div class="status-box__red" v-if="
+              task.status === 'FAILURE' ||
+              task.status === 'REVOKED' ||
+              task.status === 'RETRY'
+            "></div>
+            <div class="status-box__yellow" v-if="
+              task.status === 'RUNNING' ||
+              task.status === 'PENDING'
+            "></div>
+            <div class="status-box__green" v-if="task.status === 'SUCCESS'"></div>
+            {{ task.status }}
+          </td>
+          <td>
+            <img v-if="task.status === 'RUNNING' || task.status === 'PENDING'" @click="cancelTask(task.task_id)"
+              class="control-bar__icon" src="@/assets/multiply.png" />
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </template>
 
 <script>
+import moment from "moment";
+
 export default {
-    props: {
-        show_jobs: {
-            type: Boolean,
-            required: true
-        },
-        taskList: {
-            type: Array,
-            required: true
-        }
+  props: {
+    show_jobs: {
+      type: Boolean,
+      required: true
     },
-    methods: {
-        cancelTask(taskId) {
-            this.$emit('cancel-task', taskId);
-        }
+    taskList: {
+      type: Array,
+      required: true
     }
+  },
+  methods: {
+    cancelTask(taskId) {
+      this.$emit('cancel-task', taskId);
+    }
+  },
+  filters: {
+    formatDateTime(dateTime) {
+      const date = moment(dateTime).format("MMMM Do, HH:mm");
+      if (date === "Invalid date") return "Not Yet Completed";
+      return date;
+    },
+  },
 };
 </script>
 
@@ -78,6 +90,7 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
 .control-popup__jobs {
   max-width: 720px;
   max-height: 540px;
@@ -88,6 +101,7 @@ export default {
   border-radius: 16px;
   /* or whatever radius you prefer */
 }
+
 .control-popup__jobs::-webkit-scrollbar {
   width: 10px;
   /* width of the entire scrollbar */
@@ -160,15 +174,18 @@ export default {
 }
 
 .status-box__red {
-  background-color: red;
+  background-color: #ff4444;
+  /* 더 선명한 빨간색 */
 }
 
 .status-box__green {
-  background-color: green;
+  background-color: #00C851;
+  /* 더 선명한 초록색 */
 }
 
 .status-box__yellow {
-  background-color: yellow;
+  background-color: #ffbb33;
+  /* 더 선명한 노란색 */
 }
 
 .progress-bar {
@@ -184,5 +201,11 @@ export default {
   background-color: #3a98fc;
   transition: width 0.3s;
   border-radius: 10px;
+}
+
+.control-bar__icon {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
 }
 </style>

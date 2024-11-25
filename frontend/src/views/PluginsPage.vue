@@ -19,7 +19,7 @@
         </div>
       </div>
     </div>
-    <PluginExtention v-if="showPluginExtension" @close="showPluginExtension = false" :editName="selectedPlugin.name"
+    <PluginExtention v-if="showPluginExtension" @close="closePluginExtension" :editName="selectedPlugin.name"
       :editDescription="selectedPlugin.description" :editDependencies="selectedPlugin.dependencies"
       :editDrawflow="selectedPlugin.drawflow" :editRules="selectedPlugin.rules" />
     <table>
@@ -97,20 +97,7 @@ export default {
   },
   async mounted() {
     try {
-      const profile = await getUser();
-      this.profile = profile.data;
-
-      const plugins = await getPlugins();
-      console.log(plugins.data.plugins);
-      const currentUser = this.profile.username;
-
-      this.plugins = plugins.data.plugins.map(plugin => {
-        const userIncluded = plugin.users.some(user => user.username === currentUser);
-        return {
-          ...plugin,
-          checked: userIncluded,
-        };
-      });
+      await this.getUserAssociatePlugins();
     } catch (error) {
       console.error(error);
     }
@@ -123,6 +110,15 @@ export default {
     },
   },
   methods: {
+    async closePluginExtension() {
+      this.showPluginExtension = false;
+      // extension 완료했으니, 다시 plugin list를 불러옵니다.
+      try {
+        await this.getUserAssociatePlugins();
+      } catch (error) {
+        console.error(error);
+      }
+    },
     getCurrentDateString() {
       const today = new Date();
       const year = today.getFullYear();
@@ -145,6 +141,26 @@ export default {
     editPluginExtension(plugin) {
       this.selectedPlugin = plugin;
       this.showPluginExtension = true;
+    },
+    async getUserAssociatePlugins() {
+      try {
+        const profile = await getUser();
+        this.profile = profile.data;
+
+        const plugins = await getPlugins();
+        console.log(plugins.data.plugins);
+        const currentUser = this.profile.username;
+
+        this.plugins = plugins.data.plugins.map(plugin => {
+          const userIncluded = plugin.users.some(user => user.username === currentUser);
+          return {
+            ...plugin,
+            checked: userIncluded,
+          };
+        });
+      } catch (error) {
+        console.error(error);
+      }
     },
     async handlePluginAssociate(plugin) {
       const pluginId = parseInt(plugin.id);
@@ -278,9 +294,9 @@ button:disabled {
 }
 
 .add__button {
-  width: 9rem;
+  min-width: 8rem;
   height: 2rem;
-  padding: 0.2rem;
+  padding: 0.2rem 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;

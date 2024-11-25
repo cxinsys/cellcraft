@@ -87,12 +87,32 @@ def filter_and_add_suffix(input_string):
     # 밑줄이 없는 경우, 원래 문자열을 반환
     return input_string
 
-def change_snakefile_parameter(snakefile_path, output_path, user_input):
+def change_snakefile_parameter(snakefile_path, output_path, user_input, plugin_params):
     # 기존 Snakefile 읽기
     with open(snakefile_path, 'r') as file:
         content = file.read()
 
+    # user_input의 값을 문자열로 변환해서 처리
     for key, value in user_input.items():
+        if isinstance(value, str):
+            content = content.replace(f"{{{key}}}", value)
+
+    # user_input의 값을 문자열로 변환해서 처리
+    for key, value in plugin_params.items():
+        # 리스트인 경우, []로 감싸고 쉼표로 구분된 문자열로 변환
+        if isinstance(value, list):
+            value = "[" + ", ".join(f"\"{v}\"" if isinstance(v, str) else str(v) for v in value) + "]"
+        # 딕셔너리인 경우, {}로 감싸고 키:값 쌍을 쉼표로 구분된 문자열로 변환
+        elif isinstance(value, dict):
+            value = '{' + ', '.join(f"{k}: \"{v}\"" if isinstance(v, str) else f"{k}: {v}" for k, v in value.items()) + '}'
+        # 숫자형(int, float)은 그대로 사용
+        elif isinstance(value, (int, float)):
+            value = str(value)
+        # 문자열인 경우, " "로 감싸줌
+        elif isinstance(value, str):
+            value = f"\"{value}\""
+
+        # 변환된 값을 content에 반영
         content = content.replace(f"{{{key}}}", value)
 
     # 새로운 Snakefile 생성

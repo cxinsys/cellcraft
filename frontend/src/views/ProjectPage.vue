@@ -83,18 +83,6 @@
         </ul>
       </div>
     </div>
-    <div v-if="isSelectModalVisible" class="plugin-select-modal">
-      <div class="plugin-select-modal__content">
-        <!-- <span class="close" @click="closeSelectModal">&times;</span> -->
-        <h2>Select a Plugin Template</h2>
-        <ul>
-          <li class="plugin-item" v-for="plugin in plugins" :key="plugin.id" @click="selectPlugin(plugin)">
-            {{ plugin.name }}
-            <span class="arrow">→</span>
-          </li>
-        </ul>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -127,14 +115,16 @@ export default {
     },
     openWorkflow(workflow_id) {
       if (workflow_id) {
+        const workflow_id_str = workflow_id.toString();
         this.$router.push({
           path: "/workflow",
-          query: { workflow_id: workflow_id },
+          query: { workflow_id: workflow_id_str },
         });
       } else {
+        const workflow_id_str = this.workflow_id.toString();
         this.$router.push({
           path: "/workflow",
-          query: { workflow_id: this.workflow_id },
+          query: { workflow_id: workflow_id_str },
         });
       }
     },
@@ -245,7 +235,7 @@ export default {
   },
   computed: {
     filteredPlugins() {
-      return this.plugins.filter(plugin => plugin.checked);
+      return this.plugins.filter((plugin) => plugin.checked === true);
     },
     filteredMessageContent() {
       return this.messageContent.split(".").filter(Boolean);

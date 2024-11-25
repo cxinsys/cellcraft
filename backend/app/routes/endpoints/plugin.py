@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import os
 from typing import List
@@ -20,14 +21,28 @@ def validate_plugin(
     current_user: models.User = Depends(dep.get_current_active_user)
     ):
     try:
-        print(plugin_data)
+        # print(plugin_data)
 
         # Simulate validation process taking 5 seconds
-        time.sleep(5)
+        print(plugin_data.rules)
 
         # Convert PluginInfo.dependencyFiles to a dictionary
         dependencies_dict = {dep.fileName: dep.file for dep in plugin_data.plugin.dependencyFiles}
-        rules_dict = {index: rule for index, rule in enumerate(plugin_data.rules)}
+        rules_dict = {
+            index: {
+                "name": rule.name,
+                "input": rule.input,
+                "output": rule.output,
+                "script": rule.script,
+                "parameters": rule.parameters,
+                "nodeId": rule.nodeId,
+                "isVisualization": rule.isVisualization
+            }
+            for index, rule in enumerate(plugin_data.rules)
+        }
+
+        # rules_dict의 요소들의 isVisualization 값만 출력하기
+        print(rules_dict)
 
         # Convert PluginData to PluginCreate
         plugin_upload_data = PluginCreate(
@@ -39,6 +54,8 @@ def validate_plugin(
             drawflow=plugin_data.drawflow,
             rules=rules_dict,
         )
+
+        print(plugin_upload_data.rules)
 
         # Collect scripts from rules
         scripts = [rule.script for rule in plugin_data.rules if rule.script]
@@ -58,7 +75,32 @@ def upload_plugin(
         plugin_folder = f"./plugin/{plugin_data.name}/"
         dependency_folder = os.path.join(plugin_folder, "dependency")
 
-        # 중복 검사
+         # 1. 플러그인 폴더 및 의존성 폴더 생성
+        plugin_utils.create_plugin_folder(plugin_folder)
+        plugin_utils.create_dependency_folder(dependency_folder, plugin_data.dependencies)
+        
+        # 2. 메타데이터 생성
+        metadata = {
+            "name": plugin_data.name,
+            "author": plugin_data.author,
+            "description": plugin_data.description,
+            "drawflow": plugin_data.drawflow,
+            "rules": plugin_data.rules
+        }
+        plugin_utils.create_metadata_file(plugin_folder, metadata)
+        
+        # 3. Snakefile 생성
+        plugin_utils.generate_snakemake_code(plugin_data.rules, plugin_folder)
+
+        # 4. 의존성 설치
+        # requirements.txt, environment.yml, renv.lock 파일을 확인 후 설치
+        # for dependency_file in ['requirements.txt', 'environment.yml', 'environment.yaml', 'renv.lock']:
+        #     dependency_file_path = os.path.join(dependency_folder, dependency_file)
+        #     if os.path.exists(dependency_file_path):
+        #         print(f"Installing dependencies from {dependency_file}...")
+        #         plugin_utils.install_dependencies(dependency_file_path)
+
+        # 5. 중복 검사 및 플러그인 생성 또는 업데이트
         db_existing_plugin = db.query(models.Plugin).filter(models.Plugin.name == plugin_data.name).first()
         if db_existing_plugin:
             # 중복된 경우 업데이트
@@ -67,52 +109,14 @@ def upload_plugin(
             # 중복되지 않은 경우 새로운 플러그인 생성
             db_plugin = crud_plugin.create_plugin(db=db, plugin=plugin_data)
 
-        # 플러그인 폴더 생성
-        if not os.path.exists(plugin_folder):
-            os.makedirs(plugin_folder)
-        
-        # dependency 폴더 생성
-        if not os.path.exists(dependency_folder):
-            os.makedirs(dependency_folder)
-        
-        # 디버깅: plugin_data.dependencies 데이터 형식 확인
-        print("Dependencies:", plugin_data.dependencies)
-        if plugin_data.dependencies is None:
-            plugin_data.dependencies = {}
-        elif isinstance(plugin_data.dependencies, dict):
-            # dependency 파일 생성
-            for file_name, file_content in plugin_data.dependencies.items():
-                dep_path = os.path.join(dependency_folder, file_name)
-                with open(dep_path, 'w') as f:
-                    f.write(file_content)
-        else:
-            print("Error: dependencies should be a dictionary. Found type:", type(plugin_data.dependencies))
-            raise HTTPException(status_code=400, detail="Invalid dependencies format")
-        
-        # metadata.json 파일 생성
-        metadata = {
-            "name": plugin_data.name,
-            "author": plugin_data.author,
-            "description": plugin_data.description,
-            "drawflow": plugin_data.drawflow,
-            "rules": plugin_data.rules
-        }
-        metadata_path = os.path.join(plugin_folder, "metadata.json")
-        with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=4)
-
-        # 디버깅: plugin_data.rules 데이터 형식 확인
-        print("Rules:", plugin_data.rules)
-        if not isinstance(plugin_data.rules, dict):
-            print("Error: rules should be a dictionary. Found type:", type(plugin_data.rules))
-            raise HTTPException(status_code=400, detail="Invalid rules format")
-
-        # Snakefile 생성
-        snakefile_path = os.path.join(plugin_folder, "Snakefile")
-        plugin_utils.generate_snakemake_code(plugin_data.rules, snakefile_path)
-
         return { "message": "Plugin data uploaded", "plugin": db_plugin }
     except Exception as e:
+        # 에러 발생 시 업로드된 파일이 있는 경우 삭제
+        if os.path.exists(plugin_folder):
+            for file in os.listdir(plugin_folder):
+                file_path = os.path.join(plugin_folder, file)
+                os.remove(file_path)
+
         raise HTTPException(status_code=500, detail=str(e))
     
 @router.post("/upload_scripts")
@@ -129,6 +133,11 @@ def upload_scripts(
         # 폴더가 없으면 생성
         if not os.path.exists(plugin_folder):
             os.makedirs(plugin_folder)
+        else:
+            # 폴더가 이미 존재하는 경우 기존 파일 삭제
+            for file in os.listdir(plugin_folder):
+                file_path = os.path.join(plugin_folder, file)
+                os.remove(file_path)
 
         # 파일 저장
         for file in files:
@@ -141,6 +150,34 @@ def upload_scripts(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+@router.get("/file/{plugin_name}/{file_name}")
+def get_plugin_file(
+    plugin_name: str,
+    file_name: str,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    try:
+        # 폴더 경로
+        base_folder_path = f"./plugin/{plugin_name}"
+        
+        # 폴더 안에 dependency 폴더, scripts 폴더
+        dependency_folder_path = os.path.join(base_folder_path, "dependency")
+        scripts_folder_path = os.path.join(base_folder_path, "scripts")
+
+        # os.path.isfile(file_path)를 사용해서 각 폴더 내에 file_name에 해당하는 파일이 있는지 확인 후, 파일 경로 설정
+        file_path = None
+        if os.path.isfile(os.path.join(base_folder_path, file_name)):
+            file_path = os.path.join(base_folder_path, file_name)
+        elif os.path.isfile(os.path.join(dependency_folder_path, file_name)):
+            file_path = os.path.join(dependency_folder_path, file_name)
+        elif os.path.isfile(os.path.join(scripts_folder_path, file_name)):
+            file_path = os.path.join(scripts_folder_path, file_name)
+
+        return FileResponse(file_path, filename=file_name)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/list")
 def list_plugins(
     *,
@@ -165,7 +202,26 @@ def list_plugins(
         return {"plugins": plugin_list}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+# plugin_name을 받아서 해당 플러그인의 정보를 반환
+@router.get("/info/{plugin_name}")
+def get_plugin_info(
+    *,
+    plugin_name: str,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    try:
+        # Get the plugin by name
+        plugin = crud_plugin.get_plugin_by_name(db, plugin_name)
+        
+        if plugin is None:
+            raise HTTPException(status_code=404, detail="Plugin not found")
+        
+        return { "plugin": plugin }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/associate")
 def associate_plugin(
     *,

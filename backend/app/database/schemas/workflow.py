@@ -12,6 +12,13 @@ class WorkflowCreate(WorkflowBase):
     thumbnail: str = None
     workflow_info: Dict = None
 
+class WorkflowUpdate(WorkflowBase):
+    id: int = None
+    current_node_id: str = None
+    title: str = None
+    thumbnail: str = None
+    workflow_info: Dict = None
+
 class WorkflowFind(WorkflowBase):
     id: int
 

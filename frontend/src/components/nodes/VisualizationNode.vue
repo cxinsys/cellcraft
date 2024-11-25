@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="nodeBox" ref="nodeBox">
-      <img class="nodeBox__icon" src="@/assets/Visualize_logo.png" draggable="false" />
+      <img class="nodeBox__icon" src="@/assets/Visualization_logo.png" draggable="false" />
     </div>
     <div class="nodeTitleBox">
       <input type="text" class="nodeTitle" v-model="nodeTitle" @input="updateTitle" df-title />
@@ -31,10 +31,10 @@ export default {
     nodeTitle: {
       get() {
         if (this.nodeId == null) {
-          return "Visualize"; // 또는 기본 타이틀 반환
+          return "Visualization";
         }
         const node = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
-        return node.data.title;
+        return node.data.title.replace('.json', '');
       },
       set(newTitle) {
         this.updateWorkflowNodeTitle({ nodeId: this.nodeId, newTitle });

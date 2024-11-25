@@ -6,9 +6,43 @@ import time
 from typing import List
 from billiard import Pool, cpu_count
 import amqp
+from functools import partial
+import threading
 
 from app.common.utils.snakemake_utils import snakemakeProcess
+from app.common.utils.plugin_utils import install_dependencies
 from app.database.crud.crud_task import start_task, end_task
+
+# 통합된 리소스 카운터
+class ResourceCounter:
+    def __init__(self, max_total_tasks, max_gpu_tasks):
+        self.max_total_tasks = max_total_tasks
+        self.max_gpu_tasks = max_gpu_tasks
+        self.current_total_tasks = 0
+        self.current_gpu_tasks = 0
+        self._lock = threading.Lock()
+    
+    def acquire(self, use_gpu=False):
+        with self._lock:
+            if self.current_total_tasks >= self.max_total_tasks:
+                return False
+                
+            if use_gpu:
+                if self.current_gpu_tasks >= self.max_gpu_tasks:
+                    return False
+                self.current_gpu_tasks += 1
+            
+            self.current_total_tasks += 1
+            return True
+    
+    def release(self, use_gpu=False):
+        with self._lock:
+            if use_gpu:
+                self.current_gpu_tasks = max(0, self.current_gpu_tasks - 1)
+            self.current_total_tasks = max(0, self.current_total_tasks - 1)
+
+# 통합된 리소스 카운터 인스턴스 생성
+resource_counter = ResourceCounter(max_total_tasks=11, max_gpu_tasks=7)
 
 class MyTask(Task):
     def on_success(self, retval, task_id: str, args, kwargs):
@@ -42,47 +76,58 @@ def configure_worker(conf=None, **kwargs):
     os.environ['CONDA_DEFAULT_ENV'] = 'snakemake'
 
 @shared_task(bind=True, base=MyTask, name="workflow_task:process_data_task")
-def process_data_task(self, username: str, snakefile_path: str, targets: List[str], user_id: int, workflow_id: int):
+def process_data_task(self, username: str, snakefile_path: str, plugin_dependency_path: str, 
+                     targets: List[str], user_id: int, workflow_id: int, 
+                     use_gpu: bool = False):
+    
+    cpu_cores = 1 if use_gpu else 4  # GPU 태스크는 1코어, CPU 태스크는 4코어 사용
 
-    try:
-        print(f'Processing data for user {username}...')
-        print(f'Creating a new process pool with {cpu_count()} processes...')
-        print(f'Targets: {targets}')
-        print(f'Snakefile path: {snakefile_path}')
-
-        p = Pool(cpu_count())
-        snakemake_process = p.apply_async(snakemakeProcess, (targets, snakefile_path))
-        
-        while not snakemake_process.ready():
+    retry_count = 0
+    while retry_count < 50:
+        if resource_counter.acquire(use_gpu):
             try:
-                # Celery 작업의 취소 상태 확인
-                revoked_tasks = self.app.control.inspect().revoked()
-                if revoked_tasks is not None and self.request.id in revoked_tasks.get(self.request.id, []):
-                    print(f"Task {self.request.id} was revoked.")
-                    snakemake_process.terminate()
-                    break
-            except Exception as e:
-                print(f"오류 발생: {e}")
+                print(f'Processing data for user {username}...')
+                print(f'Using {cpu_cores} CPU cores, GPU: {use_gpu}')
 
-        result = snakemake_process.get()
-        p.close()
-        p.join()
+                # 의존성 설치
+                for dependency_file in ['requirements.txt', 'environment.yml', 'environment.yaml', 'renv.lock']:
+                    dependency_file_path = os.path.join(plugin_dependency_path, dependency_file)
+                    if os.path.exists(dependency_file_path):
+                        print(f"Installing dependencies from {dependency_file}...")
+                        install_dependencies(dependency_file_path)
 
-        if result["returncode"] != 0:
-            raise RuntimeError(f"Snakemake process failed: {result['stderr']}")
+                # CPU 코어 수에 맞게 Pool 생성
+                p = Pool(cpu_cores)
+                snakemake_process = p.apply_async(snakemakeProcess, (targets, snakefile_path))
+                
+                while not snakemake_process.ready():
+                    try:
+                        revoked_tasks = self.app.control.inspect().revoked()
+                        if revoked_tasks is not None and self.request.id in revoked_tasks.get(self.request.id, []):
+                            print(f"Task {self.request.id} was revoked.")
+                            snakemake_process.terminate()
+                            break
+                    except Exception as e:
+                        print(f"오류 발생: {e}")
 
-        print('Data processing complete.')
-        return {"status": "Success", "message": "Processing complete"}
+                result = snakemake_process.get()
+                p.close()
+                p.join()
 
-    except amqp.exceptions.PreconditionFailed as e:
-        print(f"메시지 브로커 연결 오류 발생: {e}")
-        # 메시지 브로커에 재연결 시도
-        try:
-            self.app.connection().ensure_connection(max_retries=3)
-            print("메시지 브로커에 재연결 시도 성공")
-        except Exception as e:
-            print(f"재연결 시도 실패: {e}")
-            raise e
-    except Exception as e:
-        # 오류 발생 시 on_failure 메서드가 자동으로 호출됨
-        raise e
+                if result["returncode"] != 0:
+                    raise RuntimeError(f"Snakemake process failed: {result['stderr']}")
+
+                print('Data processing complete.')
+                return {"status": "Success", "message": "Processing complete"}
+
+            finally:
+                resource_counter.release(use_gpu)
+                break
+        else:
+            retry_count += 1
+            end_time = datetime.now()
+            end_task(user_id, self.request.id, end_time, status='PENDING')
+            self.retry(countdown=10, max_retries=None)
+
+    if retry_count >= 50:
+        raise RuntimeError("Failed to acquire resources after multiple attempts")

@@ -6,24 +6,24 @@
     <div class="options-layout" v-if="!refreshOptionsLayout">
       <input type="text" placeholder="Title" class="options__textInput" @input="titleChangeFunc($event)" />
       <div class="options__item">
-        X - axis&nbsp;
-        <select class="options__item__select" :value="selectedX" @change="setSelectX($event)">
+        <p class="options__title">X - axis</p>
+        <select class="options__item--select" :value="selectedX" @change="setSelectX($event)">
           <option v-for="(item, index) in numList" :key="index" :value="item.value">
             {{ item.name }}
           </option>
         </select>
       </div>
       <div class="options__item">
-        Y - axis&nbsp;
-        <select class="options__item__select" :value="selectedY" @change="setSelectY($event)">
+        <p class="options__title">Y - axis</p>
+        <select class="options__item--select" :value="selectedY" @change="setSelectY($event)">
           <option v-for="(item, index) in numList" :key="index" :value="item.value">
             {{ item.name }}
           </option>
         </select>
       </div>
       <div class="options__item">
-        Group&nbsp;
-        <select class="options__item__select" :value="selectedCluster" @change="setSelectCluster($event)">
+        <p class="options__title">Group</p>
+        <select class="options__item--select" :value="selectedCluster" @change="setSelectCluster($event)">
           <option v-for="(item, index) in clusterList" :key="index" :value="item.value">
             {{ item.name }}
           </option>
@@ -31,14 +31,16 @@
       </div>
 
       <div class="options__item">
-        Marker Size&nbsp;
-        <img class="options__item__button__minus" src="@/assets/button_minus.png" alt="-"
-          v-on:click="markerSizeMinus" />
-        <label class="options__item__degree">{{ markerSize }}</label>
-        <img class="options__item__button__plus" src="@/assets/button_plus.png" alt="-" v-on:click="markerSizePlus" />
+        <p class="options__title">Marker Size</p>
+        <div class="options__buttons">
+          <img class="options__item__button__minus" src="@/assets/button_minus.png" alt="-"
+            v-on:click="markerSizeMinus" />
+          <label class="options__item__degree">{{ markerSize }}</label>
+          <img class="options__item__button__plus" src="@/assets/button_plus.png" alt="-" v-on:click="markerSizePlus" />
+        </div>
       </div>
       <div class="options__item">
-        Download Plot Image&nbsp;
+        <p class="options__title">Download Plot Image</p>
         <img class="downloadPlot_button" src="@/assets/download.png" alt="Save Plot" @click="downloadPlot" />
       </div>
       <div class="options__item">
@@ -491,7 +493,11 @@ export default {
           file_content: this.selectedIndices,
           file_extension: "json",
         });
-        console.log(selectIndicesInfo);
+        console.log(selectIndicesInfo.data);
+        const dataObject = {
+          lasso_file_path: selectIndicesInfo.data.file_path
+        }
+        this.$store.commit("setWorkflowNodeDataObject", { nodeId: this.nodeId, dataObject });
         this.appliedSelectedIndices = this.selectedIndices;
         this.lines = this.lines.filter((_, index) =>
           this.appliedSelectedIndices.includes(index)
@@ -601,78 +607,69 @@ export default {
 .plotly-layout {
   width: 70%;
   height: 95%;
-  /* background-color: blue; */
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  padding: 1rem;
-  margin: 2.5%;
   border-radius: 1rem;
+  margin: 1%;
   box-sizing: border-box;
   background-color: rgb(255, 255, 255);
 }
 
 .options-layout {
-  width: 25%;
+  width: 30%;
   height: 95%;
-  padding-right: 1%;
-  /* background-color: red; */
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   flex-direction: column;
+  gap: 0.5rem;
   z-index: 9997;
 }
 
 .options__textInput {
+  width: 80%;
+  padding: 0.5rem;
   color: black;
-  padding: 5px;
-  left: 10px;
-  border-radius: 10px;
-  border-color: #e7eaff;
+  border-radius: 0.5rem;
+  border: 1px solid #e7eaff;
   font-size: medium;
   text-align: center;
-  margin-bottom: 5px;
 }
 
 .options__item {
-  /* margin: auto; */
-  font-weight: 600;
-  color: rgb(55, 55, 55);
-  /* padding: 2% 0; */
-  left: 10px;
-  margin-top: 15px;
+  width: 90%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.options__item__select {
-  position: absolute;
-  margin-top: -10px;
-  right: 10px;
-  padding: 5px;
+.options__title {
+  font-weight: 600;
+  color: rgb(55, 55, 55);
+}
+
+.options__item--select {
+  width: 8rem;
+  padding: 0.5rem;
   border-radius: 8px;
-  width: 140px;
   border-color: #e7eaff;
   color: #545454;
 }
 
-.options__item__button__minus {
-  position: absolute;
-  right: 80px;
-  width: 15px;
-  height: 15px;
+.options__buttons {
+  width: 7rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
 }
 
-.options__item__button__plus {
-  position: absolute;
-  right: 10px;
-  width: 15px;
-  height: 15px;
-}
-
+.options__item__button__minus,
+.options__item__button__plus,
 .options__item__degree {
-  position: absolute;
-  right: 50px;
+  width: 1rem;
+  height: 1rem;
 }
 
 button {
@@ -759,10 +756,6 @@ input:checked+.slider_button:before {
 }
 
 .downloadPlot_button {
-  position: absolute;
-  /* top: -0.2rem; */
-  right: 1.5rem;
-  margin-top: -0.2rem;
   width: 1.5rem;
   height: 1.5rem;
   opacity: 0.8;
@@ -776,7 +769,7 @@ input:checked+.slider_button:before {
 #apply-button {
   background-color: #2d2fbf;
   /* 버튼 배경색 */
-  width: 8.5rem;
+  width: 9rem;
   color: white;
   /* 글자색 */
   padding: 10px 0px;
@@ -811,7 +804,7 @@ input:checked+.slider_button:before {
 #reset-button {
   background-color: #616161;
   /* 버튼 배경색 */
-  width: 3.5rem;
+  width: 4rem;
   color: white;
   /* 글자색 */
   padding: 10px 0px;
@@ -826,9 +819,7 @@ input:checked+.slider_button:before {
   /* 글자 크기 */
   transition: background-color 0.3s;
   /* 배경색 변경시 트랜지션 효과 */
-  /* margin-left: 10px; */
   margin-right: 0.5rem;
-  box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.4);
 }
 
 #reset-button:hover {
