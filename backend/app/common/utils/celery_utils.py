@@ -41,28 +41,18 @@ def create_celery():
     )
     celery_app.conf.broker_transport_options = {'confirm_publish': True, 'confirm_timeout': 10.0}
 
-    # CPU/GPU 큐 설정 수정
-    celery_app.conf.task_routes = {
-        'workflow_task:process_data_task': {
-            'queue': lambda task, args, kwargs: 'gpu_tasks' if kwargs.get('use_gpu', False) else 'cpu_tasks'
+    # 큐 설정 단순화
+    celery_app.conf.task_queues = {
+        'celery': {
+            'exchange': 'celery',
+            'exchange_type': 'direct',
+            'routing_key': 'celery',
+            'queue_arguments': {'x-max-length': 11}  # 전체 태스크 최대 개수 제한
         }
     }
 
-    # 큐 설정 수정 - exchange type 명시 및 큐별 제한 설정
-    celery_app.conf.task_queues = {
-        'cpu_tasks': {
-            'exchange': 'cpu_tasks',
-            'exchange_type': 'direct',
-            'routing_key': 'cpu_tasks',
-            'queue_arguments': {'x-max-length': 11}  # CPU 태스크 최대 개수 제한
-        },
-        'gpu_tasks': {
-            'exchange': 'gpu_tasks',
-            'exchange_type': 'direct',
-            'routing_key': 'gpu_tasks',
-            'queue_arguments': {'x-max-length': 7}   # GPU 태스크 최대 개수 제한
-        }
-    }
+    # 라우팅 설정 제거 (기본 큐 사용)
+    celery_app.conf.task_routes = None
 
     # 작업자(worker) 동시성 제한 설정 수정
     celery_app.conf.update(

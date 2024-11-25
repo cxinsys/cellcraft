@@ -19,6 +19,10 @@ __pycache__/
 /plugin/*
 /lightning_logs/*
 
+renv/
+.Rprofile
+Rplots.pdf
+
 .env
 .env.development.local
 .env.test.local

@@ -155,9 +155,11 @@ def visualizeData(
                 # user_workflow_visualization_result_path를 target_list에 추가
                 target_list = [user_workflow_visualization_result_path]
 
+                use_gpu = False
+
                 process_task = process_data_task.apply_async(
                     (current_user.username, user_visualization_snakefile_path, plugin_dependency_path, target_list),
-                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id }
+                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id, 'use_gpu': use_gpu }
                 )
 
                 message = "Tasks added to queue"

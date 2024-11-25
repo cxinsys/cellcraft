@@ -13,28 +13,36 @@ from app.common.utils.snakemake_utils import snakemakeProcess
 from app.common.utils.plugin_utils import install_dependencies
 from app.database.crud.crud_task import start_task, end_task
 
-# 전역 리소스 카운터
+# 통합된 리소스 카운터
 class ResourceCounter:
-    def __init__(self, max_tasks):
-        self.max_tasks = max_tasks
-        self.current_tasks = 0
+    def __init__(self, max_total_tasks, max_gpu_tasks):
+        self.max_total_tasks = max_total_tasks
+        self.max_gpu_tasks = max_gpu_tasks
+        self.current_total_tasks = 0
+        self.current_gpu_tasks = 0
         self._lock = threading.Lock()
     
-    def acquire(self):
+    def acquire(self, use_gpu=False):
         with self._lock:
-            if self.current_tasks < self.max_tasks:
-                self.current_tasks += 1
-                return True
-            return False
+            if self.current_total_tasks >= self.max_total_tasks:
+                return False
+                
+            if use_gpu:
+                if self.current_gpu_tasks >= self.max_gpu_tasks:
+                    return False
+                self.current_gpu_tasks += 1
+            
+            self.current_total_tasks += 1
+            return True
     
-    def release(self):
+    def release(self, use_gpu=False):
         with self._lock:
-            self.current_tasks = max(0, self.current_tasks - 1)
+            if use_gpu:
+                self.current_gpu_tasks = max(0, self.current_gpu_tasks - 1)
+            self.current_total_tasks = max(0, self.current_total_tasks - 1)
 
-# CPU 워커용 카운터 (44코어 / 4코어 = 최대 11개 태스크)
-cpu_resource_counter = ResourceCounter(max_tasks=11)
-# GPU 워커용 카운터 (7개 GPU = 최대 7개 태스크)
-gpu_resource_counter = ResourceCounter(max_tasks=7)
+# 통합된 리소스 카운터 인스턴스 생성
+resource_counter = ResourceCounter(max_total_tasks=11, max_gpu_tasks=7)
 
 class MyTask(Task):
     def on_success(self, retval, task_id: str, args, kwargs):
@@ -72,24 +80,14 @@ def process_data_task(self, username: str, snakefile_path: str, plugin_dependenc
                      targets: List[str], user_id: int, workflow_id: int, 
                      use_gpu: bool = False):
     
-    # GPU/CPU 태스크 구분
-    if use_gpu:
-        resource_counter = gpu_resource_counter
-        cpu_cores = 1  # GPU 태스크는 1개 CPU 코어 사용
-        gpu_cores = 1
-        self.request.delivery_info['routing_key'] = 'gpu_tasks'
-    else:
-        resource_counter = cpu_resource_counter
-        cpu_cores = 4  # CPU 태스크는 4개 코어 사용
-        gpu_cores = 0
-        self.request.delivery_info['routing_key'] = 'cpu_tasks'
+    cpu_cores = 1 if use_gpu else 4  # GPU 태스크는 1코어, CPU 태스크는 4코어 사용
 
     retry_count = 0
-    while retry_count < 3:
-        if resource_counter.acquire():
+    while retry_count < 50:
+        if resource_counter.acquire(use_gpu):
             try:
                 print(f'Processing data for user {username}...')
-                print(f'Using {cpu_cores} CPU cores and {gpu_cores} GPU cores')
+                print(f'Using {cpu_cores} CPU cores, GPU: {use_gpu}')
 
                 # 의존성 설치
                 for dependency_file in ['requirements.txt', 'environment.yml', 'environment.yaml', 'renv.lock']:
@@ -123,13 +121,13 @@ def process_data_task(self, username: str, snakefile_path: str, plugin_dependenc
                 return {"status": "Success", "message": "Processing complete"}
 
             finally:
-                resource_counter.release()
+                resource_counter.release(use_gpu)
                 break
         else:
             retry_count += 1
             end_time = datetime.now()
             end_task(user_id, self.request.id, end_time, status='PENDING')
-            self.retry(countdown=60, max_retries=None)
+            self.retry(countdown=10, max_retries=None)
 
-    if retry_count >= 3:
+    if retry_count >= 50:
         raise RuntimeError("Failed to acquire resources after multiple attempts")
