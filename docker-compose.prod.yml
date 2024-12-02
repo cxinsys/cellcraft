@@ -18,6 +18,11 @@ services:
   backend:
     environment:
       - CONDA_DEFAULT_ENV=snakemake
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USERNAME=${POSTGRES_USERNAME}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -25,6 +30,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - web_network
       - backend_network
@@ -34,8 +40,11 @@ services:
     image: postgres:15
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USERNAME}
+      POSTGRES_USERNAME: ${POSTGRES_USERNAME}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      TZ: Asia/Seoul
     expose:
       - "5432"
     volumes:
@@ -43,6 +52,11 @@ services:
     networks:
       - backend_network
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USERNAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: "rabbitmq:management"
@@ -53,15 +67,20 @@ services:
       - backend_network
     restart: always
 
-  celery-cpu:
+  celery:
     environment:
       - CONDA_DEFAULT_ENV=snakemake
       - C_FORCE_ROOT=true
       - TZ=Asia/Seoul
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USERNAME=${POSTGRES_USERNAME}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
     ipc: host
     build:
       context: ./backend
-      dockerfile: Dockerfile.prod.celery
+      dockerfile: Dockerfile.celery
     volumes:
       - ./backend:/app
     depends_on:
@@ -70,30 +89,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '44'
+          cpus: "44"
     restart: always
-    command: bash -c "/opt/conda/envs/snakemake/bin/python -m celery -A app.main.celery worker -Q cpu_tasks -c 11 -n cpu_worker@%h --loglevel=info"
-
-  celery-gpu:
-    environment:
-      - CONDA_DEFAULT_ENV=snakemake
-      - C_FORCE_ROOT=true
-      - TZ=Asia/Seoul
-    ipc: host
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.prod.celery
-    volumes:
-      - ./backend:/app
-    depends_on:
-      - rabbitmq
-      - db
-    deploy:
-      resources:
-        limits:
-          cpus: '7'
-    restart: always
-    command: bash -c "/opt/conda/envs/snakemake/bin/python -m celery -A app.main.celery worker -Q gpu_tasks -c 7 -n gpu_worker@%h --loglevel=info"
+    networks:
+      - backend_network
 
 networks:
   web_network:
