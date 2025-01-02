@@ -9,14 +9,14 @@ services:
       - "8080:8080"
     volumes:
       - ./frontend:/app
-    networks:
-      - web_network
     restart: always
     environment:
+      - TZ=Asia/Seoul
       - VUE_APP_BASE_URL=/api
 
   backend:
     environment:
+      - TZ=Asia/Seoul
       - CONDA_DEFAULT_ENV=snakemake
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USERNAME=${POSTGRES_USERNAME}
@@ -31,9 +31,6 @@ services:
     volumes:
       - ./backend:/app
       - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - web_network
-      - backend_network
     restart: always
 
   db:
@@ -49,8 +46,6 @@ services:
       - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - backend_network
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USERNAME}"]
@@ -60,11 +55,11 @@ services:
 
   rabbitmq:
     image: "rabbitmq:management"
+    environment:
+      - TZ=Asia/Seoul
     expose:
       - "15672"
       - "5672"
-    networks:
-      - backend_network
     restart: always
 
   celery:
@@ -91,12 +86,6 @@ services:
         limits:
           cpus: "44"
     restart: always
-    networks:
-      - backend_network
-
-networks:
-  web_network:
-  backend_network:
 
 volumes:
   postgres_data:
