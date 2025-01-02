@@ -72,7 +72,12 @@ services:
       deploy:
         resources:
           limits:
-            cpus: '44'
+            cpus: '34'
+          reservations:
+            devices:
+              - driver: nvidia
+                count: all
+                capabilities: [gpu]
       restart: always
 volumes:
   postgres_data:

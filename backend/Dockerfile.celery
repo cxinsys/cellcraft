@@ -55,4 +55,4 @@ RUN conda env create -f environment.yml
 COPY . .
 
 # Celery 애플리케이션 실행
-CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "--loglevel=info", "-E", "-Q", "workflow_task"]
+CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "-c", "8", "-n", "worker@%h", "--loglevel=info", "-E", "-Q", "workflow_task"]

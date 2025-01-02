@@ -102,4 +102,3 @@ CREATE INDEX ix_plugins_id ON public.plugins USING btree (id);
 --
 -- PostgreSQL database dump complete
 --
-
