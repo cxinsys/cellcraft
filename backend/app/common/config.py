@@ -34,13 +34,13 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "test"
     SENTRY_DSN: Optional[HttpUrl] = None
     
-    POSTGRES_USERNAME: str = environ.get('POSTGRES_USERNAME')
+    POSTGRES_USER: str = environ.get('POSTGRES_USER')
     POSTGRES_PASSWORD: str = environ.get('POSTGRES_PASSWORD')
     POSTGRES_HOST: str = environ.get('POSTGRES_HOST')
     POSTGRES_PORT: str = environ.get('POSTGRES_PORT')
     POSTGRES_DB: str = environ.get('POSTGRES_DB')
 
-    SQLALCHEMY_DATABASE_URI: str = f"postgresql://{POSTGRES_USERNAME}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+    SQLALCHEMY_DATABASE_URI: str = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
     CELERY_BROKER_URL: str = environ.get("CELERY_BROKER_URL", "amqp://guest:guest@rabbitmq:5672//")
     CELERY_RESULT_BACKEND: str = environ.get("CELERY_RESULT_BACKEND", f"db+{SQLALCHEMY_DATABASE_URI}")

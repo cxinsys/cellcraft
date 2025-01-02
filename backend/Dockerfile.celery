@@ -49,10 +49,10 @@ COPY environment.yml ./
 RUN conda env create -f environment.yml
 
 # R 패키지 설치
-RUN R -e "install.packages(c('ggplot2', 'pheatmap', 'plotly', 'jsonlite'), repos='http://cran.rstudio.com/')"
+# RUN R -e "install.packages(c('ggplot2', 'pheatmap', 'plotly', 'jsonlite'), repos='http://cran.rstudio.com/')"
 
 # 애플리케이션 소스 코드 복사
 COPY . .
 
 # Celery 애플리케이션 실행
-CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "--loglevel=info", "-E", "-Q", "workflow_task"]
+CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "-c", "8", "-n", "worker@%h", "--loglevel=info", "-E", "-Q", "workflow_task"]
