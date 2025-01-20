@@ -28,7 +28,7 @@ import PluginInformation from "@/components/pluginComponents/PluginInformation.v
 import PluginFlowchart from "@/components/pluginComponents/PluginFlowchart.vue";
 import PluginValidation from "@/components/pluginComponents/PluginValidation.vue";
 
-import { getPluginFile } from "@/api/index";
+import { getPluginFile, getPluginReferenceFolders } from "@/api/index";
 
 export default {
   props: {
@@ -67,6 +67,7 @@ export default {
         name: this.editName,
         description: this.editDescription,
         dependencyFiles: this.editDependencies,
+        referenceFolders: []
       },
       drawflow: this.editDrawflow,
       rules: this.editRules
@@ -78,6 +79,14 @@ export default {
     PluginValidation,
   },
   async mounted() {
+    const response = await getPluginReferenceFolders(this.editName);
+
+    // Fetch file content for all files in the folder structure
+    const reference_folders = await this.fetchReferenceFolderFiles(this.editName, response.data.reference_folders);
+    console.log("Updated reference folders with file content:", reference_folders);
+
+    this.plugin.referenceFolders = reference_folders;
+
     const dependencies = Object.keys(this.plugin.dependencyFiles);
     let dependencyFiles = [];
     if (dependencies.length > 0) {
@@ -98,7 +107,7 @@ export default {
           type: dependency
         });
       }
-      
+
       this.plugin.dependencyFiles = dependencyFiles;
     }
     if (this.rules.length > 0) {
@@ -120,6 +129,38 @@ export default {
     }
   },
   methods: {
+    async fetchReferenceFolderFiles(pluginName, referenceFolders) {
+      async function processFolders(pluginName, folders) {
+        for (const folder of folders) {
+          // Process files in the current folder
+          for (const file of folder.files) {
+            try {
+              const file_info = {
+                plugin_name: pluginName,
+                file_name: file.name,
+              };
+              const response = await getPluginFile(file_info); // API call to get file content
+              const fileBlob = response.data;
+
+              // Create a File object and add it to the file object
+              file.file = new File([fileBlob], file.name, { type: fileBlob.type || "text/plain" });
+            } catch (error) {
+              console.error(`Failed to fetch file: ${file.name}`, error);
+            }
+          }
+
+          // Recursively process subfolders
+          if (folder.subFolders && folder.subFolders.length > 0) {
+            await processFolders(pluginName, folder.subFolders);
+          }
+        }
+      }
+
+      // Start processing the top-level reference folders
+      await processFolders(pluginName, referenceFolders);
+      return referenceFolders; // Return updated reference folders
+    },
+
     prevStep() {
       if (this.currentStep > 1) {
         this.emitCurrentStepData();

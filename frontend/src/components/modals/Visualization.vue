@@ -28,13 +28,13 @@
                         {{ resultFile.data.file.name }}
                     </option>
                 </select>
-                <div class="checkbox-wrapper-18 options__item--input" v-else-if="parameter.type === 'inputFile'">
+                <!-- <div class="checkbox-wrapper-18 options__item--input" v-else-if="parameter.type === 'inputFile'">
                     <div class="round">
                         <input type="checkbox" id="checkbox-18" v-model="checkStatuses[parameter.defaultValue]"
                             disabled />
                         <label for="checkbox-18"></label>
                     </div>
-                </div>
+                </div> -->
                 <input type="number" v-if="parameter.type === 'int' || parameter.type === 'float'"
                     class="options__item--input" v-model="parameter.defaultValue" :step="parameter.defaultValue"
                     :min="parameter.min" :max="parameter.max" />
@@ -311,6 +311,7 @@ export default {
                         console.log(parameter.defaultValue);
 
                         this.checkStatuses[parameter.defaultValue] = this.resultFileList.some(resultFile => resultFile.name === parameter.defaultValue);
+                        console.log(this.resultFileList);
 
                         this.disableApplyButton = !Object.values(this.checkStatuses).every(status => status);
                     }

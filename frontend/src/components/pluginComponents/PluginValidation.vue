@@ -13,6 +13,16 @@
                 </li>
             </ul>
             </p>
+            <p><strong>Reference Folders:</strong>
+            <ul>
+                <li v-for="(folder, index) in plugin.referenceFolders" :key="index">
+                    {{ folder.folderName }}
+                    <ul>
+                        <li v-for="(file, i) in folder.files" :key="i">{{ file.name }}</li>
+                    </ul>
+                </li>
+            </ul>
+            </p>
         </div>
         <div class="section rules-info">
             <h3>Rules</h3>
@@ -79,8 +89,9 @@ export default {
             uploadingStep: 0,
         };
     },
-    mounted() {
-        this.processDependencyFiles();
+    async mounted() {
+        await this.processDependencyFiles();
+        await this.processReferenceFolderFiles();
     },
     methods: {
         async processDependencyFiles() {
@@ -90,6 +101,26 @@ export default {
                 }
             });
             await Promise.all(promises);
+        },
+        async processReferenceFolderFiles() {
+            const processFolder = async (folder) => {
+                const filePromises = folder.files.map(async (file, idx) => {
+                    if (file.file instanceof File) {
+                        folder.files[idx] = {
+                            file: await this.readFileContent(file.file),
+                            fileName: file.file.name,
+                            type: file.file.type,
+                        };
+                    }
+                });
+                await Promise.all(filePromises);
+
+                const subFolderPromises = folder.subFolders.map((subFolder) => processFolder(subFolder));
+                await Promise.all(subFolderPromises);
+            };
+
+            const folderPromises = this.plugin.referenceFolders.map((folder) => processFolder(folder));
+            await Promise.all(folderPromises);
         },
         readFileContent(file) {
             return new Promise((resolve, reject) => {

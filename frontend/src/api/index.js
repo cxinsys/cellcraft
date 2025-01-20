@@ -229,6 +229,10 @@ function getPluginFile(file_info) {
   });
 }
 
+function getPluginReferenceFolders(plugin_name) {
+  return instance.get(`/routes/plugin/reference_folders/${plugin_name}`);
+}
+
 function getDataTableFile(vgt_info) {
   return instance.post("/routes/datatable/load_data", vgt_info);
 }
@@ -316,4 +320,5 @@ export {
   getVisualizationResult,
   runVisualization,
   createTaskEventSource,
+  getPluginReferenceFolders,
 };

@@ -12,6 +12,56 @@
       <textarea id="pluginDescription" v-model="plugin.description" rows="4"></textarea>
     </div>
 
+    <!-- 참조 스크립트 폴더 업로드 -->
+    <div class="input-group">
+      <label class="input-group__label">Upload Script Folder:</label>
+      <div class="file-upload">
+        <input type="file" id="scriptFolder" webkitdirectory directory @change="handleScriptFolderUpload"
+          class="file-input" />
+        <label class="file-label" for="scriptFolder">
+          Click to upload a folder
+        </label>
+      </div>
+    </div>
+
+    <div v-if="plugin.referenceFolders.length" class="input-group folder-tree">
+      <nav class="tree-nav">
+        <details v-for="(folder, idx) in plugin.referenceFolders" :key="folder.folderName"
+          class="tree-nav__item is-expandable" :open="toggleFolder === idx" @toggle="toggleFolderState(idx)">
+          <summary class="tree-nav__item-title">
+            <img class="folder__item--icon" src="@/assets/open-folder.png" v-if="toggleFolder === idx"
+              alt="Open Folder" />
+            <img class="folder__item--icon" src="@/assets/folder.png" v-else alt="Closed Folder" />
+            {{ folder.folderName }}
+          </summary>
+          <div class="tree-nav__item">
+            <!-- 하위 폴더 재귀 렌더링 -->
+            <details v-for="(subFolder, subIdx) in folder.subFolders" :key="subIdx" class="tree-nav__item">
+              <summary class="tree-nav__item-title" :style="{ paddingLeft: (subIdx + 1) * 20 + 'px' }">
+                <img class="folder__item--icon" src="@/assets/open-folder.png"
+                  v-if="toggleFolder === idx + '-' + subIdx" alt="Open SubFolder" />
+                <img class="folder__item--icon" src="@/assets/folder.png" v-else alt="Closed SubFolder" />
+                {{ subFolder.folderName }}
+              </summary>
+              <div>
+                <a v-for="file in subFolder.files" :key="file.name" class="tree-nav__item-title"
+                  :style="{ paddingLeft: (subIdx + 2) * 20 + 'px' }">
+                  {{ file.name }}
+                </a>
+              </div>
+            </details>
+            <a v-for="file in folder.files" :key="file.name" class="tree-nav__item-title"
+              :style="{ paddingLeft: '20px' }">
+              {{ file.name }}
+            </a>
+          </div>
+          <button class="tree-nav__item-remove" type="button" @click="removeReferenceFolder(folder.folderName)">
+            Remove
+          </button>
+        </details>
+      </nav>
+    </div>
+
     <!-- 의존성 파일 타입 선택 드롭다운 -->
     <div class="input-group">
       <label class="input-group__label" for="dependencyType">Select Dependency File Type:</label>
@@ -49,9 +99,12 @@ export default {
       plugin: {
         name: '',
         description: '',
+        referenceFolders: [],
         dependencyFiles: [],
       },
+      referenceFolderName: '', // 업로드된 참조 폴더 이름 저장
       selectedDependencyType: '', // 선택한 의존성 파일 타입
+      toggleFolder: null,
     };
   },
   watch: {
@@ -73,12 +126,74 @@ export default {
         if (JSON.stringify(this.plugin.dependencyFiles) !== JSON.stringify(newValue.dependencyFiles)) {
           this.plugin.dependencyFiles = [...newValue.dependencyFiles];
         }
+        if (JSON.stringify(this.plugin.referenceFolders) !== JSON.stringify(newValue.referenceFolders)) {
+          this.plugin.referenceFolders = [...newValue.referenceFolders];
+        }
       },
       deep: true,
       immediate: true
     }
   },
   methods: {
+    toggleFolderState(idx) {
+      // 열려 있으면 닫고, 닫혀 있으면 엽니다.
+      this.toggleFolder = this.toggleFolder === idx ? null : idx;
+    },
+    handleScriptFolderUpload(event) {
+      const files = Array.from(event.target.files); // FileList를 배열로 변환
+
+      // 중첩된 디렉터리 구조로 변환
+      const buildFolderStructure = (files) => {
+        const root = {};
+        files.forEach((file) => {
+          const parts = file.webkitRelativePath.split("/");
+          let current = root;
+          parts.forEach((part, idx) => {
+            if (idx === parts.length - 1) {
+              if (!current.files) current.files = [];
+              current.files.push({
+                name: file.name,
+                file: file,
+                type: file.type,
+              });
+            } else {
+              if (!current[part]) current[part] = { subFolders: [], files: [] };
+              current = current[part];
+            }
+          });
+        });
+        return root;
+      };
+
+      const folderStructure = buildFolderStructure(files);
+
+      // ReferenceFolder 스키마로 변환
+      const convertToReferenceFolders = (folderName, folderData) => {
+        return {
+          folderName,
+          files: folderData.files || [],
+          subFolders: Object.entries(folderData)
+            .filter(([key]) => key !== "files" && key !== "subFolders")
+            .map(([subFolderName, subFolderData]) =>
+              convertToReferenceFolders(subFolderName, subFolderData)
+            ),
+        };
+      };
+
+      const referenceFolders = Object.entries(folderStructure).map(([folderName, folderData]) =>
+        convertToReferenceFolders(folderName, folderData)
+      );
+
+      this.plugin.referenceFolders = referenceFolders;
+
+      this.emitPluginData();
+    },
+
+    removeReferenceFolder(folderName) {
+      this.plugin.referenceFolders = this.plugin.referenceFolders.filter(folder => folder.folderName !== folderName);
+      this.referenceFolderName = '';
+      this.emitPluginData();
+    },
     addDependencyType() {
       if (!this.plugin.dependencyFiles) {
         this.plugin.dependencyFiles = [{ type: this.selectedDependencyType, file: null }];
@@ -161,6 +276,77 @@ export default {
 
 .file-input {
   display: none;
+}
+
+.folder-tree h3 {
+  color: #2d2d2d;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.tree-nav__item {
+  display: block;
+  white-space: nowrap;
+  color: #ccc;
+  position: relative;
+}
+
+.tree-nav details {
+  position: relative;
+}
+
+.tree-nav__item-remove {
+  position: absolute;
+  right: 1rem;
+  top: 0.25rem;
+  cursor: pointer;
+}
+
+/* .tree-nav__item.is-expandable::before {
+  border-left: 1px solid #333;
+  content: "";
+  height: 100%;
+  left: 0.8rem;
+  position: absolute;
+  top: 2.4rem;
+  height: calc(100% - 2.4rem);
+}
+ */
+
+/* .tree-nav__item.is-expandable[open]>.tree-nav__item-title::before {
+  font-family: "ionicons";
+  transform: rotate(90deg);
+} */
+
+.tree-nav__item-title {
+  cursor: pointer;
+  display: block;
+  outline: 0;
+  color: #2d2d2d;
+  font-size: 0.9rem;
+  line-height: 2.5rem;
+  padding: 0 1rem;
+}
+
+.tree-nav__item-title::-webkit-details-marker {
+  display: none;
+}
+
+.tree-nav__item-title:hover {
+  background-color: #f0f0f0;
+}
+
+.folder__item--icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.folder__item--icon.large {
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
 }
 
 input[type="file"] {
