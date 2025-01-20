@@ -106,8 +106,8 @@ def visualizeData(
             # 플러그인 폴더 내의 dependency 폴더에 있는 파일 리스트를 순회하면서 검증
             plugin_dependency_path = f"./plugin/{selected_plugin}/dependency"
 
-            print("extract_algorithm:", extract_algorithm)
-            print("extract_visualization:", extract_visualization)
+            # print("extract_algorithm:", extract_algorithm)
+            # print("extract_visualization:", extract_visualization)
 
             visualization_params, visualization_inputs, visualization_outputs = generate_visualization_params(extract_visualization['selectedVisualizationParams'])
 
@@ -256,7 +256,7 @@ def get_user_workflow(
                 'user_id': item.user_id
             }
             res.append(workflow_res)
-        print(res)
+        # print(res)
         return res
     else:
         raise HTTPException(

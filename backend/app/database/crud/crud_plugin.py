@@ -12,8 +12,9 @@ def get_plugin_by_name(db: Session, name: str):
 def get_plugins(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Plugin).offset(skip).limit(limit).all()
 
-def create_plugin(db: Session, plugin: plugin.PluginCreate):
-    db_plugin = models.Plugin(**plugin.dict())
+def create_plugin(db: Session, plugin: plugin.PluginUpdate):
+    plugin_data = plugin.dict(exclude={"reference_folders"})
+    db_plugin = models.Plugin(**plugin_data)
     db.add(db_plugin)
     db.commit()
     db.refresh(db_plugin)

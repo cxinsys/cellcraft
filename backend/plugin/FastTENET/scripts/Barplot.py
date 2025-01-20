@@ -9,7 +9,7 @@ output_file_path = sys.argv[2]
 top_n = int(sys.argv[3])
 
 # 데이터 로드 및 형식 확인
-df = pd.read_csv(input_file_path, sep='\t', header=None)
+df = pd.read_csv(input_file_path, sep=None, engine='python', header=None)
 
 if len(df.columns) == 3:  # fdrTrim.sif 형식 (3열)
     df.columns = ['Source', 'Weight', 'Target']

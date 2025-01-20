@@ -755,7 +755,6 @@
                     },
                     "33": {
                         "id": 33,
-                        "name": "ruleNode",
                         "data": {
                             "title": "Run",
                             "inputs": [
@@ -764,65 +763,67 @@
                                 "cellSelect.csv",
                                 "TF.txt"
                             ],
+                            "script": {},
                             "outputs": [
                                 "resultMatrix.txt"
                             ],
-                            "script": {},
                             "parameters": [
                                 {
+                                    "max": null,
+                                    "min": null,
                                     "name": "expMatrix",
                                     "type": "inputFile",
                                     "defaultValue": "expMatrix.csv",
-                                    "min": null,
-                                    "max": null,
                                     "fileExtension": ".csv"
                                 },
                                 {
+                                    "max": null,
+                                    "min": null,
                                     "name": "pseudotime",
                                     "type": "inputFile",
                                     "defaultValue": "pseudotime.csv",
-                                    "min": null,
-                                    "max": null,
                                     "fileExtension": ".csv"
                                 },
                                 {
+                                    "max": null,
+                                    "min": null,
                                     "name": "cellSelect",
                                     "type": "inputFile",
                                     "defaultValue": "cellSelect.csv",
-                                    "min": null,
-                                    "max": null,
                                     "fileExtension": ".csv"
                                 },
                                 {
+                                    "max": null,
+                                    "min": null,
                                     "name": "TF",
                                     "type": "optionalInputFile",
                                     "defaultValue": "TF.txt",
-                                    "min": null,
-                                    "max": null,
                                     "fileExtension": ".txt"
                                 },
                                 {
+                                    "max": null,
+                                    "min": null,
                                     "name": "resultMatrix",
                                     "type": "outputFile",
                                     "defaultValue": "resultMatrix.txt",
-                                    "min": null,
-                                    "max": null,
                                     "fileExtension": ".txt"
                                 },
                                 {
+                                    "max": 32,
+                                    "min": 1,
                                     "name": "number of devices",
                                     "type": "int",
                                     "defaultValue": "4",
-                                    "min": 1,
-                                    "max": 32,
                                     "fileExtension": ""
                                 }
                             ],
                             "isVisualization": false
                         },
-                        "class": "ruleNode",
                         "html": "ruleNode",
-                        "typenode": "vue",
+                        "name": "ruleNode",
+                        "class": "ruleNode",
+                        "pos_x": 470,
+                        "pos_y": 80,
                         "inputs": {
                             "input_1": {
                                 "connections": [
@@ -866,8 +867,7 @@
                                 ]
                             }
                         },
-                        "pos_x": 470,
-                        "pos_y": 80
+                        "typenode": "vue"
                     }
                 }
             }

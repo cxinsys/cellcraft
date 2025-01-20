@@ -94,7 +94,14 @@ def process_data_task(self, username: str, snakefile_path: str, plugin_dependenc
                     dependency_file_path = os.path.join(plugin_dependency_path, dependency_file)
                     if os.path.exists(dependency_file_path):
                         print(f"Installing dependencies from {dependency_file}...")
-                        install_dependencies(dependency_file_path)
+                        try:
+                            install_dependencies(dependency_file_path)
+                        except Exception as e:
+                            # 의존성 설치 실패 시 태스크 상태를 FAILURE로 설정
+                            error_message = f"Failed to install dependencies from {dependency_file}: {str(e)}"
+                            print(error_message)
+                            raise RuntimeError(error_message)  # 태스크 실패
+
 
                 # CPU 코어 수에 맞게 Pool 생성
                 p = Pool(cpu_cores)

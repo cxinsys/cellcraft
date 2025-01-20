@@ -3,8 +3,10 @@ import os
 import re
 import subprocess
 import yaml
+import shutil
 from typing import Dict, Any
 import numpy as np
+from fastapi import HTTPException
 
 def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name: str):
     original_data = drawflow_data['drawflow']['Home']['data']
@@ -752,9 +754,12 @@ def install_dependencies(dependency_file_name: str):
             base_packages = ['gtable', 'scales', 'rlang']
             missing_base = [pkg for pkg in base_packages if pkg in missing_packages]
             if missing_base:
-                subprocess.run([rscript_executable, "-e", 
-                    f"install.packages(c('{', '.join(missing_base)}'))"], check=True)
-            
+                package_list = ', '.join([f"'{pkg}'" for pkg in missing_base])  # 각 패키지 이름을 따옴표로 감싸기
+                subprocess.run([
+                    rscript_executable, "-e",
+                    f"install.packages(c({package_list}), repos='https://cloud.r-project.org')"
+                ], check=True)
+                        
             # renv가 없는 경우에만 설치
             if 'renv' in missing_packages:
                 subprocess.run([rscript_executable, "-e", 
@@ -762,7 +767,7 @@ def install_dependencies(dependency_file_name: str):
             
             # renv를 사용하여 패키지 복원
             subprocess.run([rscript_executable, "-e", 
-                f'renv::init(); renv::restore(lockfile = "{dependency_file_path}")'], check=True)
+                f'renv::init(); renv::restore(lockfile = "{dependency_file_path}", prompt = FALSE)'], check=True)
             
         except subprocess.CalledProcessError as e:
             print(f"R 의존성 설치 중 오류 발생: {str(e)}")
@@ -820,6 +825,93 @@ def create_dependency_folder(dependency_folder: str, dependencies: dict):
             print(f"Dependency file created: {dep_path}")
     else:
         raise HTTPException(status_code=400, detail="Invalid dependencies format")
+
+
+def create_reference_folder(script_folder: str, reference_folders: dict):
+    """
+    Create folders and files in the reference folder structure.
+
+    Parameters:
+        script_folder (str): Base path where folders and files will be created.
+        reference_folders (dict): A nested dictionary representing folder and file structures.
+
+    Raises:
+        HTTPException: If the format of reference_folders is invalid.
+    """
+
+    # Check if the script_folder exists, and clear its contents if necessary
+    if os.path.exists(script_folder):
+        shutil.rmtree(script_folder)  # Remove entire folder and its contents
+        print(f"Script folder '{script_folder}' cleared.")
+
+    os.makedirs(script_folder)
+    print(f"Script folder '{script_folder}' created.")
+
+    # Helper function to process folders recursively
+    def process_folder(current_path: str, folder_data: dict):
+        # Separate files and subfolders
+        for name, content in folder_data.items():
+            if isinstance(content, dict):  # It's a subfolder
+                folder_path = os.path.join(current_path, name)
+                if not os.path.exists(folder_path):  # Prevent duplicate creation
+                    os.makedirs(folder_path, exist_ok=True)
+                    print(f"Folder created: {folder_path}")
+                process_folder(folder_path, content)  # Recur into the subfolder
+            else:  # It's a file
+                file_path = os.path.join(current_path, name)
+                with open(file_path, 'w') as f:
+                    f.write(content)
+                print(f"File created: {file_path}")
+
+    # Start processing the reference folder structure
+    process_folder(script_folder, reference_folders)
+
+def get_reference_folders_list(folder_path: str) -> list:
+    """
+    Get a list of folder names in the specified folder path.
+
+    Parameters:
+        folder_path (str): Path to the folder.
+
+    Returns:
+        list: A list of folder names in the specified folder path.
+    """
+    if not os.path.exists(folder_path):
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    return [item for item in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, item))]
+
+
+def get_reference_folder(folder_path: str) -> dict:
+    """
+    Recursively retrieve the structure of a single folder.
+
+    Parameters:
+        folder_path (str): Path to the folder.
+
+    Returns:
+        dict: Folder structure.
+    """
+    if not os.path.exists(folder_path):
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    folder_structure = {
+        "folderName": os.path.basename(folder_path),
+        "files": [],
+        "subFolders": []
+    }
+
+    for item in os.listdir(folder_path):
+        item_path = os.path.join(folder_path, item)
+        if os.path.isfile(item_path):
+            folder_structure["files"].append({
+                "name": item,
+                "type": ""
+            })
+        elif os.path.isdir(item_path):
+            folder_structure["subFolders"].append(get_reference_folder(item_path))
+
+    return folder_structure
 
 def create_metadata_file(plugin_folder: str, metadata: dict):
     """

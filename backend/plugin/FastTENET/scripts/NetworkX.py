@@ -4,6 +4,7 @@ import plotly.graph_objs as go
 import random
 from plotly.colors import qualitative
 import sys
+import pandas as pd
 
 def load_graph(file_path):
     G = nx.DiGraph()
@@ -11,28 +12,28 @@ def load_graph(file_path):
     target_nodes = set()
 
     try:
-        with open(file_path, "r") as file:
-            lines = file.readlines()
-            # 첫 번째 줄로 파일 형식 확인
-            first_line = lines[0].strip().split("\t")
-            
-            if len(first_line) == 3:  # 3열 형식 (source, weight, target)
-                for line in lines:
-                    parts = line.strip().split("\t")
-                    source, weight, target = parts
-                    G.add_edge(source, target, weight=round(float(weight), 4))
-                    source_nodes.add(source)
-                    target_nodes.add(target)
-            
-            elif len(first_line) == 2:  # 2열 형식 (gene, weight)
-                for line in lines:
-                    parts = line.strip().split("\t")
-                    gene, weight = parts
-                    # 노드 추가 (self-loop로 처리)
-                    G.add_node(gene, weight=round(float(weight), 4))
-                    source_nodes.add(gene)
-            else:
-                raise ValueError("입력 파일은 2열 또는 3열 형식이어야 합니다.")
+        # 데이터 읽기 및 구분자 자동 감지
+        df = pd.read_csv(file_path, sep=None, engine="python", header=None)
+
+        # NetworkX 그래프 및 노드/엣지 생성
+        G = nx.DiGraph()
+        source_nodes = set()
+        target_nodes = set()
+
+        if len(df.columns) == 3:  # 3열 형식 (source, weight, target)
+            df.columns = ["source", "weight", "target"]
+            for _, row in df.iterrows():
+                G.add_edge(row["source"], row["target"], weight=round(float(row["weight"]), 4))
+                source_nodes.add(row["source"])
+                target_nodes.add(row["target"])
+
+        elif len(df.columns) == 2:  # 2열 형식 (gene, weight)
+            df.columns = ["gene", "weight"]
+            for _, row in df.iterrows():
+                G.add_node(row["gene"], weight=round(float(row["weight"]), 4))
+                source_nodes.add(row["gene"])
+        else:
+            raise ValueError("입력 파일은 2열 또는 3열 형식이어야 합니다.")
                 
     except FileNotFoundError:
         print(f"File {file_path} not found.")

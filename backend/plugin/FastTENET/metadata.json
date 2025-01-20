@@ -200,19 +200,22 @@
                         },
                         "typenode": "vue"
                     },
-                    "22": {
-                        "id": 22,
+                    "24": {
+                        "id": 24,
                         "data": {
                             "title": "Run",
                             "inputs": [
                                 "expression.csv",
-                                "trajectory.txt",
+                                "trajectory.csv",
                                 "cellSelect.txt",
                                 "TF.txt"
                             ],
                             "script": {},
                             "outputs": [
-                                "resultMatrix.txt"
+                                "resultMatrixFDR.sif",
+                                "resultMatrixFdrTrim.sif",
+                                "resultMatrixFdrOutdegree.txt",
+                                "resultMatrixFdrTrimOutdegree.txt"
                             ],
                             "parameters": [
                                 {
@@ -228,8 +231,8 @@
                                     "min": null,
                                     "name": "trajectory",
                                     "type": "inputFile",
-                                    "defaultValue": "trajectory.txt",
-                                    "fileExtension": ".txt"
+                                    "defaultValue": "trajectory.csv",
+                                    "fileExtension": ".csv"
                                 },
                                 {
                                     "max": null,
@@ -250,116 +253,17 @@
                                 {
                                     "max": null,
                                     "min": null,
-                                    "name": "resultMatrix",
-                                    "type": "outputFile",
-                                    "defaultValue": "resultMatrix.txt",
-                                    "fileExtension": ".txt"
-                                },
-                                {
-                                    "max": null,
-                                    "min": null,
-                                    "name": "backend",
-                                    "type": "string",
-                                    "defaultValue": "gpu",
-                                    "fileExtension": ""
-                                },
-                                {
-                                    "max": 16,
-                                    "min": 1,
-                                    "name": "number of devices",
-                                    "type": "int",
-                                    "defaultValue": "4",
-                                    "fileExtension": ""
-                                },
-                                {
-                                    "max": null,
-                                    "min": 2,
-                                    "name": "batch size",
-                                    "type": "int",
-                                    "defaultValue": "32768",
-                                    "fileExtension": ""
-                                }
-                            ],
-                            "isVisualization": false
-                        },
-                        "html": "ruleNode",
-                        "name": "ruleNode",
-                        "class": "ruleNode",
-                        "pos_x": 534,
-                        "pos_y": 45,
-                        "inputs": {
-                            "input_1": {
-                                "connections": []
-                            },
-                            "input_2": {
-                                "connections": []
-                            },
-                            "input_3": {
-                                "connections": []
-                            },
-                            "input_4": {
-                                "connections": []
-                            }
-                        },
-                        "outputs": {
-                            "output_1": {
-                                "connections": [
-                                    {
-                                        "node": "23",
-                                        "output": "input_1"
-                                    }
-                                ]
-                            }
-                        },
-                        "typenode": "vue"
-                    },
-                    "23": {
-                        "id": 23,
-                        "data": {
-                            "title": "Make GRN",
-                            "inputs": [
-                                "resultMatrix.txt",
-                                "expression.csv",
-                                "TF.txt"
-                            ],
-                            "script": {},
-                            "outputs": [
-                                "resultMatrixFDR.sif",
-                                "resultMatrixFdrOutdegree.txt",
-                                "resultMatrixFdrTrim.sif",
-                                "resultMatrixFdrTrimOutdegree.txt"
-                            ],
-                            "parameters": [
-                                {
-                                    "max": null,
-                                    "min": null,
-                                    "name": "resultMatrix",
-                                    "type": "inputFile",
-                                    "defaultValue": "resultMatrix.txt",
-                                    "fileExtension": ".txt"
-                                },
-                                {
-                                    "max": null,
-                                    "min": null,
-                                    "name": "expression",
-                                    "type": "inputFile",
-                                    "defaultValue": "expression.csv",
-                                    "fileExtension": ".csv"
-                                },
-                                {
-                                    "max": null,
-                                    "min": null,
-                                    "name": "TF",
-                                    "type": "optionalInputFile",
-                                    "defaultValue": "TF.txt",
-                                    "fileExtension": ".txt"
-                                },
-                                {
-                                    "max": null,
-                                    "min": null,
                                     "name": "resultMatrixFDR",
                                     "type": "outputFile",
                                     "defaultValue": "resultMatrixFDR.sif",
+                                    "fileExtension": ".sif"
+                                },
+                                {
+                                    "max": null,
+                                    "min": null,
+                                    "name": "resultMatrixFdrTrim",
+                                    "type": "outputFile",
+                                    "defaultValue": "resultMatrixFdrTrim.sif",
                                     "fileExtension": ".sif"
                                 },
                                 {
@@ -373,14 +277,6 @@
                                 {
                                     "max": null,
                                     "min": null,
-                                    "name": "resultMatrixFdrTrim",
-                                    "type": "outputFile",
-                                    "defaultValue": "resultMatrixFdrTrim.sif",
-                                    "fileExtension": ".sif"
-                                },
-                                {
-                                    "max": null,
-                                    "min": null,
                                     "name": "resultMatrixFdrTrimOutdegree",
                                     "type": "outputFile",
                                     "defaultValue": "resultMatrixFdrTrimOutdegree.txt",
@@ -389,6 +285,30 @@
                                 {
                                     "max": null,
                                     "min": null,
+                                    "name": "backend",
+                                    "type": "string",
+                                    "defaultValue": "gpu",
+                                    "fileExtension": ""
+                                },
+                                {
+                                    "max": null,
+                                    "min": 1,
+                                    "name": "number of devices",
+                                    "type": "int",
+                                    "defaultValue": "4",
+                                    "fileExtension": ""
+                                },
+                                {
+                                    "max": null,
+                                    "min": 2,
+                                    "name": "batch size",
+                                    "type": "int",
+                                    "defaultValue": "32768",
+                                    "fileExtension": ""
+                                },
+                                {
+                                    "max": 1,
+                                    "min": 0,
                                     "name": "FDR",
                                     "type": "float",
                                     "defaultValue": "0.01",
@@ -396,10 +316,10 @@
                                 },
                                 {
                                     "max": null,
-                                    "min": 0,
+                                    "min": 100,
                                     "name": "number of outdegrees",
                                     "type": "int",
-                                    "defaultValue": "0",
+                                    "defaultValue": "1000",
                                     "fileExtension": ""
                                 },
                                 {
@@ -407,7 +327,7 @@
                                     "min": null,
                                     "name": "trimming threshold",
                                     "type": "float",
-                                    "defaultValue": "0",
+                                    "defaultValue": "0.01",
                                     "fileExtension": ""
                                 }
                             ],
@@ -416,21 +336,19 @@
                         "html": "ruleNode",
                         "name": "ruleNode",
                         "class": "ruleNode",
-                        "pos_x": 799,
-                        "pos_y": 165,
+                        "pos_x": 628,
+                        "pos_y": 113,
                         "inputs": {
                             "input_1": {
-                                "connections": [
-                                    {
-                                        "node": "22",
-                                        "input": "output_1"
-                                    }
-                                ]
+                                "connections": []
                             },
                             "input_2": {
                                 "connections": []
                             },
                             "input_3": {
+                                "connections": []
+                            },
+                            "input_4": {
                                 "connections": []
                             }
                         },
@@ -459,14 +377,17 @@
             "name": "Run",
             "input": [
                 "expression.csv",
-                "trajectory.txt",
+                "trajectory.csv",
                 "cellSelect.txt",
                 "TF.txt"
             ],
             "output": [
-                "resultMatrix.txt"
+                "resultMatrixFDR.sif",
+                "resultMatrixFdrTrim.sif",
+                "resultMatrixFdrOutdegree.txt",
+                "resultMatrixFdrTrimOutdegree.txt"
             ],
-            "script": "run_optional_tf.py",
+            "script": "tutorial_for_cellcraft.py",
             "parameters": [
                 {
                     "name": "expression",
@@ -479,10 +400,10 @@
                 {
                     "name": "trajectory",
                     "type": "inputFile",
-                    "defaultValue": "trajectory.txt",
+                    "defaultValue": "trajectory.csv",
                     "min": null,
                     "max": null,
-                    "fileExtension": ".txt"
+                    "fileExtension": ".csv"
                 },
                 {
                     "name": "cellSelect",
@@ -501,9 +422,33 @@
                     "fileExtension": ".txt"
                 },
                 {
-                    "name": "resultMatrix",
+                    "name": "resultMatrixFDR",
                     "type": "outputFile",
-                    "defaultValue": "resultMatrix.txt",
+                    "defaultValue": "resultMatrixFDR.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif"
+                },
+                {
+                    "name": "resultMatrixFdrTrim",
+                    "type": "outputFile",
+                    "defaultValue": "resultMatrixFdrTrim.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif"
+                },
+                {
+                    "name": "resultMatrixFdrOutdegree",
+                    "type": "outputFile",
+                    "defaultValue": "resultMatrixFdrOutdegree.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt"
+                },
+                {
+                    "name": "resultMatrixFdrTrimOutdegree",
+                    "type": "outputFile",
+                    "defaultValue": "resultMatrixFdrTrimOutdegree.txt",
                     "min": null,
                     "max": null,
                     "fileExtension": ".txt"
@@ -521,7 +466,7 @@
                     "type": "int",
                     "defaultValue": "4",
                     "min": 1,
-                    "max": 16,
+                    "max": null,
                     "fileExtension": ""
                 },
                 {
@@ -531,9 +476,33 @@
                     "min": 2,
                     "max": null,
                     "fileExtension": ""
+                },
+                {
+                    "name": "FDR",
+                    "type": "float",
+                    "defaultValue": "0.01",
+                    "min": 0,
+                    "max": 1,
+                    "fileExtension": ""
+                },
+                {
+                    "name": "number of outdegrees",
+                    "type": "int",
+                    "defaultValue": "1000",
+                    "min": 100,
+                    "max": null,
+                    "fileExtension": ""
+                },
+                {
+                    "name": "trimming threshold",
+                    "type": "float",
+                    "defaultValue": "0.01",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ""
                 }
             ],
-            "nodeId": 22,
+            "nodeId": 24,
             "isVisualization": false
         },
         "1": {
@@ -675,105 +644,6 @@
             ],
             "nodeId": 21,
             "isVisualization": true
-        },
-        "4": {
-            "name": "Make GRN",
-            "input": [
-                "resultMatrix.txt",
-                "expression.csv",
-                "TF.txt"
-            ],
-            "output": [
-                "resultMatrixFDR.sif",
-                "resultMatrixFdrOutdegree.txt",
-                "resultMatrixFdrTrim.sif",
-                "resultMatrixFdrTrimOutdegree.txt"
-            ],
-            "script": "make_grn.py",
-            "parameters": [
-                {
-                    "name": "resultMatrix",
-                    "type": "inputFile",
-                    "defaultValue": "resultMatrix.txt",
-                    "min": null,
-                    "max": null,
-                    "fileExtension": ".txt"
-                },
-                {
-                    "name": "expression",
-                    "type": "inputFile",
-                    "defaultValue": "expression.csv",
-                    "min": null,
-                    "max": null,
-                    "fileExtension": ".csv"
-                },
-                {
-                    "name": "TF",
-                    "type": "optionalInputFile",
-                    "defaultValue": "TF.txt",
-                    "min": null,
-                    "max": null,
-                    "fileExtension": ".txt"
-                },
-                {
-                    "name": "resultMatrixFDR",
-                    "type": "outputFile",
-                    "defaultValue": "resultMatrixFDR.sif",
-                    "min": null,
-                    "max": null,
-                    "fileExtension": ".sif"
-                },
-                {
-                    "name": "resultMatrixFdrOutdegree",
-                    "type": "outputFile",
-                    "defaultValue": "resultMatrixFdrOutdegree.txt",
-                    "min": null,
-                    "max": null,
-                    "fileExtension": ".txt"
-                },
-                {
-                    "name": "resultMatrixFdrTrim",
-                    "type": "outputFile",
-                    "defaultValue": "resultMatrixFdrTrim.sif",
-                    "min": null,
-                    "max": null,
-                    "fileExtension": ".sif"
-                },
-                {
-                    "name": "resultMatrixFdrTrimOutdegree",
-                    "type": "outputFile",
-                    "defaultValue": "resultMatrixFdrTrimOutdegree.txt",
-                    "min": null,
-                    "max": null,
-                    "fileExtension": ".txt"
-                },
-                {
-                    "name": "FDR",
-                    "type": "float",
-                    "defaultValue": "0.01",
-                    "min": null,
-                    "max": null,
-                    "fileExtension": ""
-                },
-                {
-                    "name": "number of outdegrees",
-                    "type": "int",
-                    "defaultValue": "0",
-                    "min": 0,
-                    "max": null,
-                    "fileExtension": ""
-                },
-                {
-                    "name": "trimming threshold",
-                    "type": "float",
-                    "defaultValue": "0",
-                    "min": null,
-                    "max": null,
-                    "fileExtension": ""
-                }
-            ],
-            "nodeId": 23,
-            "isVisualization": false
         }
     }
 }
