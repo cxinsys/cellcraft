@@ -30,7 +30,7 @@ CellCraft is a web-based platform designed for researchers to reconstruct Gene R
 
 3. Start the application:
    ```bash
-   docker-compose -f docker-compose.prod.yml up --build
+   docker compose -f docker-compose.prod.yml up --build
    ```
 
 4. Access the platform at [http://localhost:8080](http://localhost:8080).
