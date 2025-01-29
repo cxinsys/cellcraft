@@ -1,10 +1,10 @@
-# CellCraft
+<img src="https://github.com/cxinsys/cellcraft/blob/807998fda59e15e185ea9d2835ff7b81a884460f/frontend/src/assets/cellcraft_logo_text.png"/>
 
-## Overview 🚀
+## Overview
 
 CellCraft is a web-based platform designed for researchers to reconstruct Gene Regulatory Networks (GRNs) efficiently. It provides a **visual programming interface**, enabling non-programmers to conduct complex GRN analysis. Powered by **TENET** and **FastTENET**, the platform ensures high-performance GRN reconstruction. Docker-based deployment simplifies setup and facilitates seamless local server operations.
 
-## Key Features ⭐
+## Key Features
 - **Visual Programming Interface**: Streamline data analysis with an intuitive drag-and-drop GUI.
 - **Powerful GRN Tools**: Built-in support for TENET and FastTENET for cutting-edge GRN inference.
 - **Plugin Support**: Extend functionality by integrating custom plugins.
@@ -13,7 +13,7 @@ CellCraft is a web-based platform designed for researchers to reconstruct Gene R
 
 ---
 
-## Getting Started 📂
+## Getting Started
 
 1. Clone the repository:
    ```bash
