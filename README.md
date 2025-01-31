@@ -19,15 +19,17 @@ CellCraft is a web-based platform designed for researchers to reconstruct Gene R
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repository/cellcraft.git
+   git clone https://github.com/cellcraft.git
    cd cellcraft
    ```
 
 2. Set environment variables in an `.env` file:
    ```dotenv
-   POSTGRES_DB=your_db_name
-   POSTGRES_USER=your_user
-   POSTGRES_PASSWORD=your_password
+   POSTGRES_USER = your_user
+   POSTGRES_PASSWORD = your_password
+   POSTGRES_HOST = localhost
+   POSTGRES_PORT = 5432
+   POSTGRES_DB = cellcraft
    ```
 
 3. Start the application:
