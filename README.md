@@ -1,6 +1,6 @@
 <img src="https://github.com/cxinsys/cellcraft/blob/807998fda59e15e185ea9d2835ff7b81a884460f/frontend/src/assets/cellcraft_logo_text.png"/>
 
-[Docs](https://cellcraft.gitbook.io/cellcraft-docs)
+[Demo Website](http://165.194.161.183:10001/cellcraft) • [Docs](https://labelstud.io/guide/)
 
 ## Overview
 
