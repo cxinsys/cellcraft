@@ -6,30 +6,26 @@ def snakemakeProcess(targets, snakefile_path):
     print("Snakefile path:", snakefile_path)
     print("Environment PATH:", os.environ["PATH"])
 
-    # Snakemake 명령어 구성
+    # Snakemake 실행 명령어
     command = [
         '/opt/conda/envs/snakemake/bin/snakemake',
-        *targets,  # 여러 개의 타겟을 명령어에 추가
+        *targets,  
         '--snakefile', snakefile_path,
-        '-j',  # 병렬 실행을 위한 옵션
+        '-j',
     ]
 
     # Snakemake 프로세스 실행
     process = Popen(command, stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
 
-    # 종료 요청을 감지하고 프로세스에 신호를 보냄
-    # while True:
-    #     if terminate_event.is_set():
-    #         process.send_signal(signal.SIGTERM)
-    #         break
-    #     if process.poll() is not None:
-    #         break
-
     print("STDOUT:", stdout.decode())
     print("STDERR:", stderr.decode())
 
-    return {"returncode": process.returncode, "stdout": stdout.decode(), "stderr": stderr.decode()}
+    return {
+        "returncode": process.returncode,
+        "stdout": stdout.decode(),
+        "stderr": stderr.decode()
+    }
 
 def read_stream(stream, output):
     for line in iter(stream.readline, b''):

@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from app.common.utils.plugin_utils import verify_dependencies
 from app.common.utils.celery_utils import get_task_info
 from app.common.utils.snakemake_utils import change_snakefile_parameter
-from app.common.utils.workflow_utils import extract_rule_block, extract_algorithm_data, extract_visualization_data, extract_target_data, generate_user_input, generate_plugin_params, generate_visualization_params
+from app.common.utils.workflow_utils import extract_rule_block, extract_all_algorithms, extract_visualization_data, extract_target_data, generate_user_input, generate_plugin_params, generate_visualization_params
 from app.database.crud import crud_workflow
 from app.database.schemas.workflow import WorkflowDelete, WorkflowCreate, WorkflowUpdate, WorkflowResult, WorkflowFind, WorkflowNodeFileCreate, WorkflowNodeFileDelete, WorkflowNodeFileRead
 from app.routes import dep
@@ -18,9 +18,9 @@ from app.routes.celery_tasks import process_data_task
 
 router = APIRouter()                                
 
-#export workflow data
+#compile workflow
 @router.post("/compile")
-def exportData(
+def compileWorkflow(
     *,
     db: Session = Depends(dep.get_db),
     workflow: WorkflowCreate, 
@@ -29,60 +29,64 @@ def exportData(
     try:
         user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflow.id)
         user_path = f"./user/{current_user.username}/"
+        task_ids = []  # 여러 개의 태스크 ID를 저장할 리스트
+
         if user_workflow:
             crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info)
-            extract_algorithm = extract_algorithm_data(user_workflow.workflow_info['drawflow']['Home']['data'])
+            algorithms = extract_all_algorithms(user_workflow.workflow_info['drawflow']['Home']['data'])
 
-            selected_plugin = extract_algorithm['selectedPlugin']['name']
-            user_workflow_task_path = f"{user_path}workflow_{workflow.id}/algorithm_{extract_algorithm['id']}"
+            if not algorithms:
+                raise HTTPException(status_code=400, detail="No algorithm nodes found in workflow.")
 
-            # 플러그인 폴더 내의 dependency 폴더에 있는 파일 리스트를 순회하면서 검증
-            plugin_dependency_path = f"./plugin/{selected_plugin}/dependency"
+            for algorithm in algorithms:
+                selected_plugin = algorithm['selectedPlugin']['name']
+                user_workflow_task_path = f"{user_path}workflow_{workflow.id}/algorithm_{algorithm['id']}"
 
-            user_input = generate_user_input(extract_algorithm['selectedPluginInputOutput'])
-            plugin_params = generate_plugin_params(extract_algorithm['selectedPluginRules'])
-            target_list = extract_target_data(extract_algorithm['selectedPluginInputOutput'], user_workflow_task_path)
+                # 플러그인 폴더 내의 dependency 폴더 경로 설정
+                plugin_dependency_path = f"./plugin/{selected_plugin}/dependency"
 
-            additional_data = {
-                "user_name": current_user.username,
-                "workflow_id": str(workflow.id),
-                "algorithm_id": str(extract_algorithm['id']),
-                "plugin_name": extract_algorithm['selectedPlugin']['name'],
-            }
-            
-            # user_input에 추가
-            user_input.update(additional_data)
-            print("user_input:", user_input)
-            print("plugin_params:", plugin_params)
-            print("target_list:", target_list)
+                # 입력 데이터 및 파라미터 추출
+                user_input = generate_user_input(algorithm['selectedPluginInputOutput'])
+                plugin_params = generate_plugin_params(algorithm['selectedPluginRules'])
+                target_list = extract_target_data(algorithm['selectedPluginInputOutput'], user_workflow_task_path)
 
-            # user_workflow_task_path 생성
-            if not os.path.exists(user_workflow_task_path):
-                os.makedirs(user_workflow_task_path)
+                additional_data = {
+                    "user_name": current_user.username,
+                    "workflow_id": str(workflow.id),
+                    "algorithm_id": str(algorithm['id']),
+                    "plugin_name": selected_plugin,
+                }
+                user_input.update(additional_data)
 
-            plugin_snakefile_path = f"./plugin/{extract_algorithm['selectedPlugin']['name']}/Snakefile"
-            user_snakefile_path = change_snakefile_parameter(plugin_snakefile_path, user_workflow_task_path + "/Snakefile", user_input, plugin_params)
+                # 작업 폴더 생성
+                if not os.path.exists(user_workflow_task_path):
+                    os.makedirs(user_workflow_task_path)
 
-            use_gpu = extract_algorithm['selectedPlugin']['name'] == 'FastTENET'
+                # Snakefile 생성
+                plugin_snakefile_path = f"./plugin/{selected_plugin}/Snakefile"
+                user_snakefile_path = change_snakefile_parameter(plugin_snakefile_path, user_workflow_task_path + "/Snakefile", user_input, plugin_params)
 
-            process_task = process_data_task.apply_async(
-                (current_user.username, user_snakefile_path, plugin_dependency_path, target_list),
-                kwargs={'user_id': current_user.id, 'workflow_id': workflow.id, 'use_gpu': use_gpu}
-            )
-            message = "Tasks added to queue"
-            task_id = process_task.id
-            result = get_task_info(process_task.id)
+                # Celery 작업 실행
+                process_task = process_data_task.apply_async(
+                    args=[current_user.username, user_snakefile_path, plugin_dependency_path, target_list],
+                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id},
+                    ignore_result=False
+                )
+
+                # 실행된 태스크 ID 저장
+                task_ids.append(process_task.id)
 
             return {
-                "message": message,
-                "task_id": task_id,
-                "result": result
+                "message": "Multiple tasks added to queue",
+                "task_ids": task_ids,
+                "results": [get_task_info(task_id) for task_id in task_ids]
             }
+
     except Exception as e:
         raise HTTPException(
                 status_code=400,
                 detail=str(e),
-                )
+        )
 
 # visualize compile
 @router.post("/visualization")
@@ -155,11 +159,9 @@ def visualizeData(
                 # user_workflow_visualization_result_path를 target_list에 추가
                 target_list = [user_workflow_visualization_result_path]
 
-                use_gpu = False
-
                 process_task = process_data_task.apply_async(
                     (current_user.username, user_visualization_snakefile_path, plugin_dependency_path, target_list),
-                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id, 'use_gpu': use_gpu }
+                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id}
                 )
 
                 message = "Tasks added to queue"

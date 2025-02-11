@@ -26,14 +26,20 @@ def parse_reference_folders(folders):
         dict: 변환된 딕셔너리.
     """
     result = {}
+    
     for folder in folders:
         folder_dict = {
-            file.fileName: file.file for file in folder.files  # files 속성 사용
+            file.fileName: file.file for file in folder.files  # 파일 저장
         }
-        # 하위 폴더 처리
-        for subFolder in folder.subFolders:  # subFolders 속성 사용
-            folder_dict[subFolder.folderName] = parse_reference_folders([subFolder])
-        result[folder.folderName] = folder_dict  # folderName 속성 사용
+
+        # 하위 폴더 리스트를 새롭게 생성하여 중복 방지
+        sub_folders = []
+        for subFolder in folder.subFolders:
+            sub_folders.append(parse_reference_folders([subFolder]))  # 새로운 리스트에 저장
+        
+        folder_dict["subFolders"] = sub_folders  # subFolders 속성 추가
+        result[folder.folderName] = folder_dict  # 폴더 이름을 키로 추가
+    
     return result
 
 @router.post("/validation")
@@ -43,14 +49,8 @@ def validate_plugin(
     current_user: models.User = Depends(dep.get_current_active_user)
     ):
     try:
-        # print(plugin_data)
-
-        # Simulate validation process taking 5 seconds
-        # print(plugin_data.rules)
-
         # Convert PluginInfo.dependencyFiles to a dictionary
         dependencies_dict = {dep.fileName: dep.file for dep in plugin_data.plugin.dependencyFiles}
-        # reference_folders = {folder.folderName: {file.fileName: file.file for file in folder.files} for folder in plugin_data.plugin.referenceFolders}
         reference_folders = parse_reference_folders(plugin_data.plugin.referenceFolders)
         rules_dict = {
             index: {
@@ -65,9 +65,6 @@ def validate_plugin(
             for index, rule in enumerate(plugin_data.rules)
         }
 
-        # rules_dict의 요소들의 isVisualization 값만 출력하기
-        # print(rules_dict)
-
         # Convert PluginData to PluginCreate
         plugin_upload_data = PluginCreate(
             name=plugin_data.plugin.name,
@@ -79,8 +76,6 @@ def validate_plugin(
             drawflow=plugin_data.drawflow,
             rules=rules_dict,
         )
-
-        # print(plugin_upload_data.rules)
 
         # Collect scripts from rules
         scripts = [rule.script for rule in plugin_data.rules if rule.script]
@@ -175,7 +170,6 @@ def upload_scripts(
                 elif os.path.isdir(file_path):  # 디렉터리 무시
                     print(f"Skipped directory: {file_path}")
 
-
         # 파일 저장
         for file in files:
             file_path = os.path.join(plugin_folder, file.filename)
@@ -184,6 +178,31 @@ def upload_scripts(
                 f.write(content)
                 
         return {"message": "Scripts uploaded successfully", "scripts": [file.filename for file in files]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/upload_package")
+def upload_package(
+    plugin_name: str = Form(...),
+    files: List[UploadFile] = File(...),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    ):
+    try:
+        # 플러그인 폴더 경로
+        plugin_folder = f"./plugin/{plugin_name}/dependency/"
+
+        # 폴더가 없으면 생성
+        if not os.path.exists(plugin_folder):
+            os.makedirs(plugin_folder)
+
+        # 파일 저장
+        for file in files:
+            file_path = os.path.join(plugin_folder, file.filename)
+            with open(file_path, "wb") as f:
+                content = file.file.read()  # 파일 내용 읽기
+                f.write(content)
+            
+        return {"message": "Package uploaded successfully", "packages": [file.filename for file in files]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -208,6 +227,21 @@ def get_reference_folders(
 
         return {"reference_folders": reference_folders}
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/package/{plugin_name}")
+def get_package_files(
+    plugin_name: str,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    try:
+        # 폴더 경로 설정
+        folder_path = f"./plugin/{plugin_name}/dependency"
+
+        # 파일 리스트 중에서 .whl, .tar.gz 파일만 가져와서 반환
+        package_files = [file for file in os.listdir(folder_path) if file.endswith((".whl", ".tar.gz"))]
+        return {"package_files": package_files}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

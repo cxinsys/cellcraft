@@ -618,7 +618,7 @@ def check_renv_lock(renv_file: str):
         required_packages = list(renv_data['Packages'].keys())
 
     # Add essential packages that should be checked
-    essential_packages = ['renv', 'gtable', 'scales', 'rlang']
+    essential_packages = ['renv', 'optparse', 'gtable', 'scales', 'rlang']
     required_packages.extend(essential_packages)
 
     print("required_packages:", required_packages)
@@ -675,17 +675,15 @@ def verify_dependencies(dependency_file_name: str):
 
 def install_dependencies(dependency_file_name: str):
     """
-    시스템에 설치되지 않은 의존성만 설치합니다.
-    
+    의존성 파일을 기반으로 시스템에 누락된 패키지만 설치합니다.
+
     Parameters:
         dependency_file_name (str): 의존성 파일 이름 (requirements.txt, environment.yml, renv.lock)
     """
     dependency_file_path = os.path.abspath(dependency_file_name)
-    
-    # 먼저 의존성 검사를 수행
+
+    # 의존성 검사 수행
     check_result = verify_dependencies(dependency_file_path)
-    
-    # 이미 모든 의존성이 설치되어 있다면 종료
     if check_result.get("installed_status", False):
         print("모든 의존성이 이미 설치되어 있습니다.")
         return
@@ -697,85 +695,74 @@ def install_dependencies(dependency_file_name: str):
 
     print(f"설치가 필요한 패키지들: {', '.join(missing_packages)}")
 
+    # 실행 환경 변수 설정
     conda_env_path = "/opt/conda/envs/snakemake"
     pip_executable = f"{conda_env_path}/bin/pip"
     conda_executable = f"{conda_env_path}/bin/conda"
     rscript_executable = "/usr/bin/Rscript"
 
-    if "requirements.txt" in dependency_file_name:
-        print(f"{dependency_file_path}에서 누락된 의존성 설치 중...")
-        with open(dependency_file_path, 'r') as f:
-            requirements = f.readlines()
-        
-        for req in requirements:
-            pkg_name = normalize_pkg_name(re.split(r"==|>=|<=|~=", req)[0])
-            if pkg_name in missing_packages:
-                try:
-                    subprocess.run([pip_executable, "install", req.strip()], check=True)
-                except subprocess.CalledProcessError as e:
-                    print(f"패키지 설치  오류 발생: {str(e)}")
-                    raise
+    try:
+        if dependency_file_name.endswith("requirements.txt"):
+            print(f"{dependency_file_path}에서 Python 의존성 설치 중...")
+            subprocess.run([pip_executable, "install", "--cache-dir", "/tmp/pip_cache", "-r", dependency_file_path], check=True)
 
-    elif "environment.yml" in dependency_file_name or "environment.yaml" in dependency_file_name:
-        print(f"{dependency_file_path}에서 누락된 의존성 설치 중...")
-        with open(dependency_file_path, 'r') as f:
-            env_data = yaml.safe_load(f)
-        
-        # conda 패키지 설치
-        for dep in env_data.get('dependencies', []):
-            if isinstance(dep, str):
-                pkg_name = normalize_pkg_name(dep.split('=')[0])
-                if pkg_name in missing_packages:
-                    try:
-                        subprocess.run([conda_executable, "install", "-y", dep], check=True)
-                    except subprocess.CalledProcessError as e:
-                        print(f"Conda 패키지 설치 중 오류 발생: {str(e)}")
-                        raise
-            
-            # pip 패키지 설치
-            elif isinstance(dep, dict) and 'pip' in dep:
-                for pip_pkg in dep['pip']:
-                    pkg_name = normalize_pkg_name(pip_pkg.split('==')[0])
-                    if pkg_name in missing_packages:
-                        try:
-                            subprocess.run([pip_executable, "install", pip_pkg], check=True)
-                        except subprocess.CalledProcessError as e:
-                            print(f"Pip 패키지 설치 중 오류 발생: {str(e)}")
-                            raise
+        elif dependency_file_name.endswith(("environment.yml", "environment.yaml")):
+            print(f"{dependency_file_path}에서 Conda 의존성 설치 중...")
+            subprocess.run([conda_executable, "env", "update", "--file", dependency_file_path, "--prune"], check=True)
 
-    elif "renv.lock" in dependency_file_name:
-        print(f"{dependency_file_path}에서 R 의존성 설치 중...")
-        try:
-            # CRAN 미러 설정
-            subprocess.run([rscript_executable, "-e", 
-                "options(repos = c(CRAN = 'https://cloud.r-project.org/'))"], check=True)
-            
-            # 누락된 기본 의존성 패키지 설치
-            base_packages = ['gtable', 'scales', 'rlang']
-            missing_base = [pkg for pkg in base_packages if pkg in missing_packages]
-            if missing_base:
-                package_list = ', '.join([f"'{pkg}'" for pkg in missing_base])  # 각 패키지 이름을 따옴표로 감싸기
-                subprocess.run([
-                    rscript_executable, "-e",
-                    f"install.packages(c({package_list}), repos='https://cloud.r-project.org')"
-                ], check=True)
-                        
-            # renv가 없는 경우에만 설치
-            if 'renv' in missing_packages:
-                subprocess.run([rscript_executable, "-e", 
-                    "install.packages('renv')"], check=True)
-            
-            # renv를 사용하여 패키지 복원
-            subprocess.run([rscript_executable, "-e", 
-                f'renv::init(); renv::restore(lockfile = "{dependency_file_path}", prompt = FALSE)'], check=True)
-            
-        except subprocess.CalledProcessError as e:
-            print(f"R 의존성 설치 중 오류 발생: {str(e)}")
-            raise
+        elif dependency_file_name.endswith("renv.lock"):
+            print(f"{dependency_file_path}에서 R 의존성 설치 중...")
+            dependency_dir = os.path.dirname(dependency_file_path)
 
-    else:
-        print(f"지원하지 않는 파일 형식입니다: {dependency_file_name}")
-        return
+            # renv.lock 파일 로드
+            with open(dependency_file_path, "r") as f:
+                renv_data = json.load(f)
+
+            local_packages = {}
+            repo_local_packages = {}
+
+            for pkg, data in renv_data.get("Packages", {}).items():
+                if data.get("Source") == "Local" and os.path.exists(os.path.join(dependency_dir, data["Path"])):
+                    local_packages[pkg] = data["Path"]
+                elif data.get("Source") == "Repository" and data.get("Repository") == "Local" and os.path.exists(os.path.join(dependency_dir, data["Path"])):
+                    repo_local_packages[pkg] = data["Path"]
+
+            # R 설치 스크립트 실행
+            renv_commands = [
+                f'setwd("{dependency_dir}");',
+                'if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv", repos="https://cloud.r-project.org");',
+                'options(download.file.method = "libcurl");',
+                'Sys.setenv(R_HOME_USER = "/root");',  # Docker 환경 대응
+                'Sys.setenv(R_LIBS_USER = "/usr/local/lib/R/site-library");',  # 패키지 저장 위치 설정
+                'renv::settings$use.cache(FALSE);',
+                'renv::repair();',  # 패키지 손상 복구
+                'renv::restore(lockfile = "renv.lock", prompt = FALSE);'
+            ]
+
+            # 기본 패키지 (`optparse`, `gtable`, `scales`, `rlang`) 추가 설치
+            base_packages = ["optparse", "gtable", "scales", "rlang"]
+            renv_commands.append(
+                'missing_base_packages <- setdiff(c("optparse", "gtable", "scales", "rlang"), rownames(installed.packages())); '
+                'if (length(missing_base_packages) > 0) install.packages(missing_base_packages, repos="https://cloud.r-project.org");'
+            )
+
+            # Local 패키지 선행 설치 (e.g., RANNinf)
+            for pkg, path in local_packages.items():
+                renv_commands.append(f'renv::install(local("{path}"));')
+
+            # Repository 기반 Local 패키지 후행 설치 (e.g., Scribe)
+            for pkg, path in repo_local_packages.items():
+                renv_commands.append(f'renv::install(local("{path}"));')
+
+            # R 스크립트 실행
+            subprocess.run([rscript_executable, "-e", " ".join(renv_commands)], check=True)
+
+        else:
+            print(f"지원하지 않는 파일 형식입니다: {dependency_file_name}")
+
+    except subprocess.CalledProcessError as e:
+        print(f"의존성 설치 중 오류 발생: {str(e)}")
+        raise
 
     print("누락된 의존성 설치가 완료되었습니다.")
 
@@ -849,15 +836,23 @@ def create_reference_folder(script_folder: str, reference_folders: dict):
 
     # Helper function to process folders recursively
     def process_folder(current_path: str, folder_data: dict):
-        # Separate files and subfolders
         for name, content in folder_data.items():
-            if isinstance(content, dict):  # It's a subfolder
+            if name == "subFolders" and isinstance(content, list):
+                # subFolders 리스트가 있을 경우, 재귀적으로 처리
+                for sub_folder in content:
+                    for sub_folder_name, sub_folder_data in sub_folder.items():
+                        folder_path = os.path.join(current_path, sub_folder_name)
+                        if not os.path.exists(folder_path):
+                            os.makedirs(folder_path, exist_ok=True)
+                            print(f"Folder created: {folder_path}")
+                        process_folder(folder_path, sub_folder_data)  # Recur into the subfolder
+            elif isinstance(content, dict):  # 일반적인 서브 폴더 처리
                 folder_path = os.path.join(current_path, name)
-                if not os.path.exists(folder_path):  # Prevent duplicate creation
+                if not os.path.exists(folder_path):
                     os.makedirs(folder_path, exist_ok=True)
                     print(f"Folder created: {folder_path}")
                 process_folder(folder_path, content)  # Recur into the subfolder
-            else:  # It's a file
+            else:  # 파일 처리
                 file_path = os.path.join(current_path, name)
                 with open(file_path, 'w') as f:
                     f.write(content)

@@ -2,21 +2,53 @@ from celery import current_app as current_celery_app
 from celery.result import AsyncResult
 from celery.signals import celeryd_after_setup
 from kombu import Queue, Exchange
+import threading
+import GPUtil
+import psutil
+import time
 
 from app.common.config import settings
+
+# 자원 사용량 제한 설정
+CPU_USAGE_LIMIT = 85  # CPU 사용량 제한
+MEMORY_USAGE_LIMIT = 90  # 메모리 사용량 제한
+GPU_USAGE_LIMIT = 90  # GPU 사용량 제한
+
+def check_system_usage():
+    """ CPU, 메모리 및 GPU 사용량 확인 후 Celery Task 큐 컨트롤 """
+    while True:
+        cpu_usage = psutil.cpu_percent(interval=1)
+        memory_usage = psutil.virtual_memory().percent
+        gpus = GPUtil.getGPUs()
+        gpu_usage = max((gpu.load * 100 for gpu in gpus), default=0)
+
+        celery_app = current_celery_app
+
+        print(f"💡 시스템 리소스 체크: CPU {cpu_usage}%, 메모리 {memory_usage}%, GPU {gpu_usage}%")
+
+        if cpu_usage >= CPU_USAGE_LIMIT or memory_usage >= MEMORY_USAGE_LIMIT or gpu_usage >= GPU_USAGE_LIMIT:
+            print(f"⚠️ 리소스 초과! (CPU: {cpu_usage}%, Memory: {memory_usage}%, GPU: {gpu_usage}%) → 큐 대기 중...")
+            # celery_app.control.pause_consumer("workflow_task")  # 특정 Task Queue 중지
+            celery_app.control.cancel_consumer("workflow_task")  # 특정 Task Queue 중지
+        else:
+            print(f"✅ 정상 상태 (CPU: {cpu_usage}%, Memory: {memory_usage}%, GPU: {gpu_usage}%) → 큐 실행 중...")
+            # celery_app.control.resume_consumer("workflow_task")  # 특정 Task Queue 다시 실행
+            celery_app.control.add_consumer("workflow_task")  # 특정 Task Queue 다시 실행
+
+        time.sleep(5)  # 5초마다 상태 체크
 
 def create_celery():
     celery_app = current_celery_app
     celery_app.config_from_object(settings, namespace='CELERY')
     celery_app.conf.update(task_track_started=True)
-    celery_app.conf.update(task_acks_late=True)
+    celery_app.conf.update(task_acks_late=False)
     celery_app.conf.update(task_serializer='json')
     celery_app.conf.update(result_serializer='json')
     celery_app.conf.update(accept_content=['json'])
     celery_app.conf.update(enable_unsafe_serializers=False)
     celery_app.conf.update(result_expires=200)
     celery_app.conf.update(result_persistent=True)
-    celery_app.conf.update(worker_send_task_events=False)
+    celery_app.conf.update(worker_send_task_events=True)
     celery_app.conf.update(worker_prefetch_multiplier=1)
 
     # 긴 작업을 위한 타임아웃 설정 추가
@@ -41,29 +73,16 @@ def create_celery():
     )
     celery_app.conf.broker_transport_options = {'confirm_publish': True, 'confirm_timeout': 10.0}
 
-    # 큐 설정 단순화
-    celery_app.conf.task_queues = {
-        'celery': {
-            'exchange': 'celery',
-            'exchange_type': 'direct',
-            'routing_key': 'celery',
-            'queue_arguments': {'x-max-length': 11}  # 전체 태스크 최대 개수 제한
-        }
-    }
-
     # 라우팅 설정 제거 (기본 큐 사용)
     celery_app.conf.task_routes = None
 
     # 작업자(worker) 동시성 제한 설정 수정
     celery_app.conf.update(
-        worker_prefetch_multiplier=1,    # 작업자가 한 번에 가져올 수 있는 작업 수
-        task_acks_late=True,             # 작업 완료 후 승인
-        task_track_started=True,         # 작업 상태 추적
         task_reject_on_worker_lost=True  # 워커 손실 시 작업 거부
     )
 
-    # CPU/GPU 워커별 동시성 설정 제거 (docker-compose에서 관리)
-    # worker_concurrency=44 설정 제거
+    monitoring_thread = threading.Thread(target=check_system_usage, daemon=True)
+    monitoring_thread.start()
 
     return celery_app
 
