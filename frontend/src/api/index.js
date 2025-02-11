@@ -207,6 +207,14 @@ function uploadPluginScripts(formData) {
   });
 }
 
+function uploadPluginPackage(formData) {
+  return instance.post("/routes/plugin/upload_package", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+}
+
 function getPlugins() {
   return instance.get("/routes/plugin/list");
 }
@@ -227,6 +235,10 @@ function getPluginFile(file_info) {
   return instance.get(`/routes/plugin/file/${file_info.plugin_name}/${file_info.file_name}`, {
     responseType: "blob", // 서버로부터 받은 데이터를 blob 형태로 처리
   });
+}
+
+function getPluginPackageList(plugin_name) {
+  return instance.get(`/routes/plugin/package/${plugin_name}`);
 }
 
 function getPluginReferenceFolders(plugin_name) {
@@ -305,6 +317,7 @@ export {
   validationPlugin,
   uploadPluginMetadata,
   uploadPluginScripts,
+  uploadPluginPackage,
   getPlugins,
   associatePlugin,
   dissociatePlugin,
@@ -316,6 +329,7 @@ export {
   getFileData,
   getSystemResources,
   getPluginFile,
+  getPluginPackageList,
   getPluginInfo,
   getVisualizationResult,
   runVisualization,

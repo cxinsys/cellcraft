@@ -2,19 +2,19 @@
   <div class="plugin-container">
     <!-- 플러그인 이름 입력 필드 -->
     <div class="input-group">
-      <label class="input-group__label" for="pluginName">Plugin Name:</label>
+      <label class="input-group__label" for="pluginName">Plugin Name</label>
       <input type="text" id="pluginName" v-model="plugin.name" />
     </div>
 
     <!-- 플러그인 설명 입력 필드 -->
     <div class="input-group">
-      <label class="input-group__label" for="pluginDescription">Plugin Description:</label>
+      <label class="input-group__label" for="pluginDescription">Plugin Description</label>
       <textarea id="pluginDescription" v-model="plugin.description" rows="4"></textarea>
     </div>
 
     <!-- 참조 스크립트 폴더 업로드 -->
     <div class="input-group">
-      <label class="input-group__label">Upload Script Folder:</label>
+      <label class="input-group__label">Upload Reference Script Folder</label>
       <div class="file-upload">
         <input type="file" id="scriptFolder" webkitdirectory directory @change="handleScriptFolderUpload"
           class="file-input" />
@@ -27,7 +27,7 @@
     <div v-if="plugin.referenceFolders.length" class="input-group folder-tree">
       <nav class="tree-nav">
         <details v-for="(folder, idx) in plugin.referenceFolders" :key="folder.folderName"
-          class="tree-nav__item is-expandable" :open="toggleFolder === idx" @toggle="toggleFolderState(idx)">
+          class="tree-nav__item is-expandable" :open="toggleFolder === idx" @click="toggleFolderState(idx)">
           <summary class="tree-nav__item-title">
             <img class="folder__item--icon" src="@/assets/open-folder.png" v-if="toggleFolder === idx"
               alt="Open Folder" />
@@ -62,9 +62,25 @@
       </nav>
     </div>
 
+    <!-- 로컬 의존성 패키지 파일 업로드 -->
+    <div class="input-group">
+      <h3 class="input-group__label">Upload Local Dependency Package Files</h3>
+      <div v-for="(file, index) in plugin.packageFiles" :key="index" class="input-group">
+        <div class="file-upload">
+          <label :for="'dependency-' + index" class="file-label">
+            <input type="file" :id="'dependency-' + index" @change="handlePackageFileUpload($event, index)"
+              class="file-input" accept=".whl,.gz" />
+            {{ file.fileName || "Click to upload a .whl or .tar.gz file" }}
+          </label>
+          <button type="button" @click="removePackageFile(index)">Remove</button>
+        </div>
+      </div>
+      <button class="add-button" type="button" @click="addPackageFile">Add Another File</button>
+    </div>
+
     <!-- 의존성 파일 타입 선택 드롭다운 -->
     <div class="input-group">
-      <label class="input-group__label" for="dependencyType">Select Dependency File Type:</label>
+      <label class="input-group__label" for="dependencyType">Select Dependency File Type</label>
       <select id="dependencyType" v-model="selectedDependencyType" @change="addDependencyType">
         <option value="" disabled>Select a file type</option>
         <option value="requirements.txt" :disabled="isFileTypeAdded('requirements.txt')">requirements.txt</option>
@@ -74,7 +90,7 @@
     </div>
 
     <div v-for="(file, index) in plugin.dependencyFiles" :key="index" class="input-group">
-      <label class="input-group__label" :for="file.type">{{ file.type }}:</label>
+      <label class="input-group__label" :for="file.type">{{ file.type }}</label>
       <div class="file-upload">
         <label :for="file.type" class="file-label">
           <input type="file" :id="file.type" @change="handleFileUpload($event, file.type)" class="file-input" />
@@ -101,6 +117,7 @@ export default {
         description: '',
         referenceFolders: [],
         dependencyFiles: [],
+        packageFiles: [],
       },
       referenceFolderName: '', // 업로드된 참조 폴더 이름 저장
       selectedDependencyType: '', // 선택한 의존성 파일 타입
@@ -129,12 +146,31 @@ export default {
         if (JSON.stringify(this.plugin.referenceFolders) !== JSON.stringify(newValue.referenceFolders)) {
           this.plugin.referenceFolders = [...newValue.referenceFolders];
         }
+        if (JSON.stringify(this.plugin.packageFiles) !== JSON.stringify(newValue.packageFiles)) {
+          this.plugin.packageFiles = [...newValue.packageFiles];
+        }
       },
       deep: true,
       immediate: true
     }
   },
   methods: {
+    handlePackageFileUpload(event, index) {
+      const file = event.target.files[0];
+      if (file) {
+        this.$set(this.plugin.packageFiles, index, {
+          file,
+          fileName: file.name,
+        });
+      }
+    },
+    removePackageFile(index) {
+      this.plugin.packageFiles.splice(index, 1); // Remove the file from the list
+      this.emitDependencyFiles();
+    },
+    addPackageFile() {
+      this.plugin.packageFiles.push({ file: null, fileName: "" }); // Add a new empty file slot
+    },
     toggleFolderState(idx) {
       // 열려 있으면 닫고, 닫혀 있으면 엽니다.
       this.toggleFolder = this.toggleFolder === idx ? null : idx;
@@ -188,7 +224,6 @@ export default {
 
       this.emitPluginData();
     },
-
     removeReferenceFolder(folderName) {
       this.plugin.referenceFolders = this.plugin.referenceFolders.filter(folder => folder.folderName !== folderName);
       this.referenceFolderName = '';
@@ -347,6 +382,21 @@ export default {
   width: 24px;
   height: 24px;
   margin-right: 8px;
+}
+
+.add-button {
+  background-color: #06bb00;
+  color: white;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background-color 0.3s ease;
+}
+
+.add-button:hover {
+  background-color: #009a00;
 }
 
 input[type="file"] {

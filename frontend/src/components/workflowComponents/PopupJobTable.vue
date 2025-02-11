@@ -26,13 +26,14 @@
             "></div>
             <div class="status-box__yellow" v-if="
               task.status === 'RUNNING' ||
-              task.status === 'PENDING'
+              task.status === 'PENDING' ||
+              task.status === 'INSTALLING'
             "></div>
             <div class="status-box__green" v-if="task.status === 'SUCCESS'"></div>
             {{ task.status }}
           </td>
           <td>
-            <img v-if="task.status === 'RUNNING' || task.status === 'PENDING'" @click="cancelTask(task.task_id)"
+            <img v-if="task.status === 'RUNNING' || task.status === 'PENDING' || task.status === 'INSTALLING'" @click="cancelTask(task.task_id)"
               class="control-bar__icon" src="@/assets/multiply.png" />
           </td>
         </tr>

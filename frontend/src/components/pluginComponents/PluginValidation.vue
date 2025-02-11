@@ -65,7 +65,7 @@
 </template>
 
 <script>
-import { validationPlugin, uploadPluginMetadata, uploadPluginScripts } from '@/api/index';
+import { validationPlugin, uploadPluginMetadata, uploadPluginScripts, uploadPluginPackage } from '@/api/index';
 
 export default {
     props: {
@@ -156,7 +156,16 @@ export default {
                         };
                     });
                     this.uploadingStep += 1;
-                    const validation_response = await validationPlugin(this.plugin, rules, this.drawflow);
+
+                    // plugin 요소 중에서 packageFiles만 따로 빼기
+                    const plugin = {
+                        name: this.plugin.name,
+                        description: this.plugin.description,
+                        dependencyFiles: this.plugin.dependencyFiles,
+                        referenceFolders: this.plugin.referenceFolders
+                    };
+
+                    const validation_response = await validationPlugin(plugin, rules, this.drawflow);
                     console.log('Validation Response:', validation_response);
 
                     this.uploadingStep += 1;
@@ -167,20 +176,22 @@ export default {
                     this.uploadingStep += 1;
                     const scriptNameList = validation_response.data.scripts;
                     console.log('Script Name List:', scriptNameList);
+
+                    // Script 파일 처리
                     const scriptCreate = this.rules.map(rule => {
                         const scriptName = scriptNameList.find(s => s === rule.script.name);
                         if (scriptName) {
                             return {
                                 name: scriptName,
-                                content: rule.script  // File 객체 자체를 content로 저장
+                                content: rule.script // File 객체 자체를 content로 저장
                             };
                         }
                     }).filter(s => s);
 
-                    const formData = new FormData();
+                    const scriptFormData = new FormData();
 
                     // 비동기 작업을 처리하기 위한 Promise 배열
-                    const promises = scriptCreate.map((script) => {
+                    const scriptPromises = scriptCreate.map((script) => {
                         return new Promise((resolve, reject) => {
                             const reader = new FileReader();
                             reader.onload = (event) => {
@@ -189,35 +200,74 @@ export default {
                                 console.log(`Script Content: ${fileContent}`);
 
                                 const file = new Blob([fileContent], { type: script.content.type });
-                                formData.append('files', file, script.name);
+                                scriptFormData.append('files', file, script.name);
                                 resolve();
                             };
                             reader.onerror = (error) => {
                                 reject(error);
                             };
-                            reader.readAsText(script.content);  // File 객체를 텍스트로 읽기
+                            reader.readAsText(script.content); // File 객체를 텍스트로 읽기
                         });
                     });
 
-                    // 모든 파일을 읽고 나서 FormData에 추가
-                    Promise.all(promises).then(() => {
-                        // plugin_name을 FormData에 추가
-                        formData.append('plugin_name', db_plugin.data.plugin.name);
+                    // Script 파일 업로드 처리
+                    Promise.all(scriptPromises).then(() => {
+                        // plugin_name을 Script FormData에 추가
+                        scriptFormData.append('plugin_name', db_plugin.data.plugin.name);
 
                         // FormData 내용 확인 (선택 사항)
-                        for (let [key, value] of formData.entries()) {
-                            console.log(`${key}: ${value}`);
+                        for (let [key, value] of scriptFormData.entries()) {
+                            console.log(`[SCRIPT FORM] ${key}: ${value}`);
                         }
-
                         // 스크립트 업로드
-                        uploadPluginScripts(formData).then((scripts) => {
-                            console.log(scripts);
+                        uploadPluginScripts(scriptFormData).then((scripts) => {
+                            console.log('Scripts uploaded successfully:', scripts);
+
+                            // Package 파일 처리
+                            const packageFormData = new FormData();
+
+                            packageFormData.append("plugin_name", db_plugin.data.plugin.name); // FastAPI API에 맞게 추가
+
+                            const packagePromises = this.plugin.packageFiles.map(async (packageFile) => {
+                                const fileToRead = packageFile.file; // File 객체 접근
+                                const fileName = packageFile.fileName; // 파일명
+
+                                try {
+                                    // Blob 데이터 생성 및 FormData 추가
+                                    const fileBlob = new Blob([await fileToRead.arrayBuffer()], { type: fileToRead.type });
+                                    packageFormData.append("files", fileBlob, fileName); // 여러 파일을 업로드할 수 있도록 수정
+
+                                    console.log(`Added package file: ${fileName}`);
+
+                                } catch (error) {
+                                    console.error(`Error while processing package file: ${fileName}`, error);
+                                }
+                            });
+
+                            // 모든 패키지 파일을 FormData에 추가한 후 업로드
+                            Promise.all(packagePromises).then(() => {
+                                // FormData 내용 확인 (선택 사항)
+                                for (let [key, value] of packageFormData.entries()) {
+                                    console.log(`[PACKAGE FORM] ${key}: ${value}`);
+                                }
+
+                                uploadPluginPackage(packageFormData).then((packages) => {
+                                    console.log('Package files uploaded successfully:', packages);
+                                }).catch((error) => {
+                                    console.error('Error while uploading package files:', error);
+                                });
+
+                            }).catch((error) => {
+                                console.error('Error preparing package files:', error);
+                            });
+
                         }).catch((error) => {
-                            console.error('Error while uploading plugin:', error);
+                            console.error('Error while uploading plugin scripts:', error);
                         });
                     }).catch((error) => {
-                        console.error('Error reading files:', error);
+                        console.error('Error reading script files:', error);
                     });
+
 
                     this.uploadingStep = 0;
                     this.validationLoading = false;

@@ -28,7 +28,7 @@ import PluginInformation from "@/components/pluginComponents/PluginInformation.v
 import PluginFlowchart from "@/components/pluginComponents/PluginFlowchart.vue";
 import PluginValidation from "@/components/pluginComponents/PluginValidation.vue";
 
-import { getPluginFile, getPluginReferenceFolders } from "@/api/index";
+import { getPluginFile, getPluginReferenceFolders, getPluginPackageList } from "@/api/index";
 
 export default {
   props: {
@@ -67,7 +67,8 @@ export default {
         name: this.editName,
         description: this.editDescription,
         dependencyFiles: this.editDependencies,
-        referenceFolders: []
+        referenceFolders: [],
+        packageFiles: []
       },
       drawflow: this.editDrawflow,
       rules: this.editRules
@@ -126,6 +127,30 @@ export default {
           this.rules[i].script = file;
         }
       }
+    }
+
+    const packageFiles = await getPluginPackageList(this.editName);
+
+    if (packageFiles.data.package_files.length > 0) {
+      console.log(packageFiles.data.package_files);
+      let packageFilesList = [];
+      for (let i = 0; i < packageFiles.data.package_files.length; i++) {
+        const packageFile = packageFiles.data.package_files[i];
+        const file_info = {
+          plugin_name: this.editName,
+          file_name: packageFile
+        }
+        const response = await getPluginFile(file_info);
+        const fileBlob = response.data;
+        const file = new File([fileBlob], packageFile, { type: fileBlob.type });
+
+        packageFilesList.push({
+          file: file,
+          fileName: packageFile,
+        });
+      }
+
+      this.plugin.packageFiles = packageFilesList;
     }
   },
   methods: {

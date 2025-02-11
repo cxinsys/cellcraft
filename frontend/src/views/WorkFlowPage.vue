@@ -310,7 +310,7 @@ export default {
     try {
       const userTasks = await userTaskMonitoring();
       console.log(userTasks.data);
-      if (userTasks.data.some(task => task.status === "RUNNING")) {
+      if (userTasks.data.some(task => task.status === "RUNNING" || task.status === "PENDING" || task.status === "INSTALLING")) {
         this.on_progress = true;
       }
     } catch (error) {
@@ -338,9 +338,17 @@ export default {
         onMessage: (event) => {
           console.log("Received update: ", event.data);
           // PENDING 상태도 진행 중으로 처리
-          const data = JSON.parse(event.data);
-          if (data.status === "RUNNING" || data.status === "PENDING") {
+          if (event.data === "RUNNING" || event.data === "PENDING" || event.data === "INSTALLING") {
             this.on_progress = true;
+          }
+          if (event.data === "INSTALLING") {
+            // taskList에서 해당 task에 대해서 status를 INSTALLING으로 변경
+            const taskIndex = this.taskList.findIndex(task => task.task_id === task_id);
+            this.$set(this.taskList, taskIndex, {
+              ...this.taskList[taskIndex],
+              status: "INSTALLING",
+            });
+            console.log(this.taskList);
           }
         },
         onComplete: (status) => {
@@ -386,7 +394,14 @@ export default {
           workflow_info: this.exportValue,
         };
         const workflow_data = await exportData(workflow);
-        this.createEventSource(workflow_data.data.task_id);
+
+        // task_ids가 배열이므로 각 태스크 ID에 대해 createEventSource 실행
+        if (workflow_data.data.task_ids && Array.isArray(workflow_data.data.task_ids)) {
+          workflow_data.data.task_ids.forEach(task_id => {
+            this.createEventSource(task_id);
+          });
+        }
+
         if (this.show_jobs) {
           this.show_jobs = false;
           this.toggleTask();
@@ -514,7 +529,7 @@ export default {
                 task.start_time,
                 task.end_time
               );
-            } else if (task.status === "RUNNING" || task.status === "PENDING") {
+            } else if (task.status === "RUNNING" || task.status === "PENDING" || task.status === "INSTALLING") {
               // RUNNING 또는 PENDING 상태일 때 타이머 시작
               this.timeInterval = this.startTimer(idx);
               // Task가 실행 중이므로 on_progress를 true로 설정
@@ -579,7 +594,7 @@ export default {
 
         // RUNNING 또는 PENDING 상태일 때 running_time 계산
         if (this.taskList[idx].status === "RUNNING" ||
-          this.taskList[idx].status === "PENDING") {
+          this.taskList[idx].status === "PENDING" || this.taskList[idx].status === "INSTALLING") {
           let currentTime = new Date();
           let running_time = this.getRunningTime(
             this.taskList[idx].start_time,
