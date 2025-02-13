@@ -374,6 +374,10 @@ def generate_snakemake_code(rules_data, output_folder_path):
                         f"{normalized_name}=lambda wildcards: \"{unique_input_path}/{{{param['defaultValue']}}}\" "
                         f"if os.path.exists(\"{unique_input_path}/{{{param['defaultValue']}}}\") else \"None\""
                     )
+                elif param['type'] == 'string' and param['name'] == "ScatterPlot":
+                    param_list.append(
+                        'ScatterPlot=lambda wildcards: {ScatterPlot} if os.path.exists({ScatterPlot}) else "None"'
+                    )
                 elif param['type'] != 'inputFile' and param['type'] != 'outputFile':
                     param_list.append(f"{normalized_name}={{{param['name']}}}")
 

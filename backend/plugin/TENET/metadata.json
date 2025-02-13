@@ -885,7 +885,7 @@
                 "pseudotime.csv",
                 "cellSelect.csv"
             ],
-            "script": "tenet_input.py",
+            "script": null,
             "parameters": [
                 {
                     "name": "input",
@@ -972,7 +972,7 @@
             "output": [
                 "resultMatrixFdr.sif"
             ],
-            "script": "makeGRNbyTF.py",
+            "script": null,
             "parameters": [
                 {
                     "name": "resultMatrix",
@@ -1019,7 +1019,7 @@
             "output": [
                 "resultMatrixNumlinks.sif"
             ],
-            "script": "makeGRNbyTFsameNumberOfLinks.py",
+            "script": null,
             "parameters": [
                 {
                     "name": "resultMatrix",
@@ -1067,7 +1067,7 @@
                 "fdrTrim.sif",
                 "numlinksTrim.sif"
             ],
-            "script": "trim_indirect.py",
+            "script": null,
             "parameters": [
                 {
                     "name": "resultMatrixFdr",
@@ -1127,7 +1127,7 @@
                 "fdrTrimOutdegree.txt",
                 "numlinksTrimOutdegree.txt"
             ],
-            "script": "countOutdegree.py",
+            "script": null,
             "parameters": [
                 {
                     "name": "resultMatrixFdr",
@@ -1205,7 +1205,7 @@
             "output": [
                 "Barplot.json"
             ],
-            "script": "Barplot.py",
+            "script": null,
             "parameters": [
                 {
                     "name": "target",
@@ -1243,7 +1243,7 @@
             "output": [
                 "NeworkX.json"
             ],
-            "script": "NetworkX.py",
+            "script": null,
             "parameters": [
                 {
                     "name": "target",
@@ -1283,7 +1283,7 @@
             "output": [
                 "Heatmap.json"
             ],
-            "script": "Pseudotime_heatmap.R",
+            "script": null,
             "parameters": [
                 {
                     "name": "expMatrix",
@@ -1348,7 +1348,7 @@
             "output": [
                 "resultMatrix.txt"
             ],
-            "script": "run_optional_tf.py",
+            "script": null,
             "parameters": [
                 {
                     "name": "expMatrix",

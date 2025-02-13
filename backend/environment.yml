@@ -183,9 +183,9 @@ dependencies:
     - arrow==1.2.2
     - asgiref==3.5.2
     - asyncio==3.4.3
-    - billiard==3.6.4.0
+    - billiard==4.2.0
     - binaryornot==0.4.4
-    - celery==5.2.7
+    - celery==5.4.0
     - certifi==2022.5.18.1
     - cffi==1.15.0
     - chardet==4.0.0
@@ -210,7 +210,7 @@ dependencies:
     - jinja2-time==0.2.0
     - joblib==1.2.0
     - jose==1.0.0
-    - kombu==5.2.4
+    - kombu==5.3.4
     - llvmlite==0.39.1
     - natsort==8.2.0
     - networkx==3.0
@@ -248,7 +248,7 @@ dependencies:
     - umap-learn==0.5.3
     - urllib3==1.26.9
     - uvicorn==0.17.6
-    - vine==5.0.0
+    - vine==5.1.0
     - websockets==10.4
     - celery-singleton>=0.3.1
     - celery-pool-asyncio>=0.2.0

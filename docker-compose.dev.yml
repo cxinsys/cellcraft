@@ -35,7 +35,7 @@ services:
     image: postgres:15
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USERNAME}
+      - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - TZ=Asia/Seoul
     ports:
@@ -71,12 +71,10 @@ services:
         - db
       deploy:
         resources:
-          limits:
-            cpus: '34'
           reservations:
             devices:
               - driver: nvidia
-                count: all
+                count: "${GPU_COUNT:-all}"  # 사용자가 설정하지 않으면 모든 GPU 사용
                 capabilities: [gpu]
       restart: always
 volumes:

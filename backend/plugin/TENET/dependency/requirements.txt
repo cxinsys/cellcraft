@@ -1,4 +1,0 @@
-fasttenet
-networkx>=3.0
-matplotlib>=3.5.2
-plotly>=5.22.0
