@@ -208,7 +208,7 @@ table {
   --dfOutputHoverBorderRadius: 16px 16px 16px 16px;
 
 
-  --dfLineWidth: 15px;
+  --dfLineWidth: 10px;
   --dfLineColor: rgba(87, 218, 254, 0.7);
   --dfLineHoverColor: rgba(247, 206, 44, 0.62);
   --dfLineSelectedColor: rgba(247, 207, 44, 0.8);

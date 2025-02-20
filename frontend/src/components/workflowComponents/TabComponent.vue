@@ -55,6 +55,13 @@ export default {
                 title: node.data.title || node.name,
                 img: require(`@/assets/${node.name}.png`)
             };
+
+            // 최대 6개까지만 유지, 7개가 되면 가장 오래된 아이템 삭제
+            if (this.tabList.length >= 6) {
+                this.tabList.shift(); // 첫 번째 아이템 제거
+                this.currentTab = Math.max(0, this.currentTab - 1); // 현재 탭 인덱스 조정
+            }
+
             this.tabList.push(newTab);
             this.currentTab = this.tabList.length - 1;
             this.componentChange(newTab);

@@ -758,8 +758,8 @@ export default {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: rgb(0, 0, 0);
-    background-image: url("@/assets/fantastic_background3.png");
+    background: #191f26;
+    /* background-image: url("@/assets/fantastic_background3.png"); */
     background-size: cover;
     background-position: center center;
     background-repeat: no-repeat;

@@ -81,8 +81,8 @@ def create_celery():
         task_reject_on_worker_lost=True  # 워커 손실 시 작업 거부
     )
 
-    monitoring_thread = threading.Thread(target=check_system_usage, daemon=True)
-    monitoring_thread.start()
+    # monitoring_thread = threading.Thread(target=check_system_usage, daemon=True)
+    # monitoring_thread.start()
 
     return celery_app
 

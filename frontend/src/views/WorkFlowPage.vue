@@ -1,6 +1,5 @@
 <template>
   <div class="layout__workflow" ref="captureArea">
-    <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
     <section class="node-bar">
       <ul class="node-bar__nodelist" draggable="false">
         <li class="node-bar__drag-drawflow" v-for="(node, idx) in listNodes.slice(0, 4)" :key="idx" draggable="true"
@@ -8,8 +7,6 @@
           <img class="node-bar__img" :src="node.img" draggable="false" />
         </li>
       </ul>
-    </section>
-    <section class="node-bar_output">
       <ul class="node-bar__nodelist" draggable="false">
         <li class="node-bar__drag-drawflow" v-for="(node, idx) in listNodes.slice(4, 6)" :key="idx" draggable="true"
           :data-node="node.name" :nodeId="node.id" @dragstart="drag($event)">
@@ -17,20 +14,13 @@
         </li>
       </ul>
     </section>
+    <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
     <CompileCheck v-if="compile_check" @deactivate-compile-check="deactivateCompileCheck" @run-workflow="runWorkflow" />
-    <FileTable :show_files="show_files" :files_list="files_list" />
+    <!-- <FileTable :show_files="show_files" :files_list="files_list" /> -->
     <JobTable :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" />
     <ControlBar :on_progress="on_progress" :isTabView="isTabView" @toggle-file="toggleFile"
       @save-workflow-project="saveWorkflowProject" @activate-compile-check="activateCompileCheck"
-      @toggle-task="toggleTask" @toggle-tab-view="toggleTabView" />
-    <div class="node-zoom-buttons">
-      <button class="node-zoom-button" @click="zoomIn">
-        <img src="@/assets/zoom_in.png">
-      </button>
-      <button class="node-zoom-button" @click="zoomOut">
-        <img src="@/assets/zoom_out.png">
-      </button>
-    </div>
+      @toggle-task="toggleTask" @toggle-tab-view="toggleTabView" @zoom-in="zoomIn" @zoom-out="zoomOut" />
     <TabComponent ref="tabComponent" :initialTabList="initialTabList" :isTabView="isTabView"
       :currentWorkflowId="currentWorkflowId" @update:isTabView="updateIsTabView"
       @process-workflow-nodes="processWorkflowNodes" />
@@ -53,7 +43,7 @@ import Vue from "vue";
 import moment from "moment";
 /* eslint-disable */
 
-import FileTable from "@/components/workflowComponents/PopupFileTable.vue"
+// import FileTable from "@/components/workflowComponents/PopupFileTable.vue"
 import JobTable from "@/components/workflowComponents/PopupJobTable.vue"
 import ControlBar from "@/components/workflowComponents/ControlBar.vue"
 import TabComponent from "@/components/workflowComponents/TabComponent.vue"
@@ -80,7 +70,7 @@ import {
 
 export default {
   components: {
-    FileTable,
+    // FileTable,
     JobTable,
     ControlBar,
     TabComponent,
@@ -790,50 +780,37 @@ export default {
   height: 100%;
   position: relative;
   overflow: hidden;
-  background: rgb(0, 0, 0);
-  background-image: url("@/assets/fantastic_background3.png");
+  background: #191f26;
+  /* background-image: url("@/assets/fantastic_background3.png"); */
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
-}
-
-.main__bg-video {
-  position: fixed;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  z-index: -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
 }
 
 .node-bar {
-  /* width: 8rem; */
-  width: 80px;
-  /* height: 34rem; */
-  height: 400px;
+  width: 5rem;
   border-radius: 16px;
   background-color: rgba(255, 255, 255, 0.1);
   box-shadow: 0px 0px 0px 1px rgba(255, 255, 255, 0.1);
-  position: absolute;
-  /* top: calc(50% - 17rem); */
-  top: calc(50% - 208px);
-  left: 12px;
   z-index: 9998;
   opacity: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 }
 
-.node-bar_output {
-  /* width: 8rem; */
+/* .node-bar_output {
   width: 80px;
-  /* height: 34rem; */
   height: 400px;
   border-radius: 16px;
   background-color: rgba(69, 69, 69, 0.5);
   box-shadow: 0px 0px 0px 1px rgba(255, 255, 255, 0.1);
   position: absolute;
-  /* top: calc(50% - 17rem); */
   top: calc(50% - 208px);
   right: 12px;
   z-index: 9998;
@@ -842,16 +819,20 @@ export default {
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(10px);
-}
+} */
 
 .node-bar__nodelist {
   width: 80%;
-  height: 100%;
   display: flex;
-  margin-left: 3px;
   flex-direction: column;
-  justify-content: space-evenly;
   align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  border-bottom: 0.1rem solid rgba(255, 255, 255, 0.1);
+}
+
+.node-bar__nodelist:last-child {
+  border-bottom: none;
 }
 
 .node-bar__drag-drawflow {
@@ -894,11 +875,8 @@ export default {
 }
 
 #drawflow {
-  width: calc(100% - 210px);
-  height: calc(100% - 50px);
-  top: 30px;
-  left: 105px;
-  position: relative;
+  width: calc(100% - 8rem);
+  height: calc(100% - 2rem);
   border-radius: 0.8%;
   box-shadow: 0px 0px 1px 1px rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(10px);

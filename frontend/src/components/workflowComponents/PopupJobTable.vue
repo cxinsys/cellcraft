@@ -1,44 +1,39 @@
 <template>
   <div class="control-popup__jobs" v-if="show_jobs">
-    <table class="control-popup__table">
-      <thead>
-        <tr>
-          <th>No.</th>
-          <th>Name</th>
-          <th>Start</th>
-          <th>End</th>
-          <th>Time</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(task, index) in taskList" :key="index">
-          <td>{{ index + 1 }}</td>
-          <td>{{ task.title | titleNone }}</td>
-          <td>{{ task.start_time | formatDateTime }}</td>
-          <td>{{ task.end_time | formatDateTime }}</td>
-          <td>{{ task.running_time }}</td>
-          <td class="task-status">
-            <div class="status-box__red" v-if="
-              task.status === 'FAILURE' ||
-              task.status === 'REVOKED' ||
-              task.status === 'RETRY'
-            "></div>
-            <div class="status-box__yellow" v-if="
-              task.status === 'RUNNING' ||
-              task.status === 'PENDING' ||
-              task.status === 'INSTALLING'
-            "></div>
-            <div class="status-box__green" v-if="task.status === 'SUCCESS'"></div>
-            {{ task.status }}
-          </td>
-          <td>
-            <img v-if="task.status === 'RUNNING' || task.status === 'PENDING' || task.status === 'INSTALLING'" @click="cancelTask(task.task_id)"
-              class="control-bar__icon" src="@/assets/multiply.png" />
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="job-table-container">
+      <table class="job-table">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Name</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Time</th>
+            <th>Status</th>
+            <!-- <th>Action</th> -->
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(task, index) in taskList" :key="index">
+            <td>{{ index + 1 }}</td>
+            <td>{{ task.title | titleNone }}</td>
+            <td>{{ task.start_time | formatDateTime }}</td>
+            <td>{{ task.end_time | formatDateTime }}</td>
+            <td>{{ task.running_time }}</td>
+            <td>
+              <div class="task-status">
+                <div class="status-indicator" :class="getStatusClass(task.status)"></div>
+                {{ task.status }}
+              </div>
+            </td>
+            <!-- <td>
+              <img v-if="task.status === 'RUNNING' || task.status === 'PENDING' || task.status === 'INSTALLING'"
+                @click="cancelTask(task.task_id)" class="cancel-icon" src="@/assets/multiply.png" alt="Cancel" />
+            </td> -->
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
@@ -59,30 +54,33 @@ export default {
   methods: {
     cancelTask(taskId) {
       this.$emit('cancel-task', taskId);
+    },
+    getStatusClass(status) {
+      if (status === "SUCCESS") return "status-success";
+      if (status === "FAILURE" || status === "REVOKED" || status === "RETRY") return "status-failure";
+      if (status === "RUNNING" || status === "PENDING" || status === "INSTALLING") return "status-running";
     }
   },
   filters: {
     formatDateTime(dateTime) {
-      const date = moment(dateTime).format("MMMM Do, HH:mm");
-      if (date === "Invalid date") return "Not Yet Completed";
+      const date = moment(dateTime).format("YYYY.MM.DD-HH:mm");
+      if (date === "Invalid date") return "Not Yet Completed"; // 날짜가 유효하지 않을 경우 처리
       return date;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style scoped>
+/* 기존 포지션 유지 */
 .control-popup__jobs {
-  /* width: 8rem; */
-  width: 40vw;
-  max-width: 400px;
-  /* height: 34rem; */
-  height: 30vh;
-  max-height: 300px;
-
+  /* width: 720px;
+  max-width: 720px; */
+  height: 540px;
+  max-height: 540px;
+  left: calc(50%);
+  overflow-y: auto;
   border-radius: 16px;
-  background: rgba(244, 246, 251, 0.586);
-  box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 1);
   position: absolute;
   bottom: 98px;
   z-index: 9998;
@@ -90,123 +88,107 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: #2c3e50;
+  /* 다크 테마 */
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+  padding: 0.5rem;
 }
 
-.control-popup__jobs {
-  max-width: 720px;
-  max-height: 540px;
-  width: 720px;
-  height: 540px;
-  left: calc(50% + 1vw);
-  overflow-y: auto;
-  border-radius: 16px;
-  /* or whatever radius you prefer */
+/* 더 얇고 어두운 스크롤바 스타일 */
+.job-table-container::-webkit-scrollbar {
+  width: 6px;
+  /* 기존 10px → 6px로 얇게 */
 }
 
-.control-popup__jobs::-webkit-scrollbar {
-  width: 10px;
-  /* width of the entire scrollbar */
+.job-table-container::-webkit-scrollbar-track {
+  background: #2a3d55;
+  /* 더 어두운 트랙 색상 */
+  border-radius: 12px;
 }
 
-.control-popup__jobs::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  /* color of the tracking area */
-  border-radius: 16px;
-  /* keep the same radius as the container */
+.job-table-container::-webkit-scrollbar-thumb {
+  background: #444;
+  /* 기본 스크롤바 색상 더 어둡게 */
+  border-radius: 12px;
 }
 
-.control-popup__jobs::-webkit-scrollbar-thumb {
-  background: #888;
-  /* color of the scroll thumb */
-  border-radius: 16px;
-  /* keep the same radius as the container */
+.job-table-container::-webkit-scrollbar-thumb:hover {
+  background: #333;
+  /* Hover 시 더 어두운 색 */
 }
 
-.control-popup__jobs::-webkit-scrollbar-thumb:hover {
-  background: #555;
-  /* color of the scroll thumb on hover */
-}
-
-.control-popup__table {
-  width: 95%;
+/* 테이블 스타일 */
+.job-table-container {
+  /* width: 95%; */
   height: auto;
-  margin: auto;
-  border-collapse: collapse;
-  position: absolute;
-  top: 20px;
+  max-height: calc(540px - 1rem);
+  overflow-y: auto;
+  border-radius: 10px;
 }
 
-.control-popup__table thead {
-  height: 26px;
-  font-weight: 500;
-  color: rgb(49, 49, 49);
-  border-bottom: 1px solid #6767678c;
-}
-
-.control-popup__table td.task-status {
-  display: flex;
-  /* align items horizontally */
-  align-items: center;
-  /* center items vertically */
-  justify-content: center;
-  /* center items horizontally */
-}
-
-.control-popup__table td {
-  vertical-align: middle;
-  font-weight: 400;
-  text-align: center;
-  color: rgb(68, 68, 68);
-  padding: 0.7rem;
-  margin: 1rem;
-}
-
-.control-popup__table__progress {
-  width: 40%;
-}
-
-.status-box__red,
-.status-box__green,
-.status-box__yellow {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  margin-right: 5px;
-}
-
-.status-box__red {
-  background-color: #ff4444;
-  /* 더 선명한 빨간색 */
-}
-
-.status-box__green {
-  background-color: #00C851;
-  /* 더 선명한 초록색 */
-}
-
-.status-box__yellow {
-  background-color: #ffbb33;
-  /* 더 선명한 노란색 */
-}
-
-.progress-bar {
+.job-table {
   width: 100%;
-  height: 5px;
-  background-color: #eee;
+  border-collapse: collapse;
+  background-color: #34495e;
   border-radius: 10px;
   overflow: hidden;
 }
 
-.progress {
-  height: 100%;
-  background-color: #3a98fc;
-  transition: width 0.3s;
-  border-radius: 10px;
+.job-table thead {
+  background-color: #1f2a38;
+  color: #ecf0f1;
 }
 
-.control-bar__icon {
-  width: 1rem;
-  height: 1rem;
+.job-table th,
+.job-table td {
+  padding: 8px;
+  text-align: center;
+  border-bottom: 1px solid #576574;
+  color: #ecf0f1;
+}
+
+.job-table td {
+  font-size: 0.8rem;
+}
+
+.job-table tbody tr {
+  transition: background-color 0.2s ease-in-out;
+}
+
+.job-table tbody tr:hover {
+  background-color: #3d566e;
+}
+
+/* 상태 아이콘 */
+.task-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-failure {
+  background-color: #e74c3c;
+}
+
+.status-success {
+  background-color: #2ecc71;
+}
+
+.status-running {
+  background-color: #f39c12;
+}
+
+/* 취소 아이콘 */
+.cancel-icon {
+  width: 16px;
+  height: 16px;
   cursor: pointer;
 }
 </style>
