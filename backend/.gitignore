@@ -15,7 +15,7 @@ pip-selfcheck.json
 *.pyc
 __pycache__/
 
-# /plugin/*
+/plugin/*
 
 /user/*
 /lightning_logs/*
