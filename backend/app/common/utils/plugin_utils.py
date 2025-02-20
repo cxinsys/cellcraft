@@ -710,6 +710,10 @@ def install_dependencies(dependency_file_name: str):
             print(f"{dependency_file_path}에서 Python 의존성 설치 중...")
             subprocess.run([pip_executable, "install", "--cache-dir", "/tmp/pip_cache", "-r", dependency_file_path], check=True)
 
+            # 2️⃣ NumPy를 원하는 버전으로 재설치 (고정)
+            print("NumPy 버전을 1.23.5로 강제 고정 중...")
+            subprocess.run([pip_executable, "install", "--no-cache-dir", "--force-reinstall", "numpy==1.23.5"], check=True)
+
         elif dependency_file_name.endswith(("environment.yml", "environment.yaml")):
             print(f"{dependency_file_path}에서 Conda 의존성 설치 중...")
             subprocess.run([conda_executable, "env", "update", "--file", dependency_file_path, "--prune"], check=True)

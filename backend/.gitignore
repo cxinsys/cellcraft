@@ -15,7 +15,7 @@ pip-selfcheck.json
 *.pyc
 __pycache__/
 
-/plugin/*
+# /plugin/*
 
 /user/*
 /lightning_logs/*
@@ -29,3 +29,7 @@ Rplots.pdf
 .env.test.local
 .env.production.local
 .env.local
+
+MAC_temp.csv
+
+src/

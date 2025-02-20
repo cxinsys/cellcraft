@@ -91,22 +91,22 @@ def process_data_task(self, username: str, snakefile_path: str, plugin_dependenc
         print(f'Processing data for user {username}...')
         print(f"Task ID: {self.request.id}")
 
-        self.update_state(state="INSTALLING", meta={"message": "Installing dependencies..."})
+        if plugin_dependency_path != "None":
+            self.update_state(state="INSTALLING", meta={"message": "Installing dependencies..."})
+            # 의존성 설치
+            for dependency_file in ['requirements.txt', 'environment.yml', 'environment.yaml', 'renv.lock']:
+                dependency_file_path = os.path.join(plugin_dependency_path, dependency_file)
+                if os.path.exists(dependency_file_path):
+                    print(f"Installing dependencies from {dependency_file}...")
+                    try:
+                        install_dependencies(dependency_file_path)
+                    except Exception as e:
+                        error_message = f"Failed to install dependencies from {dependency_file}: {str(e)}"
+                        print(error_message)
+                        self.update_state(state="FAILURE", meta={"error": error_message})
+                        raise RuntimeError(error_message)
 
-        # 의존성 설치
-        for dependency_file in ['requirements.txt', 'environment.yml', 'environment.yaml', 'renv.lock']:
-            dependency_file_path = os.path.join(plugin_dependency_path, dependency_file)
-            if os.path.exists(dependency_file_path):
-                print(f"Installing dependencies from {dependency_file}...")
-                try:
-                    install_dependencies(dependency_file_path)
-                except Exception as e:
-                    error_message = f"Failed to install dependencies from {dependency_file}: {str(e)}"
-                    print(error_message)
-                    self.update_state(state="FAILURE", meta={"error": error_message})
-                    raise RuntimeError(error_message)
-
-        self.update_state(state="RUNNING", meta={"message": "Executing workflow..."})
+            self.update_state(state="RUNNING", meta={"message": "Executing workflow..."})
 
         # Snakemake 실행
         result = snakemakeProcess(targets, snakefile_path)

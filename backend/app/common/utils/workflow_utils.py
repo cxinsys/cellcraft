@@ -86,6 +86,30 @@ def extract_all_algorithms(workflow_info):
 
     return algorithms
 
+def extract_algorithm_data(workflow_info):
+    # 탐색하여 class가 "Algorithm"인 객체를 찾음
+    for key, value in workflow_info.items():
+        if value.get("class") == "Algorithm":
+            algorithm_id = value.get("id")
+            algorithm_data = value.get("data", {})
+            
+            # 필드 추출
+            selected_plugin = algorithm_data.get("selectedPlugin")
+            selected_plugin_input_output = algorithm_data.get("selectedPluginInputOutput")
+            selected_plugin_rules = algorithm_data.get("selectedPluginRules")
+            
+            # 결과 반환
+            return {
+                "id": algorithm_id,
+                "files": algorithm_data.get("files"),
+                "selectedPlugin": selected_plugin,
+                "selectedPluginInputOutput": selected_plugin_input_output,
+                "selectedPluginRules": selected_plugin_rules
+            }
+    
+    # "Algorithm" 클래스를 가진 객체가 없을 경우 빈 딕셔너리 반환
+    return {}
+
 def extract_visualization_data(workflow_info, node_id):
     # 탐색하여 class가 "Visualization"이고 id가 node_id인 객체를 찾음
     for key, value in workflow_info.items():

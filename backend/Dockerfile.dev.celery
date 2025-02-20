@@ -41,6 +41,18 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 # R 패키지 설치를 위한 기본 설정
 RUN echo "options(repos = c(CRAN = 'https://cloud.r-project.org/'))" > /usr/lib/R/etc/Rprofile.site
 
+# renv 설치
+RUN R -e "install.packages('renv', repos='https://cloud.r-project.org/')"
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# renv.lock 파일 복사
+COPY renv.lock /app/renv.lock
+
+# renv 환경 복원
+RUN R -e "renv::restore()"
+
 # Miniconda 설치
 RUN wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
@@ -49,25 +61,9 @@ RUN wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-l
 # Conda 환경 변수 설정
 ENV PATH /opt/conda/bin:$PATH
 
-# OpenMPI 설치
-# RUN wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.5.tar.gz && \
-#     tar -xzvf openmpi-4.0.5.tar.gz && \
-#     cd openmpi-4.0.5 && \
-#     ./configure --prefix=/usr/local/openmpi && \
-#     make all && \
-#     make install
-
-# OpenMPI 환경 변수 설정
-# ENV PATH="/usr/local/openmpi/bin:${PATH}"
-# ENV LD_LIBRARY_PATH="/usr/local/openmpi/lib:${LD_LIBRARY_PATH}"
-
-# 작업 디렉토리 설정
-WORKDIR /app
-
 # Conda 환경 설정
 COPY environment.yml ./
 RUN conda env create -f environment.yml
-
 
 # 애플리케이션 소스 코드 복사
 COPY . .
