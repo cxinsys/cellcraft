@@ -1,0 +1,44 @@
+import os
+
+rule TENET_Input:
+    input:
+        input="user/{user_name}/data/{input.h5ad}"
+    output:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/trajectory.txt",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    params:
+        geneList=lambda wildcards: "user/{user_name}/data/{geneList.txt}" if os.path.exists("user/{user_name}/data/{geneList.txt}") else "None",
+        ScatterPlot=lambda wildcards: {ScatterPlot} if os.path.exists({ScatterPlot}) else "None",
+        cell_group={cell group},
+        pseudotime={pseudotime},
+        clusters=lambda wc: ";".join({clusters})
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/TENET_Input.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/TENET_Input.stderr"
+    shell:
+        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/tenet_input.py {input.input} {params.geneList} {params.ScatterPlot} {output.expression} {output.trajectory} {output.cellSelect} {params.cell_group} {params.pseudotime} '{params.clusters}' > {log.stdout} 2> {log.stderr}"
+
+rule Run:
+    input:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/trajectory.txt",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    output:
+        rankedEdges="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/rankedEdges.txt",
+        GRN="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/GRN.sif",
+        GRNOutdegree="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/GRNOutdegree.txt"
+    params:
+        Lower_Limit={Lower Limit},
+        Expression_Family={Expression Family},
+        method={method},
+        Delay={Delay},
+        log={log},
+        number_of_outdegrees={number of outdegrees},
+        FDR={FDR}
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stderr"
+    shell:
+        "/usr/bin/Rscript /app/plugin/{plugin_name}/scripts/scribe_for_cellcraft.R {input.expression} {input.trajectory} {input.cellSelect} {params.Lower_Limit} {params.Expression_Family} {params.method} {params.Delay} {params.log} {params.number_of_outdegrees} {params.FDR} {output.rankedEdges} {output.GRN} {output.GRNOutdegree} > {log.stdout} 2> {log.stderr}"
+

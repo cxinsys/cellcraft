@@ -1,0 +1,4 @@
+-e git+https://github.com/aertslab/arboreto.git@79f916b0ea25c00989331b8db243826049c3d66c#egg=arboreto
+pandas==1.5.0
+statsmodels==0.13.5
+networkx==3.0

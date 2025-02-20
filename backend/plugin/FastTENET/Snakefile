@@ -1,0 +1,45 @@
+import os
+
+rule TENET_Input:
+    input:
+        input="user/{user_name}/data/{input.h5ad}"
+    output:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/trajectory.txt",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    params:
+        geneList=lambda wildcards: "user/{user_name}/data/{geneList.txt}" if os.path.exists("user/{user_name}/data/{geneList.txt}") else "None",
+        ScatterPlot=lambda wildcards: {ScatterPlot} if os.path.exists({ScatterPlot}) else "None",
+        cell_group={cell group},
+        pseudotime={pseudotime},
+        clusters=lambda wc: ";".join({clusters})
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/TENET_Input.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/TENET_Input.stderr"
+    shell:
+        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/tenet_input.py {input.input} {params.geneList} {params.ScatterPlot} {output.expression} {output.trajectory} {output.cellSelect} {params.cell_group} {params.pseudotime} '{params.clusters}' > {log.stdout} 2> {log.stderr}"
+
+rule Run:
+    input:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/trajectory.txt",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    output:
+        GRN="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/GRN.sif",
+        GRNTrim="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/GRNTrim.sif",
+        GRNOutdegree="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/GRNOutdegree.txt",
+        GRNTrimOutdegree="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/GRNTrimOutdegree.txt"
+    params:
+        TF=lambda wildcards: "user/{user_name}/data/{TF.txt}" if os.path.exists("user/{user_name}/data/{TF.txt}") else "None",
+        backend={backend},
+        number_of_devices={number of devices},
+        batch_size={batch size},
+        FDR={FDR},
+        number_of_outdegrees={number of outdegrees},
+        trimming_threshold={trimming threshold}
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stderr"
+    shell:
+        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/fasttenet_for_cellcraft.py {input.expression} {input.trajectory} {input.cellSelect} {params.TF} {output.GRN} {output.GRNTrim} {output.GRNOutdegree} {output.GRNTrimOutdegree} {params.backend} {params.number_of_devices} {params.batch_size} {params.FDR} {params.number_of_outdegrees} {params.trimming_threshold} > {log.stdout} 2> {log.stderr}"
+
