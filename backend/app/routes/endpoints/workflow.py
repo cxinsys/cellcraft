@@ -101,7 +101,7 @@ def visualizeData(
         user_path = f"./user/{current_user.username}/"
         if user_workflow:
             crud_workflow.update_workflow(db, current_user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info)
-            extract_algorithm = extract_algorithm_data(user_workflow.workflow_info['drawflow']['Home']['data'])
+            extract_algorithm = extract_algorithm_data(user_workflow.workflow_info['drawflow']['Home']['data'], workflow.algorithm_id)
             extract_visualization = extract_visualization_data(user_workflow.workflow_info['drawflow']['Home']['data'], workflow.current_node_id)
 
             user_task_path = f"{user_path}workflow_{workflow.id}/algorithm_{extract_algorithm['id']}"

@@ -202,6 +202,7 @@ export default {
                 const workflow_info = this.$store.getters.getWorkflowInfo;
                 const workflow = {
                     id: this.workflowId,
+                    algorithm_id: this.algorithmId,
                     current_node_id: this.nodeId,
                     title: title,
                     thumbnail: thumbnail,
