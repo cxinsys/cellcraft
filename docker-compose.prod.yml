@@ -60,30 +60,27 @@ services:
     restart: always
 
   celery:
-    environment:
-      - CONDA_DEFAULT_ENV=snakemake
-      - C_FORCE_ROOT=true
-      - TZ=Asia/Seoul
-    ipc: host
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.celery
-    runtime: nvidia
-    volumes:
-      - ./backend:/app
-    depends_on:
-      - rabbitmq
-      - db
-    deploy:
-      resources:
-        limits:
-          cpus: "34"
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    restart: always
+      environment:
+        - CONDA_DEFAULT_ENV=snakemake
+        - C_FORCE_ROOT=true
+        - TZ=Asia/Seoul
+      ipc: host
+      build:
+        context: ./backend
+        dockerfile: Dockerfile.dev.celery
+      volumes:
+        - ./backend:/app
+      depends_on:
+        - rabbitmq
+        - db
+      deploy:
+        resources:
+          reservations:
+            devices:
+              - driver: nvidia
+                count: "${GPU_COUNT:-all}"  # 사용자가 설정하지 않으면 모든 GPU 사용
+                capabilities: [gpu]
+      restart: always
 
 volumes:
   postgres_data:

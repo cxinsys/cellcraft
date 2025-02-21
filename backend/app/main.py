@@ -47,6 +47,6 @@ def get_celery_app():
     return celery
 
 # 서버 시작 시 CSV 파일로부터 플러그인 데이터를 초기화
-# @app.on_event("startup")
-# async def startup_event():
-#     initialize_plugins_from_csv("./app/database/initial_data/plugin_initialization.csv")
+@app.on_event("startup")
+async def startup_event():
+    initialize_plugins_from_csv("./app/database/initial_data/plugin_initialization.csv")
