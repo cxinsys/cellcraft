@@ -347,3 +347,12 @@ async def download_data_file(
         df = load_tab_file(PATH_DATA_FILE)
         return df.to_dict(orient="records")
     return FileResponse(PATH_DATA_FILE, filename=filename)
+
+@router.get("/tutorials/{filename}")
+async def download_tutorial_file(
+    *,
+    current_user: models.User = Depends(dep.get_current_active_user),
+    filename: str,
+    ) -> Any:
+    PATH_TUTORIAL_FILE = './tutorials/' + filename
+    return FileResponse(PATH_TUTORIAL_FILE, filename=filename)

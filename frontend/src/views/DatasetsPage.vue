@@ -3,39 +3,29 @@
     <div class="first-line">
       <div class="header__text">Datasets</div>
       <div class="search">
-        <input
-          type="text"
-          v-model="searchTerm"
-          placeholder="Search titles..."
-        />
+        <input type="text" v-model="searchTerm" placeholder="Search titles..." />
       </div>
       <div class="pagination">
         <button @click="prevPage" :disabled="currentPage <= 1">Prev</button>
         <span>{{ currentPage }}</span>
-        <button @click="nextPage" :disabled="currentPage >= totalPages">
-          Next
-        </button>
+        <button @click="nextPage" :disabled="currentPage >= totalPages">Next</button>
       </div>
     </div>
     <table>
       <tbody>
-        <tr v-for="item in filteredStudies" :key="item.id">
+        <tr v-for="item in paginatedStudies" :key="item.id">
           <td>
             <div>
               <div class="title-container">
                 {{ item.title }}
-                <a :href="item.link" target="_blank">
-                  <img
-                    src="@/assets/floppy-disk.png"
-                    alt="Download"
-                    class="download-icon"
-                  />
-                </a>
+                <button @click="downloadFile(item.title)" class="download-button">
+                  <img src="@/assets/floppy-disk.png" alt="Download" class="download-icon" />
+                </button>
               </div>
-              <div class="description-contatiner">
+              <div class="description-container">
                 {{ item.description }}
               </div>
-              <div class="cells-contatiner">{{ item.cells }}</div>
+              <div v-if="item.cells !== ''" class="cells-container">{{ item.cells }}</div>
             </div>
           </td>
         </tr>
@@ -45,6 +35,8 @@
 </template>
 
 <script>
+import { getTutorialFileDownload } from "@/api/index"; // API 함수 가져오기
+
 export default {
   data() {
     return {
@@ -54,27 +46,24 @@ export default {
       studies: [
         {
           id: 1,
-          title: "Tuck_PAGA3281genes.h5ad",
-          cells: "3281 Cells",
+          title: "pbmc_light_1000.h5ad",
+          cells: "32738 Cells",
           description:
-            "This dataset is scRNA-seq data obtained from mouse embryonic stem cells (mESC), and pseudo-time analysis has been conducted using PAGA. The data is structured as a 459 x 3281 Matrix of cells by genes.",
-          link: "https://github.com/neocaleb/TENET/raw/master/Data.Tuck/Tuck_PAGA3281genes.h5ad",
+            "A tutorial dataset in CellCraft containing 1,000 PBMC cells from a healthy donor. The data is structured as a 1000 × 32,738 matrix of cells by genes and is designed for testing built-in plugins.",
         },
         {
           id: 2,
-          title: "Tuck_PAGA510genes.h5ad",
-          cells: "510 Cells",
+          title: "unique_genes.txt",
+          cells: "",
           description:
-            "This dataset is scRNA-seq data obtained from mouse embryonic stem cells (mESC), and pseudo-time analysis has been conducted using PAGA. The data is structured as a 459 x 510 Matrix of cells by genes.",
-          link: "https://github.com/neocaleb/TENET/raw/master/Data.Tuck/Tuck_PAGA510genes.h5ad",
+            "A tutorial dataset in CellCraft containing 971 unique differentially expressed genes (DEGs), aggregated from the top 150 DEGs of each group.",
         },
         {
           id: 3,
-          title: "pbmc_raw.h5ad",
-          cells: "32738 Cells",
+          title: "human_TFs.txt",
+          cells: "",
           description:
-            "The data consists of PBMCs obtained from a healthy donor and is available through 10x Genomics. The data is structured as a 2700 x 32738 Matrix of cells by genes.",
-          link: "https://github.com/mindongdong/h5adDatabase/raw/main/pbmc_raw.h5ad",
+            "A tutorial dataset in CellCraft containing a list of transcription factors (TFs) related to the regulation of transcription and sequence-specific DNA binding.",
         },
       ],
     };
@@ -101,6 +90,20 @@ export default {
     prevPage() {
       if (this.currentPage > 1) this.currentPage--;
     },
+    async downloadFile(filename) {
+      try {
+        const response = await getTutorialFileDownload(filename); // API 호출
+        const blob = new Blob([response.data]); // Blob 생성
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (error) {
+        console.error("Download failed:", error);
+      }
+    },
   },
 };
 </script>
@@ -115,10 +118,8 @@ table {
   height: 100%;
   border-collapse: separate;
   border-spacing: 5px;
-  /* background-color: #c9c9c9; */
   transition: all 0.3s ease;
   border-radius: 15px;
-  /* color: #ffffff; */
 }
 
 thead th,
@@ -128,7 +129,6 @@ td {
   text-align: left;
   border-radius: 10px;
   border: 1px solid #a8a8a8;
-  /* box-shadow: 0px 4px 4px rgba(176, 169, 255, 0.25); */
 }
 
 th {
@@ -145,32 +145,27 @@ button {
   margin-right: 10px;
   color: black;
   padding: 5px;
-  left: 10px;
   border-radius: 10px;
   background-color: #eaecff;
   border-color: #e7eaff;
   font-size: small;
   text-align: center;
-  text-transform: capitalize;
 }
+
 button:disabled {
   color: #ccc;
 }
-.sort-icon {
-  color: rgb(199, 199, 199);
-  font-weight: normal;
-  font-size: small;
-}
+
 .first-line {
   height: 40px;
   margin-bottom: 10px;
   width: calc(100% - 10px);
-  padding: 5px 5px 0px 5px;
+  padding: 5px;
   display: flex;
   justify-content: space-between;
-  flex-direction: row;
   align-items: center;
 }
+
 .search {
   display: flex;
   align-items: center;
@@ -185,15 +180,9 @@ button:disabled {
   outline-style: none;
   background: #f7f7f7;
 }
+
 .search input:focus {
   border: 1px solid #bcbcbc;
-}
-
-#pageSize {
-  padding: 2px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-  margin-bottom: 5px;
 }
 
 .pagination {
@@ -210,6 +199,15 @@ button:disabled {
   margin: 0px 0px;
   width: 33px;
   height: 33px;
+  cursor: pointer;
+}
+
+.download-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: inline-block;
 }
 
 .title-container {
@@ -220,13 +218,13 @@ button:disabled {
   margin-top: 5px;
 }
 
-.description-contatiner {
+.description-container {
   font-size: 16px;
   color: #474747;
   margin: 5px 2px;
 }
 
-.cells-contatiner {
+.cells-container {
   font-size: 14px;
   font-weight: 600;
   padding: 6px 10px;
@@ -239,11 +237,8 @@ button:disabled {
 
 .header__text {
   font-family: "Montserrat", sans-serif;
-  font-style: normal;
   font-weight: 600;
   font-size: 2rem;
-  line-height: 1rem;
-  /* padding-left: 2rem; */
   color: rgba(0, 0, 0, 0.8);
 }
 </style>

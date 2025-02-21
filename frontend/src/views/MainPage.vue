@@ -9,17 +9,14 @@
       <div class="main__textbox">
         <img class="main__name" :src="randomImage" alt="Random Image" />
         <span class="main__desc">
-          Platform for Reconstruction of Inter-cell Type Gene Regulatory Network
-          Model
+          Platform for the Reconstruction of Inter-Cell Type Gene Regulatory Network Model
           <br />
-          based on Integrative Analysis of Single Cell RNA-seq, ATAC-seq and
+          Based on the Integrative Analysis of Single-Cell RNA-seq, ATAC-seq, and
           Spatial Transcriptomics Data
         </span>
+
         <div class="main__hotButtons">
-          <button
-            class="main__hotButtons-item"
-            @click="scrollToBottom('introId')"
-          >
+          <button class="main__hotButtons-item" @click="scrollToBottom('introId')">
             More
           </button>
         </div>
@@ -46,70 +43,46 @@
     <section class="menu-component" id="menuId">
       <h1 class="menu__title">Tutorial</h1>
       <h2 class="menu__description">
-        Follow the posts below, ready the dataset for Cellcraft
+        Follow the posts below, ready the dataset for CellCraft
       </h2>
       <ul class="menu-list">
         <div class="menu-list__col">
-          <li
-            ref="seurat"
-            class="menu-list__card"
-            @click="openHtmlPage('seurat')"
-            @mouseover="mouseoverEvent"
-            @mouseout="mouseoutEvent"
-          >
+          <li ref="seurat" class="menu-list__card" @click="openHtmlPage('seurat')" @mouseover="mouseoverEvent"
+            @mouseout="mouseoutEvent">
             <img class="menu-list__icon" src="@/assets/Seurat_work.png" />
             <div class="menu-list__textbox">
               <p class="menu-list__title">Seurat</p>
-              <span class="menu-list__desc"
-                >A basic tutorial on single-cell transcriptomics using Seurat.
+              <span class="menu-list__desc">A basic tutorial on single-cell transcriptomics using Seurat.
               </span>
             </div>
           </li>
-          <li
-            ref="monocle"
-            class="menu-list__card"
-            @click="openHtmlPage('monocle')"
-            @mouseover="mouseoverEvent"
-            @mouseout="mouseoutEvent"
-          >
+          <li ref="monocle" class="menu-list__card" @click="openHtmlPage('monocle')" @mouseover="mouseoverEvent"
+            @mouseout="mouseoutEvent">
             <img class="menu-list__icon" src="@/assets/Monocle_Work.png" />
             <div class="menu-list__textbox">
               <p class="menu-list__title">Monocle</p>
               <span class="menu-list__desc">
-                Example of Trajectory Analysis Using Monocle
+                A tutorial on trajectory analysis using Monocle.
               </span>
             </div>
           </li>
         </div>
         <div class="menu-list__col">
-          <li
-            ref="scanpy"
-            @click="openHtmlPage('scanpy')"
-            class="menu-list__card"
-            @mouseover="mouseoverEvent"
-            @mouseout="mouseoutEvent"
-          >
+          <li ref="scanpy" @click="openHtmlPage('scanpy')" class="menu-list__card" @mouseover="mouseoverEvent"
+            @mouseout="mouseoutEvent">
             <img class="menu-list__icon" src="@/assets/scanpy_work.png" />
             <div class="menu-list__textbox">
               <p class="menu-list__title">Scanpy</p>
-              <span class="menu-list__desc"
-                >A basic tutorial on single-cell transcriptomics using Scanpy.
+              <span class="menu-list__desc">A basic tutorial on single-cell transcriptomics using Scanpy.
               </span>
             </div>
           </li>
-          <li
-            ref="PAGA"
-            @click="openHtmlPage('PAGA')"
-            class="menu-list__card"
-            @mouseover="mouseoverEvent"
-            @mouseout="mouseoutEvent"
-          >
+          <li ref="PAGA" @click="openHtmlPage('PAGA')" class="menu-list__card" @mouseover="mouseoverEvent"
+            @mouseout="mouseoutEvent">
             <img class="menu-list__icon" src="@/assets/PAGA_work.png" />
             <div class="menu-list__textbox">
               <p class="menu-list__title">PAGA</p>
-              <span class="menu-list__desc"
-                >Example of Trajectory Analysis Using PAGA</span
-              >
+              <span class="menu-list__desc">A tutorial on trajectory analysis using PAGA.</span>
             </div>
           </li>
         </div>
@@ -122,42 +95,27 @@
       </div>
       <ul class="menu-list">
         <div class="menu-list__col">
-          <li
-            ref="output-conversion"
-            @click="openHtmlPage('output-conversion')"
-            class="menu-list__largeCard"
-            @mouseover="mouseoverEvent"
-            @mouseout="mouseoutEvent"
-          >
-            <img
-              class="menu-list__largeIcon"
-              src="@/assets/output-conversion.png"
-            />
+          <li ref="output-conversion" @click="openHtmlPage('output-conversion')" class="menu-list__largeCard"
+            @mouseover="mouseoverEvent" @mouseout="mouseoutEvent">
+            <img class="menu-list__largeIcon" src="@/assets/output-conversion.png" />
             <div class="menu-list__textbox largeTextbox">
               <p class="menu-list__title">
                 {{ textDict.outputConversion.title }}
               </p>
-              <span class="menu-list__desc"
-                >{{ textDict.outputConversion.desc }}
+              <span class="menu-list__desc">{{ textDict.outputConversion.desc }}
               </span>
             </div>
           </li>
         </div>
         <div class="menu-list__col">
-          <li
-            ref="multi-omics"
-            @click="openHtmlPage('multi-omics')"
-            class="menu-list__largeCard"
-            @mouseover="mouseoverEvent"
-            @mouseout="mouseoutEvent"
-          >
+          <li ref="multi-omics" @click="openHtmlPage('multi-omics')" class="menu-list__largeCard"
+            @mouseover="mouseoverEvent" @mouseout="mouseoutEvent">
             <img class="menu-list__largeIcon" src="@/assets/multi-omics.png" />
             <div class="menu-list__textbox largeTextbox">
               <p class="menu-list__title">
                 {{ textDict.multiOmics.title }}
               </p>
-              <span class="menu-list__desc"
-                >{{ textDict.multiOmics.desc }}
+              <span class="menu-list__desc">{{ textDict.multiOmics.desc }}
               </span>
             </div>
           </li>
@@ -178,10 +136,10 @@
             Single-cell analysis data platform for researchers
           </h1>
           <p class="about__desc-text">
-            Cellcraft is an innovative online service meticulously designed to
+            CellCraft is an innovative online service meticulously designed to
             analyze gene regulatory networks. Developed by our dedicated team,
             TENET stands at the forefront of computational biology and gene
-            regulatory network analysis. TENET is now implemented in Cellcraft.
+            regulatory network analysis. TENET is now implemented in CellCraft.
           </p>
         </div>
         <div class="about__descbox__column">
@@ -201,39 +159,39 @@ export default {
     return {
       images: [logo1, logo2],
       textDict: {
-        seurat: {
-          title: "seurat",
-          desc: "A basic tutorial on single-cell transcriptomics using Seurat.",
+        "seurat": {
+          "title": "Seurat",
+          "desc": "A basic tutorial on single-cell transcriptomics using Seurat."
         },
-        monocle: {
-          title: "monocle",
-          desc: "Example of Trajectory Analysis Using Monocle",
+        "monocle": {
+          "title": "Monocle",
+          "desc": "A tutorial on trajectory analysis using Monocle."
         },
-        scanpy: {
-          title: "scanpy",
-          desc: "A basic tutorial on single-cell transcriptomics using Scanpy.",
+        "scanpy": {
+          "title": "Scanpy",
+          "desc": "A basic tutorial on single-cell transcriptomics using Scanpy."
         },
-        PAGA: {
-          title: "PAGA",
-          desc: "Example of Trajectory Analysis Using PAGA",
+        "PAGA": {
+          "title": "PAGA",
+          "desc": "A tutorial on trajectory analysis using PAGA."
         },
-        outputConversion: {
-          title: "Output Conversion",
-          desc: "An overview of converting analyzed files (rds to h5ad)",
+        "outputConversion": {
+          "title": "Output Conversion",
+          "desc": "A guide to converting analyzed files (RDS to H5AD)."
         },
-        multiOmics: {
-          title: "Multi-Omics",
-          desc: "Example of Multiomics Analysis(scRNA-seq + scATAC-seq) Using Seurat.",
+        "multiOmics": {
+          "title": "Multi-Omics",
+          "desc": "A tutorial on multi-omics analysis (scRNA-seq + scATAC-seq) using Seurat."
         },
         intro: {
           title: "Intro",
-          desc: "Welcome to the official tutorial for Cellcraft.",
+          desc: "Welcome to the official tutorial for CellCraft.",
           desc1:
-            "Cellcraft offers a user-friendly interface that allows researchers to quickly explore, analyze, and visualize gene regulatory networks. Cellcraft can process complex datasets, providing accurate and actionable insights into genetic interactions. Users can upload their data, select parameters for analysis, and witness the transformative power of Cellcraft and TENET. This main tutorial aims to give users a comprehensive overview of Cellcraft, guiding them through its features and capabilities.",
+            "CellCraft offers a user-friendly interface that allows researchers to quickly explore, analyze, and visualize gene regulatory networks. Cellcraft can process complex datasets, providing accurate and actionable insights into genetic interactions. Users can upload their data, select parameters for analysis, and witness the transformative power of Cellcraft and TENET. This main tutorial aims to give users a comprehensive overview of Cellcraft, guiding them through its features and capabilities.",
         },
         gettingStarted: {
           title: "Getting Started",
-          desc: "Navigating Cellcraft is intuitive. Please refer to our sub-pages for detailed step-by-step instructions and tips on maximizing the platform's potential. Whether you want to conduct a quick analysis or embark on a complex research project, the sub-pages will guide you through every platform facet. They cover topics ranging from data upload procedures to advanced analytics techniques.",
+          desc: "Navigating CellCraft is intuitive. Please refer to our sub-pages for detailed step-by-step instructions and tips on maximizing the platform's potential. Whether you want to conduct a quick analysis or embark on a complex research project, the sub-pages will guide you through every platform facet. They cover topics ranging from data upload procedures to advanced analytics techniques.",
         },
       },
     };
@@ -356,6 +314,7 @@ export default {
   box-sizing: border-box;
   background-color: #c3c3c3;
 }
+
 .intro-component,
 .about-component {
   /* height: calc(35vh - 80px); */
@@ -561,25 +520,41 @@ export default {
 
 .menu__title {
   width: 100%;
-  font-family: "Montserrat", sans-serif; /* Montserrat 폰트 적용 */
-  font-weight: 700; /* 두께는 bold로 설정 */
-  font-size: 2.5rem; /* 크기는 2.5rem으로 설정 */
-  color: #333333; /* 글자 색상 설정 */
-  text-transform: uppercase; /* 모든 글자를 대문자로 */
-  letter-spacing: 0.05em; /* 글자 사이 간격 설정 */
-  text-align: center; /* 중앙 정렬 */
-  margin-top: 10px; /* 상단 여백 */
-  margin-bottom: 1rem; /* 하단 여백 */
+  font-family: "Montserrat", sans-serif;
+  /* Montserrat 폰트 적용 */
+  font-weight: 700;
+  /* 두께는 bold로 설정 */
+  font-size: 2.5rem;
+  /* 크기는 2.5rem으로 설정 */
+  color: #333333;
+  /* 글자 색상 설정 */
+  text-transform: uppercase;
+  /* 모든 글자를 대문자로 */
+  letter-spacing: 0.05em;
+  /* 글자 사이 간격 설정 */
+  text-align: center;
+  /* 중앙 정렬 */
+  margin-top: 10px;
+  /* 상단 여백 */
+  margin-bottom: 1rem;
+  /* 하단 여백 */
 }
 
 .menu__description {
-  font-family: "Montserrat", sans-serif; /* Montserrat 폰트 적용 */
-  font-weight: 700; /* 두께는 bold로 설정 */
-  font-size: 1.9rem; /* 크기는 2.5rem으로 설정 */
-  color: #525252; /* 글자 색상 설정 */
-  text-transform: uppercase; /* 모든 글자를 대문자로 */
-  letter-spacing: 0.05em; /* 글자 사이 간격 설정 */
-  text-align: center; /* 중앙 정렬 */
+  font-family: "Montserrat", sans-serif;
+  /* Montserrat 폰트 적용 */
+  font-weight: 700;
+  /* 두께는 bold로 설정 */
+  font-size: 1.9rem;
+  /* 크기는 2.5rem으로 설정 */
+  color: #525252;
+  /* 글자 색상 설정 */
+  text-transform: uppercase;
+  /* 모든 글자를 대문자로 */
+  letter-spacing: 0.05em;
+  /* 글자 사이 간격 설정 */
+  text-align: center;
+  /* 중앙 정렬 */
   width: 70%;
 }
 
@@ -653,7 +628,8 @@ export default {
   left: calc(50% - 1rem);
   font-size: 2rem;
   color: #ffffff;
-  bottom: -50px; /* Middle position */
+  bottom: -50px;
+  /* Middle position */
 }
 
 .menu-list__icon {
@@ -664,8 +640,10 @@ export default {
   position: absolute;
   opacity: 0.05;
   border-radius: 2.5rem;
-  transition: opacity 1.5s ease; /* 투명도가 서서히 변화하는 트랜지션 설정 */
+  transition: opacity 1.5s ease;
+  /* 투명도가 서서히 변화하는 트랜지션 설정 */
 }
+
 .menu-list__icon:hover {
   opacity: 0.5;
 }
@@ -834,7 +812,8 @@ export default {
 
 .sub-description {
   width: 40%;
-  color: #333333; /* 글자 색상 설정 */
+  color: #333333;
+  /* 글자 색상 설정 */
 }
 
 .menu-list__largeCard {
@@ -872,7 +851,8 @@ export default {
   position: absolute;
   opacity: 0.05;
   border-radius: 2.5rem;
-  transition: opacity 1.5s ease; /* 투명도가 서서히 변화하는 트랜지션 설정 */
+  transition: opacity 1.5s ease;
+  /* 투명도가 서서히 변화하는 트랜지션 설정 */
 }
 
 .menu-list__largeIcon:hover {
