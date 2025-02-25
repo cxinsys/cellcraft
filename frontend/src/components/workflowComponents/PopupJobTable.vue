@@ -86,7 +86,7 @@ export default {
   z-index: 9998;
   opacity: 1;
   display: flex;
-  align-items: center;
+  /* align-items: center; */
   justify-content: center;
   background-color: #2c3e50;
   /* 다크 테마 */

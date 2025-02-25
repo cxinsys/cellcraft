@@ -56,7 +56,7 @@ export default {
                 img: require(`@/assets/${node.name}.png`)
             };
 
-            // 최대 6개까지만 유지, 7개가 되면 가장 오래된 아이템 삭제
+            // 최대 5개까지만 유지, 6개가 되면 가장 오래된 아이템 삭제
             if (this.tabList.length >= 6) {
                 this.tabList.shift(); // 첫 번째 아이템 제거
                 this.currentTab = Math.max(0, this.currentTab - 1); // 현재 탭 인덱스 조정
@@ -146,7 +146,7 @@ export default {
 
 .tab__item {
     cursor: pointer;
-    width: 10rem;
+    width: 9rem;
     height: 100%;
     border-radius: 0.5rem 0.5rem 0 0;
     border-right: 1px solid #7f7f7f;
