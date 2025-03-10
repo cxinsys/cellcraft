@@ -4,7 +4,8 @@
 
 ## Overview
 
-CellCraft is a web-based platform designed for researchers to reconstruct Gene Regulatory Networks (GRNs) efficiently. It provides a **visual programming interface**, enabling non-programmers to conduct complex GRN analysis. Powered by **TENET** and **FastTENET**, the platform ensures high-performance GRN reconstruction. Docker-based deployment simplifies setup and facilitates seamless local server operations.
+CellCraft is a web-based application designed for researchers to efficiently reconstruct Gene Regulatory Networks (GRNs). It provides a **visual programming interface**, enabling non-programmers to conduct complex GRN analyses with ease. The platform includes built-in support for **TENET**, **FastTENET**, and various other GRN inference tools, with more plugins continuously being added to enhance its capabilities. Additionally, users can manage their own datasets through their accounts, upload files, and integrate them into projects for analysis. Docker-based deployment simplifies setup and ensures seamless local server operations.
+
 
 ## Key Features
 
@@ -50,8 +51,19 @@ To help you get started with CellCraft, we have prepared step-by-step tutorial v
 📺 **Watch our tutorial series on YouTube**: [CellCraft Tutorial Playlist](https://www.youtube.com/playlist?list=PLN8_i4yGKekju3EJClmRvqe4pL8xJr4hw)
 
 ### What You Will Learn:
-1. **Introduction to CellCraft** - Overview of the platform and its key features.
-2. **Setting Up Your Environment** - Installing dependencies and configuring your workspace.
-3. **Building a GRN Workflow** - Creating and managing an analysis pipeline using the visual programming interface.
-4. **Running GRN Analysis Tools** - Step-by-step guide to executing GRN inference with TENET and FastTENET.
-5. **Visualizing Results** - Understanding and interpreting generated networks, heatmaps, and bar plots.
+
+1. **Exploring the Main Page** - An overview of the main page and its key contents.  
+   ![Exploring the Main Page](path/to/main_page.gif)
+
+2. **Managing Data** - How to organize and manage data for analysis.  
+   ![Managing Data](path/to/data_management.gif)
+
+3. **Configuring the Workflow** - Setting up the workflow before executing tasks.  
+   ![Configuring the Workflow](path/to/workflow_setup.gif)
+
+4. **Executing the Task** - Running tasks and monitoring their progress.  
+   ![Executing the Task](path/to/task_execution.gif)
+
+5. **Analyzing the Results** - Interpreting and analyzing data based on output files.  
+   ![Analyzing the Results](path/to/result_analysis.gif)
+
