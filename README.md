@@ -9,9 +9,9 @@ CellCraft is a web-based platform designed for researchers to reconstruct Gene R
 ## Key Features
 
 - **Visual Programming Interface**: Streamline data analysis with an intuitive drag-and-drop GUI.
-- **Powerful GRN Tools**: Built-in support for TENET and FastTENET for cutting-edge GRN inference.
+- **Extensible GRN Tools**: Built-in support for **TENET**, **FastTENET**, and other GRN inference tools, with more plugins continuously being added to expand functionality.
 - **Plugin Support**: Extend functionality by integrating custom plugins.
-- **Data Management**: Effortlessly manage and share data in collaborative environments.
+- **Data Management**: Users can manage their own data through their accounts, upload datasets.
 - **Docker-Ready Deployment**: Deploy with ease using Docker containers for consistency and scalability.
 
 ---
@@ -42,3 +42,16 @@ CellCraft is a web-based platform designed for researchers to reconstruct Gene R
    ```
 
 4. Access the platform at [http://localhost:8080](http://localhost:8080).
+
+## Tutorials
+
+To help you get started with CellCraft, we have prepared step-by-step tutorial videos. These tutorials cover everything from setting up your environment to performing **GRN analysis**.
+
+📺 **Watch our tutorial series on YouTube**: [CellCraft Tutorial Playlist](https://www.youtube.com/playlist?list=PLN8_i4yGKekju3EJClmRvqe4pL8xJr4hw)
+
+### What You Will Learn:
+1. **Introduction to CellCraft** - Overview of the platform and its key features.
+2. **Setting Up Your Environment** - Installing dependencies and configuring your workspace.
+3. **Building a GRN Workflow** - Creating and managing an analysis pipeline using the visual programming interface.
+4. **Running GRN Analysis Tools** - Step-by-step guide to executing GRN inference with TENET and FastTENET.
+5. **Visualizing Results** - Understanding and interpreting generated networks, heatmaps, and bar plots.
