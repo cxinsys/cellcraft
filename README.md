@@ -54,7 +54,7 @@ To help you get started with CellCraft, we have prepared step-by-step tutorial v
 
 1. **Exploring the Main Page** - An overview of the main page and its key contents.
 
-   ![Exploring the Main Page](https://files.gitbook.com/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FjRZEd1fcjAhaS66UWnMw%2Fuploads%2F5a83O2fqqqwICe7citLT%2Ftuto_main.gif?alt=media&token=70b867bd-0674-4660-b6c1-5eba50bb75ea)
+   ![Exploring the Main Page](https://files.gitbook.com/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FjRZEd1fcjAhaS66UWnMw%2Fuploads%2FHl6XamxlUoSXKnEElLbY%2Ftuto_main.gif?alt=media&token=d2fd5fb3-af62-4816-980d-57f708994087)
 
 2. **Managing Data** - How to organize and manage data for analysis.
 
