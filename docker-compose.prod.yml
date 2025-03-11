@@ -79,7 +79,7 @@ services:
             devices:
               - driver: nvidia
                 count: "${GPU_COUNT:-all}"  # 사용자가 설정하지 않으면 모든 GPU 사용
-                capabilities: [gpu]
+                capabilities: [gpu, utility]
       restart: always
 
 volumes:

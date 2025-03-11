@@ -64,16 +64,16 @@ export default {
             console.log(error);
         }
 
-        // if (this.fileList.length !== 0) {
-        //     const algorithmNodeInfo = this.$store.getters.getWorkflowNodeInfo(this.algorithmId);
-        //     // algorithmNodeInfo의 data.selectedPluginInputOutput들에서 type이 outputFile이고, activate가 true인 것들만 List로 추출
-        //     const outputFiles = algorithmNodeInfo.data.selectedPluginInputOutput.filter(output => output.type === 'outputFile' && output.activate);
+        if (this.fileList.length !== 0) {
+            const algorithmNodeInfo = this.$store.getters.getWorkflowNodeInfo(this.algorithmId);
+            // algorithmNodeInfo의 data.selectedPluginInputOutput들에서 type이 outputFile이고, activate가 true인 것들만 List로 추출
+            const outputFiles = algorithmNodeInfo.data.selectedPluginInputOutput.filter(output => output.type === 'outputFile' && output.activate);
 
-        //     console.log(outputFiles);
+            console.log(outputFiles);
 
-        //     // outputFiles 안에 요소들의 name이 fileList의 요소들의 name과 일치하는 것들만 fileList에 남기기
-        //     this.fileList = this.fileList.filter(file => outputFiles.some(outputFile => outputFile.defaultValue === file.name));
-        // }
+            // outputFiles 안에 요소들의 name이 fileList의 요소들의 name과 일치하는 것들만 fileList에 남기기
+            this.fileList = this.fileList.filter(file => outputFiles.some(outputFile => outputFile.defaultValue === file.name));
+        }
 
         const setFileName = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
         // this.fileList 안에 setFileName이 존재하면 selectedFile에 setFileName을 할당
