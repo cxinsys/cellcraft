@@ -80,3 +80,16 @@ def revoke_task(
             return {"message": "Task Revoked", "task_id": task_id}
         else:
             return {"message": "Task Revoked Failed", "task_id": task_id}
+
+@router.delete("/delete/{task_id}")
+def delete_task(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    task_id: str
+    ) -> dict:
+    """
+    Delete the task
+    """
+    task = crud_task.delete_user_task(db, current_user.id, task_id)
+    return {"message": "Task Deleted", "task_id": task_id}

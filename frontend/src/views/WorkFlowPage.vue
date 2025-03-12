@@ -17,7 +17,7 @@
     <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
     <CompileCheck v-if="compile_check" @deactivate-compile-check="deactivateCompileCheck" @run-workflow="runWorkflow" />
     <!-- <FileTable :show_files="show_files" :files_list="files_list" /> -->
-    <JobTable :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" />
+    <JobTable :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" @confirm-delete="confirmDelete" />
     <ControlBar :on_progress="on_progress" :isTabView="isTabView" @toggle-file="toggleFile"
       @save-workflow-project="saveWorkflowProject" @activate-compile-check="activateCompileCheck"
       @toggle-task="toggleTask" @toggle-tab-view="toggleTabView" @zoom-in="zoomIn" @zoom-out="zoomOut" />
@@ -64,6 +64,7 @@ import {
   userTaskMonitoring,
   findFolder,
   revokeTask,
+  deleteTask,
   getPluginTemplate,
   createTaskEventSource,
 } from "@/api/index";
@@ -552,6 +553,16 @@ export default {
         console.log(revoke_task);
         this.toggleTask();
         this.setMessage("success", "Cancel task successfully!");
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    async confirmDelete(task_id) {
+      try {
+        const delete_task = await deleteTask(task_id);
+        console.log(delete_task);
+        this.toggleTask();
+        this.setMessage("success", "Delete task successfully!");
       } catch (error) {
         console.error(error);
       }

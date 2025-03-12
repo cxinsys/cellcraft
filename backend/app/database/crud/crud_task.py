@@ -50,5 +50,3 @@ def delete_user_task(db: Session, user_id: int, task_id: str):
     db.delete(target_task)
     db.commit()
     return target_task
-
-

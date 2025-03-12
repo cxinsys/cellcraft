@@ -82,7 +82,7 @@ export default {
             this.setupFile = setFileName;
         } else {
             const node_title = current_node.data['title'];
-            this.selectedFile = this.fileList.find(file => file.name.includes(node_title));
+            this.selectedFile = this.fileList.find(file => file.name === node_title);
             this.setupFile = setFileName;
             this.setFile();
         }

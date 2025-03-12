@@ -44,7 +44,7 @@
           </div>
         </li>
       </ul>
-      <ul ref="filesMenu" class="files_menu" v-bind:class="{ open: R_Mouse_isActive }"
+      <ul class="toggle__menu" v-bind:class="{ open: R_Mouse_isActive }"
         :style="{ left: xPosition, top: yPosition }">
         <li @click="openWorkflow">Open</li>
         <li @click="confirmDelete">Delete</li>
@@ -165,6 +165,14 @@ export default {
       this.$router.push({
         path: "/workflow",
         query: { plugin_id: plugin_id },
+      });
+    },
+    selectPlugins(plugins) {
+      const plugin_ids = plugins.map(plugin => plugin.id).join(","); // 여러 개의 plugin ID를 쉼표로 결합
+      this.closeSelectModal();
+      this.$router.push({
+        path: "/workflow",
+        query: { plugin_ids: plugin_ids },
       });
     },
     setMessage(status, content) {
@@ -451,7 +459,7 @@ export default {
   opacity: 0.6;
 }
 
-.files_menu {
+.toggle__menu {
   display: none;
   position: absolute;
   width: 200px;
@@ -466,19 +474,19 @@ export default {
   text-transform: capitalize;
 }
 
-.files_menu.open {
+.toggle__menu.open {
   display: block;
   opacity: 1;
   position: absolute;
 }
 
-.files_menu>li {
+.toggle__menu>li {
   border-left: 3px solid transparent;
   transition: ease 0.2s;
   padding: 10px;
 }
 
-.files_menu>li:hover {
+.toggle__menu>li:hover {
   background: #e5e5e5;
 }
 

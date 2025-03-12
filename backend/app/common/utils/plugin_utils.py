@@ -4,9 +4,97 @@ import re
 import subprocess
 import yaml
 import shutil
-from typing import Dict, Any
 import numpy as np
 from fastapi import HTTPException
+from typing import List, Dict, Any
+
+def generate_merged_plugin_drawflow( drawflow_data_list: List[Dict[str, Any]], plugin_name: str):
+    merged_drawflow = {"drawflow": {"Home": {"data": {}}}}
+    node_id = 1  # ID 초기화
+    inputfile_nodes = {}  # 이미 생성된 InputFile 노드를 저장 (key: 파일명, value: 노드 ID)
+
+    pos_x_start = 50
+    pos_y_start = 50
+    pos_y_increment = 100
+    pos_x_increment = 200
+
+    pos_x_datatable = pos_x_start + pos_x_increment
+    pos_x_algorithm = pos_x_datatable + pos_x_increment
+
+    pos_y = pos_y_start
+
+    new_nodes = []
+    algorithm_inputs = []
+
+    for drawflow_data in drawflow_data_list:
+        original_data = drawflow_data["drawflow"]["Home"]["data"]
+
+        for key, node in original_data.items():
+            if node["name"] == "InputFile":
+                input_file = node["data"]["title"]
+
+                # 중복된 InputFile 노드가 있으면 기존 노드 사용
+                if input_file in inputfile_nodes:
+                    inputfile_node_id = inputfile_nodes[input_file]
+                else:
+                    # 새로운 InputFile 노드 생성
+                    inputfile_node_id = node_id
+                    inputfile_nodes[input_file] = node_id
+
+                    inputfile_node = {
+                        "id": inputfile_node_id,
+                        "name": "InputFile",
+                        "data": {"title": input_file},
+                        "class": "InputFile",
+                        "html": "InputFile",
+                        "typenode": "vue",
+                        "inputs": {},
+                        "outputs": {"output_1": {"connections": []}},
+                        "pos_x": pos_x_start,
+                        "pos_y": pos_y
+                    }
+                    merged_drawflow["drawflow"]["Home"]["data"][str(node_id)] = inputfile_node
+                    node_id += 1
+                    pos_y += pos_y_increment
+
+                # DataTable 노드 추가
+                datatable_node_id = node_id
+                datatable_node = {
+                    "id": datatable_node_id,
+                    "name": "DataTable",
+                    "data": {},
+                    "class": "DataTable",
+                    "html": "DataTable",
+                    "typenode": "vue",
+                    "inputs": {"input_1": {"connections": [{"node": str(inputfile_node_id), "input": "output_1"}]}},
+                    "outputs": {"output_1": {"connections": []}},
+                    "pos_x": pos_x_datatable,
+                    "pos_y": pos_y_start
+                }
+                merged_drawflow["drawflow"]["Home"]["data"][str(node_id)] = datatable_node
+                node_id += 1
+
+                algorithm_inputs.append({"node": str(datatable_node_id), "input": "output_1"})
+
+    # Algorithm 노드 생성
+    algorithm_node = {
+        "id": node_id,
+        "name": "Algorithm",
+        "data": {"title": plugin_name},
+        "class": "Algorithm",
+        "html": "Algorithm",
+        "typenode": "vue",
+        "inputs": {"input_1": {"connections": algorithm_inputs}},
+        "outputs": {"output_1": {"connections": []}},
+        "pos_x": pos_x_algorithm,
+        "pos_y": pos_y_start
+    }
+    merged_drawflow["drawflow"]["Home"]["data"][str(node_id)] = algorithm_node
+
+    # 생성된 drawflow 출력
+    print(json.dumps(merged_drawflow, indent=2))
+    return merged_drawflow
+
 
 def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name: str):
     original_data = drawflow_data['drawflow']['Home']['data']

@@ -14,7 +14,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(task, index) in taskList" :key="index">
+          <tr v-for="(task, index) in taskList" :key="index" @click.right.prevent="RMouseClick($event, task, idx)">
             <td>{{ index + 1 }}</td>
             <td>{{ task.title | titleNone }}</td>
             <td>{{ task.start_time | formatDateTime }}</td>
@@ -34,6 +34,10 @@
         </tbody>
       </table>
     </div>
+    <ul class="toggle__menu" v-bind:class="{ open: R_Mouse_isActive }" :style="{ left: xPosition, top: yPosition }">
+      <li @click="cancelTask">Cancle</li>
+      <li @click="confirmDelete" v-if="isCompleted">Delete</li>
+    </ul>
   </div>
 </template>
 
@@ -51,21 +55,47 @@ export default {
       required: true
     }
   },
+  data() {
+    return {
+      R_Mouse_isActive: false,
+      xPosition: 0,
+      yPosition: 0,
+      isCompleted: false,
+      currentTaskId: null
+    };
+  },
   methods: {
-    cancelTask(taskId) {
-      this.$emit('cancel-task', taskId);
+    cancelTask() {
+      this.$emit('cancel-task', this.currentTaskId);
+      this.R_Mouse_isActive = false;
+    },
+    confirmDelete() {
+      this.$emit('confirm-delete', this.currentTaskId);
+      this.R_Mouse_isActive = false;
     },
     getStatusClass(status) {
       if (status === "SUCCESS") return "status-success";
       if (status === "FAILURE" || status === "REVOKED" || status === "RETRY") return "status-failure";
       if (status === "RUNNING" || status === "PENDING" || status === "INSTALLING") return "status-running";
-    }
+    },
+    RMouseClick(event, task, idx) {
+      this.R_Mouse_isActive = false;
+      this.xPosition = Math.min(event.clientX, window.innerWidth - 210) + 'px';
+      this.yPosition = Math.min(event.clientY, window.innerHeight - 60) + 'px';
+      this.R_Mouse_isActive = true;
+      this.currentTaskId = task.task_id;
+      this.isCompleted = ["SUCCESS", "FAILURE", "REVOKED", "RETRY"].includes(task.status);
+    },
   },
   filters: {
     formatDateTime(dateTime) {
       const date = moment(dateTime).format("YYYY.MM.DD-HH:mm");
       if (date === "Invalid date") return "Not Yet Completed"; // 날짜가 유효하지 않을 경우 처리
       return date;
+    },
+    titleNone(title) {
+      if (title === null) return "Untitled";
+      return title;
     }
   }
 };
@@ -157,6 +187,37 @@ export default {
 
 .job-table tbody tr:hover {
   background-color: #3d566e;
+}
+
+
+.toggle__menu {
+  display: none;
+  position: fixed;
+  width: 200px;
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  border-radius: 5px;
+  list-style: none;
+  box-shadow: 0 15px 35px rgba(50, 50, 90, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07);
+  overflow: hidden;
+  z-index: 999999;
+  text-transform: capitalize;
+}
+
+.toggle__menu.open {
+  display: block;
+  opacity: 1;
+}
+
+.toggle__menu>li {
+  border-left: 3px solid transparent;
+  transition: ease 0.2s;
+  padding: 10px;
+}
+
+.toggle__menu>li:hover {
+  background: #e5e5e5;
 }
 
 /* 상태 아이콘 */

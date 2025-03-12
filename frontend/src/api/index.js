@@ -167,6 +167,10 @@ function revokeTask(taskId) {
   return instance.delete(`/routes/task/revoke/${taskId}`);
 }
 
+function deleteTask(taskId) {
+  return instance.delete(`/routes/task/delete/${taskId}`);
+}
+
 function getHtml(filename) {
   return instance.get(`/routes/files/html/${filename}`);
 }
@@ -309,6 +313,7 @@ export {
   userTaskMonitoring,
   deleteFile,
   revokeTask,
+  deleteTask,
   convertFile,
   getColumns,
   getClusters,
