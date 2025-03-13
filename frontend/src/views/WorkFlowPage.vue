@@ -851,7 +851,8 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: move;
-  background: rgba(69, 69, 69);
+  /* background: rgba(69, 69, 69); */
+  background: rgb(228, 228, 228);
   /* color: rgb(245, 245, 245); */
   border-radius: 1rem;
   /* width: 5rem;

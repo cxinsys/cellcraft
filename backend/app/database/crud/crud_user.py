@@ -8,33 +8,8 @@ from app.database import models
 from app.database.schemas import user
 from app.common.security import get_password_hash, verify_password
 
-
 def get_user(db: Session, id: int):
     return db.query(models.User).filter(models.User.id == id).first()
-
-def get_filtered_users(db: Session, conditions: Conditions) -> List[models.User]:
-    amount = conditions.amount
-    page_num = conditions.page_num
-    sort = conditions.sort
-    order = conditions.order
-    searchTerm = conditions.searchTerm
-
-    sort_column = getattr(models.User, sort, None)
-    if not sort_column:
-        raise ValueError(f"Sort column {sort} does not exist on User model")
-
-    query = db.query(models.User)
-    
-    if searchTerm:
-        query = query.filter(
-            or_(
-                models.User.username.like(f"%{searchTerm}%"),
-                models.User.email.like(f"%{searchTerm}%")
-            )
-        )
-    
-    order_func = asc if order == 'asc' else desc
-    return query.order_by(order_func(sort_column)).offset(amount * (page_num - 1)).limit(amount).all()
 
 def get_users_count(db: Session) -> int:
     return db.query(models.User).count()

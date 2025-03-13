@@ -217,7 +217,8 @@ body {
 .loginPage__footer,
 .workflowPage__footer,
 .filesPage__footer,
-.datasetsPage__footer {
+.datasetsPage__footer,
+.adminPage__footer {
   display: none;
 }
 

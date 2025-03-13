@@ -34,13 +34,13 @@ export default {
         {
           id: "admin/job",
           index: 1,
-          label: "Jobs",
+          label: "Tasks",
           img: require("@/assets/control_jobs.png"),
         },
         {
           id: "admin/dataset",
           index: 2,
-          label: "Datasets",
+          label: "Files",
           img: require("@/assets/datasetAdmin.png"),
         },
         {
