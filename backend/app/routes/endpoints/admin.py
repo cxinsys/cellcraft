@@ -16,7 +16,7 @@ from app.database import models
 
 router = APIRouter()
 
-@router.get("/users", response_model=List[User])
+@router.get("/users", response_model=Any)
 def get_filtered_users(
     *,
     db: Session = Depends(dep.get_db),
@@ -50,7 +50,7 @@ def get_users_count(
     users_num = crud_user.get_users_count(db)
     return users_num
 
-@router.get("/files", response_model=List[models.File])
+@router.get("/files", response_model=Any)
 def get_filtered_files(
     *,
     db: Session = Depends(dep.get_db),
@@ -83,7 +83,7 @@ def get_files_count(
     files_num = crud_admin.get_files_count(db)
     return files_num
 
-@rotuer.get("/workflows", response_model=List[models.Workflow])
+@router.get("/workflows", response_model=Any)
 def get_filtered_workflows(
     *,
     db: Session = Depends(dep.get_db),
@@ -116,7 +116,7 @@ def get_workflows_count(
     workflows_num = crud_admin.get_workflows_count(db)
     return workflows_num
 
-@router.get("/tasks", response_model=List[models.Task])
+@router.get("/tasks", response_model=Any)
 def get_filtered_tasks(
     *,
     db: Session = Depends(dep.get_db),
@@ -149,7 +149,7 @@ def get_tasks_count(
     tasks_num = crud_admin.get_tasks_count(db)
     return tasks_num
 
-@router.get("/plugins", response_model=List[models.Plugin])
+@router.get("/plugins", response_model=Any)
 def get_filtered_plugins(
     *,
     db: Session = Depends(dep.get_db),

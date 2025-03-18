@@ -14,7 +14,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(task, index) in taskList" :key="index" @click.right.prevent="RMouseClick($event, task, idx)">
+          <tr v-for="(task, index) in taskList" :key="index" @click.right.prevent="RMouseClick($event, task)">
             <td>{{ index + 1 }}</td>
             <td>{{ task.title | titleNone }}</td>
             <td>{{ task.start_time | formatDateTime }}</td>
@@ -78,7 +78,7 @@ export default {
       if (status === "FAILURE" || status === "REVOKED" || status === "RETRY") return "status-failure";
       if (status === "RUNNING" || status === "PENDING" || status === "INSTALLING") return "status-running";
     },
-    RMouseClick(event, task, idx) {
+    RMouseClick(event, task) {
       this.R_Mouse_isActive = false;
       this.xPosition = Math.min(event.clientX, window.innerWidth - 210) + 'px';
       this.yPosition = Math.min(event.clientY, window.innerHeight - 60) + 'px';
