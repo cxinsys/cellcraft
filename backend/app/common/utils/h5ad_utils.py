@@ -63,7 +63,8 @@ def get_pseudotime_columns(data_frame):
     column의 이름을 추출합니다.
     '''
     df = organize_column_dtypes(data_frame.copy())
-    return list(df.columns[np.where(np.char.startswith(list(map(str,df.dtypes)), 'float'))[0]])
+    numeric_columns = df.select_dtypes(include=['float', 'int']).columns
+    return list(numeric_columns)
 
 def make_cell_select(adata, categories, annotation_column = 'seurat_annotation'):
     '''

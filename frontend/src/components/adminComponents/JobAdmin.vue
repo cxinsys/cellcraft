@@ -4,12 +4,6 @@
       <div class="header__text">Jobs</div>
       <div class="search">
         <input type="text" v-model="searchTerm" placeholder="Search by id..." />
-        <!-- <img
-          class="reset-button"
-          src="@/assets/reset.png"
-          alt="reset"
-          @click="resetSearch"
-        /> -->
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>
@@ -22,21 +16,6 @@
         </select>
       </div>
     </div>
-    <!-- <div class="second-line">
-      <div class="search">
-        <input
-          type="text"
-          v-model="searchProject"
-          placeholder="Search by projects..."
-        />
-        <img
-          class="reset-button"
-          src="@/assets/reset.png"
-          alt="reset"
-          @click="resetProjectSearch"
-        />
-      </div>
-    </div> -->
     <table>
       <thead>
         <tr>

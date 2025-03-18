@@ -8,12 +8,6 @@
           v-model="searchTerm"
           placeholder="Search by name..."
         />
-        <!-- <img
-          class="reset-button"
-          src="@/assets/reset.png"
-          alt="reset"
-          @click="resetSearch"
-        /> -->
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>

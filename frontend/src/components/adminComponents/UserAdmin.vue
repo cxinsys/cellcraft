@@ -8,7 +8,6 @@
           v-model="searchTerm"
           placeholder="Search by keyword..."
         />
-        <!-- <button @click="updateUsers">search</button> -->
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>

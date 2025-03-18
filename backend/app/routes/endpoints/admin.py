@@ -20,13 +20,16 @@ router = APIRouter()
 def get_filtered_users(
     *,
     db: Session = Depends(dep.get_db),
-    # conditions: Conditions, # 이거 안됨
+    current_user: models.User = Depends(dep.get_current_active_user),
     amount: int,
     page_num: int,
     sort: str,
     order: str,
     searchTerm: str,
-    ):
+):
+    # 관리자 권한 확인
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
 
     conditions = Conditions(
         amount=amount,
@@ -38,7 +41,7 @@ def get_filtered_users(
 
     users = crud_user.get_filtered_users(db, conditions)
 
-    if users is None:
+    if not users:
         raise HTTPException(status_code=404, detail="Users not found")
     return users
 
@@ -46,20 +49,28 @@ def get_filtered_users(
 def get_users_count(
     *,
     db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
 ):
+    ㅊ
+
     users_num = crud_user.get_users_count(db)
     return users_num
 
-@router.get("/files", response_model=List[models.File])
+@router.get("/files", response_model=Any)
 def get_filtered_files(
     *,
     db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
     amount: int,
     page_num: int,
     sort: str,
     order: str,
     searchTerm: str,
     ):
+
+    # 관리자 권한 확인
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
 
     conditions = Conditions(
         amount=amount,
@@ -79,20 +90,30 @@ def get_filtered_files(
 def get_files_count(
     *,
     db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
 ):
+    # 관리자 권한 확인
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+
     files_num = crud_admin.get_files_count(db)
     return files_num
 
-@rotuer.get("/workflows", response_model=List[models.Workflow])
+@rotuer.get("/workflows", response_model=Any)
 def get_filtered_workflows(
     *,
     db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
     amount: int,
     page_num: int,
     sort: str,
     order: str,
     searchTerm: str,
     ):
+
+    # 관리자 권한 확인
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
 
     conditions = Conditions(
         amount=amount,
@@ -112,20 +133,31 @@ def get_filtered_workflows(
 def get_workflows_count(
     *,
     db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
 ):
+
+    # 관리자 권한 확인
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+
     workflows_num = crud_admin.get_workflows_count(db)
     return workflows_num
 
-@router.get("/tasks", response_model=List[models.Task])
+@router.get("/tasks", response_model=Any)
 def get_filtered_tasks(
     *,
     db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
     amount: int,
     page_num: int,
     sort: str,
     order: str,
     searchTerm: str,
     ):
+
+    # 관리자 권한 확인
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
 
     conditions = Conditions(
         amount=amount,
@@ -145,14 +177,20 @@ def get_filtered_tasks(
 def get_tasks_count(
     *,
     db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
 ):
+    # 관리자 권한 확인
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+
     tasks_num = crud_admin.get_tasks_count(db)
     return tasks_num
 
-@router.get("/plugins", response_model=List[models.Plugin])
+@router.get("/plugins", response_model=Any)
 def get_filtered_plugins(
     *,
     db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
     amount: int,
     page_num: int,
     sort: str,
@@ -167,6 +205,9 @@ def get_filtered_plugins(
         order=order,
         searchTerm=searchTerm
     )
+    # 관리자 권한 확인
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
 
     plugins = crud_admin.get_filtered_plugins(db, conditions)
 
@@ -178,7 +219,12 @@ def get_filtered_plugins(
 def get_plugins_count(
     *,
     db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
 ):
+    # 관리자 권한 확인
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+
     plugins_num = crud_admin.get_plugins_count(db)
     return plugins_num
 

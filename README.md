@@ -48,7 +48,7 @@ CellCraft is a web-based application designed for researchers to efficiently rec
 
 To help you get started with CellCraft, we have prepared step-by-step tutorial videos. These tutorials cover everything from setting up your environment to performing **GRN analysis**.
 
-📺 **Watch our tutorial series on YouTube**: [CellCraft Tutorial Playlist](https://www.youtube.com/playlist?list=PLN8_i4yGKekju3EJClmRvqe4pL8xJr4hw)
+📺 **Watch our tutorial series on YouTube**: [CellCraft Tutorial Playlist](https://www.youtube.com/@CellCraft-cislab)
 
 ### What You Will Learn:
 

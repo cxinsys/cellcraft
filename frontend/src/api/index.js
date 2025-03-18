@@ -36,8 +36,40 @@ function getFilteredUsers(conditions) {
   return instance.get("/routes/admin/users", { params: conditions });
 }
 
+function getFilteredFiles(conditions) {
+  return instance.get("/routes/admin/files", { params: conditions });
+}
+
+function getFilteredWorkflows(conditions) {
+  return instance.get("/routes/admin/workflows", { params: conditions });
+}
+
+function getFilteredTasks(conditions) {
+  return instance.get("/routes/admin/tasks", { params: conditions });
+}
+
+function getFilteredPlugins(conditions) {
+  return instance.get("/routes/admin/plugins", { params: conditions });
+}
+
 function getUsersCount() {
   return instance.get("/routes/admin/users_count");
+}
+
+function getFilesCount() {
+  return instance.get("/routes/admin/files_count");
+}
+
+function getWorkflowsCount() {
+  return instance.get("/routes/admin/workflows_count");
+}
+
+function getTasksCount() {
+  return instance.get("/routes/admin/tasks_count");
+}
+
+function getPluginsCount() {
+  return instance.get("/routes/admin/plugins_count");
 }
 
 function getSystemResources() {
@@ -297,7 +329,15 @@ export {
   loginUser,
   getUser,
   getUsersCount,
+  getFilesCount,
+  getWorkflowsCount,
+  getTasksCount,
+  getPluginsCount,
   getFilteredUsers,
+  getFilteredFiles,
+  getFilteredWorkflows,
+  getFilteredTasks,
+  getFilteredPlugins,
   exportData,
   getResult,
   getResults,
