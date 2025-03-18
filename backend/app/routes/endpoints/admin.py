@@ -16,7 +16,7 @@ from app.database import models
 
 router = APIRouter()
 
-@router.get("/users", response_model=List[User])
+@router.get("/users", response_model=Any)
 def get_filtered_users(
     *,
     db: Session = Depends(dep.get_db),
