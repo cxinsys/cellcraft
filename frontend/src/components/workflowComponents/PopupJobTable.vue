@@ -38,7 +38,7 @@
       @click.stop>
       <li @click="confirmDelete" v-if="isCompleted">Delete</li>
       <li @click="cancelTask" v-else>Cancle</li>
-      <li @click="showLogs">View Logs</li>
+      <!-- <li @click="showLogs">View Logs</li> -->
     </ul>
   </div>
 </template>
