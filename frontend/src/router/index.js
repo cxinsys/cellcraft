@@ -83,15 +83,15 @@ export default new Router({
         },
         {
           path: "job",
-          component: () => import("@/components/adminComponents/JobAdmin.vue"),
+          component: () => import("@/components/adminComponents/TaskAdmin.vue"),
         },
         {
           path: "dataset",
-          component: () => import("@/components/adminComponents/DatasetBoardAdmin.vue"),
+          component: () => import("@/components/adminComponents/FileAdmin.vue"),
         },
         {
           path: "algorithm",
-          component: () => import("@/components/adminComponents/AlgorithmAdmin.vue"),
+          component: () => import("@/components/adminComponents/PluginAdmin.vue"),
         },
       ],
     },

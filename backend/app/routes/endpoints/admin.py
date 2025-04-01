@@ -1,17 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List,Optional,Any
 from sqlalchemy.orm import Session
-import psutil
-import GPUtil
 import docker
-import subprocess
-import json
 
 from app.routes import dep
-from app.database.schemas.user import User
 from app.database.schemas.admin import Conditions
-from app.database.crud import crud_user, crud_admin
-
+from app.database.crud import crud_admin
 from app.database import models
 
 router = APIRouter()
@@ -39,7 +33,7 @@ def get_filtered_users(
         searchTerm=searchTerm
     )
 
-    users = crud_user.get_filtered_users(db, conditions)
+    users = crud_admin.get_filtered_users(db, conditions)
 
     if not users:
         raise HTTPException(status_code=404, detail="Users not found")
@@ -51,9 +45,11 @@ def get_users_count(
     db: Session = Depends(dep.get_db),
     current_user: models.User = Depends(dep.get_current_active_user),
 ):
-    ㅊ
+    # 관리자 권한 확인
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
 
-    users_num = crud_user.get_users_count(db)
+    users_num = crud_admin.get_users_count(db)
     return users_num
 
 @router.get("/files", response_model=Any)
@@ -99,7 +95,7 @@ def get_files_count(
     files_num = crud_admin.get_files_count(db)
     return files_num
 
-@rotuer.get("/workflows", response_model=Any)
+@router.get("/workflows", response_model=Any)
 def get_filtered_workflows(
     *,
     db: Session = Depends(dep.get_db),

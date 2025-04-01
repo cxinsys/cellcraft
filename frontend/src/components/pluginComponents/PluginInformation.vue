@@ -14,7 +14,7 @@
 
     <!-- 참조 스크립트 폴더 업로드 -->
     <div class="input-group">
-      <label class="input-group__label">Upload Reference Script Folder</label>
+      <label class="input-group__label">Custom Script Folder</label>
       <div class="file-upload">
         <input type="file" id="scriptFolder" webkitdirectory directory @change="handleScriptFolderUpload"
           class="file-input" />
@@ -64,7 +64,7 @@
 
     <!-- 로컬 의존성 패키지 파일 업로드 -->
     <div class="input-group">
-      <h3 class="input-group__label">Upload Local Dependency Package Files</h3>
+      <h3 class="input-group__label">Local Dependency Files</h3>
       <div v-for="(file, index) in plugin.packageFiles" :key="index" class="input-group">
         <div class="file-upload">
           <label :for="'dependency-' + index" class="file-label">
@@ -80,7 +80,7 @@
 
     <!-- 의존성 파일 타입 선택 드롭다운 -->
     <div class="input-group">
-      <label class="input-group__label" for="dependencyType">Select Dependency File Type</label>
+      <label class="input-group__label" for="dependencyType">Standard Dependency Files</label>
       <select id="dependencyType" v-model="selectedDependencyType" @change="addDependencyType">
         <option value="" disabled>Select a file type</option>
         <option value="requirements.txt" :disabled="isFileTypeAdded('requirements.txt')">requirements.txt</option>

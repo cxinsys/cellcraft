@@ -16,7 +16,7 @@ if __name__ == "__main__":
     dpath_trj_data = sys.argv[2]  # pseudotime file path
     dpath_branch_data = sys.argv[3]  # cell select file path
 
-    dpath_tf_data = sys.argv[4]  # optional, transcript factor file path
+    dpath_tf_data = None if sys.argv[4] == "None" else sys.argv[4] # optional, transcript factor file path
 
     # If both parameters are 0 (default), it outputs the full GRN.
     fdr = float(sys.argv[5])  # OPTIONAL, default 0, min: 0, max: 1
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     pseudotime = np.loadtxt(dpath_trj_data, delimiter="\t")
     branch = np.loadtxt(dpath_branch_data, delimiter="\t")
 
-    tfs = load_tf_names(dpath_tf_data)
+    tfs = 'all' if dpath_tf_data is None else load_tf_names(dpath_tf_data)
 
     pseudotime = pseudotime[branch == 1]
     expdata = expdata[branch == 1]  # cell x gene

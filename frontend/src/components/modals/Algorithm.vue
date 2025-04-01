@@ -666,7 +666,7 @@ export default {
 }
 
 .algorithm-logo {
-  font-size: 4.5rem;
+  font-size: 4rem;
   font-weight: bold;
   color: #353535;
 }
@@ -879,7 +879,7 @@ export default {
   /* hide the dropdown */
 
   transition: opacity 0.4s ease-in-out;
-  height: 100px;
+  /* height: 100px; */
   overflow: scroll;
   overflow-x: hidden;
   pointer-events: none;

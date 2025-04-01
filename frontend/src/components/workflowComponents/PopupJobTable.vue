@@ -34,9 +34,11 @@
         </tbody>
       </table>
     </div>
-    <ul class="toggle__menu" v-bind:class="{ open: R_Mouse_isActive }" :style="{ left: xPosition, top: yPosition }">
-      <li @click="cancelTask">Cancle</li>
+    <ul class="toggle__menu" v-bind:class="{ open: R_Mouse_isActive }" :style="{ left: xPosition, top: yPosition }"
+      @click.stop>
       <li @click="confirmDelete" v-if="isCompleted">Delete</li>
+      <li @click="cancelTask" v-else>Cancle</li>
+      <li @click="showLogs">View Logs</li>
     </ul>
   </div>
 </template>
@@ -64,7 +66,16 @@ export default {
       currentTaskId: null
     };
   },
+  created() {
+    document.addEventListener('click', this.hideMenu);
+  },
+  beforeDestroy() {
+    document.removeEventListener('click', this.hideMenu);
+  },
   methods: {
+    hideMenu() {
+      this.R_Mouse_isActive = false;
+    },
     cancelTask() {
       this.$emit('cancel-task', this.currentTaskId);
       this.R_Mouse_isActive = false;

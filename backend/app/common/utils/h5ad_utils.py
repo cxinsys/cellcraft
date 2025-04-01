@@ -102,7 +102,7 @@ def check_raw_data(data):
     '''
     data에 raw data(정수값)이 들어있는지 확인합니다.
     '''
-    if isinstance(data, csr_matrix):
+    if isinstance(data):
         if np.all(data.data % 1 != 0):  # 어떤 원소라도 정수가 아니라면
             return False
         else:

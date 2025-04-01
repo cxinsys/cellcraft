@@ -2,7 +2,7 @@
   <div class="modal-overlay">
     <div class="modal-container">
       <div class="modal-header">
-        <h2>Plugin Extension</h2>
+        <h2>Plugin Settings</h2>
         <button @click="$emit('close')" class="close-button">✕</button>
       </div>
       <div class="modal-info" v-if="currentStep === 1">
