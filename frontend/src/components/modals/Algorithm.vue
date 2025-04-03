@@ -136,7 +136,6 @@ export default {
       this.checkCurrentNodeConnection();
 
       const plugins = await getPlugins();
-      // console.log(plugins.data);
       this.plugins = plugins.data.plugins;
 
       const nodeInfo = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
@@ -162,25 +161,17 @@ export default {
 
       this.selectedPluginInputOutput = this.activatePlugin(result.filteredInputOutput, this.currentNodeConnection);
 
-      // this.selectedPluginInputOutput의 type이 'inputFile'이고 fileExtension이 '.h5ad'인 항목을 찾으면 loadColumns 함수 실행
       if (this.selectedPluginInputOutput.some((item) => item.type === "inputFile" && item.fileExtension === ".h5ad")) {
         await this.loadColumns();
 
-        // 로컬 스토리지에서 저장된 데이터 로드
-        const storedAnnotations = JSON.parse(localStorage.getItem('algorithmAnnotations')) || [];
-        const storedPseudotime = JSON.parse(localStorage.getItem('algorithmPseudotime')) || [];
-        const storedClusters = JSON.parse(localStorage.getItem('algorithmClusters')) || [];
-        const storedCellGroup = localStorage.getItem('algorithmCurrentCellGroup') || '';
+        // cell group 파라미터를 찾아서 defaultValue가 있으면 clusters를 할당
+        const cellGroupParam = this.selectedPluginRules.find(rule =>
+          rule.parameters.some(param => param.name === 'cell group' && param.defaultValue)
+        )?.parameters.find(param => param.name === 'cell group');
 
-        // annotations와 pseudotime이 현재 값과 일치하는지 확인
-        if (JSON.stringify(this.annotations) === JSON.stringify(storedAnnotations) &&
-          JSON.stringify(this.pseudotime) === JSON.stringify(storedPseudotime) &&
-          this.currentCellGroup === storedCellGroup) {
-          // 일치하면 저장된 clusters 사용
-          this.clusters = storedClusters;
-        } else {
-          // 일치하지 않으면 clusters 초기화
-          this.clusters = [];
+        if (cellGroupParam?.defaultValue) {
+          const clusters = await this.getCurrnetClusters(cellGroupParam.defaultValue);
+          this.clusters = clusters;
         }
       }
     } catch (error) {
@@ -269,33 +260,15 @@ export default {
     },
     annotations: {
       handler(newVal) {
-        // 로컬 스토리지에 저장된 annotations와 비교
-        const storedAnnotations = JSON.parse(localStorage.getItem('algorithmAnnotations')) || [];
-        const storedCellGroup = localStorage.getItem('algorithmCurrentCellGroup') || '';
-
-        // annotations가 변경되었거나 현재 선택된 cell group이 변경된 경우
-        if (JSON.stringify(newVal) !== JSON.stringify(storedAnnotations) ||
-          this.currentCellGroup !== storedCellGroup) {
-          // 로컬 스토리지 업데이트
-          localStorage.setItem('algorithmAnnotations', JSON.stringify(newVal));
-          localStorage.setItem('algorithmCurrentCellGroup', this.currentCellGroup);
-
-          // clusters 초기화 (cell group이 변경되면 clusters도 변경되어야 함)
-          this.clusters = [];
-          localStorage.removeItem('algorithmClusters');
-        }
+        // annotations가 변경되었을 때 clusters 초기화
+        this.clusters = [];
       },
       deep: true
     },
     pseudotime: {
       handler(newVal) {
-        // 로컬 스토리지에 저장된 pseudotime과 비교
-        const storedPseudotime = JSON.parse(localStorage.getItem('algorithmPseudotime')) || [];
-
-        if (JSON.stringify(newVal) !== JSON.stringify(storedPseudotime)) {
-          // 로컬 스토리지 업데이트
-          localStorage.setItem('algorithmPseudotime', JSON.stringify(newVal));
-        }
+        // pseudotime이 변경되었을 때 clusters 초기화
+        this.clusters = [];
       },
       deep: true
     },
@@ -316,21 +289,14 @@ export default {
     },
     async selectColumns(event) {
       const anno_column = event.target.value;
-      this.currentCellGroup = anno_column; // 현재 선택된 cell group 저장
+      this.currentCellGroup = anno_column;
 
-      // selectedPluginInputOutput 배열을 순회하며 type이 'inputFile'이고 activate가 true인 항목을 찾으면 해당 함수 실행, 못 찾으면 alert
       const selectedInputFile = this.selectedPluginInputOutput.find(
         (item) => item.type === "inputFile" && item.fileExtension === ".h5ad" && item.activate
       );
       if (selectedInputFile) {
-        console.log(selectedInputFile);
-        // selectedInputFile.fileExtension이 포함되어 있는 fileName을 찾아서 h5adFileName에 저장
-        // getters로 얻는 데이터는 Object이므로 Object.values로 배열로 변환 후, 배열을 순회하며 fileName을 찾음
-
         const clusters = await this.getCurrnetClusters(anno_column);
         this.clusters = clusters;
-        // clusters 데이터를 localStorage에 저장
-        localStorage.setItem('algorithmClusters', JSON.stringify(this.clusters));
       }
     },
     async getCurrnetClusters(anno_column) {

@@ -406,7 +406,7 @@ def readNodeData(
     if user_workflow:
         # user 폴더에 workflow 폴더 존재하지 않으면 에러 발생
         user_path = f"./user/{current_user.username}/"
-        workflow_path = f"{user_path}workflow{workflowNodeFileInfo.id}"
+        workflow_path = f"{user_path}workflow_{workflowNodeFileInfo.id}"
         print(workflow_path)
         if not os.path.exists(workflow_path):
             raise HTTPException(
@@ -446,7 +446,7 @@ def deleteNodeData(
     if user_workflow:
         # user 폴더에 workflow 폴더 존재하지 않으면 에러 발생
         user_path = f"./user/{current_user.username}/"
-        workflow_path = f"{user_path}workflow{workflowNodeFileInfo.id}"
+        workflow_path = f"{user_path}workflow_{workflowNodeFileInfo.id}"
         if not os.path.exists(workflow_path):
             raise HTTPException(
                 status_code=400,

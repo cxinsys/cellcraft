@@ -123,6 +123,12 @@ export default {
           displaylogo: false,
         },
       });
+
+      // 저장된 selectedCluster 값을 가져오기
+      const nodeInfo = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
+      if (nodeInfo.data && nodeInfo.data.selectedCluster !== undefined) {
+        this.selectedCluster = nodeInfo.data.selectedCluster;
+      }
     } catch (error) {
       console.error("Error initializing Plotly:", error);
     }
@@ -218,9 +224,9 @@ export default {
         if (this.keys.indexOf("Y") != -1) {
           this.selectedY = this.keys.indexOf("Y");
         }
-        if (this.keys.indexOf("leiden") != -1) {
-          this.selectedCluster = this.keys.indexOf("leiden");
-        }
+        // if (this.keys.indexOf("leiden") != -1) {
+        //   this.selectedCluster = this.keys.indexOf("leiden");
+        // }
         if (this.keys.indexOf("INDEX") != -1) {
           this.selectedName = this.keys.indexOf("INDEX");
         }
@@ -407,6 +413,13 @@ export default {
     },
     setSelectCluster(event) {
       this.selectedCluster = parseInt(event.target.value);
+
+      // selectedCluster 값을 store에 저장
+      const dataObject = {
+        selectedCluster: this.selectedCluster
+      };
+      this.$store.commit("setWorkflowNodeDataObject", { nodeId: this.nodeId, dataObject });
+
       this.updateChart();
     },
     titleChangeFunc(event) {
@@ -563,9 +576,9 @@ export default {
         if (this.keys.indexOf("Y") != -1) {
           this.selectedY = this.keys.indexOf("Y");
         }
-        if (this.keys.indexOf("leiden") != -1) {
-          this.selectedCluster = this.keys.indexOf("leiden");
-        }
+        // if (this.keys.indexOf("leiden") != -1) {
+        //   this.selectedCluster = this.keys.indexOf("leiden");
+        // }
 
         if (this.keys.indexOf("INDEX") != -1) {
           this.selectedName = this.keys.indexOf("INDEX");
