@@ -22,7 +22,8 @@
           <div v-for="rule in selectedPluginRules" :key="rule.name">
             <div class="part-title" v-show="rule.parameters.length != 0">{{ rule.name }}</div>
             <div v-for="parameter in rule.parameters" :key="parameter.name" v-show="rule.parameters.length != 0">
-              <div class="parameters" v-show="!(parameter.type === 'string' && parameter.name === 'ScatterPlot')">
+              <div class="parameters"
+                v-show="!((parameter.type === 'string' || parameter.type === 'h5adParameter') && (parameter.name === 'ScatterPlot' || parameter.name.includes('UMAP')))">
                 <span class="parameter-id">
                   {{ parameter.name }}
                 </span>
@@ -43,17 +44,6 @@
                       {{ column }}
                     </option>
                   </select>
-                  <div v-else-if="parameter.name === 'clusters'" class="parameter__dropdown--checkbox"
-                    @click="activateClusters" :class="{ isactive: dropdownIsActive }">
-                    Select Clusters
-                    <ul class="parameter__dropdown--menu">
-                      <li v-for="(column, index) in clusters" :key="index">
-                        <label>
-                          <input type="checkbox" :name="column" @change="clusterToggle($event, parameter, column)" />{{
-                            column }}</label>
-                      </li>
-                    </ul>
-                  </div>
                   <select v-else-if="parameter.name === 'pseudotime'" class="parameter__dropdown"
                     v-model="parameter.defaultValue">
                     <option class="parameter__menu" disabled value="">
@@ -63,6 +53,18 @@
                       {{ column }}
                     </option>
                   </select>
+                  <div v-else-if="parameter.name === 'clusters'" class="parameter__dropdown--checkbox"
+                    @click="activateClusters" :class="{ isactive: dropdownIsActive }">
+                    Select Clusters
+                    <ul class="parameter__dropdown--menu">
+                      <li v-for="(column, index) in clusters" :key="index">
+                        <label>
+                          <input type="checkbox" :name="column" @change="clusterToggle($event, parameter, column)"
+                            :checked="parameter.defaultValue && parameter.defaultValue.includes(column)" />{{
+                              column }}</label>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
@@ -126,6 +128,7 @@ export default {
       currentNodeConnection: [],
       dropdownIsActive: false,
       nodeInfo: {},
+      currentCellGroup: '',
     };
   },
   async mounted() {
@@ -161,7 +164,24 @@ export default {
 
       // this.selectedPluginInputOutput의 type이 'inputFile'이고 fileExtension이 '.h5ad'인 항목을 찾으면 loadColumns 함수 실행
       if (this.selectedPluginInputOutput.some((item) => item.type === "inputFile" && item.fileExtension === ".h5ad")) {
-        this.loadColumns();
+        await this.loadColumns();
+
+        // 로컬 스토리지에서 저장된 데이터 로드
+        const storedAnnotations = JSON.parse(localStorage.getItem('algorithmAnnotations')) || [];
+        const storedPseudotime = JSON.parse(localStorage.getItem('algorithmPseudotime')) || [];
+        const storedClusters = JSON.parse(localStorage.getItem('algorithmClusters')) || [];
+        const storedCellGroup = localStorage.getItem('algorithmCurrentCellGroup') || '';
+
+        // annotations와 pseudotime이 현재 값과 일치하는지 확인
+        if (JSON.stringify(this.annotations) === JSON.stringify(storedAnnotations) &&
+          JSON.stringify(this.pseudotime) === JSON.stringify(storedPseudotime) &&
+          this.currentCellGroup === storedCellGroup) {
+          // 일치하면 저장된 clusters 사용
+          this.clusters = storedClusters;
+        } else {
+          // 일치하지 않으면 clusters 초기화
+          this.clusters = [];
+        }
       }
     } catch (error) {
       console.error(error);
@@ -247,6 +267,38 @@ export default {
       },
       deep: true,
     },
+    annotations: {
+      handler(newVal) {
+        // 로컬 스토리지에 저장된 annotations와 비교
+        const storedAnnotations = JSON.parse(localStorage.getItem('algorithmAnnotations')) || [];
+        const storedCellGroup = localStorage.getItem('algorithmCurrentCellGroup') || '';
+
+        // annotations가 변경되었거나 현재 선택된 cell group이 변경된 경우
+        if (JSON.stringify(newVal) !== JSON.stringify(storedAnnotations) ||
+          this.currentCellGroup !== storedCellGroup) {
+          // 로컬 스토리지 업데이트
+          localStorage.setItem('algorithmAnnotations', JSON.stringify(newVal));
+          localStorage.setItem('algorithmCurrentCellGroup', this.currentCellGroup);
+
+          // clusters 초기화 (cell group이 변경되면 clusters도 변경되어야 함)
+          this.clusters = [];
+          localStorage.removeItem('algorithmClusters');
+        }
+      },
+      deep: true
+    },
+    pseudotime: {
+      handler(newVal) {
+        // 로컬 스토리지에 저장된 pseudotime과 비교
+        const storedPseudotime = JSON.parse(localStorage.getItem('algorithmPseudotime')) || [];
+
+        if (JSON.stringify(newVal) !== JSON.stringify(storedPseudotime)) {
+          // 로컬 스토리지 업데이트
+          localStorage.setItem('algorithmPseudotime', JSON.stringify(newVal));
+        }
+      },
+      deep: true
+    },
   },
   computed: {
     allParametersEmpty() {
@@ -264,6 +316,8 @@ export default {
     },
     async selectColumns(event) {
       const anno_column = event.target.value;
+      this.currentCellGroup = anno_column; // 현재 선택된 cell group 저장
+
       // selectedPluginInputOutput 배열을 순회하며 type이 'inputFile'이고 activate가 true인 항목을 찾으면 해당 함수 실행, 못 찾으면 alert
       const selectedInputFile = this.selectedPluginInputOutput.find(
         (item) => item.type === "inputFile" && item.fileExtension === ".h5ad" && item.activate
@@ -275,6 +329,8 @@ export default {
 
         const clusters = await this.getCurrnetClusters(anno_column);
         this.clusters = clusters;
+        // clusters 데이터를 localStorage에 저장
+        localStorage.setItem('algorithmClusters', JSON.stringify(this.clusters));
       }
     },
     async getCurrnetClusters(anno_column) {
@@ -403,7 +459,10 @@ export default {
       }
 
       if (event.target.checked) {
-        parameter.defaultValue.push(column);
+        // 중복 체크 후 추가
+        if (!parameter.defaultValue.includes(column)) {
+          parameter.defaultValue.push(column);
+        }
       } else {
         parameter.defaultValue = parameter.defaultValue.filter((item) => item !== column);
       }
@@ -883,6 +942,7 @@ export default {
   overflow: scroll;
   overflow-x: hidden;
   pointer-events: none;
+  max-height: 15rem;
 
   z-index: 9999;
 }

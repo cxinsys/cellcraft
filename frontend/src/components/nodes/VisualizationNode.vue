@@ -33,8 +33,10 @@ export default {
         if (this.nodeId == null) {
           return "Visualization";
         }
+        // const node = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
+        // return node.data.title.replace('.json', '');
         const node = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
-        return node.data.title.replace('.json', '');
+        return node.data.title || node.name;
       },
       set(newTitle) {
         this.updateWorkflowNodeTitle({ nodeId: this.nodeId, newTitle });
