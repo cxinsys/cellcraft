@@ -105,7 +105,7 @@
                     <pre>{{ completeRule }}</pre>
                     <div class="checkbox-group" v-if="this.scriptFile && this.ruleTitle != ''">
                         <input type="checkbox" id="isVisualization" v-model="isVisualization"
-                            @change="showAlertAndAddOutput" />
+                            @change="showAlertAndAddFile" />
                         <label for="isVisualization">Visualization Node</label>
                     </div>
                     <draggable class="script-drag-component" v-model="parameters" @start="drag = true"
@@ -149,8 +149,9 @@
                         <select v-model="newParameter.name" class="file-extension-select">
                             <option value="">Please select h5ad parameter</option>
                             <option value="cell group">cell group</option>
-                            <option value="clusters">clusters</option>
                             <option value="pseudotime">pseudotime column</option>
+                            <option value="clusters">clusters</option>
+                            <option value="UMAP lasso">UMAP lasso</option>
                         </select>
                     </div>
                     <div v-else class="col-input-group">
@@ -304,7 +305,7 @@ export default {
             // nodecreate 데이터 초기화
             this.resetNewParameter();
         },
-        showAlertAndAddOutput() {
+        showAlertAndAddFile() {
             if (this.isVisualization) {
                 const title = "※ Please read the instructions for the visualization node"
                 const messages = [
@@ -316,14 +317,21 @@ export default {
                 // 기존 output 파라미터 제거
                 this.parameters = this.parameters.filter(param => param.type !== 'outputFile');
 
-                // 새로운 output 파라미터 추가
+                // 새로운 파라미터 추가
                 const outputParameter = {
-                    name: 'output',
+                    name: `${this.ruleTitle}`,
                     type: 'outputFile',
                     defaultValue: `${this.ruleTitle}.json`,
                     fileExtension: '.json',
                 };
+                const inputParameter = {
+                    name: 'target',
+                    type: 'inputFile', 
+                    defaultValue: 'target.sif',
+                    fileExtension: '.sif'
+                };
                 this.parameters.push(outputParameter);
+                this.parameters.push(inputParameter);
             }
         },
         showAlertandFillContent(title, messages) {

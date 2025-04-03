@@ -457,14 +457,14 @@ def generate_snakemake_code(rules_data, output_folder_path):
                 normalized_name = normalize_param_name(param['name'])
                 if param['name'] == "clusters" and param['type'] == "h5adParameter":
                     param_list.append(f'clusters=lambda wc: ";".join({{{param["name"]}}})')
+                elif "UMAP" in param['name'] and param['type'] == 'h5adParameter':
+                    param_list.append(
+                        'UMAP_lasso=lambda wildcards: {UMAP_lasso} if os.path.exists({UMAP_lasso}) else "None"'
+                    )
                 elif param['type'] == 'optionalInputFile':
                     param_list.append(
                         f"{normalized_name}=lambda wildcards: \"{unique_input_path}/{{{param['defaultValue']}}}\" "
                         f"if os.path.exists(\"{unique_input_path}/{{{param['defaultValue']}}}\") else \"None\""
-                    )
-                elif param['type'] == 'string' and param['name'] == "ScatterPlot":
-                    param_list.append(
-                        'ScatterPlot=lambda wildcards: {ScatterPlot} if os.path.exists({ScatterPlot}) else "None"'
                     )
                 elif param['type'] != 'inputFile' and param['type'] != 'outputFile':
                     param_list.append(f"{normalized_name}={{{param['name']}}}")

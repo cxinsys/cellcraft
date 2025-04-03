@@ -214,7 +214,7 @@ export default {
           // ScatterPlot 파라미터 처리
           newVal.forEach(rule => {
             rule.parameters.forEach(param => {
-              if (param.type === 'string' && param.name === 'ScatterPlot') {
+              if ((param.type === 'h5adParameter' || param.type === 'string') && (param.name === 'ScatterPlot' || param.name.includes('UMAP'))) {
                 const scatterPlotNode = this.currentNodeConnection.find(
                   node => node.class === 'ScatterPlot' && node.data.lasso_file_path
                 );
