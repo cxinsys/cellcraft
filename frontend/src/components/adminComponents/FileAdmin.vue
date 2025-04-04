@@ -3,11 +3,7 @@
     <div class="first-line">
       <div class="header__text">Datasets</div>
       <div class="search">
-        <input
-          type="text"
-          v-model="searchTerm"
-          placeholder="Search by title..."
-        />
+        <input type="text" v-model="searchTerm" placeholder="Search by title..." />
         <!-- <img
           class="reset-button"
           src="@/assets/reset.png"
@@ -27,10 +23,7 @@
       </div>
     </div>
     <div class="second-line">
-      <a
-        class="upload-button"
-        href="https://github.com/chxhyxn/TmpCellcraftBoard"
-      >
+      <a class="upload-button" href="https://github.com/chxhyxn/TmpCellcraftBoard">
         ⇪ upload new dataset
       </a>
     </div>
@@ -67,7 +60,7 @@
 </template>
 
 <script>
-import axios from "axios";
+import { getFilteredFiles } from '@/api';
 
 function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return "0 Bytes";
@@ -81,72 +74,20 @@ function formatBytes(bytes, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 }
 
-async function checkFileExists(repo, path) {
-  try {
-    const { data } = await axios.get(
-      `https://api.github.com/repos/${repo}/contents/${path}`
-    );
-    if (data && data.sha) {
-      return true;
-    }
-  } catch (e) {
-    return false;
-  }
-  return false;
-}
-
 export default {
   data() {
     return {
       datasets: [],
-      sortKey: "no",
-      sortDirection: "dsc", // Set initial sort direction to 'asc'
+      sortKey: "id",
+      sortDirection: "dsc",
       pageSize: 20,
       currentPage: 1,
       searchTerm: "",
+      totalCount: 0
     };
   },
-  async mounted() {
-    try {
-      const { data: repoData } = await axios.get(
-        "https://api.github.com/repos/chxhyxn/TmpCellcraftBoard/git/trees/main?recursive=1"
-      );
-      const dirSha = repoData.tree.find(
-        (item) => item.path === "datasets" && item.type === "tree"
-      ).sha;
-
-      const { data: dirData } = await axios.get(
-        `https://api.github.com/repos/chxhyxn/TmpCellcraftBoard/git/trees/${dirSha}`
-      );
-      this.datasets = dirData.tree.filter((item) => item.type === "blob");
-
-      const repo = "chxhyxn/TmpCellcraftBoard";
-
-      for (const dataset of this.datasets) {
-        const lastIndex = dataset.path.lastIndexOf(".");
-        dataset.type =
-          lastIndex !== -1 ? dataset.path.substring(lastIndex + 1) : "";
-        dataset.size = formatBytes(dataset.size);
-        dataset.url = `https://github.com/${repo}/blob/main/datasets/${dataset.path}`;
-
-        const baseName = dataset.path.substring(0, lastIndex);
-        const possibleExtensions = ["ipynb", "md", "txt"];
-
-        for (const ext of possibleExtensions) {
-          const exists = await checkFileExists(
-            repo,
-            `posts/${baseName}.${ext}`
-          );
-          if (exists) {
-            dataset.posturl = `https://github.com/${repo}/blob/main/posts/${baseName}.${ext}`;
-            break;
-          }
-        }
-      }
-      this.sortTable();
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    }
+  async created() {
+    await this.fetchFiles();
   },
   computed: {
     sorteddatasets() {
@@ -163,33 +104,58 @@ export default {
       return datasetsCopy;
     },
     totalPages() {
-      return Math.ceil(this.filtereddatasets.length / this.pageSize);
+      return Math.ceil(this.totalCount / this.pageSize);
     },
     displayeddatasets() {
-      const startIndex = (this.currentPage - 1) * this.pageSize;
-      const endIndex = startIndex + this.pageSize;
-      return this.filtereddatasets.slice(startIndex, endIndex);
+      return this.sorteddatasets;
     },
     filtereddatasets() {
-      // 이전 filtereddatasets 메서드 내용에 태그 검색 기능 추가
       if (this.searchTerm) {
         const searchTermLower = this.searchTerm.toLowerCase();
-        return this.sorteddatasets.filter((dataset) => {
-          return dataset.path.toLowerCase().includes(searchTermLower);
-        });
+        return this.sorteddatasets.filter((dataset) =>
+          dataset.path.toLowerCase().includes(searchTermLower)
+        );
       } else {
         return this.sorteddatasets;
       }
-    },
+    }
   },
   methods: {
-    sortTable(key) {
+    async fetchFiles() {
+      try {
+        const conditions = {
+          amount: this.pageSize,
+          page_num: this.currentPage,
+          sort: this.sortKey,
+          order: this.sortDirection === 'asc' ? 'asc' : 'desc',
+          searchTerm: this.searchTerm
+        };
+
+        const response = await getFilteredFiles(conditions);
+
+        this.datasets = response.data.map((file, index) => ({
+          no: index + 1,
+          id: file.id,
+          type: file.file_name.split('.').pop(),
+          path: file.file_path,
+          size: formatBytes(file.file_size),
+          url: file.file_path,
+          posturl: file.folder
+        }));
+
+        this.totalCount = response.total_count;
+      } catch (error) {
+        console.error('Error fetching files:', error);
+      }
+    },
+    async sortTable(key) {
       if (this.sortKey === key) {
         this.sortDirection = this.sortDirection === "asc" ? "desc" : "asc";
       } else {
         this.sortKey = key;
         this.sortDirection = "asc";
       }
+      await this.fetchFiles();
     },
     sortIcon(key) {
       if (this.sortKey === key) {
@@ -197,16 +163,25 @@ export default {
       }
       return "▽△";
     },
-    resetSearch() {
-      this.searchTerm = "";
-    },
-    resetTypeSearch() {
-      this.searchType = ""; // 태그 검색어 초기화
-    },
-    updatePage() {
-      this.currentPage = 1; // Reset to first page when page size changes
-    },
+    async updatePage() {
+      this.currentPage = 1;
+      await this.fetchFiles();
+    }
   },
+  watch: {
+    searchTerm: {
+      handler: 'updatePage',
+      immediate: true
+    },
+    pageSize: {
+      handler: 'updatePage',
+      immediate: true
+    },
+    currentPage: {
+      handler: 'fetchFiles',
+      immediate: true
+    }
+  }
 };
 </script>
 
@@ -260,6 +235,7 @@ button {
   text-align: center;
   text-transform: capitalize;
 }
+
 button:disabled {
   color: #ccc;
 }
@@ -274,6 +250,7 @@ button:disabled {
   text-align: center;
   text-transform: capitalize;
 }
+
 .table-button:hover {
   background-color: #616161;
 }
@@ -298,6 +275,7 @@ a {
   flex-direction: row;
   align-items: center;
 }
+
 .second-line {
   width: calc(100% - 10px);
   padding: 0px 5px 5px 5px;
@@ -306,12 +284,14 @@ a {
   justify-content: flex-end;
   flex-direction: row;
 }
+
 #pageSize {
   padding: 2px;
   border-radius: 5px;
   border: 1px solid #ccc;
   margin-bottom: 5px;
 }
+
 .search {
   display: flex;
   align-items: center;
@@ -326,9 +306,11 @@ a {
   outline-style: none;
   background: #f7f7f7;
 }
+
 .search input:focus {
   border: 1px solid #bcbcbc;
 }
+
 .upload-button {
   border-radius: 5px;
   padding: 7px 10px;
@@ -342,16 +324,19 @@ a {
   color: rgb(255, 255, 255);
   text-transform: capitalize;
 }
+
 .upload-button:hover {
   cursor: pointer;
   background-color: #7d7d7d;
 }
+
 .reset-button {
   margin-top: -7px;
   width: 1.5rem;
   height: 1.5rem;
   opacity: 0.7;
 }
+
 .reset-button:hover {
   opacity: 0.5;
   cursor: pointer;
@@ -375,6 +360,7 @@ button:disabled {
 .layout_admin {
   padding: 0 2rem 0 1rem;
 }
+
 .header__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;

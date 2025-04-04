@@ -2,11 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List,Optional,Any
 from sqlalchemy.orm import Session
 import docker
+from sqlalchemy import asc, desc, or_
 
 from app.routes import dep
 from app.database.schemas.admin import Conditions
 from app.database.crud import crud_admin
 from app.database import models
+from app.database.crud import crud_user
+from app.database.crud import crud_workflow
 
 router = APIRouter()
 
@@ -33,7 +36,7 @@ def get_filtered_users(
         searchTerm=searchTerm
     )
 
-    users = crud_admin.get_filtered_users(db, conditions)
+    users, total_count = crud_admin.get_filtered_users(db, conditions)
 
     if not users:
         raise HTTPException(status_code=404, detail="Users not found")
@@ -63,7 +66,6 @@ def get_filtered_files(
     order: str,
     searchTerm: str,
     ):
-
     # 관리자 권한 확인
     if not current_user.is_superuser:
         raise HTTPException(status_code=403, detail="Access denied: Admins only")
@@ -76,9 +78,9 @@ def get_filtered_files(
         searchTerm=searchTerm
     )
 
-    files = crud_admin.get_filtered_files(db, conditions)
+    files, total_count = crud_admin.get_filtered_files(db, conditions)
 
-    if files is None:
+    if not files:
         raise HTTPException(status_code=404, detail="Files not found")
     return files
 
@@ -106,7 +108,6 @@ def get_filtered_workflows(
     order: str,
     searchTerm: str,
     ):
-
     # 관리자 권한 확인
     if not current_user.is_superuser:
         raise HTTPException(status_code=403, detail="Access denied: Admins only")
@@ -119,9 +120,9 @@ def get_filtered_workflows(
         searchTerm=searchTerm
     )
 
-    workflows = crud_admin.get_filtered_workflows(db, conditions)
+    workflows, total_count = crud_admin.get_filtered_workflows(db, conditions)
 
-    if workflows is None:
+    if not workflows:
         raise HTTPException(status_code=404, detail="Workflows not found")
     return workflows
 
@@ -163,11 +164,26 @@ def get_filtered_tasks(
         searchTerm=searchTerm
     )
 
-    tasks = crud_admin.get_filtered_tasks(db, conditions)
+    tasks, total_count = crud_admin.get_filtered_tasks(db, conditions)
 
-    if tasks is None:
+    if not tasks:
         raise HTTPException(status_code=404, detail="Tasks not found")
-    return tasks
+    
+    # 결과 포맷팅
+    formatted_tasks = []
+    for task, username, workflow_title in tasks:
+        formatted_task = {
+            'id': task.id,
+            'user_id': task.user_id,
+            'workflow_id': task.workflow_id,
+            'username': username,
+            'workflow_title': workflow_title,
+            'status': task.status,
+            'start_time': task.start_time
+        }
+        formatted_tasks.append(formatted_task)
+    
+    return formatted_tasks
 
 @router.get("/tasks_count", response_model=Any)
 def get_tasks_count(
@@ -193,6 +209,9 @@ def get_filtered_plugins(
     order: str,
     searchTerm: str,
     ):
+    # 관리자 권한 확인
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
 
     conditions = Conditions(
         amount=amount,
@@ -201,13 +220,10 @@ def get_filtered_plugins(
         order=order,
         searchTerm=searchTerm
     )
-    # 관리자 권한 확인
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Access denied: Admins only")
 
-    plugins = crud_admin.get_filtered_plugins(db, conditions)
+    plugins, total_count = crud_admin.get_filtered_plugins(db, conditions)
 
-    if plugins is None:
+    if not plugins:
         raise HTTPException(status_code=404, detail="Plugins not found")
     return plugins
 

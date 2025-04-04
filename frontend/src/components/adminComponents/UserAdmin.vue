@@ -3,11 +3,7 @@
     <div class="first-line">
       <div class="header__text">Users</div>
       <div class="search">
-        <input
-          type="text"
-          v-model="searchTerm"
-          placeholder="Search by keyword..."
-        />
+        <input type="text" v-model="searchTerm" placeholder="Search by keyword..." />
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>
@@ -57,7 +53,7 @@
 </template>
 
 <script>
-import { getUsersCount, getFilteredUsers } from "@/api/index";
+import { getFilteredUsers } from "@/api/index";
 
 export default {
   data() {
@@ -81,9 +77,6 @@ export default {
   },
   methods: {
     async updateUsers() {
-      const response = await getUsersCount();
-      this.usersCount = response.data;
-
       const conditions = {
         amount: this.pageSize,
         page_num: this.currentPage,
@@ -91,8 +84,9 @@ export default {
         order: this.sortDirection,
         searchTerm: this.searchTerm,
       };
-      const filteredUsers = await getFilteredUsers(conditions);
-      this.users = filteredUsers.data;
+      const response = await getFilteredUsers(conditions);
+      this.users = response.data;
+      this.usersCount = response.total_count;
     },
     async sortTable(key) {
       if (this.sortKey === key) {
@@ -110,16 +104,29 @@ export default {
       return "▽△";
     },
     resetPageNum() {
-      this.currentPage = 1; // Reset to first page when page size changes
+      this.currentPage = 1;
+      this.updateUsers();
     },
   },
   watch: {
     searchTerm: {
       handler: function () {
-        // 검색어가 바뀔 때마다 사용자 업데이트 메소드를 호출합니다.
+        this.currentPage = 1;
         this.updateUsers();
       },
-      // 이 옵션은 searchTerm이 바뀔 때마다 즉시 watcher가 호출되도록 합니다.
+      immediate: true,
+    },
+    pageSize: {
+      handler: function () {
+        this.currentPage = 1;
+        this.updateUsers();
+      },
+      immediate: true,
+    },
+    currentPage: {
+      handler: function () {
+        this.updateUsers();
+      },
       immediate: true,
     },
   },
@@ -175,14 +182,17 @@ button {
   text-align: center;
   text-transform: capitalize;
 }
+
 button:disabled {
   color: #ccc;
 }
+
 .sort-icon {
   color: rgb(199, 199, 199);
   font-weight: normal;
   font-size: small;
 }
+
 .first-line {
   height: 40px;
   margin-bottom: 10px;
@@ -193,6 +203,7 @@ button:disabled {
   flex-direction: row;
   align-items: center;
 }
+
 .search {
   display: flex;
   align-items: center;
@@ -207,6 +218,7 @@ button:disabled {
   outline-style: none;
   background: #f7f7f7;
 }
+
 .search input:focus {
   border: 1px solid #bcbcbc;
 }

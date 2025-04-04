@@ -4,12 +4,8 @@
       <div class="admin__header">
         <div class="admin__title">Admin</div>
       </div>
-      <div
-        v-for="button in buttons"
-        :key="button.id"
-        :class="['nav_button', { active: isActiveButton(button) }]"
-        @click="navigateTo(button.id, button.index)"
-      >
+      <div v-for="button in buttons" :key="button.id" :class="['nav_button', { active: isActiveButton(button) }]"
+        @click="navigateTo(button.id, button.index)">
         <img class="button_img" :src="button.img" draggable="false" />
         <p class="button_text">{{ button.label }}</p>
       </div>
@@ -50,7 +46,6 @@ export default {
           img: require("@/assets/algorithm3.png"),
         },
       ],
-      lastIndex: 0,
       sideNavTop: "20%",
     };
   },
@@ -63,7 +58,6 @@ export default {
   methods: {
     navigateTo(id, index) {
       this.$router.push(`/${id}`);
-      this.lastIndex = index;
     },
     handleScroll() {
       const navOffset = document.querySelector(".layout").offsetTop;
@@ -74,7 +68,10 @@ export default {
   },
   computed: {
     isActiveButton() {
-      return (button) => button.index === this.lastIndex;
+      return (button) => {
+        const currentPath = this.$route.path;
+        return currentPath.includes(button.id);
+      };
     },
   },
 };
@@ -86,6 +83,7 @@ export default {
   overflow: hidden;
   display: flex;
 }
+
 .side_nav {
   /* left: 0.3rem;
   position: fixed;
@@ -104,6 +102,7 @@ export default {
   border-right: 1px solid #aeaeae;
   background-color: rgb(201, 202, 203);
 }
+
 .nav_button {
   width: clac(100% - 2rem);
   height: 3rem;
@@ -124,6 +123,7 @@ export default {
   justify-content: center;
   align-items: center; */
 }
+
 .nav_button:hover {
   margin: 0.1rem 1rem;
   border-radius: 1rem;
@@ -139,6 +139,7 @@ export default {
   /* background-color: rgba(211, 211, 211, 0.612);
   transition: background-color 0.3s; */
 }
+
 /* .nav_button.active:hover {
   background-color: lightgray;
   cursor: pointer;
@@ -147,6 +148,7 @@ export default {
   margin: 1rem 0rem;
   width: calc(100% - 18rem);
 }
+
 .admin_view {
   overflow-y: auto;
 }
@@ -169,6 +171,7 @@ export default {
   position: relative;
   color: rgba(0, 0, 0, 0.8);
 }
+
 .admin__title {
   font-family: "Montserrat", sans-serif;
   font-style: normal;

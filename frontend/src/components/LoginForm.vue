@@ -5,31 +5,17 @@
     </header>
     <form class="login-form" @submit.prevent="submitForm">
       <div class="login__field">
-        <input
-          class="login__input"
-          type="email"
-          placeholder="Email"
-          v-model="email"
-        />
+        <input class="login__input" type="email" placeholder="Email" v-model="email" />
       </div>
 
       <div class="login__field">
-        <input
-          class="login__input"
-          type="password"
-          placeholder="Password"
-          v-model="password"
-        />
+        <input class="login__input" type="password" placeholder="Password" v-model="password" />
       </div>
 
       <div class="login__error" v-if="isError">{{ errorMessage }}</div>
 
       <div class="login__login">
-        <button
-          class="login__button"
-          :disabled="!email || !password"
-          type="submit"
-        >
+        <button class="login__button" :disabled="!email || !password" type="submit">
           Sign In
         </button>
       </div>
@@ -55,7 +41,13 @@ export default {
           password: this.password,
         };
         await this.$store.dispatch("LOGIN", userData);
-        this.$router.push("/projects");
+
+        // isSuperUser 여부 확인
+        if (this.$store.getters.isSuperUser) {
+          this.$router.push("/admin");
+        } else {
+          this.$router.push("/projects");
+        }
       } catch (error) {
         console.error(error.response.data.detail);
         this.errorMessage = error.response.data.detail;
@@ -83,6 +75,7 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
 .login-header {
   width: 90%;
   height: 15%;
@@ -91,6 +84,7 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
 .header-text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -100,16 +94,19 @@ export default {
   text-decoration: none;
   color: rgb(81, 81, 81);
 }
+
 .login-form {
   width: 90%;
   height: 80%;
 }
+
 .login__field {
   width: 100%;
   height: 20%;
   margin-top: 1.5%;
   position: relative;
 }
+
 .login__input {
   width: 100%;
   height: 100%;
@@ -119,14 +116,17 @@ export default {
   box-sizing: border-box;
   font-size: 1rem;
 }
+
 .login__input:focus {
   border: 1px solid rgb(40, 84, 197);
 }
+
 .login__login {
   width: 100%;
   height: 15%;
   margin-top: 15%;
 }
+
 .login__button {
   width: 100%;
   height: 100%;
@@ -141,6 +141,7 @@ export default {
   line-height: 1rem;
   text-decoration: none;
 }
+
 .login__error {
   width: 100%;
   margin: 1rem 0 0.5rem 0;
