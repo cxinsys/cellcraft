@@ -259,14 +259,14 @@ export default {
       deep: true,
     },
     annotations: {
-      handler(newVal) {
+      handler() {
         // annotations가 변경되었을 때 clusters 초기화
         this.clusters = [];
       },
       deep: true
     },
     pseudotime: {
-      handler(newVal) {
+      handler() {
         // pseudotime이 변경되었을 때 clusters 초기화
         this.clusters = [];
       },
