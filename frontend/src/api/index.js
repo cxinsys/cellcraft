@@ -324,6 +324,23 @@ function createTaskEventSource(taskId, callbacks = {}) {
   return eventSource;
 }
 
+// Admin APIs
+function updateUserAdmin(userId, userData) {
+  return instance.put(`/routes/admin/users/${userId}`, userData);
+}
+
+function deleteUserAdmin(userId) {
+  return instance.delete(`/routes/admin/users/${userId}`);
+}
+
+function deleteFileAdmin(fileId) {
+  return instance.delete(`/routes/admin/files/${fileId}`);
+}
+
+function deleteWorkflowAdmin(workflowId) {
+  return instance.delete(`/routes/admin/workflows/${workflowId}`);
+}
+
 export {
   registerUser,
   loginUser,
@@ -387,4 +404,8 @@ export {
   createTaskEventSource,
   getPluginReferenceFolders,
   getTutorialFileDownload,
+  updateUserAdmin,
+  deleteUserAdmin,
+  deleteFileAdmin,
+  deleteWorkflowAdmin,
 };

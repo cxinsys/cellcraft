@@ -40,7 +40,7 @@
           <th @click="sortTable('time')">
             uploaded date <span class="sort-icon">{{ sortIcon("time") }}</span>
           </th>
-          <th></th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -50,12 +50,11 @@
           <td class="description-cell">{{ algorithm.description }}</td>
           <td>{{ algorithm.userId }}</td>
           <td>{{ algorithm.time }}</td>
-          <!-- <button class="table-button" @click="editAlgorithmSetting(algorithm)">
-            edit
-          </button> -->
-          <button class="table-button" @click="deleteAlgorithm(algorithm)">
-            delete algorithm
-          </button>
+          <td>
+            <button @click="deleteAlgorithm(algorithm)" class="table-button delete">
+              Delete
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -117,7 +116,7 @@
 </template>
 
 <script>
-import { getFilteredPlugins } from '@/api';
+import { getFilteredPlugins, getPluginsCount } from '@/api';
 
 export default {
   data() {
@@ -184,9 +183,12 @@ export default {
           searchTerm: this.searchTerm
         };
 
-        const response = await getFilteredPlugins(conditions);
+        const [pluginsResponse, countResponse] = await Promise.all([
+          getFilteredPlugins(conditions),
+          getPluginsCount()
+        ]);
 
-        this.algorithms = response.data.map((plugin, index) => ({
+        this.algorithms = pluginsResponse.data.map((plugin, index) => ({
           no: index + 1,
           id: plugin.id,
           userId: plugin.author,
@@ -199,7 +201,7 @@ export default {
           outputDescriptions: plugin.output_descriptions || []
         }));
 
-        this.totalCount = response.total_count;
+        this.totalCount = countResponse.data;
       } catch (error) {
         console.error('Error fetching plugins:', error);
       }
@@ -226,11 +228,13 @@ export default {
       this.searchTag = ""; // 태그 검색어 초기화
     },
     async deleteAlgorithm(algorithm) {
-      try {
-        // TODO: Implement delete API call
-        await this.fetchPlugins();
-      } catch (error) {
-        console.error('Error deleting plugin:', error);
+      if (confirm(`Are you sure you want to delete algorithm ${algorithm.name}?`)) {
+        try {
+          // TODO: Implement delete API call
+          await this.fetchPlugins();
+        } catch (error) {
+          console.error('Error deleting plugin:', error);
+        }
       }
     },
     async updatePage() {
@@ -249,19 +253,27 @@ export default {
     editAlgorithmSetting(algorithm) {
       this.editingAlgorithm = algorithm;
     },
+    async prevPage() {
+      if (this.currentPage > 1) {
+        this.currentPage--;
+        await this.fetchPlugins();
+      }
+    },
+    async nextPage() {
+      if (this.currentPage < this.totalPages) {
+        this.currentPage++;
+        await this.fetchPlugins();
+      }
+    }
   },
   watch: {
     searchTerm: {
       handler: 'updatePage',
-      immediate: true
+      immediate: false
     },
     pageSize: {
       handler: 'updatePage',
-      immediate: true
-    },
-    currentPage: {
-      handler: 'fetchPlugins',
-      immediate: true
+      immediate: false
     }
   }
 };
@@ -569,8 +581,8 @@ a {
 }
 
 .description-cell {
-  max-width: 200px;
-  /* 텍스트의 최대 너비 설정 */
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .pagination {
@@ -659,5 +671,13 @@ input:checked+.slider_button:before {
   line-height: 1rem;
   /* padding-left: 2rem; */
   color: rgba(0, 0, 0, 0.8);
+}
+
+.table-button.delete {
+  background-color: #ff4444;
+}
+
+.table-button.delete:hover {
+  background-color: #cc0000;
 }
 </style>

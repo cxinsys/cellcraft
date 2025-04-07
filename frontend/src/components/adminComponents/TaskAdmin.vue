@@ -34,7 +34,6 @@
           <th @click="sortTable('time')">
             submitted time <span class="sort-icon">{{ sortIcon("time") }}</span>
           </th>
-          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -46,11 +45,6 @@
             {{ job.status }}
           </td>
           <td>{{ job.time }}</td>
-          <!-- <td> -->
-          <button class="table-button" @click="dismissJob(job)">
-            Dismiss Job
-          </button>
-          <!-- </td> -->
         </tr>
       </tbody>
     </table>
@@ -63,7 +57,7 @@
 </template>
 
 <script>
-import { getFilteredTasks } from '@/api';
+import { getFilteredTasks, getTasksCount } from '@/api';
 
 export default {
   data() {
@@ -103,9 +97,12 @@ export default {
           searchTerm: this.searchTerm
         };
 
-        const response = await getFilteredTasks(conditions);
+        const [tasksResponse, countResponse] = await Promise.all([
+          getFilteredTasks(conditions),
+          getTasksCount()
+        ]);
 
-        this.jobs = response.data.map((task, index) => ({
+        this.jobs = tasksResponse.data.data.map((task, index) => ({
           no: index + 1,
           id: task.id,
           userId: task.user_id,
@@ -116,7 +113,7 @@ export default {
           time: new Date(task.start_time).toLocaleDateString()
         }));
 
-        this.totalCount = response.total_count;
+        this.totalCount = countResponse.data;
       } catch (error) {
         console.error('Error fetching tasks:', error);
       }
@@ -128,7 +125,7 @@ export default {
         this.sortKey = key;
         this.sortDirection = "asc";
       }
-      this.currentPage = 1; // 정렬 시 첫 페이지로 이동
+      this.currentPage = 1;
       await this.fetchTasks();
     },
     sortIcon(key) {
@@ -136,14 +133,6 @@ export default {
         return this.sortDirection === "asc" ? "▽▲" : "▼△";
       }
       return "▽△";
-    },
-    async dismissJob(job) {
-      try {
-        // TODO: Implement dismiss API call
-        await this.fetchTasks();
-      } catch (error) {
-        console.error('Error dismissing job:', error);
-      }
     },
     async prevPage() {
       if (this.currentPage > 1) {
@@ -352,5 +341,13 @@ button:disabled {
   line-height: 1rem;
   /* padding-left: 2rem; */
   color: rgba(0, 0, 0, 0.8);
+}
+
+.table-button.cancel {
+  background-color: #ffa500;
+}
+
+.table-button.cancel:hover {
+  background-color: #cc8400;
 }
 </style>

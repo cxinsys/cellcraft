@@ -1,7 +1,7 @@
 <template>
   <div class="layout_admin">
     <div class="first-line">
-      <div class="header__text">Datasets</div>
+      <div class="header__text">Files</div>
       <div class="search">
         <input type="text" v-model="searchTerm" placeholder="Search by title..." />
         <!-- <img
@@ -22,11 +22,11 @@
         </select>
       </div>
     </div>
-    <div class="second-line">
+    <!-- <div class="second-line">
       <a class="upload-button" href="https://github.com/chxhyxn/TmpCellcraftBoard">
         ⇪ upload new dataset
       </a>
-    </div>
+    </div> -->
     <table>
       <thead>
         <tr>
@@ -37,6 +37,7 @@
           <th>size</th>
           <th>File URL</th>
           <th>Post URL</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -46,13 +47,18 @@
           <td>{{ dataset.size }}</td>
           <td><a :href="dataset.url">View File</a></td>
           <td><a :href="dataset.posturl">View Post</a></td>
+          <td>
+            <button @click="deleteFile(dataset)" class="table-button delete">
+              Delete
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
     <div class="pagination">
-      <button :disabled="currentPage === 1" @click="currentPage--">Prev</button>
+      <button :disabled="currentPage === 1" @click="prevPage">Prev</button>
       <span>{{ currentPage }}</span>
-      <button :disabled="currentPage === totalPages" @click="currentPage++">
+      <button :disabled="currentPage === totalPages" @click="nextPage">
         Next
       </button>
     </div>
@@ -60,7 +66,7 @@
 </template>
 
 <script>
-import { getFilteredFiles } from '@/api';
+import { getFilteredFiles, deleteFile, getFilesCount } from '@/api';
 
 function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return "0 Bytes";
@@ -131,9 +137,12 @@ export default {
           searchTerm: this.searchTerm
         };
 
-        const response = await getFilteredFiles(conditions);
+        const [filesResponse, countResponse] = await Promise.all([
+          getFilteredFiles(conditions),
+          getFilesCount()
+        ]);
 
-        this.datasets = response.data.map((file, index) => ({
+        this.datasets = filesResponse.data.map((file, index) => ({
           no: index + 1,
           id: file.id,
           type: file.file_name.split('.').pop(),
@@ -143,7 +152,7 @@ export default {
           posturl: file.folder
         }));
 
-        this.totalCount = response.total_count;
+        this.totalCount = countResponse.data;
       } catch (error) {
         console.error('Error fetching files:', error);
       }
@@ -166,20 +175,38 @@ export default {
     async updatePage() {
       this.currentPage = 1;
       await this.fetchFiles();
+    },
+    async deleteFile(dataset) {
+      if (confirm(`Are you sure you want to delete file ${dataset.path}?`)) {
+        try {
+          await deleteFile(dataset.id);
+          await this.fetchFiles();
+        } catch (error) {
+          console.error('Error deleting file:', error);
+        }
+      }
+    },
+    async prevPage() {
+      if (this.currentPage > 1) {
+        this.currentPage--;
+        await this.fetchFiles();
+      }
+    },
+    async nextPage() {
+      if (this.currentPage < this.totalPages) {
+        this.currentPage++;
+        await this.fetchFiles();
+      }
     }
   },
   watch: {
     searchTerm: {
       handler: 'updatePage',
-      immediate: true
+      immediate: false
     },
     pageSize: {
       handler: 'updatePage',
-      immediate: true
-    },
-    currentPage: {
-      handler: 'fetchFiles',
-      immediate: true
+      immediate: false
     }
   }
 };
@@ -369,5 +396,13 @@ button:disabled {
   line-height: 1rem;
   /* padding-left: 2rem; */
   color: rgba(0, 0, 0, 0.8);
+}
+
+.table-button.delete {
+  background-color: #ff4444;
+}
+
+.table-button.delete:hover {
+  background-color: #cc0000;
 }
 </style>

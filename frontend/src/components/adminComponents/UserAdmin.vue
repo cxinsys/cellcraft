@@ -28,24 +28,38 @@
           <th @click="sortTable('email')">
             e-mail <span class="sort-icon">{{ sortIcon("email") }}</span>
           </th>
-          <!-- <th>password</th> -->
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="user in users" :key="user.id">
           <td>{{ user.id }}</td>
-          <td>{{ user.username }}</td>
-          <td>{{ user.email }}</td>
-          <!-- <td>
-            <span class="blind-password">****</span>
-          </td> -->
+          <td>
+            <input v-if="editingUser === user.id" v-model="user.username" />
+            <span v-else>{{ user.username }}</span>
+          </td>
+          <td>
+            <input v-if="editingUser === user.id" v-model="user.email" />
+            <span v-else>{{ user.email }}</span>
+          </td>
+          <td>
+            <button v-if="editingUser === user.id" @click="saveUser(user)" class="table-button">
+              Save
+            </button>
+            <button v-else @click="editUser(user)" class="table-button">
+              Edit
+            </button>
+            <button @click="deleteUser(user)" class="table-button delete">
+              Delete
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
     <div class="pagination">
-      <button :disabled="currentPage === 1" @click="currentPage--">Prev</button>
+      <button :disabled="currentPage === 1" @click="prevPage">Prev</button>
       <span>{{ currentPage }}</span>
-      <button :disabled="currentPage === totalPages" @click="currentPage++">
+      <button :disabled="currentPage === totalPages" @click="nextPage">
         Next
       </button>
     </div>
@@ -53,18 +67,19 @@
 </template>
 
 <script>
-import { getFilteredUsers } from "@/api/index";
+import { getFilteredUsers, updateUser, deleteUser, getUsersCount } from "@/api/index";
 
 export default {
   data() {
     return {
       users: [],
-      sortKey: "id", // Set initial sort key to 'id'
-      sortDirection: "asc", // Set initial sort direction to 'asc'
+      sortKey: "id",
+      sortDirection: "asc",
       pageSize: 20,
       currentPage: 1,
       searchTerm: "",
-      usersCount: 0,
+      totalCount: 0,
+      editingUser: null,
     };
   },
   async mounted() {
@@ -72,21 +87,30 @@ export default {
   },
   computed: {
     totalPages() {
-      return Math.ceil(this.usersCount / this.pageSize);
+      return Math.ceil(this.totalCount / this.pageSize);
     },
   },
   methods: {
     async updateUsers() {
-      const conditions = {
-        amount: this.pageSize,
-        page_num: this.currentPage,
-        sort: this.sortKey,
-        order: this.sortDirection,
-        searchTerm: this.searchTerm,
-      };
-      const response = await getFilteredUsers(conditions);
-      this.users = response.data;
-      this.usersCount = response.total_count;
+      try {
+        const conditions = {
+          amount: this.pageSize,
+          page_num: this.currentPage,
+          sort: this.sortKey,
+          order: this.sortDirection,
+          searchTerm: this.searchTerm,
+        };
+
+        const [usersResponse, countResponse] = await Promise.all([
+          getFilteredUsers(conditions),
+          getUsersCount()
+        ]);
+
+        this.users = usersResponse.data;
+        this.totalCount = countResponse.data;
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
     },
     async sortTable(key) {
       if (this.sortKey === key) {
@@ -107,6 +131,43 @@ export default {
       this.currentPage = 1;
       this.updateUsers();
     },
+    editUser(user) {
+      this.editingUser = user.id;
+    },
+    async saveUser(user) {
+      try {
+        await updateUser(user.id, {
+          username: user.username,
+          email: user.email,
+        });
+        this.editingUser = null;
+        await this.updateUsers();
+      } catch (error) {
+        console.error("Error updating user:", error);
+      }
+    },
+    async deleteUser(user) {
+      if (confirm(`Are you sure you want to delete user ${user.username}?`)) {
+        try {
+          await deleteUser(user.id);
+          await this.updateUsers();
+        } catch (error) {
+          console.error("Error deleting user:", error);
+        }
+      }
+    },
+    async prevPage() {
+      if (this.currentPage > 1) {
+        this.currentPage--;
+        await this.updateUsers();
+      }
+    },
+    async nextPage() {
+      if (this.currentPage < this.totalPages) {
+        this.currentPage++;
+        await this.updateUsers();
+      }
+    }
   },
   watch: {
     searchTerm: {
@@ -114,21 +175,15 @@ export default {
         this.currentPage = 1;
         this.updateUsers();
       },
-      immediate: true,
+      immediate: false,
     },
     pageSize: {
       handler: function () {
         this.currentPage = 1;
         this.updateUsers();
       },
-      immediate: true,
-    },
-    currentPage: {
-      handler: function () {
-        this.updateUsers();
-      },
-      immediate: true,
-    },
+      immediate: false,
+    }
   },
 };
 </script>
@@ -252,5 +307,14 @@ button:disabled {
 
 .layout_admin {
   padding: 0 2rem 0 1rem;
+}
+
+.table-button.delete {
+  background-color: #ff4444;
+  margin-left: 5px;
+}
+
+.table-button.delete:hover {
+  background-color: #cc0000;
 }
 </style>

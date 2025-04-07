@@ -5,7 +5,7 @@
         <div class="admin__title">Admin</div>
       </div>
       <div v-for="button in buttons" :key="button.id" :class="['nav_button', { active: isActiveButton(button) }]"
-        @click="navigateTo(button.id, button.index)">
+        @click="navigateTo(button.id)">
         <img class="button_img" :src="button.img" draggable="false" />
         <p class="button_text">{{ button.label }}</p>
       </div>
@@ -45,6 +45,12 @@ export default {
           label: "Algorithms",
           img: require("@/assets/algorithm3.png"),
         },
+        {
+          id: "admin/workflow",
+          index: 4,
+          label: "Workflows",
+          img: require("@/assets/workflows.png")
+        }
       ],
       sideNavTop: "20%",
     };
@@ -56,7 +62,7 @@ export default {
     window.removeEventListener("scroll", this.handleScroll);
   },
   methods: {
-    navigateTo(id, index) {
+    navigateTo(id) {
       this.$router.push(`/${id}`);
     },
     handleScroll() {

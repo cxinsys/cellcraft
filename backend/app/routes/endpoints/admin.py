@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List,Optional,Any
 from sqlalchemy.orm import Session
 import docker
@@ -8,8 +8,6 @@ from app.routes import dep
 from app.database.schemas.admin import Conditions
 from app.database.crud import crud_admin
 from app.database import models
-from app.database.crud import crud_user
-from app.database.crud import crud_workflow
 
 router = APIRouter()
 
@@ -107,7 +105,7 @@ def get_filtered_workflows(
     sort: str,
     order: str,
     searchTerm: str,
-    ):
+):
     # 관리자 권한 확인
     if not current_user.is_superuser:
         raise HTTPException(status_code=403, detail="Access denied: Admins only")
@@ -124,7 +122,23 @@ def get_filtered_workflows(
 
     if not workflows:
         raise HTTPException(status_code=404, detail="Workflows not found")
-    return workflows
+    
+    # 결과 포맷팅
+    formatted_workflows = []
+    for workflow, username in workflows:
+        formatted_workflow = {
+            'id': workflow.id,
+            'title': workflow.title,
+            'username': username,
+            'updated_at': workflow.updated_at,
+            'user_id': workflow.user_id
+        }
+        formatted_workflows.append(formatted_workflow)
+    
+    return {
+        'data': formatted_workflows,
+        'total_count': total_count
+    }
 
 @router.get("/workflows_count", response_model=Any)
 def get_workflows_count(
@@ -183,7 +197,10 @@ def get_filtered_tasks(
         }
         formatted_tasks.append(formatted_task)
     
-    return formatted_tasks
+    return {
+        'data': formatted_tasks,
+        'total_count': total_count
+    }
 
 @router.get("/tasks_count", response_model=Any)
 def get_tasks_count(
@@ -350,131 +367,87 @@ def get_celery_stats():
     except Exception as e:
         return {'message': f"시스템 정보 조회 중 오류 발생: {str(e)}"}
 
-# @router.get("/system/stats", response_model=Any)
-# def get_celery_stats():
-#     # Docker 클라이언트 연결
-#     client = docker.DockerClient(base_url='unix://var/run/docker.sock')
+@router.put("/users/{user_id}", response_model=Any)
+def update_user(
+    user_id: int,
+    user_data: dict,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    user = crud_admin.update_user(db, user_id, user_data)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
-#     try:
-#         containers = client.containers.list()
-#         print("현재 실행 중인 컨테이너 목록:")
+@router.delete("/users/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    success = crud_admin.delete_user(db, user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": "User deleted successfully"}
 
-#         celery_container = None
-#         for container in containers:
-#             print(container.name)
-#             if 'celery' in container.name:
-#                 celery_container = container
-#                 break
+@router.delete("/files/{file_id}")
+def delete_file(
+    file_id: int,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    success = crud_admin.delete_file(db, file_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="File not found")
+    return {"message": "File deleted successfully"}
 
-#         if not celery_container:
-#             return {'message': "Celery 컨테이너를 찾을 수 없습니다."}
+@router.delete("/workflows/{workflow_id}")
+def delete_workflow(
+    workflow_id: int,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    success = crud_admin.delete_workflow(db, workflow_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return {"message": "Workflow deleted successfully"}
 
-#         # 컨테이너 상세 정보 가져오기
-#         stats = celery_container.stats(stream=False)
-#         container_info = celery_container.attrs
+@router.post("/tasks/{task_id}/cancel")
+def cancel_task(
+    task_id: int,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    success = crud_admin.cancel_task(db, task_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"message": "Task cancelled successfully"}
 
-#         # CPU 상세 정보 계산
-#         cpu_stats = stats['cpu_stats']
-#         precpu_stats = stats['precpu_stats']
-#         cpu_usage = cpu_stats['cpu_usage']['total_usage'] - precpu_stats['cpu_usage']['total_usage']
-#         system_cpu_usage = cpu_stats['system_cpu_usage'] - precpu_stats['system_cpu_usage']
-#         num_cpus = len(cpu_stats['cpu_usage'].get('percpu_usage', []))
-#         cpu_percent = (cpu_usage / system_cpu_usage) * 100 * num_cpus
-
-#         # 메모리 상세 정보 계산
-#         memory_stats = stats['memory_stats']
-#         memory_usage = memory_stats['usage']
-#         memory_limit = memory_stats['limit']
-#         memory_percent = (memory_usage / memory_limit) * 100
-#         memory_stats_detailed = {
-#             'total_bytes': memory_limit,
-#             'used_bytes': memory_usage,
-#             'available_bytes': memory_limit - memory_usage,
-#             'percent': memory_percent,
-#             'stats': memory_stats.get('stats', {})
-#         }
-
-#         # **Celery 컨테이너 내부에서 GPU 정보 가져오기 (`pynvml` 실행)**
-#         try:
-#             python_script = """
-# import json
-# from pynvml import nvmlInit, nvmlDeviceGetCount, nvmlDeviceGetHandleByIndex, \
-#     nvmlDeviceGetName, nvmlDeviceGetTemperature, nvmlDeviceGetMemoryInfo, \
-#     nvmlDeviceGetPowerUsage, nvmlDeviceGetUtilizationRates, nvmlShutdown
-
-# nvmlInit()
-# gpu_stats = []
-# device_count = nvmlDeviceGetCount()
-
-# for i in range(device_count):
-#     handle = nvmlDeviceGetHandleByIndex(i)
-#     mem_info = nvmlDeviceGetMemoryInfo(handle)
-#     utilization = nvmlDeviceGetUtilizationRates(handle)
-
-#     gpu_stats.append({
-#         'id': i,
-#         'name': nvmlDeviceGetName(handle),  # decode() 제거
-#         'temperature_c': nvmlDeviceGetTemperature(handle, 0),
-#         'utilization_percent': utilization.gpu,
-#         'memory': {
-#             'total_bytes': mem_info.total,
-#             'used_bytes': mem_info.used,
-#             'free_bytes': mem_info.free,
-#             'utilization_percent': (mem_info.used / mem_info.total) * 100 if mem_info.total > 0 else 0
-#         },
-#         'power': {
-#             'draw_watts': nvmlDeviceGetPowerUsage(handle) / 1000
-#         }
-#     })
-
-# nvmlShutdown()
-# print(json.dumps(gpu_stats))
-# """
-
-#             exec_result = celery_container.exec_run(f'/opt/conda/envs/snakemake/bin/python -c "{python_script}"')
-
-#             if exec_result.exit_code == 0:
-#                 gpu_stats = json.loads(exec_result.output.decode('utf-8'))
-#             else:
-#                 gpu_stats = None
-#                 print(f"GPU 정보 조회 실패: {exec_result.output.decode('utf-8')}")
-
-#         except Exception as e:
-#             gpu_stats = None
-#             print(f"GPU 정보 조회 실패: {e}")
-
-#         # 네트워크 정보
-#         network_stats = stats.get('networks', {})
-
-#         return {
-#             'container_info': {
-#                 'id': celery_container.id,
-#                 'name': celery_container.name,
-#                 'status': celery_container.status,
-#                 'created': container_info['Created'],
-#             },
-#             'cpu': {
-#                 'usage_percent': cpu_percent,
-#                 'num_cpus': num_cpus,
-#                 'total_usage': cpu_usage,
-#                 'system_usage': system_cpu_usage,
-#                 'per_cpu_usage': cpu_stats['cpu_usage'].get('percpu_usage', [])
-#             },
-#             'memory': memory_stats_detailed,
-#             'gpu': gpu_stats,
-#             'network': {
-#                 interface: {
-#                     'rx_bytes': data['rx_bytes'],
-#                     'tx_bytes': data['tx_bytes'],
-#                     'rx_packets': data['rx_packets'],
-#                     'tx_packets': data['tx_packets'],
-#                     'rx_errors': data['rx_errors'],
-#                     'tx_errors': data['tx_errors']
-#                 } for interface, data in network_stats.items()
-#             }
-#         }
-
-#     except docker.errors.NotFound:
-#         return {'message': "Celery 컨테이너를 찾을 수 없습니다."}
-#     except Exception as e:
-#         return {'message': f"시스템 정보 조회 중 오류 발생: {str(e)}"}
+@router.post("/plugins/{plugin_id}/install-dependencies")
+def install_plugin_dependencies(
+    plugin_id: int,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    success = crud_admin.install_plugin_dependencies(db, plugin_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    return {"message": "Plugin dependencies installed successfully"}

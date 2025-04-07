@@ -105,20 +105,30 @@ def get_filtered_workflows(db: Session, conditions: Conditions) -> Tuple[List[mo
     # 정렬 컬럼 매핑
     sort_mapping = {
         'title': text('workflows.title'),
-        'id': text('workflows.id')
+        'id': text('workflows.id'),
+        'username': text('users.username'),
+        'updated_at': text('workflows.updated_at')
     }
     
     # 기본 정렬 컬럼 설정
     sort_column = sort_mapping.get(sort, text('workflows.id'))
     sort_order = asc if order == 'asc' else desc
 
-    # 기본 쿼리 생성
-    query = db.query(models.Workflow)
+    # 기본 쿼리 생성 (User와 join)
+    query = db.query(
+        models.Workflow,
+        models.User.username.label('username')
+    ).join(
+        models.User, models.Workflow.user_id == models.User.id
+    )
 
     # 검색 조건 적용
     if searchTerm:
         query = query.filter(
-            models.Workflow.title.ilike(f'%{searchTerm}%')
+            or_(
+                models.Workflow.title.ilike(f'%{searchTerm}%'),
+                models.User.username.ilike(f'%{searchTerm}%')
+            )
         )
 
     # 전체 개수 계산
@@ -270,3 +280,79 @@ def get_tasks_count(db: Session) -> int:
     전체 Task 개수를 반환
     """
     return db.query(models.Task).count()
+
+def update_user(db: Session, user_id: int, user_data: dict) -> models.User:
+    """
+    사용자 정보를 업데이트
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        return None
+    
+    for key, value in user_data.items():
+        if hasattr(user, key):
+            setattr(user, key, value)
+    
+    db.commit()
+    db.refresh(user)
+    return user
+
+def delete_user(db: Session, user_id: int) -> bool:
+    """
+    사용자를 삭제
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        return False
+    
+    db.delete(user)
+    db.commit()
+    return True
+
+def delete_file(db: Session, file_id: int) -> bool:
+    """
+    파일을 삭제
+    """
+    file = db.query(models.File).filter(models.File.id == file_id).first()
+    if not file:
+        return False
+    
+    db.delete(file)
+    db.commit()
+    return True
+
+def delete_workflow(db: Session, workflow_id: int) -> bool:
+    """
+    워크플로우를 삭제
+    """
+    workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()
+    if not workflow:
+        return False
+    
+    db.delete(workflow)
+    db.commit()
+    return True
+
+def cancel_task(db: Session, task_id: int) -> bool:
+    """
+    태스크를 취소
+    """
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        return False
+    
+    task.status = "cancelled"
+    db.commit()
+    return True
+
+def install_plugin_dependencies(db: Session, plugin_id: int) -> bool:
+    """
+    플러그인 의존성을 설치
+    """
+    plugin = db.query(models.Plugin).filter(models.Plugin.id == plugin_id).first()
+    if not plugin:
+        return False
+    
+    # TODO: 실제 의존성 설치 로직 구현
+    # 예: subprocess를 사용하여 pip install 실행
+    return True
