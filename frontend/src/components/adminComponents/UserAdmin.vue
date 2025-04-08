@@ -3,11 +3,7 @@
     <div class="first-line">
       <div class="header__text">Users</div>
       <div class="search">
-        <input
-          type="text"
-          v-model="searchTerm"
-          placeholder="Search by keyword..."
-        />
+        <input type="text" v-model="searchTerm" placeholder="Search by keyword..." />
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>
@@ -15,8 +11,8 @@
           <option value="5">5</option>
           <option value="10">10</option>
           <option value="15">15</option>
-          <option value="20">20</option>
-          <option value="50">50</option>
+          <!-- <option value="20">20</option>
+          <option value="50">50</option> -->
         </select>
       </div>
     </div>
@@ -32,24 +28,38 @@
           <th @click="sortTable('email')">
             e-mail <span class="sort-icon">{{ sortIcon("email") }}</span>
           </th>
-          <!-- <th>password</th> -->
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="user in users" :key="user.id">
           <td>{{ user.id }}</td>
-          <td>{{ user.username }}</td>
-          <td>{{ user.email }}</td>
-          <!-- <td>
-            <span class="blind-password">****</span>
-          </td> -->
+          <td>
+            <input v-if="editingUser === user.id" v-model="user.username" />
+            <span v-else>{{ user.username }}</span>
+          </td>
+          <td>
+            <input v-if="editingUser === user.id" v-model="user.email" />
+            <span v-else>{{ user.email }}</span>
+          </td>
+          <td>
+            <button v-if="editingUser === user.id" @click="saveUser(user)" class="table-button">
+              Save
+            </button>
+            <button v-else @click="editUser(user)" class="table-button">
+              Edit
+            </button>
+            <button @click="deleteUser(user)" class="table-button delete">
+              Delete
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
     <div class="pagination">
-      <button :disabled="currentPage === 1" @click="currentPage--">Prev</button>
-      <span>{{ currentPage }}</span>
-      <button :disabled="currentPage === totalPages" @click="currentPage++">
+      <button :disabled="currentPage === 1" @click="prevPage">Prev</button>
+      <span>{{ currentPage }} / {{ totalPages }}</span>
+      <button :disabled="currentPage === totalPages" @click="nextPage">
         Next
       </button>
     </div>
@@ -57,18 +67,19 @@
 </template>
 
 <script>
-import { getUsersCount, getFilteredUsers } from "@/api/index";
+import { getFilteredUsers, updateUser, deleteUser, getUsersCount } from "@/api/index";
 
 export default {
   data() {
     return {
       users: [],
-      sortKey: "id", // Set initial sort key to 'id'
-      sortDirection: "asc", // Set initial sort direction to 'asc'
-      pageSize: 20,
+      sortKey: "id",
+      sortDirection: "asc",
+      pageSize: 15,
       currentPage: 1,
       searchTerm: "",
-      usersCount: 0,
+      totalCount: 0,
+      editingUser: null,
     };
   },
   async mounted() {
@@ -76,23 +87,30 @@ export default {
   },
   computed: {
     totalPages() {
-      return Math.ceil(this.usersCount / this.pageSize);
+      return Math.ceil(this.totalCount / this.pageSize);
     },
   },
   methods: {
     async updateUsers() {
-      const response = await getUsersCount();
-      this.usersCount = response.data;
+      try {
+        const conditions = {
+          amount: this.pageSize,
+          page_num: this.currentPage,
+          sort: this.sortKey,
+          order: this.sortDirection,
+          searchTerm: this.searchTerm,
+        };
 
-      const conditions = {
-        amount: this.pageSize,
-        page_num: this.currentPage,
-        sort: this.sortKey,
-        order: this.sortDirection,
-        searchTerm: this.searchTerm,
-      };
-      const filteredUsers = await getFilteredUsers(conditions);
-      this.users = filteredUsers.data;
+        const [usersResponse, countResponse] = await Promise.all([
+          getFilteredUsers(conditions),
+          getUsersCount()
+        ]);
+
+        this.users = usersResponse.data;
+        this.totalCount = countResponse.data;
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
     },
     async sortTable(key) {
       if (this.sortKey === key) {
@@ -110,18 +128,62 @@ export default {
       return "▽△";
     },
     resetPageNum() {
-      this.currentPage = 1; // Reset to first page when page size changes
+      this.currentPage = 1;
+      this.updateUsers();
     },
+    editUser(user) {
+      this.editingUser = user.id;
+    },
+    async saveUser(user) {
+      try {
+        await updateUser(user.id, {
+          username: user.username,
+          email: user.email,
+        });
+        this.editingUser = null;
+        await this.updateUsers();
+      } catch (error) {
+        console.error("Error updating user:", error);
+      }
+    },
+    async deleteUser(user) {
+      if (confirm(`Are you sure you want to delete user ${user.username}?`)) {
+        try {
+          await deleteUser(user.id);
+          await this.updateUsers();
+        } catch (error) {
+          console.error("Error deleting user:", error);
+        }
+      }
+    },
+    async prevPage() {
+      if (this.currentPage > 1) {
+        this.currentPage--;
+        await this.updateUsers();
+      }
+    },
+    async nextPage() {
+      if (this.currentPage < this.totalPages) {
+        this.currentPage++;
+        await this.updateUsers();
+      }
+    }
   },
   watch: {
     searchTerm: {
       handler: function () {
-        // 검색어가 바뀔 때마다 사용자 업데이트 메소드를 호출합니다.
+        this.currentPage = 1;
         this.updateUsers();
       },
-      // 이 옵션은 searchTerm이 바뀔 때마다 즉시 watcher가 호출되도록 합니다.
-      immediate: true,
+      immediate: false,
     },
+    pageSize: {
+      handler: function () {
+        this.currentPage = 1;
+        this.updateUsers();
+      },
+      immediate: false,
+    }
   },
 };
 </script>
@@ -129,38 +191,100 @@ export default {
 <style scoped>
 table {
   width: 100%;
-  height: 100%;
   border-collapse: separate;
   border-spacing: 5px;
-  /* background-color: #c9c9c9; */
   transition: all 0.3s ease;
   border-radius: 15px;
-  /* color: #ffffff; */
+  table-layout: fixed;
 }
 
 thead th,
 td {
   padding: 10px;
-  padding-left: 25px;
+  padding-left: 15px;
   text-align: left;
   border-radius: 10px;
   border: 1px solid #a8a8a8;
-  /* box-shadow: 0px 4px 4px rgba(176, 169, 255, 0.25); */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 th {
   text-transform: capitalize;
   background-color: #474747;
   color: #ffffff;
+  position: sticky;
+  top: 0;
 }
 
 td {
-  /* background-color: #535353; */
   transition: all 0.3s ease;
+  background-color: #ffffff;
 }
 
 th:hover {
   background-color: #616161;
+}
+
+/* 컬럼 너비 설정 */
+th:nth-child(1) {
+  width: 10%;
+}
+
+/* id */
+th:nth-child(2) {
+  width: 25%;
+}
+
+/* name */
+th:nth-child(3) {
+  width: 35%;
+}
+
+/* e-mail */
+th:nth-child(4) {
+  width: 30%;
+}
+
+/* Actions */
+
+/* 반응형 스타일 */
+@media screen and (max-width: 1200px) {
+  .layout_admin {
+    padding: 0 1rem;
+  }
+
+  .search input {
+    width: 200px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .first-line {
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .search input {
+    width: 100%;
+  }
+
+  .page-size {
+    width: 100%;
+  }
+
+  th,
+  td {
+    padding: 8px;
+    font-size: 0.9rem;
+  }
+
+  td input {
+    width: 100%;
+    padding: 5px;
+  }
 }
 
 button {
@@ -175,14 +299,17 @@ button {
   text-align: center;
   text-transform: capitalize;
 }
+
 button:disabled {
   color: #ccc;
 }
+
 .sort-icon {
   color: rgb(199, 199, 199);
   font-weight: normal;
   font-size: small;
 }
+
 .first-line {
   height: 40px;
   margin-bottom: 10px;
@@ -193,6 +320,7 @@ button:disabled {
   flex-direction: row;
   align-items: center;
 }
+
 .search {
   display: flex;
   align-items: center;
@@ -207,6 +335,7 @@ button:disabled {
   outline-style: none;
   background: #f7f7f7;
 }
+
 .search input:focus {
   border: 1px solid #bcbcbc;
 }
@@ -240,5 +369,14 @@ button:disabled {
 
 .layout_admin {
   padding: 0 2rem 0 1rem;
+}
+
+.table-button.delete {
+  background-color: #ff4444;
+  margin-left: 5px;
+}
+
+.table-button.delete:hover {
+  background-color: #cc0000;
 }
 </style>

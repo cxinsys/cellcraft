@@ -1,9 +1,9 @@
 <template>
   <div class="layout_admin">
     <div class="first-line">
-      <div class="header__text">Jobs</div>
+      <div class="header__text">Tasks</div>
       <div class="search">
-        <input type="text" v-model="searchTerm" placeholder="Search by id..." />
+        <input type="text" v-model="searchTerm" placeholder="Search by username..." />
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>
@@ -11,8 +11,8 @@
           <option value="5">5</option>
           <option value="10">10</option>
           <option value="15">15</option>
-          <option value="20">20</option>
-          <option value="50">50</option>
+          <!-- <option value="20">20</option>
+          <option value="50">50</option> -->
         </select>
       </div>
     </div>
@@ -22,249 +22,111 @@
           <th @click="sortTable('no')" style="width: 70px">
             No. <span class="sort-icon">{{ sortIcon("no") }}</span>
           </th>
-          <th @click="sortTable('userId')">
-            id <span class="sort-icon">{{ sortIcon("userId") }}</span>
+          <th @click="sortTable('username')">
+            Username <span class="sort-icon">{{ sortIcon("username") }}</span>
           </th>
-          <th>project</th>
+          <th @click="sortTable('workflowTitle')">
+            Workflow Title <span class="sort-icon">{{ sortIcon("workflowTitle") }}</span>
+          </th>
           <th @click="sortTable('status')">
             status <span class="sort-icon">{{ sortIcon("status") }}</span>
           </th>
           <th @click="sortTable('time')">
             submitted time <span class="sort-icon">{{ sortIcon("time") }}</span>
           </th>
-          <th></th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="job in displayedJobs" :key="job.no">
           <td>{{ job.no }}</td>
-          <td>{{ job.userId }}</td>
-          <td>{{ job.project }}</td>
+          <td>{{ job.username }}</td>
+          <td>{{ job.workflowTitle }}</td>
           <td :class="job.status.replace(' ', '-').toLowerCase()">
             {{ job.status }}
           </td>
           <td>{{ job.time }}</td>
-          <!-- <td> -->
-          <button class="table-button" @click="dismissJob(job)">
-            Dismiss Job
-          </button>
-          <!-- </td> -->
         </tr>
       </tbody>
     </table>
     <div class="pagination">
-      <button :disabled="currentPage === 1" @click="currentPage--">Prev</button>
-      <span>{{ currentPage }}</span>
-      <button :disabled="currentPage === totalPages" @click="currentPage++">
-        Next
-      </button>
+      <button :disabled="currentPage === 1" @click="prevPage">Prev</button>
+      <span>{{ currentPage }} / {{ totalPages }}</span>
+      <button :disabled="currentPage === totalPages" @click="nextPage">Next</button>
     </div>
   </div>
 </template>
 
 <script>
+import { getFilteredTasks, getTasksCount } from '@/api';
+
 export default {
   data() {
     return {
-      jobs: [
-        {
-          no: 1,
-          userId: "johndoe",
-          project: "project1",
-          status: "success",
-          time: "2023-06-29",
-        },
-        {
-          no: 2,
-          userId: "janesmith",
-          project: "project2",
-          status: "running",
-          time: "2023-06-30",
-        },
-        {
-          no: 3,
-          userId: "bobjohnson",
-          project: "project12",
-          status: "failure",
-          time: "2023-07-01",
-        },
-        {
-          no: 4,
-          userId: "alicebrown",
-          project: "project14",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 5,
-          userId: "samwilson",
-          project: "project19",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 6,
-          userId: "emilydavis",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 7,
-          userId: "michaelwilson",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 8,
-          userId: "oliviajohnson",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 9,
-          userId: "sophiamiller",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 10,
-          userId: "williamanderson",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 11,
-          userId: "benjamingarcia",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 12,
-          userId: "avamartinez",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 13,
-          userId: "miathompson",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 14,
-          userId: "ethanlopez",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 15,
-          userId: "jameswilson",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 16,
-          userId: "liamwhite",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 17,
-          userId: "sophiabrown",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 18,
-          userId: "charlottedavis",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 19,
-          userId: "alexanderjohnson",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-        {
-          no: 20,
-          userId: "emmamiller",
-          project: "project1",
-          status: "wait",
-          time: "2023-07-01",
-        },
-      ],
-      sortKey: "no", // Set initial sort key to 'id'
-      sortDirection: "dsc", // Set initial sort direction to 'asc'
-      pageSize: 20,
+      jobs: [],
+      sortKey: "id",
+      sortDirection: "dsc",
+      pageSize: 15,
       currentPage: 1,
       searchTerm: "",
       searchProject: "",
+      totalCount: 0
     };
+  },
+  async created() {
+    await this.fetchTasks();
   },
   computed: {
     sortedJobs() {
-      const jobsCopy = [...this.jobs];
-      if (this.sortKey) {
-        jobsCopy.sort((a, b) => {
-          const aValue = a[this.sortKey];
-          const bValue = b[this.sortKey];
-          if (aValue < bValue) return this.sortDirection === "asc" ? -1 : 1;
-          if (aValue > bValue) return this.sortDirection === "asc" ? 1 : -1;
-          return 0;
-        });
-      }
-      return jobsCopy;
+      return this.jobs;
     },
-
     totalPages() {
-      return Math.ceil(this.filteredJobs.length / this.pageSize);
+      return Math.ceil(this.totalCount / this.pageSize);
     },
     displayedJobs() {
-      const startIndex = (this.currentPage - 1) * this.pageSize;
-      const endIndex = startIndex + this.pageSize;
-      return this.filteredJobs.slice(startIndex, endIndex);
-    },
-    filteredJobs() {
-      if (this.searchTerm || this.searchProject) {
-        const searchTermLower = this.searchTerm.toLowerCase();
-        const searchProjectLower = this.searchProject.toLowerCase();
-        return this.sortedJobs.filter((job) => {
-          const userIdMatch = job.userId
-            .toLowerCase()
-            .includes(searchTermLower);
-          const projectMatch = job.project
-            .toLowerCase()
-            .includes(searchProjectLower);
-          return userIdMatch && projectMatch;
-        });
-      } else {
-        return this.sortedJobs;
-      }
-    },
+      return this.jobs;
+    }
   },
   methods: {
-    sortTable(key) {
+    async fetchTasks() {
+      try {
+        const conditions = {
+          amount: this.pageSize,
+          page_num: this.currentPage,
+          sort: this.sortKey,
+          order: this.sortDirection === 'asc' ? 'asc' : 'desc',
+          searchTerm: this.searchTerm
+        };
+
+        const [tasksResponse, countResponse] = await Promise.all([
+          getFilteredTasks(conditions),
+          getTasksCount()
+        ]);
+
+        this.jobs = tasksResponse.data.data.map((task, index) => ({
+          no: index + 1,
+          id: task.id,
+          userId: task.user_id,
+          username: task.username,
+          workflowId: task.workflow_id,
+          workflowTitle: task.workflow_title,
+          status: task.status,
+          time: new Date(task.start_time).toLocaleDateString()
+        }));
+
+        this.totalCount = countResponse.data;
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    },
+    async sortTable(key) {
       if (this.sortKey === key) {
         this.sortDirection = this.sortDirection === "asc" ? "desc" : "asc";
       } else {
         this.sortKey = key;
         this.sortDirection = "asc";
       }
+      this.currentPage = 1;
+      await this.fetchTasks();
     },
     sortIcon(key) {
       if (this.sortKey === key) {
@@ -272,60 +134,133 @@ export default {
       }
       return "▽△";
     },
-    resetSearch() {
-      this.searchTerm = "";
-    },
-    resetProjectSearch() {
-      this.searchProject = "";
-    },
-    dismissJob(job) {
-      const index = this.jobs.findIndex((j) => j.id === job.id);
-      if (index !== -1) {
-        this.jobs.splice(index, 1);
+    async prevPage() {
+      if (this.currentPage > 1) {
+        this.currentPage--;
+        await this.fetchTasks();
       }
     },
-    updatePage() {
-      this.currentPage = 1; // Reset to first page when page size changes
+    async nextPage() {
+      if (this.currentPage < this.totalPages) {
+        this.currentPage++;
+        await this.fetchTasks();
+      }
     },
+    async updatePage() {
+      this.currentPage = 1;
+      await this.fetchTasks();
+    }
   },
+  watch: {
+    searchTerm: {
+      handler: 'updatePage',
+      immediate: false
+    },
+    pageSize: {
+      handler: 'updatePage',
+      immediate: false
+    }
+  }
 };
 </script>
 
 <style scoped>
 table {
   width: 100%;
-  height: 100%;
   border-collapse: separate;
   border-spacing: 5px;
-  /* background-color: #c9c9c9; */
   transition: all 0.3s ease;
   border-radius: 15px;
-  /* color: #ffffff; */
+  table-layout: fixed;
 }
 
 thead th,
 td {
   padding: 10px;
-  padding-left: 25px;
+  padding-left: 15px;
   text-align: left;
   border-radius: 10px;
   border: 1px solid #a8a8a8;
-  /* box-shadow: 0px 8px 20px rgba(176, 169, 255, 0.25); */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 th {
   text-transform: capitalize;
   background-color: #474747;
   color: #ffffff;
+  position: sticky;
+  top: 0;
 }
 
 td {
-  /* background-color: #535353; */
   transition: all 0.3s ease;
+  background-color: #ffffff;
 }
 
 th:hover {
   background-color: #616161;
+}
+
+/* 컬럼 너비 설정 */
+th:nth-child(1) {
+  width: 8%;
+}
+
+/* No. */
+th:nth-child(2) {
+  width: 15%;
+}
+
+/* Username */
+th:nth-child(3) {
+  width: 25%;
+}
+
+/* Workflow Title */
+th:nth-child(4) {
+  width: 15%;
+}
+
+/* status */
+th:nth-child(5) {
+  width: 25%;
+}
+
+/* submitted time */
+
+/* 반응형 스타일 */
+@media screen and (max-width: 1200px) {
+  .layout_admin {
+    padding: 0 1rem;
+  }
+
+  .search input {
+    width: 200px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .first-line {
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .search input {
+    width: 100%;
+  }
+
+  .page-size {
+    width: 100%;
+  }
+
+  th,
+  td {
+    padding: 8px;
+    font-size: 0.9rem;
+  }
 }
 
 button {
@@ -340,6 +275,7 @@ button {
   text-align: center;
   text-transform: capitalize;
 }
+
 button:disabled {
   color: #ccc;
 }
@@ -354,14 +290,17 @@ button:disabled {
   text-align: center;
   text-transform: capitalize;
 }
+
 .table-button:hover {
   background-color: #616161;
 }
+
 .sort-icon {
   color: rgb(199, 199, 199);
   font-weight: normal;
   font-size: small;
 }
+
 .first-line {
   height: 40px;
   width: calc(100% - 10px);
@@ -371,16 +310,19 @@ button:disabled {
   flex-direction: row;
   align-items: center;
 }
+
 .reset-button {
   /* margin-top: -7px; */
   width: 1.5rem;
   height: 1.5rem;
   opacity: 0.7;
 }
+
 .reset-button:hover {
   opacity: 0.5;
   cursor: pointer;
 }
+
 #pageSize {
   padding: 2px;
   border-radius: 5px;
@@ -395,6 +337,7 @@ button:disabled {
   justify-content: space-between;
   flex-direction: row;
 }
+
 .second-line {
   width: calc(100% - 10px);
   padding: 5px 5px 5px 5px;
@@ -402,6 +345,7 @@ button:disabled {
   justify-content: space-between;
   flex-direction: row;
 }
+
 .search {
   display: flex;
   align-items: center;
@@ -416,6 +360,7 @@ button:disabled {
   outline-style: none;
   background: #f7f7f7;
 }
+
 .search input:focus {
   border: 1px solid #bcbcbc;
 }
@@ -429,18 +374,23 @@ button:disabled {
 .pagination button {
   margin: -5px 10px 0px 10px;
 }
+
 .success {
   color: rgb(0, 201, 0);
 }
+
 .running {
   color: rgb(254, 151, 49);
 }
+
 .failure {
   color: rgb(255, 57, 57);
 }
+
 .wait {
   color: gray;
 }
+
 .layout_admin {
   padding: 0 2rem 0 1rem;
 }
@@ -453,5 +403,13 @@ button:disabled {
   line-height: 1rem;
   /* padding-left: 2rem; */
   color: rgba(0, 0, 0, 0.8);
+}
+
+.table-button.cancel {
+  background-color: #ffa500;
+}
+
+.table-button.cancel:hover {
+  background-color: #cc8400;
 }
 </style>

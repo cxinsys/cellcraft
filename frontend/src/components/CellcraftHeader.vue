@@ -15,22 +15,22 @@
     </nav>
     <nav class="menu-component" v-else-if="!isWorkflowPage && isUserLogin">
       <ul class="header-menu">
-        <li class="header-menu__item">
+        <li class="header-menu__item" v-if="!isSuperUser">
           <router-link class="header-menu__link" to="/projects">
             Workflows
           </router-link>
         </li>
-        <li class="header-menu__item">
+        <li class="header-menu__item" v-if="!isSuperUser">
           <router-link class="header-menu__link" to="/files">
             Files
           </router-link>
         </li>
-        <li class="header-menu__item">
+        <li class="header-menu__item" v-if="!isSuperUser">
           <router-link class="header-menu__link" to="/datasets">
             Datasets
           </router-link>
         </li>
-        <li class="header-menu__item">
+        <li class="header-menu__item" v-if="!isSuperUser">
           <router-link class="header-menu__link" to="/plugins">
             Plugins
           </router-link>
@@ -47,14 +47,8 @@
       <p class="workflow-title__text" v-if="!activeInput" @click="editTitle">
         {{ setTitle }}
       </p>
-      <input
-        type="text"
-        v-model="title"
-        class="workflow-title__input"
-        v-else
-        @keydown.enter="applyTitle"
-        @blur="applyTitle"
-      />
+      <input type="text" v-model="title" class="workflow-title__input" v-else @keydown.enter="applyTitle"
+        @blur="applyTitle" />
     </div>
     <div class="login-component" v-if="isUserLogin">
       <p class="login__link" @click="logoutUser">Sign Out</p>
@@ -125,6 +119,7 @@ a {
   text-decoration: none;
   color: black;
 }
+
 .layout {
   height: 100%;
   width: 95rem;
@@ -135,6 +130,7 @@ a {
   align-items: center;
   overflow: hidden;
 }
+
 .logo-component {
   width: 25%;
   height: 100%;
@@ -143,6 +139,7 @@ a {
   justify-content: left;
   /* transform: translateY(3px); */
 }
+
 .logo {
   width: 2.25rem;
   height: 2.25rem;
@@ -150,11 +147,13 @@ a {
   align-items: center;
   justify-content: left;
 }
+
 .logo__img {
   width: 2.25rem;
   height: 2.25rem;
   object-fit: contain;
 }
+
 .logo__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -163,10 +162,12 @@ a {
   line-height: 2rem;
   text-decoration: none;
 }
+
 .menu-component {
   width: 50%;
   height: 100%;
 }
+
 .header-menu {
   width: 100%;
   height: 100%;
@@ -174,6 +175,7 @@ a {
   align-items: center;
   justify-content: center;
 }
+
 .header-menu__item {
   padding: 0 10%;
   height: 100%;
@@ -182,6 +184,7 @@ a {
   justify-content: center;
   position: relative;
 }
+
 .header-menu__link {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -192,6 +195,7 @@ a {
   position: relative;
   transform: translateY(1px);
 }
+
 .header-menu__link:after {
   display: block;
   content: "";
@@ -199,15 +203,19 @@ a {
   transform: scaleX(0) translateY(4px);
   transition: transform 250ms ease-in-out;
 }
+
 .header-menu__link:hover:after {
   transform: scaleX(1) translateY(4px);
 }
+
 .header-menu__link.fromRight:after {
   transform-origin: 100% 50%;
 }
+
 .header-menu__link.fromLeft:after {
   transform-origin: 0% 50%;
 }
+
 .workflow-title {
   width: 50%;
   height: 100%;
@@ -215,6 +223,7 @@ a {
   justify-content: center;
   align-items: center;
 }
+
 .workflow-title__text {
   color: white;
   font-family: "Montserrat", sans-serif;
@@ -224,6 +233,7 @@ a {
   line-height: 1.5rem;
   text-decoration: none;
 }
+
 .workflow-title__input {
   color: white;
   font-family: "Montserrat", sans-serif;
@@ -236,10 +246,12 @@ a {
   background: rgba(0, 0, 0, 0);
   border: none;
 }
+
 .workflow-title__input:focus {
   outline: none;
   box-shadow: none;
 }
+
 .login-component {
   width: 25%;
   height: 100%;
@@ -248,6 +260,7 @@ a {
   align-items: center;
   /* transform: translateY(3px); */
 }
+
 .login__link {
   display: flex;
   align-items: center;

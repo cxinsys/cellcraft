@@ -3,11 +3,7 @@
     <div class="first-line">
       <div class="header__text">Algorithms</div>
       <div class="search">
-        <input
-          type="text"
-          v-model="searchTerm"
-          placeholder="Search by name..."
-        />
+        <input type="text" v-model="searchTerm" placeholder="Search by name..." />
       </div>
       <div class="page-size">
         <label for="pageSize">Page Size : </label>
@@ -15,23 +11,18 @@
           <option value="5">5</option>
           <option value="10">10</option>
           <option value="15">15</option>
-          <option value="20">20</option>
-          <option value="50">50</option>
+          <!-- <option value="20">20</option>
+          <option value="50">50</option> -->
         </select>
       </div>
     </div>
-    <div class="second-line">
+    <!-- <div class="second-line">
       <div></div>
       <label class="upload-button">
         ⇪ upload new algorithm
-        <input
-          type="file"
-          ref="fileInput"
-          style="display: none"
-          @change="uploadFile"
-        />
+        <input type="file" ref="fileInput" style="display: none" @change="uploadFile" />
       </label>
-    </div>
+    </div> -->
 
     <table>
       <thead>
@@ -49,7 +40,7 @@
           <th @click="sortTable('time')">
             uploaded date <span class="sort-icon">{{ sortIcon("time") }}</span>
           </th>
-          <th></th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -59,18 +50,17 @@
           <td class="description-cell">{{ algorithm.description }}</td>
           <td>{{ algorithm.userId }}</td>
           <td>{{ algorithm.time }}</td>
-          <!-- <button class="table-button" @click="editAlgorithmSetting(algorithm)">
-            edit
-          </button> -->
-          <button class="table-button" @click="deleteAlgorithm(algorithm)">
-            delete algorithm
-          </button>
+          <td>
+            <button @click="deleteAlgorithm(algorithm)" class="table-button delete">
+              Delete
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
     <div class="pagination">
       <button :disabled="currentPage === 1" @click="currentPage--">Prev</button>
-      <span>{{ currentPage }}</span>
+      <span>{{ currentPage }} / {{ totalPages }}</span>
       <button :disabled="currentPage === totalPages" @click="currentPage++">
         Next
       </button>
@@ -80,68 +70,31 @@
       <div id="layout">
         <div class="input-layout">
           <div class="input-title">input node</div>
-          <div
-            v-for="inputDescription in editingAlgorithm['inputDescriptions']"
-            :key="inputDescription.id"
-            class="input-description"
-            :class="{ linked: inputDescription.linked }"
-          >
-            <input
-              type="text"
-              class="description-id"
-              :value="inputDescription.id"
-              :v-model="inputDescription.value"
-            />
-            <input
-              type="text"
-              class="description-tooltip"
-              :value="inputDescription.description"
-              :v-model="inputDescription.value"
-            />
+          <div v-for="inputDescription in editingAlgorithm['inputDescriptions']" :key="inputDescription.id"
+            class="input-description" :class="{ linked: inputDescription.linked }">
+            <input type="text" class="description-id" :value="inputDescription.id" :v-model="inputDescription.value" />
+            <input type="text" class="description-tooltip" :value="inputDescription.description"
+              :v-model="inputDescription.value" />
           </div>
         </div>
         <div class="algorithm-layout">
-          <img
-            class="algorithm-logo"
-            :src="this.editingAlgorithm.logo"
-            alt="Fast Tenet"
-          />
+          <img class="algorithm-logo" :src="this.editingAlgorithm.logo" alt="Fast Tenet" />
           <div class="algorithm-parts">
-            <div
-              v-for="part in editingAlgorithm['algorithmParts']"
-              :key="part.id"
-            >
+            <div v-for="part in editingAlgorithm['algorithmParts']" :key="part.id">
               <div class="part-title">{{ part.id }}</div>
               <div v-for="parameter in part.parameters" :key="parameter.id">
                 <div class="parameters">
-                  <input
-                    type="text"
-                    class="description-id"
-                    :value="parameter.id"
-                    :v-model="parameter.value"
-                  />
-                  <input
-                    type="text"
-                    :placeholder="parameter.default"
-                    class="parameter__textInput"
-                    :v-model="parameter.value"
-                    :class="{ 'red-text': !parameter.value }"
-                    :disabled="parameter.disabled"
-                  />
-                  <label
-                    class="switch"
-                    :v-model="parameter.value"
-                    v-on:click="parameter.disabled = !parameter.disabled"
-                  >
+                  <input type="text" class="description-id" :value="parameter.id" :v-model="parameter.value" />
+                  <input type="text" :placeholder="parameter.default" class="parameter__textInput"
+                    :v-model="parameter.value" :class="{ 'red-text': !parameter.value }"
+                    :disabled="parameter.disabled" />
+                  <label class="switch" :v-model="parameter.value"
+                    v-on:click="parameter.disabled = !parameter.disabled">
                     <input type="checkbox" />
                     <span class="slider_button round"></span>
                   </label>
-                  <input
-                    type="text"
-                    class="description-tooltip"
-                    :value="parameter.description"
-                    :v-model="parameter.value"
-                  />
+                  <input type="text" class="description-tooltip" :value="parameter.description"
+                    :v-model="parameter.value" />
                 </div>
               </div>
             </div>
@@ -149,24 +102,12 @@
         </div>
         <div class="output-layout">
           <div class="output-title">output node</div>
-          <div
-            v-for="outputDescription in editingAlgorithm['outputDescriptions']"
-            :key="outputDescription.id"
-            class="output-description"
-            :class="{ linked: outputDescription.linked }"
-          >
-            <input
-              type="text"
-              class="description-id"
-              :value="outputDescription.id"
-              :v-model="outputDescription.value"
-            />
-            <input
-              type="text"
-              class="description-tooltip"
-              :value="outputDescription.description"
-              :v-model="outputDescription.value"
-            />
+          <div v-for="outputDescription in editingAlgorithm['outputDescriptions']" :key="outputDescription.id"
+            class="output-description" :class="{ linked: outputDescription.linked }">
+            <input type="text" class="description-id" :value="outputDescription.id"
+              :v-model="outputDescription.value" />
+            <input type="text" class="description-tooltip" :value="outputDescription.description"
+              :v-model="outputDescription.value" />
           </div>
         </div>
       </div>
@@ -175,182 +116,23 @@
 </template>
 
 <script>
+import { getFilteredPlugins, getPluginsCount } from '@/api';
+
 export default {
   data() {
     return {
       editingAlgorithm: null,
-      algorithms: [
-        {
-          no: 0,
-          userId: "cislab",
-          name: "FastTenet",
-          time: "2023-06-30",
-          description: "temporary description",
-          logo: require("@/assets/fasttenet.png"),
-          inputDescriptions: [
-            {
-              id: "Expression Data (dpath_exp_data)",
-              description:
-                "This is the path to the expression data file. It contains gene expression values for different samples or cells.",
-            },
-            {
-              id: "Trajectory Data (dpath_trj_data)",
-              description:
-                "This is the path to the trajectory data file. It represents the progression or trajectory of cells or samples in a biological process.",
-            },
-            {
-              id: "Branch Data (dpath_branch_data)",
-              description:
-                "This is the path to the branch or cell select data file. It specifies the branches or groups of cells in the trajectory.",
-            },
-            {
-              id: "TF Data (dpath_tf_data)",
-              description:
-                "This is the path to the transcription factor (TF) data file. It contains information about the transcription factors and their regulatory relationships.",
-            },
-          ],
-          algorithmParts: [
-            {
-              id: "fasttenet parameters",
-              parameters: [
-                {
-                  id: "dpath_exp_data",
-                  description: "expression data path",
-                  default: "",
-                  value: "",
-                  required: true,
-                  disabled: true,
-                },
-                {
-                  id: "dpath_trj_data",
-                  description: "trajectory data path",
-                  default: "",
-                  value: "",
-                  required: true,
-                  disabled: true,
-                },
-                {
-                  id: "dpath_branch_data",
-                  description: "branch(cell select) data path",
-                  default: "",
-                  value: "",
-                  required: true,
-                  disabled: true,
-                },
-                {
-                  id: "dpath_tf_data",
-                  description: "tf data path",
-                  default: "",
-                  value: "",
-                  required: true,
-                  disabled: true,
-                },
-                {
-                  id: "spath_result_matrix",
-                  description: "spath_result_matrix",
-                  default: "None",
-                  value: "None",
-                  required: false,
-                  disabled: true,
-                },
-                {
-                  id: "make_binary",
-                  description:
-                    "if True, make binary expression and node name file",
-                  default: "False",
-                  value: "False",
-                  required: false,
-                  disabled: false,
-                },
-              ],
-            },
-            {
-              id: "worker run parameters",
-              parameters: [
-                {
-                  id: "device",
-                  description: "cpu or gpu",
-                  default: "gpu",
-                  value: "gpu",
-                  required: false,
-                  disabled: true,
-                },
-                {
-                  id: "device_ids",
-                  description: "[0](cpu) or [list of whole gpu devices](gpu)",
-                  default: "[0, 1, 2, 3, 4, 5, 6, 7]",
-                  value: "[0, 1, 2, 3, 4, 5, 6, 7]",
-                  required: false,
-                  disabled: true,
-                },
-                {
-                  id: "batch_size",
-                  description: "batch size",
-                  default: "2 ** 16",
-                  value: "2 ** 16",
-                  required: true,
-                  disabled: true,
-                },
-                {
-                  id: "kp",
-                  description: "kernel percentail",
-                  default: "0.5",
-                  value: "0.5",
-                  required: false,
-                  disabled: false,
-                },
-                {
-                  id: "percentile",
-                  description: "data crop percentile",
-                  default: "0",
-                  value: "0",
-                  required: false,
-                  disabled: false,
-                },
-                {
-                  id: "win_length",
-                  description: "smoothe func window length parameter",
-                  default: "10",
-                  value: "10",
-                  required: false,
-                  disabled: false,
-                },
-                {
-                  id: "polyorder",
-                  description: "smoothe func polyorder parameter",
-                  default: "3",
-                  value: "3",
-                  required: false,
-                  disabled: false,
-                },
-              ],
-            },
-          ],
-          outputDescriptions: [
-            {
-              id: "Result Matrix (spath_result_matrix)",
-              description:
-                "This is the path to the result matrix data file. It stores the results of the FastTENET algorithm, which includes the inferred regulatory relationships between genes.",
-            },
-            {
-              id: "Binary Expression and Node Name Files (make_binary)",
-              description:
-                "If the make_binary parameter is set to True, FastTENET generates binary expression and node name files. The binary expression file contains a binary representation of the gene expression data, while the node name file contains the names or identifiers of the genes.",
-            },
-            {
-              id: "GRN (Gene Regulatory Network) Files:",
-              description:
-                "The GRN files are generated by running the make_grn.py script. They include the inferred gene regulatory network based on the result matrix, node name file, and TF data. The output includes a file with a '.sif' extension, which represents the network structure, and a file with a '.outdegrees.txt' extension, which contains information about the outdegrees (number of outgoing connections) of each gene in the network.",
-            },
-          ],
-        },
-      ],
-      sortKey: "no",
-      sortDirection: "dsc", // Set initial sort direction to 'asc'
-      pageSize: 20,
+      algorithms: [],
+      sortKey: "id",
+      sortDirection: "dsc",
+      pageSize: 15,
       currentPage: 1,
       searchTerm: "",
+      totalCount: 0
     };
+  },
+  async created() {
+    await this.fetchPlugins();
   },
   computed: {
     sortedAlgorithms() {
@@ -367,12 +149,10 @@ export default {
       return algorithmsCopy;
     },
     totalPages() {
-      return Math.ceil(this.filteredalgorithms.length / this.pageSize);
+      return Math.ceil(this.totalCount / this.pageSize);
     },
     displayedalgorithms() {
-      const startIndex = (this.currentPage - 1) * this.pageSize;
-      const endIndex = startIndex + this.pageSize;
-      return this.filteredalgorithms.slice(startIndex, endIndex);
+      return this.sortedAlgorithms;
     },
     filteredalgorithms() {
       if (this.searchTerm) {
@@ -393,13 +173,47 @@ export default {
     },
   },
   methods: {
-    sortTable(key) {
+    async fetchPlugins() {
+      try {
+        const conditions = {
+          amount: this.pageSize,
+          page_num: this.currentPage,
+          sort: this.sortKey,
+          order: this.sortDirection === 'asc' ? 'asc' : 'desc',
+          searchTerm: this.searchTerm
+        };
+
+        const [pluginsResponse, countResponse] = await Promise.all([
+          getFilteredPlugins(conditions),
+          getPluginsCount()
+        ]);
+
+        this.algorithms = pluginsResponse.data.map((plugin, index) => ({
+          no: index + 1,
+          id: plugin.id,
+          userId: plugin.author,
+          name: plugin.name,
+          time: new Date(plugin.created_at).toLocaleDateString(),
+          description: plugin.description || 'No description available',
+          logo: plugin.logo_url || require("@/assets/fasttenet.png"),
+          inputDescriptions: plugin.input_descriptions || [],
+          algorithmParts: plugin.algorithm_parts || [],
+          outputDescriptions: plugin.output_descriptions || []
+        }));
+
+        this.totalCount = countResponse.data;
+      } catch (error) {
+        console.error('Error fetching plugins:', error);
+      }
+    },
+    async sortTable(key) {
       if (this.sortKey === key) {
         this.sortDirection = this.sortDirection === "asc" ? "desc" : "asc";
       } else {
         this.sortKey = key;
         this.sortDirection = "asc";
       }
+      await this.fetchPlugins();
     },
     sortIcon(key) {
       if (this.sortKey === key) {
@@ -407,21 +221,25 @@ export default {
       }
       return "▽△";
     },
-
     resetSearch() {
       this.searchTerm = "";
     },
     resetTagSearch() {
       this.searchTag = ""; // 태그 검색어 초기화
     },
-    deleteAlgorithm(algorithm) {
-      const index = this.algorithms.findIndex((j) => j.id === algorithm.id);
-      if (index !== -1) {
-        this.algorithms.splice(index, 1);
+    async deleteAlgorithm(algorithm) {
+      if (confirm(`Are you sure you want to delete algorithm ${algorithm.name}?`)) {
+        try {
+          // TODO: Implement delete API call
+          await this.fetchPlugins();
+        } catch (error) {
+          console.error('Error deleting plugin:', error);
+        }
       }
     },
-    updatePage() {
-      this.currentPage = 1; // Reset to first page when page size changes
+    async updatePage() {
+      this.currentPage = 1;
+      await this.fetchPlugins();
     },
     getLinkUrl() {
       // 데이터셋에 따른 링크 URL을 반환하는 메서드
@@ -435,45 +253,138 @@ export default {
     editAlgorithmSetting(algorithm) {
       this.editingAlgorithm = algorithm;
     },
+    async prevPage() {
+      if (this.currentPage > 1) {
+        this.currentPage--;
+        await this.fetchPlugins();
+      }
+    },
+    async nextPage() {
+      if (this.currentPage < this.totalPages) {
+        this.currentPage++;
+        await this.fetchPlugins();
+      }
+    }
   },
+  watch: {
+    searchTerm: {
+      handler: 'updatePage',
+      immediate: false
+    },
+    pageSize: {
+      handler: 'updatePage',
+      immediate: false
+    }
+  }
 };
 </script>
 
 <style scoped>
 table {
   width: 100%;
-  height: 100%;
   border-collapse: separate;
   border-spacing: 5px;
-  /* background-color: #c9c9c9; */
   transition: all 0.3s ease;
   border-radius: 15px;
-  /* color: #ffffff; */
+  table-layout: fixed;
 }
 
 thead th,
 td {
   padding: 10px;
-  padding-left: 25px;
+  padding-left: 15px;
   text-align: left;
   border-radius: 10px;
   border: 1px solid #a8a8a8;
-  /* box-shadow: 0px 8px 20px rgba(176, 169, 255, 0.25); */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 th {
   text-transform: capitalize;
   background-color: #474747;
   color: #ffffff;
+  position: sticky;
+  top: 0;
 }
 
 td {
-  /* background-color: #535353; */
   transition: all 0.3s ease;
+  background-color: #ffffff;
 }
 
 th:hover {
   background-color: #616161;
+}
+
+/* 컬럼 너비 설정 */
+th:nth-child(1) {
+  width: 8%;
+}
+
+/* No. */
+th:nth-child(2) {
+  width: 20%;
+}
+
+/* name */
+th:nth-child(3) {
+  width: 30%;
+}
+
+/* description */
+th:nth-child(4) {
+  width: 15%;
+}
+
+/* uploader id */
+th:nth-child(5) {
+  width: 15%;
+}
+
+/* uploaded date */
+th:nth-child(6) {
+  width: 12%;
+}
+
+/* Actions */
+
+/* 반응형 스타일 */
+@media screen and (max-width: 1200px) {
+  .layout_admin {
+    padding: 0 1rem;
+  }
+
+  .search input {
+    width: 200px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .first-line {
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .search input {
+    width: 100%;
+  }
+
+  .page-size {
+    width: 100%;
+  }
+
+  th,
+  td {
+    padding: 8px;
+    font-size: 0.9rem;
+  }
+
+  .description-cell {
+    max-height: 100px;
+  }
 }
 
 button {
@@ -488,6 +399,7 @@ button {
   text-align: center;
   text-transform: capitalize;
 }
+
 button:disabled {
   color: #ccc;
 }
@@ -502,6 +414,7 @@ button:disabled {
   text-align: center;
   text-transform: capitalize;
 }
+
 .table-button:hover {
   background-color: #616161;
 }
@@ -526,6 +439,7 @@ a {
   flex-direction: row;
   align-items: center;
 }
+
 .second-line {
   width: calc(100% - 10px);
   padding: 0px 5px 5px 5px;
@@ -534,6 +448,7 @@ a {
   justify-content: space-between;
   flex-direction: row;
 }
+
 .layout-edit-setting {
   position: fixed;
   top: calc(50% - 400px);
@@ -543,6 +458,7 @@ a {
   background-color: blue;
   border-radius: 15px;
 }
+
 #layout {
   width: 100%;
   height: 100%;
@@ -551,6 +467,7 @@ a {
   justify-content: center;
   flex-direction: row;
 }
+
 .input-layout,
 .output-layout {
   width: 25%;
@@ -565,6 +482,7 @@ a {
   box-sizing: border-box;
   background-color: rgb(255, 255, 255);
 }
+
 .input-title,
 .output-title {
   text-transform: capitalize;
@@ -573,6 +491,7 @@ a {
   color: #494949;
   margin: 50px 0px 20px 0px;
 }
+
 .input-description,
 .output-description {
   width: 100%;
@@ -588,12 +507,14 @@ a {
   border: 2px solid #e7e7e7;
   opacity: 0.9;
 }
+
 .input-description.linked,
 .output-description.linked {
   opacity: 1;
   background-color: rgb(202, 214, 255);
   border: 2px solid #ecebff;
 }
+
 .algorithm-layout {
   width: 50%;
   height: 95%;
@@ -616,11 +537,13 @@ a {
   top: 1rem;
   object-fit: contain;
 }
+
 .algorithm-parts {
   align-content: start;
   width: 100%;
   height: 90%;
 }
+
 .part-title {
   text-transform: capitalize;
   font-weight: bold;
@@ -629,6 +552,7 @@ a {
 
   margin: 20px 0px 10px 0px;
 }
+
 .parameters {
   display: flex;
   direction: row;
@@ -650,28 +574,35 @@ a {
   text-align: center;
   margin-bottom: 0px;
 }
+
 .parameter__textInput:disabled {
   background-color: lightgray;
 }
+
 .parameter__textInput:disabled::placeholder {
   color: black;
 }
+
 .output-layout {
   margin-left: 0rem;
   margin-right: 1rem;
 }
+
 .description-id {
   width: 100%;
 }
+
 .description-tooltip {
   width: 100%;
 }
+
 #pageSize {
   padding: 2px;
   border-radius: 5px;
   border: 1px solid #ccc;
   margin-bottom: 5px;
 }
+
 .search {
   display: flex;
   align-items: center;
@@ -686,9 +617,11 @@ a {
   outline-style: none;
   background: #f7f7f7;
 }
+
 .search input:focus {
   border: 1px solid #bcbcbc;
 }
+
 .upload-button {
   border-radius: 5px;
   padding: 7px 10px;
@@ -700,23 +633,27 @@ a {
   color: rgb(255, 255, 255);
   text-transform: capitalize;
 }
+
 .upload-button:hover {
   cursor: pointer;
   background-color: #7d7d7d;
 }
+
 .reset-button {
   margin-top: -7px;
   width: 1.5rem;
   height: 1.5rem;
   opacity: 0.7;
 }
+
 .reset-button:hover {
   opacity: 0.5;
   cursor: pointer;
 }
 
 .description-cell {
-  max-width: 200px; /* 텍스트의 최대 너비 설정 */
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .pagination {
@@ -728,6 +665,7 @@ a {
 .pagination button {
   margin: -5px 10px 0px 10px;
 }
+
 .switch {
   position: absolute;
   display: inline-block;
@@ -769,15 +707,15 @@ a {
   transition: 0.4s;
 }
 
-input:checked + .slider_button {
+input:checked+.slider_button {
   background-color: #53b2ff;
 }
 
-input:focus + .slider_button {
+input:focus+.slider_button {
   box-shadow: 0 0 1px #53b2ff;
 }
 
-input:checked + .slider_button:before {
+input:checked+.slider_button:before {
   -webkit-transform: translateX(26px);
   -ms-transform: translateX(26px);
   transform: translateX(26px);
@@ -795,6 +733,7 @@ input:checked + .slider_button:before {
 .layout_admin {
   padding: 0 2rem 0 1rem;
 }
+
 .header__text {
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -803,5 +742,13 @@ input:checked + .slider_button:before {
   line-height: 1rem;
   /* padding-left: 2rem; */
   color: rgba(0, 0, 0, 0.8);
+}
+
+.table-button.delete {
+  background-color: #ff4444;
+}
+
+.table-button.delete:hover {
+  background-color: #cc0000;
 }
 </style>

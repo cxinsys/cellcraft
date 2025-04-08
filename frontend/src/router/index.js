@@ -93,6 +93,10 @@ export default new Router({
           path: "algorithm",
           component: () => import("@/components/adminComponents/PluginAdmin.vue"),
         },
+        {
+          path: "workflow",
+          component: () => import("@/components/adminComponents/WorkflowAdmin.vue")
+        }
       ],
     },
     {
