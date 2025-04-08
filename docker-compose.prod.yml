@@ -19,7 +19,11 @@ services:
       - TZ=Asia/Seoul
       - CONDA_DEFAULT_ENV=snakemake
       - TZ=Asia/Seoul
-      
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -28,6 +32,9 @@ services:
     volumes:
       - ./backend:/app
       - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      db:
+        condition: service_healthy
     restart: always
 
   db:
@@ -35,17 +42,16 @@ services:
     environment:
       - TZ=Asia/Seoul
       - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USERNAME=${POSTGRES_USER}
+      - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
     expose:
       - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -60,27 +66,35 @@ services:
     restart: always
 
   celery:
-      environment:
-        - CONDA_DEFAULT_ENV=snakemake
-        - C_FORCE_ROOT=true
-        - TZ=Asia/Seoul
-      ipc: host
-      build:
-        context: ./backend
-        dockerfile: Dockerfile.dev.celery
-      volumes:
-        - ./backend:/app
-      depends_on:
-        - rabbitmq
-        - db
-      deploy:
-        resources:
-          reservations:
-            devices:
-              - driver: nvidia
-                count: "${GPU_COUNT:-all}"  # 사용자가 설정하지 않으면 모든 GPU 사용
-                capabilities: [gpu, utility]
-      restart: always
+    environment:
+      - CONDA_DEFAULT_ENV=snakemake
+      - C_FORCE_ROOT=true
+      - TZ=Asia/Seoul
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - NVIDIA_VISIBLE_DEVICES=all
+    ipc: host
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev.celery
+    volumes:
+      - ./backend:/app
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: "${GPU_COUNT:-all}"
+              capabilities: [gpu, compute, utility]
+    restart: always
 
 volumes:
   postgres_data:
