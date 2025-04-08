@@ -62,22 +62,30 @@ def get_filtered_files(db: Session, conditions: Conditions) -> Tuple[List[models
     sort_mapping = {
         'fileName': text('files.file_name'),
         'folder': text('files.folder'),
-        'id': text('files.id')
+        'id': text('files.id'),
+        'username': text('users.username'),
+        'fileSize': text('files.file_size')
     }
     
     # 기본 정렬 컬럼 설정
     sort_column = sort_mapping.get(sort, text('files.id'))
     sort_order = asc if order == 'asc' else desc
 
-    # 기본 쿼리 생성
-    query = db.query(models.File)
+    # 기본 쿼리 생성 (User와 join)
+    query = db.query(
+        models.File,
+        models.User.username.label('username')
+    ).join(
+        models.User, models.File.user_id == models.User.id
+    )
 
     # 검색 조건 적용
     if searchTerm:
         query = query.filter(
             or_(
                 models.File.file_name.ilike(f'%{searchTerm}%'),
-                models.File.folder.ilike(f'%{searchTerm}%')
+                models.File.folder.ilike(f'%{searchTerm}%'),
+                models.User.username.ilike(f'%{searchTerm}%')
             )
         )
 

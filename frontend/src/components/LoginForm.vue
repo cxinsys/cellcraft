@@ -44,9 +44,9 @@ export default {
 
         // isSuperUser 여부 확인
         if (this.$store.getters.isSuperUser) {
-          this.$router.push("/admin");
-        } else {
           this.$router.push("/projects");
+        } else {
+          this.$router.push("/admin");
         }
       } catch (error) {
         console.error(error.response.data.detail);

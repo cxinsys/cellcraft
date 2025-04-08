@@ -167,38 +167,100 @@ export default {
 <style scoped>
 table {
   width: 100%;
-  height: 100%;
   border-collapse: separate;
   border-spacing: 5px;
-  /* background-color: #c9c9c9; */
   transition: all 0.3s ease;
   border-radius: 15px;
-  /* color: #ffffff; */
+  table-layout: fixed;
 }
 
 thead th,
 td {
   padding: 10px;
-  padding-left: 25px;
+  padding-left: 15px;
   text-align: left;
   border-radius: 10px;
   border: 1px solid #a8a8a8;
-  /* box-shadow: 0px 8px 20px rgba(176, 169, 255, 0.25); */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 th {
   text-transform: capitalize;
   background-color: #474747;
   color: #ffffff;
+  position: sticky;
+  top: 0;
 }
 
 td {
-  /* background-color: #535353; */
   transition: all 0.3s ease;
+  background-color: #ffffff;
 }
 
 th:hover {
   background-color: #616161;
+}
+
+/* 컬럼 너비 설정 */
+th:nth-child(1) {
+  width: 8%;
+}
+
+/* No. */
+th:nth-child(2) {
+  width: 15%;
+}
+
+/* Username */
+th:nth-child(3) {
+  width: 25%;
+}
+
+/* Workflow Title */
+th:nth-child(4) {
+  width: 15%;
+}
+
+/* status */
+th:nth-child(5) {
+  width: 25%;
+}
+
+/* submitted time */
+
+/* 반응형 스타일 */
+@media screen and (max-width: 1200px) {
+  .layout_admin {
+    padding: 0 1rem;
+  }
+
+  .search input {
+    width: 200px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .first-line {
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .search input {
+    width: 100%;
+  }
+
+  .page-size {
+    width: 100%;
+  }
+
+  th,
+  td {
+    padding: 8px;
+    font-size: 0.9rem;
+  }
 }
 
 button {

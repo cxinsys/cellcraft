@@ -80,7 +80,25 @@ def get_filtered_files(
 
     if not files:
         raise HTTPException(status_code=404, detail="Files not found")
-    return files
+    
+    # 결과 포맷팅
+    formatted_files = []
+    for file, username in files:
+        formatted_file = {
+            'id': file.id,
+            'file_name': file.file_name,
+            'file_path': file.file_path,
+            'file_size': file.file_size,
+            'folder': file.folder,
+            'username': username,
+            'user_id': file.user_id
+        }
+        formatted_files.append(formatted_file)
+    
+    return {
+        'data': formatted_files,
+        'total_count': total_count
+    }
 
 @router.get("/files_count", response_model=Any)
 def get_files_count(

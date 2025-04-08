@@ -17,8 +17,8 @@
           <option value="5">5</option>
           <option value="10">10</option>
           <option value="15">15</option>
-          <option value="20">20</option>
-          <option value="50">50</option>
+          <!-- <option value="20">20</option>
+          <option value="50">50</option> -->
         </select>
       </div>
     </div>
@@ -31,22 +31,26 @@
       <thead>
         <tr>
           <th>types</th>
-          <th @click="sortTable('title')">
-            title <span class="sort-icon">{{ sortIcon("title") }}</span>
+          <th @click="sortTable('name')">
+            title <span class="sort-icon">{{ sortIcon("name") }}</span>
           </th>
-          <th>size</th>
+          <th @click="sortTable('size')">
+            size <span class="sort-icon">{{ sortIcon("size") }}</span>
+          </th>
+          <th @click="sortTable('username')">
+            username <span class="sort-icon">{{ sortIcon("username") }}</span>
+          </th>
           <th>File URL</th>
-          <th>Post URL</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="dataset in displayeddatasets" :key="dataset.no">
           <td>{{ dataset.type }}</td>
-          <td>{{ dataset.path }}</td>
+          <td>{{ dataset.name }}</td>
           <td>{{ dataset.size }}</td>
+          <td>{{ dataset.username }}</td>
           <td><a :href="dataset.url">View File</a></td>
-          <td><a :href="dataset.posturl">View Post</a></td>
           <td>
             <button @click="deleteFile(dataset)" class="table-button delete">
               Delete
@@ -57,7 +61,7 @@
     </table>
     <div class="pagination">
       <button :disabled="currentPage === 1" @click="prevPage">Prev</button>
-      <span>{{ currentPage }}</span>
+      <span>{{ currentPage }} / {{ totalPages }}</span>
       <button :disabled="currentPage === totalPages" @click="nextPage">
         Next
       </button>
@@ -86,7 +90,7 @@ export default {
       datasets: [],
       sortKey: "id",
       sortDirection: "dsc",
-      pageSize: 20,
+      pageSize: 15,
       currentPage: 1,
       searchTerm: "",
       totalCount: 0
@@ -100,8 +104,15 @@ export default {
       const datasetsCopy = [...this.datasets];
       if (this.sortKey) {
         datasetsCopy.sort((a, b) => {
-          const aValue = a[this.sortKey];
-          const bValue = b[this.sortKey];
+          let aValue = a[this.sortKey];
+          let bValue = b[this.sortKey];
+
+          // 파일 크기 정렬을 위한 처리
+          if (this.sortKey === 'size') {
+            aValue = this.parseFileSize(aValue);
+            bValue = this.parseFileSize(bValue);
+          }
+
           if (aValue < bValue) return this.sortDirection === "asc" ? -1 : 1;
           if (aValue > bValue) return this.sortDirection === "asc" ? 1 : -1;
           return 0;
@@ -119,7 +130,7 @@ export default {
       if (this.searchTerm) {
         const searchTermLower = this.searchTerm.toLowerCase();
         return this.sorteddatasets.filter((dataset) =>
-          dataset.path.toLowerCase().includes(searchTermLower)
+          dataset.name.toLowerCase().includes(searchTermLower)
         );
       } else {
         return this.sorteddatasets;
@@ -129,32 +140,28 @@ export default {
   methods: {
     async fetchFiles() {
       try {
-        const conditions = {
-          amount: this.pageSize,
-          page_num: this.currentPage,
-          sort: this.sortKey,
-          order: this.sortDirection === 'asc' ? 'asc' : 'desc',
-          searchTerm: this.searchTerm
-        };
-
         const [filesResponse, countResponse] = await Promise.all([
-          getFilteredFiles(conditions),
-          getFilesCount()
+          getFilteredFiles({
+            amount: this.pageSize,
+            page_num: this.currentPage,
+            sort: this.sortKey,
+            order: this.sortDirection,
+            searchTerm: this.searchTerm,
+          }),
+          getFilesCount(),
         ]);
 
-        this.datasets = filesResponse.data.map((file, index) => ({
-          no: index + 1,
+        this.datasets = filesResponse.data.data.map((file) => ({
           id: file.id,
           type: file.file_name.split('.').pop(),
-          path: file.file_path,
+          name: file.file_name,
           size: formatBytes(file.file_size),
           url: file.file_path,
-          posturl: file.folder
+          username: file.username
         }));
-
         this.totalCount = countResponse.data;
       } catch (error) {
-        console.error('Error fetching files:', error);
+        console.error("Error fetching files:", error);
       }
     },
     async sortTable(key) {
@@ -177,7 +184,7 @@ export default {
       await this.fetchFiles();
     },
     async deleteFile(dataset) {
-      if (confirm(`Are you sure you want to delete file ${dataset.path}?`)) {
+      if (confirm(`Are you sure you want to delete file ${dataset.name}?`)) {
         try {
           await deleteFile(dataset.id);
           await this.fetchFiles();
@@ -197,6 +204,24 @@ export default {
         this.currentPage++;
         await this.fetchFiles();
       }
+    },
+    // 파일 크기 문자열을 바이트 단위로 변환하는 함수
+    parseFileSize(sizeString) {
+      const units = {
+        'B': 1,
+        'KB': 1024,
+        'MB': 1024 * 1024,
+        'GB': 1024 * 1024 * 1024,
+        'TB': 1024 * 1024 * 1024 * 1024
+      };
+
+      const match = sizeString.match(/^([\d.]+)\s*([A-Za-z]+)$/);
+      if (match) {
+        const value = parseFloat(match[1]);
+        const unit = match[2].toUpperCase();
+        return value * (units[unit] || 1);
+      }
+      return 0;
     }
   },
   watch: {
@@ -215,39 +240,105 @@ export default {
 <style scoped>
 table {
   width: 100%;
-  height: 100%;
   border-collapse: separate;
   border-spacing: 5px;
-  /* background-color: #c9c9c9; */
   transition: all 0.3s ease;
   border-radius: 15px;
-  /* color: #ffffff; */
+  table-layout: fixed;
 }
 
 thead th,
 td {
   padding: 10px;
-  padding-left: 25px;
+  padding-left: 15px;
   text-align: left;
   border-radius: 10px;
   border: 1px solid #a8a8a8;
-
-  /* box-shadow: 0px 8px 20px rgba(176, 169, 255, 0.25); */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 th {
   text-transform: capitalize;
   background-color: #474747;
   color: #ffffff;
+  position: sticky;
+  top: 0;
 }
 
 td {
-  /* background-color: #535353; */
   transition: all 0.3s ease;
+  background-color: #ffffff;
 }
 
 th:hover {
   background-color: #616161;
+}
+
+/* 컬럼 너비 설정 */
+th:nth-child(1) {
+  width: 10%;
+}
+
+/* types */
+th:nth-child(2) {
+  width: 25%;
+}
+
+/* title */
+th:nth-child(3) {
+  width: 10%;
+}
+
+/* size */
+th:nth-child(4) {
+  width: 20%;
+}
+
+/* username */
+th:nth-child(5) {
+  width: 15%;
+}
+
+/* File URL */
+th:nth-child(6) {
+  width: 20%;
+}
+
+/* Actions */
+
+/* 반응형 스타일 */
+@media screen and (max-width: 1200px) {
+  .layout_admin {
+    padding: 0 1rem;
+  }
+
+  .search input {
+    width: 200px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .first-line {
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .search input {
+    width: 100%;
+  }
+
+  .page-size {
+    width: 100%;
+  }
+
+  th,
+  td {
+    padding: 8px;
+    font-size: 0.9rem;
+  }
 }
 
 button {

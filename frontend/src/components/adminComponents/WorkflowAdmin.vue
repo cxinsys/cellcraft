@@ -50,7 +50,7 @@
         </table>
         <div class="pagination">
             <button :disabled="currentPage === 1" @click="prevPage">Prev</button>
-            <span>{{ currentPage }}</span>
+            <span>{{ currentPage }} / {{ totalPages }}</span>
             <button :disabled="currentPage === totalPages" @click="nextPage">
                 Next
             </button>
@@ -67,7 +67,7 @@ export default {
             workflows: [],
             sortKey: "id",
             sortDirection: "asc",
-            pageSize: 15,
+            pageSize: 10,
             currentPage: 1,
             searchTerm: "",
             totalCount: 0
@@ -161,34 +161,100 @@ export default {
 <style scoped>
 table {
     width: 100%;
-    height: 100%;
     border-collapse: separate;
     border-spacing: 5px;
     transition: all 0.3s ease;
     border-radius: 15px;
+    table-layout: fixed;
 }
 
 thead th,
 td {
     padding: 10px;
-    padding-left: 25px;
+    padding-left: 15px;
     text-align: left;
     border-radius: 10px;
     border: 1px solid #a8a8a8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 th {
     text-transform: capitalize;
     background-color: #474747;
     color: #ffffff;
+    position: sticky;
+    top: 0;
 }
 
 td {
     transition: all 0.3s ease;
+    background-color: #ffffff;
 }
 
 th:hover {
     background-color: #616161;
+}
+
+/* 컬럼 너비 설정 */
+th:nth-child(1) {
+    width: 10%;
+}
+
+/* id */
+th:nth-child(2) {
+    width: 25%;
+}
+
+/* title */
+th:nth-child(3) {
+    width: 20%;
+}
+
+/* username */
+th:nth-child(4) {
+    width: 25%;
+}
+
+/* updated date */
+th:nth-child(5) {
+    width: 20%;
+}
+
+/* Actions */
+
+/* 반응형 스타일 */
+@media screen and (max-width: 1200px) {
+    .layout_admin {
+        padding: 0 1rem;
+    }
+
+    .search input {
+        width: 200px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .first-line {
+        flex-direction: column;
+        height: auto;
+        gap: 10px;
+    }
+
+    .search input {
+        width: 100%;
+    }
+
+    .page-size {
+        width: 100%;
+    }
+
+    th,
+    td {
+        padding: 8px;
+        font-size: 0.9rem;
+    }
 }
 
 button {
