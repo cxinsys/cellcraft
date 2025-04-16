@@ -1,8 +1,10 @@
 .DS_Store
 node_modules
 
+dist
+
 # local env files
-.env
+# .env
 .env.development.local
 .env.test.local
 .env.production.local

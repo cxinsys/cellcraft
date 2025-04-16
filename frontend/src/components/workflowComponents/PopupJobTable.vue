@@ -16,7 +16,7 @@
         <tbody>
           <tr v-for="(task, index) in taskList" :key="index" @click.right.prevent="RMouseClick($event, task)">
             <td>{{ index + 1 }}</td>
-            <td>{{ task.title | titleNone }}</td>
+            <td>{{ task.workflow_title | titleNone }}</td>
             <td>{{ task.start_time | formatDateTime }}</td>
             <td>{{ task.end_time | formatDateTime }}</td>
             <td>{{ task.running_time }}</td>

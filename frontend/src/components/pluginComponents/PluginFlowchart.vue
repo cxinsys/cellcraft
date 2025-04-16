@@ -324,14 +324,14 @@ export default {
                     defaultValue: `${this.ruleTitle}.json`,
                     fileExtension: '.json',
                 };
-                const inputParameter = {
-                    name: 'target',
-                    type: 'inputFile', 
-                    defaultValue: 'target.sif',
-                    fileExtension: '.sif'
-                };
+                // const inputParameter = {
+                //     name: 'target',
+                //     type: 'inputFile', 
+                //     defaultValue: 'target.sif',
+                //     fileExtension: '.sif'
+                // };
                 this.parameters.push(outputParameter);
-                this.parameters.push(inputParameter);
+                // this.parameters.push(inputParameter);
             }
         },
         showAlertandFillContent(title, messages) {

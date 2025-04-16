@@ -95,7 +95,6 @@ def generate_merged_plugin_drawflow( drawflow_data_list: List[Dict[str, Any]], p
     print(json.dumps(merged_drawflow, indent=2))
     return merged_drawflow
 
-
 def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name: str):
     original_data = drawflow_data['drawflow']['Home']['data']
 
@@ -252,7 +251,21 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
 
         # outputs를 확인하여 connections가 비어있는 경우 새로운 노드 생성
         for output_key, output_val in node['outputs'].items():
+            # connections가 비어있거나, 모든 연결이 isVisualization이 True인 노드에만 연결되어 있는지 확인
+            should_create_resultfile = False
             if not output_val['connections']:
+                should_create_resultfile = True
+            else:
+                # 모든 연결이 isVisualization이 True인 노드인지 확인
+                all_visualization = True
+                for conn in output_val['connections']:
+                    connected_node = original_data.get(conn['node'])
+                    if connected_node and not connected_node.get('data', {}).get('isVisualization', False):
+                        all_visualization = False
+                        break
+                should_create_resultfile = all_visualization
+
+            if should_create_resultfile:
                 index = int(output_key.split('_')[1]) - 1
                 output_file = node['data']['outputs'][index]
                 if node['data'].get('isVisualization', False):
@@ -459,7 +472,7 @@ def generate_snakemake_code(rules_data, output_folder_path):
                     param_list.append(f'clusters=lambda wc: ";".join({{{param["name"]}}})')
                 elif "UMAP" in param['name'] and param['type'] == 'h5adParameter':
                     param_list.append(
-                        'UMAP_lasso=lambda wildcards: {UMAP_lasso} if os.path.exists({UMAP_lasso}) else "None"'
+                        'UMAP_lasso=lambda wildcards: {UMAP lasso} if os.path.exists({UMAP lasso}) else "None"'
                     )
                 elif param['type'] == 'optionalInputFile':
                     param_list.append(

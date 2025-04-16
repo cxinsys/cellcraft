@@ -37,3 +37,6 @@ def delete_user_workflow(db: Session, user_id: int, workflow_id: id):
     db.delete(target_workflow)
     db.commit()
     return target_workflow
+
+def get_workflow_by_id(db: Session, workflow_id: int) -> models.Workflow:
+    return db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()

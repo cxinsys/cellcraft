@@ -1,0 +1,34 @@
+import os
+
+rule TENET_Input:
+    input:
+        input="user/{user_name}/data/{input.h5ad}"
+    output:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/trajectory.txt",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    params:
+        geneList=lambda wildcards: "user/{user_name}/data/{geneList.txt}" if os.path.exists("user/{user_name}/data/{geneList.txt}") else "None",
+        UMAP_lasso=lambda wildcards: {UMAP lasso} if os.path.exists({UMAP lasso}) else "None",
+        cell_group={cell group},
+        pseudotime={pseudotime},
+        clusters=lambda wc: ";".join({clusters})
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/TENET_Input.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/TENET_Input.stderr"
+    shell:
+        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/tenet_input.py {input.input} {params.geneList} {params.UMAP_lasso} {output.expression} {output.trajectory} {output.cellSelect} {params.cell_group} {params.pseudotime} '{params.clusters}' > {log.stdout} 2> {log.stderr}"
+
+rule Select_Top_Genes:
+    input:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv"
+    output:
+        selectGenes="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/selectGenes.csv"
+    params:
+        Top_Genes={Top Genes}
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Select_Top_Genes.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Select_Top_Genes.stderr"
+    shell:
+        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/select_top_genes.py {input.expression} {params.Top_Genes} {output.selectGenes} > {log.stdout} 2> {log.stderr}"
+

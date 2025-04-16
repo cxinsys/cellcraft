@@ -1,0 +1,25 @@
+import os
+
+rule Barplot:
+    input:
+        selectGenes="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/selectGenes.csv"
+    output:
+        Barplot="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/{visualization_result_path}Barplot.json"
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Barplot.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Barplot.stderr"
+    shell:
+        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/barplot.py {input.selectGenes} {output.Barplot} > {log.stdout} 2> {log.stderr}"
+
+rule Density:
+    input:
+        target="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/{target.txt}",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    output:
+        Density="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/{visualization_result_path}Density.json"
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Density.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Density.stderr"
+    shell:
+        "/usr/bin/Rscript /app/plugin/{plugin_name}/scripts/pseudotime_distribution.R {input.target} {input.cellSelect} {output.Density} > {log.stdout} 2> {log.stderr}"
+

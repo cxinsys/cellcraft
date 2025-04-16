@@ -15,7 +15,7 @@ pip-selfcheck.json
 *.pyc
 __pycache__/
 
-# /plugin/*
+/plugin/*
 
 /user/*
 /lightning_logs/*
@@ -24,7 +24,7 @@ renv/
 .Rprofile
 Rplots.pdf
 
-.env
+# .env
 .env.development.local
 .env.test.local
 .env.production.local

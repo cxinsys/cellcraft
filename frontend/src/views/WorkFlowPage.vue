@@ -511,7 +511,7 @@ export default {
           console.log(user_tasks);
           this.taskList = user_tasks.data;
 
-          this.taskList.forEach(async (task, idx) => {
+          this.taskList.forEach((task, idx) => {
             if (task.status === "SUCCESS" ||
               task.status === "FAILURE" ||
               task.status === "REVOKED" ||
@@ -526,11 +526,6 @@ export default {
               // Task가 실행 중이므로 on_progress를 true로 설정
               this.on_progress = true;
             }
-
-            const workflow = await findWorkflow({
-              id: task.workflow_id,
-            });
-            this.taskList[idx].title = workflow.data.title;
           });
         } else {
           clearInterval(this.timeInterval);

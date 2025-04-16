@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sse_starlette.sse import EventSourceResponse
-from typing import Any
+from typing import Any, List, Dict
 from sqlalchemy.orm import Session
 import asyncio
 from datetime import datetime
 
 from app.common.utils.celery_utils import get_task_info
-from app.database.crud import crud_task
+from app.database.crud import crud_task, crud_workflow
 from app.routes import dep
 from app.database import models
 
@@ -36,20 +36,33 @@ async def get_task_monitoring(
     *,
     db: Session = Depends(dep.get_db),
     current_user: models.User = Depends(dep.get_current_active_user)
-    ) -> Any :
+    ) -> List[Dict[str, Any]]:
     """
-    Return the status of the all User Task
+    Return the status of the all User Task with workflow information
     """
-    user_task = crud_task.get_user_task(db, current_user.id)
-    if user_task:
-        return user_task
-    else:
+    user_tasks = crud_task.get_user_task(db, current_user.id)
+    if not user_tasks:
         raise HTTPException(
-                status_code=400,
-                detail="this user not exists task",
-                )
-
-
+            status_code=400,
+            detail="this user not exists task",
+        )
+    
+    # 각 task에 workflow 정보 추가
+    tasks_with_workflow = []
+    for task in user_tasks:
+        workflow = crud_workflow.get_workflow_by_id(db, task.workflow_id)
+        task_dict = {
+            "id": task.id,
+            "workflow_id": task.workflow_id,
+            "user_id": task.user_id,
+            "status": task.status,
+            "start_time": task.start_time,
+            "end_time": task.end_time,
+            "workflow_title": workflow.title if workflow else None
+        }
+        tasks_with_workflow.append(task_dict)
+    
+    return tasks_with_workflow
 
 @router.delete("/revoke/{task_id}")
 def revoke_task(

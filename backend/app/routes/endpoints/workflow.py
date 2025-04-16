@@ -115,6 +115,8 @@ def visualizeData(
 
             visualization_params, visualization_inputs, visualization_outputs = generate_visualization_params(extract_visualization['selectedVisualizationParams'])
 
+            print("visualization_inputs:", visualization_inputs)
+            print("visualization_outputs:", visualization_outputs)
             print("visualization_params:", visualization_params)
 
             user_workflow_visualization_result_directory = f"{user_task_path}/results"
@@ -135,7 +137,9 @@ def visualizeData(
                 "visualization_result_path": user_workflow_visualization_result_name
             }
 
-            user_workflow_visualization_result_path = user_workflow_visualization_result_directory + "/" + user_workflow_visualization_result_name + f"{visualization_outputs['output']}"
+            # visualization_outputs의 첫 번째 값을 사용
+            output_key = list(visualization_outputs.keys())[0]
+            user_workflow_visualization_result_path = user_workflow_visualization_result_directory + "/" + user_workflow_visualization_result_name + f"{visualization_outputs[output_key]}"
 
             # user_workflow_visualization_result_path 있는 지 확인 후, 있으면 해당 파일 반환 없으면 코드 계속 실행
             if os.path.exists(user_workflow_visualization_result_path):
@@ -144,7 +148,7 @@ def visualizeData(
                 message = "Visualization result already exists"
                 return {
                     "message": message,
-                    "result_path": user_workflow_visualization_result_name + f"{visualization_outputs['output']}"
+                    "result_path": user_workflow_visualization_result_name + f"{visualization_outputs[output_key]}"
                 }
 
             else:
