@@ -42,8 +42,11 @@ export default {
         };
         await this.$store.dispatch("LOGIN", userData);
 
-        // isSuperUser 여부 확인
-        if (this.$store.getters.isSuperUser) {
+        // isSuperUser 여부 확인 - 수정된 로직
+        await this.$nextTick(); // 상태 업데이트 대기
+        const isSuperUser = this.$store.getters.isSuperUser;
+        
+        if (isSuperUser === true) {
           this.$router.push("/admin");
         } else {
           this.$router.push("/projects");

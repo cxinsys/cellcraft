@@ -40,7 +40,7 @@
         adminPage__footer: adminPage,
       }"
     >
-      <div class="copyright__txt">CELLCRAFT © 2023. All rights reserved</div>
+      <div class="copyright__txt">© 2025 CellCraft. All rights reserved</div>
     </footer>
   </div>
 </template>

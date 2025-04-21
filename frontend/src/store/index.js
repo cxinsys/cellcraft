@@ -1,6 +1,6 @@
 import Vue from "vue";
 import Vuex from "vuex";
-import { getAuthFromCookie, saveAuthToCookie } from "@/utils/cookies";
+import { getAuthFromCookie, saveAuthToCookie, getUserInfoFromCookie, saveUserInfoToCookie } from "@/utils/cookies";
 import { loginUser } from "@/api/index";
 import createPersistedState from "vuex-persistedstate";
 import workflow from "./workflow/workflow";
@@ -13,19 +13,19 @@ export default new Vuex.Store({
   },
   plugins: [
     createPersistedState({
-      paths: ["workflow"],
+      paths: ["workflow", "userInfo"],
     }),
   ],
   state: {
     token: getAuthFromCookie() || "",
-    userInfo: "",
+    userInfo: getUserInfoFromCookie() || { is_superuser: false },
   },
   getters: {
     isLogin(state) {
       return state.token !== "";
     },
     isSuperUser(state) {
-      return state.userInfo.is_superuser;
+      return state.userInfo && state.userInfo.is_superuser === true;
     },
   },
   mutations: {
@@ -37,14 +37,22 @@ export default new Vuex.Store({
     },
     setUserInfo(state, userInfo) {
       state.userInfo = userInfo;
+      saveUserInfoToCookie(userInfo);
+    },
+    clearUserInfo(state) {
+      state.userInfo = { is_superuser: false };
     },
   },
   actions: {
     async LOGIN({ commit }, userData) {
       const response = await loginUser(userData);
-      console.log(response);
       commit("setToken", response.data.access_token);
+      commit("setUserInfo", response.data.user_info);
       saveAuthToCookie(response.data.access_token);
+    },
+    LOGOUT({ commit }) {
+      commit("clearToken");
+      commit("clearUserInfo");
     },
   },
 });

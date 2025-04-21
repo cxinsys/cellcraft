@@ -64,6 +64,11 @@ def login_access_token(
             user.id, expires_delta=access_token_expires
         ),
         "token_type": "bearer",
+        "user_info": {
+            "is_superuser": crud_user.is_superuser(user),
+            "email": user.email,
+            "is_active": user.is_active
+        }
     }
 
 #read Current User

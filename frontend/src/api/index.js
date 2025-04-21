@@ -21,9 +21,13 @@ function registerUser(userData) {
 }
 
 function loginUser(userData) {
-  return instance.post("/routes/auth/login/access-token", userData, {
+  const formData = new URLSearchParams();
+  formData.append('username', userData.username);
+  formData.append('password', userData.password);
+  
+  return instance.post("/routes/auth/login/access-token", formData.toString(), {
     headers: {
-      "Content-Type": "multipart/form-data",
+      "Content-Type": "application/x-www-form-urlencoded",
     },
   });
 }
