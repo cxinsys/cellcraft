@@ -9,11 +9,11 @@
       <div class="main__textbox">
         <img class="main__name" :src="randomImage" alt="Random Image" />
         <span class="main__desc">
-          Platform for the Reconstruction of Inter-Cell Type Gene Regulatory Network Model
+          Application for reconstructing gene regulatory networks (GRNs)
           <br />
-          Based on the Integrative Analysis of Single-Cell RNA-seq, ATAC-seq, and
-          Spatial Transcriptomics Data
+          based on single-cell RNA sequencing (scRNA-seq) data
         </span>
+
 
         <div class="main__hotButtons">
           <button class="main__hotButtons-item" @click="scrollToBottom('introId')">
@@ -28,14 +28,20 @@
         <div class="intro__descbox__column">
           <h1 class="menu__title">{{ textDict.intro.title }}</h1>
           <p class="intro__desc-text">
-            {{ textDict.intro.desc }} <br />
-            {{ textDict.intro.desc1 }}
+            {{ textDict.intro.desc }}
+          </p>
+          <p v-for="(line, index) in textDict.intro.desc1" :key="'intro-desc-' + index" class="intro__desc-text">
+            {{ line }}
           </p>
         </div>
         <div class="intro__descbox__column">
           <h1 class="menu__title">{{ textDict.gettingStarted.title }}</h1>
           <p class="intro__desc-text">
             {{ textDict.gettingStarted.desc }}
+          </p>
+          <p v-for="(line, index) in textDict.gettingStarted.desc1" :key="'getting-desc-' + index"
+            class="intro__desc-text">
+            {{ line }}
           </p>
         </div>
       </div>
@@ -122,31 +128,45 @@
         </div>
       </ul>
     </section>
-    <div class="about-component">
-      <div class="about__textbox">
-        <h1 class="about__title">
-          <span class="bold">ABOUT</span>
-          <br />
-          CELLCRAFT
-        </h1>
+    <section class="about-section">
+      <div class="about-title-block">
+        <h2 class="about-subtitle">ABOUT</h2>
+        <h1 class="about-title">CELLCRAFT</h1>
+        <p class="about-tagline">Single-cell GRN analysis without coding</p>
       </div>
-      <div class="about__descbox">
-        <div class="about__descbox__column">
-          <h1 class="about__desc-title">
-            Single-cell analysis data platform for researchers
-          </h1>
-          <p class="about__desc-text">
-            CellCraft is an innovative online service meticulously designed to
-            analyze gene regulatory networks. Developed by our dedicated team,
-            TENET stands at the forefront of computational biology and gene
-            regulatory network analysis. TENET is now implemented in CellCraft.
-          </p>
-        </div>
-        <div class="about__descbox__column">
-          <img class="about__desc-img" src="@/assets/example1.png" />
+
+      <div class="about-container">
+        <div class="about-content-box">
+          <div class="about-description">
+            <p><strong>CellCraft</strong> is a web-based application for reconstructing gene regulatory networks (GRNs)
+              from single-cell RNA sequencing (scRNA-seq) data.</p>
+            <p>It features an intuitive visual interface that integrates seven GRN inference tools—including
+              <strong>TENET</strong> and <strong>FastTENET</strong>, developed by our research team—through modular
+              plugin integration.
+            </p>
+            <p>CellCraft enables researchers to <strong>configure workflows</strong>, <strong>run analysis</strong>, and
+              <strong>explore results visually</strong>, all without needing programming knowledge.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+
+      <div class="about-links-centered">
+        <a href="https://github.com/cxinsys/cellcraft" target="_blank" class="link-card">
+          <img src="@/assets/github.png" alt="GitHub" />
+          <span>GitHub</span>
+        </a>
+        <a href="https://cellcraft.gitbook.io/cellcraft-docs" target="_blank" class="link-card">
+          <img src="@/assets/gitbook.png" alt="Docs" />
+          <span>Docs</span>
+        </a>
+        <a href="https://www.youtube.com/@CellCraft-cislab" target="_blank" class="link-card">
+          <img src="@/assets/youtube.png" alt="YouTube" />
+          <span>YouTube</span>
+        </a>
+      </div>
+    </section>
+
   </div>
 </template>
 
@@ -186,13 +206,21 @@ export default {
         intro: {
           title: "Intro",
           desc: "Welcome to the official tutorial for CellCraft.",
-          desc1:
-            "CellCraft offers a user-friendly interface that allows researchers to quickly explore, analyze, and visualize gene regulatory networks. Cellcraft can process complex datasets, providing accurate and actionable insights into genetic interactions. Users can upload their data, select parameters for analysis, and witness the transformative power of Cellcraft and TENET. This main tutorial aims to give users a comprehensive overview of Cellcraft, guiding them through its features and capabilities.",
+          desc1: [
+            "CellCraft offers a user-friendly interface that allows researchers to quickly explore, analyze, and visualize gene regulatory networks.",
+            "CellCraft can process complex datasets, providing accurate and actionable insights into genetic interactions.",
+            "Users can upload their data, select parameters for analysis, and witness the transformative power of CellCraft and TENET.",
+            "This main tutorial aims to give users a comprehensive overview of CellCraft, guiding them through its features and capabilities.",
+          ],
         },
         gettingStarted: {
           title: "Getting Started",
-          desc: "Navigating CellCraft is intuitive. Please refer to our sub-pages for detailed step-by-step instructions and tips on maximizing the platform's potential. Whether you want to conduct a quick analysis or embark on a complex research project, the sub-pages will guide you through every platform facet. They cover topics ranging from data upload procedures to advanced analytics techniques.",
-        },
+          desc: "Navigating CellCraft is simple and intuitive.",
+          desc1: [
+            "Refer to the sub-pages for detailed guidance on each step of the workflow—from dataset upload to GRN inference and result visualization.",
+            "Whether conducting a quick test or a more complex multi-step analysis, CellCraft helps researchers efficiently carry out GRN studies using integrated tools and visual programming."
+          ],
+        }
       },
     };
   },
@@ -248,6 +276,17 @@ export default {
 </script>
 
 <style scoped>
+:root {
+  --primary-color: #1f385a;
+  --secondary-color: #f4f7fc;
+  --text-color: #333;
+  --text-light: #666;
+  --text-white: #fff;
+  --background-light: #f3f3f3;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --transition-speed: 0.3s;
+}
+
 .layout {
   width: 100%;
   position: relative;
@@ -306,7 +345,7 @@ export default {
 }
 
 .menu-component {
-  padding: 10rem 0 0rem 0;
+  padding: 5rem 0 0rem 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -342,23 +381,23 @@ export default {
   top: 0;
 }
 
-.intro__descbox {
+/* .intro__descbox {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-}
+} */
 
-.intro__descbox__column {
+/* .intro__descbox__column {
   width: 70%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
   padding: 9.7rem 0 2rem 0;
-}
+} */
 
 .intro__descbox__column {
   border-bottom: 1px solid rgba(0, 0, 0, 0.3);
@@ -375,13 +414,55 @@ export default {
   color: rgb(82, 82, 82);
 }
 
+.intro__descbox {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 2rem;
+  padding: 5rem 2rem;
+}
+
+.intro__descbox__column {
+  flex: 1 1 500px;
+  max-width: 600px;
+  min-height: 100%;
+  /* 높이 강제 통일을 위한 설정 */
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  background-color: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.menu__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.intro__desc-text {
+  text-align: left;
+  color: #444;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  margin-bottom: 1rem;
+  /* 문장 사이 간격 */
+}
+
+
+
 .main__img {
   width: 90rem;
   max-width: 90%;
   height: inherit;
   object-fit: cover;
   object-position: left;
-  border-radius: 1.5rem;
+  border-radius: 1rem;
 }
 
 .main__bg-video {
@@ -609,7 +690,7 @@ export default {
   background: #f3f3f3d2;
   box-shadow: rgba(0, 0, 0, 0.34) 0px 0px 10px;
   padding: 1rem;
-  border-radius: 2.5rem;
+  border-radius: 1rem;
   /* transition: 0.5s; */
   position: relative;
 }
@@ -639,7 +720,7 @@ export default {
   object-fit: cover;
   position: absolute;
   opacity: 0.05;
-  border-radius: 2.5rem;
+  border-radius: 1rem;
   transition: opacity 1.5s ease;
   /* 투명도가 서서히 변화하는 트랜지션 설정 */
 }
@@ -658,7 +739,7 @@ export default {
   align-items: center;
   text-align: center;
   position: relative;
-  border-radius: 0.5rem;
+  border-radius: 1rem;
 }
 
 .menu-list__title {
@@ -740,7 +821,7 @@ export default {
   height: 0.75rem;
   padding: 0.5rem;
   margin-right: 0.5rem;
-  border-radius: 50%;
+  border-radius: 1rem;
   border: 0.25em solid #ccc;
   background: #000;
   color: #fff;
@@ -797,10 +878,119 @@ export default {
   width: 100%;
   height: 12rem;
   object-fit: cover;
-  border-radius: 0.5rem;
+  border-radius: 1rem;
   margin: 1rem;
   margin-top: 3rem;
   margin-bottom: 3rem;
+}
+
+.about-section {
+  width: 100%;
+  padding: 2rem 0;
+  padding-top: 5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.about-section::before {
+  content: "";
+  background: linear-gradient(to bottom, #c3c3c3, #ffffff);
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  z-index: -1;
+  top: 0;
+}
+
+.about-title-block {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.about-subtitle {
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: #222;
+  margin-bottom: 0.2rem;
+}
+
+.about-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #222;
+  margin-bottom: 0.3rem;
+}
+
+.about-tagline {
+  font-size: 1rem;
+  font-style: italic;
+  color: #555;
+}
+
+.about-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.about-content-box {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 1rem;
+  max-width: 850px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+  text-align: left;
+}
+
+.about-description p {
+  font-size: 1rem;
+  line-height: 1.8rem;
+  color: #333;
+  margin-bottom: 1.2rem;
+}
+
+.about-links-centered {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
+.link-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  background: white;
+  padding: 1rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: 0.3s ease;
+  width: 140px;
+}
+
+.link-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.link-card img {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 0.5rem;
+  object-fit: contain;
+}
+
+.link-card span {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
 }
 
 .sub-description__box {
@@ -830,7 +1020,7 @@ export default {
   background: #f3f3f3d2;
   box-shadow: rgba(0, 0, 0, 0.34) 0px 0px 10px;
   padding: 1rem;
-  border-radius: 2.5rem;
+  border-radius: 1rem;
   /* transition: 0.5s; */
   position: relative;
 }
@@ -850,7 +1040,7 @@ export default {
   object-fit: contain;
   position: absolute;
   opacity: 0.05;
-  border-radius: 2.5rem;
+  border-radius: 1rem;
   transition: opacity 1.5s ease;
   /* 투명도가 서서히 변화하는 트랜지션 설정 */
 }
@@ -873,5 +1063,66 @@ export default {
   font-size: 2rem;
   text-align: center;
   color: rgb(31, 56, 90);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .menu-list__col {
+    width: 45%;
+  }
+}
+
+@media (max-width: 992px) {
+  .menu-list__col {
+    width: 100%;
+  }
+
+  .intro__descbox__column {
+    flex: 1 1 100%;
+  }
+
+  .main__name {
+    width: 80%;
+    min-width: 20rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .menu__title {
+    font-size: 2rem;
+  }
+
+  .menu__description {
+    font-size: 1.5rem;
+    width: 90%;
+  }
+
+  .about-content-box {
+    padding: 1.5rem;
+  }
+
+  .link-card {
+    width: 120px;
+  }
+}
+
+@media (max-width: 576px) {
+  .main__name {
+    width: 90%;
+    min-width: 15rem;
+  }
+
+  .main__desc {
+    font-size: 0.9rem;
+  }
+
+  .menu-list__card,
+  .menu-list__largeCard {
+    width: 90%;
+  }
+
+  .about-title {
+    font-size: 2rem;
+  }
 }
 </style>
