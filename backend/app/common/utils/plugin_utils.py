@@ -7,6 +7,9 @@ import shutil
 import numpy as np
 from fastapi import HTTPException
 from typing import List, Dict, Any
+from pathlib import Path
+import docker
+from datetime import datetime
 
 def generate_merged_plugin_drawflow( drawflow_data_list: List[Dict[str, Any]], plugin_name: str):
     merged_drawflow = {"drawflow": {"Home": {"data": {}}}}
@@ -392,153 +395,176 @@ def normalize_string(text: str) -> str:
     # 알파벳, 숫자, 공백, 점(.), 언더스코어(_), 하이픈(-) 만 허용
     return re.sub(r'[^a-zA-Z0-9\s._-]', '', text)
 
-def generate_snakemake_code(rules_data, output_folder_path):
-    snakemake_path = os.path.join(output_folder_path, "Snakefile")
-    visualization_snakemake_path = os.path.join(output_folder_path, "visualization_Snakefile")
+def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
+    """
+    Generate Snakemake code for the plugin.
+    
+    Parameters:
+        rules_data (dict): Rules data
+        output_folder_path (str): Output folder path
+        plugin_name (str): Plugin name
+    
+    Raises:
+        HTTPException: If there's an error generating the Snakemake code
+    """
+    try:
+        if not rules_data:
+            raise ValueError("No rules data provided")
 
-    snakemake_code = "import os\n\n"  # Add import statement at the top
-    visualization_snakemake_code = "import os\n\n"
-    input_output_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results"
-    logs_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs"
-    unique_input_path = "user/{user_name}/data"
+        snakemake_path = os.path.join(output_folder_path, "Snakefile")
+        visualization_snakemake_path = os.path.join(output_folder_path, "visualization_Snakefile")
 
-    # Find all outputs across all rules to determine unique inputs not present in outputs
-    all_outputs = {out for rule in rules_data.values() for out in rule['output']}
-    all_inputs = {inp for rule in rules_data.values() for inp in rule['input']}
-    unique_inputs = [inp for inp in all_inputs if inp not in all_outputs]
-    scripts_log_word = "> {log.stdout} 2> {log.stderr}"
+        snakemake_code = "import os\n\n"  # Add import statement at the top
+        visualization_snakemake_code = "import os\n\n"
+        input_output_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results"
+        logs_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs"
+        unique_input_path = "user/{user_name}/data"
 
-    # Iterate through each rule in the dictionary
-    for rule_id, rule in rules_data.items():
-        # Determine which code block to append to: snakemake_code or visualization_snakemake_code
-        if rule.get('isVisualization', False):
-            target_code = visualization_snakemake_code
-            print(f"Adding to visualization_snakemake_code: {rule['name']}")
-        else:
-            target_code = snakemake_code
-            print(f"Adding to snakemake_code: {rule['name']}")
-        
-        # Start rule block with rule name
-        target_code += f"rule {normalize_param_name(rule['name'])}:\n"
+        # Find all outputs across all rules to determine unique inputs not present in outputs
+        all_outputs = {out for rule in rules_data.values() for out in rule['output']}
+        all_inputs = {inp for rule in rules_data.values() for inp in rule['input']}
+        unique_inputs = [inp for inp in all_inputs if inp not in all_outputs]
+        scripts_log_word = "> {log.stdout} 2> {log.stderr}"
 
-        # Input section with optional input handling
-        if 'input' in rule and rule['input']:
-            def get_input_param_name(inp, rule_params):
-                for param in rule_params:
-                    if param['type'] == 'inputFile' and param.get('defaultValue') == inp:
-                        return normalize_param_name(param['name'])
-                return normalize_param_name(os.path.splitext(os.path.basename(inp))[0])
-
-            input_files = ",\n        ".join([
-                f"{get_input_param_name(inp, rule.get('parameters', []))}=\"{input_output_path}/{{{inp}}}\"" 
-                if 'target' in get_input_param_name(inp, rule.get('parameters', [])) else
-                f"{get_input_param_name(inp, rule.get('parameters', []))}=\"{unique_input_path}/{{{inp}}}\"" 
-                if inp in unique_inputs else
-                f"{get_input_param_name(inp, rule.get('parameters', []))}=\"{input_output_path}/{inp}\""
-                for inp in rule['input']
-                if not any(param['type'] == 'optionalInputFile' and param.get('defaultValue') == inp 
-                          for param in rule.get('parameters', []))
-            ])
-            if input_files:  # Only add input section if there are non-optional input files
-                target_code += f"    input:\n        {input_files}\n"
-
-        # Output section
-        if 'output' in rule and rule['output']:
-            def get_output_param_name(out, rule_params):
-                for param in rule_params:
-                    if param['type'] == 'outputFile' and param.get('defaultValue') == out:
-                        return normalize_param_name(param['name'])
-                return normalize_param_name(os.path.splitext(os.path.basename(out))[0])
-
+        # Iterate through each rule in the dictionary
+        for rule_id, rule in rules_data.items():
+            # Determine which code block to append to: snakemake_code or visualization_snakemake_code
             if rule.get('isVisualization', False):
-                additional_path = "{visualization_result_path}"
-                output_files = ",\n        ".join([
-                    f"{get_output_param_name(out, rule.get('parameters', []))}=\"{input_output_path}/{additional_path}{out}\""
-                    for out in rule['output']
-                ])
+                target_code = visualization_snakemake_code
+                print(f"Adding to visualization_snakemake_code: {rule['name']}")
             else:
-                output_files = ",\n        ".join([
-                    f"{get_output_param_name(out, rule.get('parameters', []))}=\"{input_output_path}/{out}\""
-                    for out in rule['output']
+                target_code = snakemake_code
+                print(f"Adding to snakemake_code: {rule['name']}")
+            
+            # Start rule block with rule name
+            target_code += f"rule {normalize_param_name(rule['name'])}:\n"
+
+            # Input section with optional input handling
+            if 'input' in rule and rule['input']:
+                def get_input_param_name(inp, rule_params):
+                    for param in rule_params:
+                        if param['type'] == 'inputFile' and param.get('defaultValue') == inp:
+                            return normalize_param_name(param['name'])
+                    return normalize_param_name(os.path.splitext(os.path.basename(inp))[0])
+
+                input_files = ",\n        ".join([
+                    f"{get_input_param_name(inp, rule.get('parameters', []))}=\"{input_output_path}/{{{inp}}}\"" 
+                    if 'target' in get_input_param_name(inp, rule.get('parameters', [])) else
+                    f"{get_input_param_name(inp, rule.get('parameters', []))}=\"{unique_input_path}/{{{inp}}}\"" 
+                    if inp in unique_inputs else
+                    f"{get_input_param_name(inp, rule.get('parameters', []))}=\"{input_output_path}/{inp}\""
+                    for inp in rule['input']
+                    if not any(param['type'] == 'optionalInputFile' and param.get('defaultValue') == inp 
+                              for param in rule.get('parameters', []))
                 ])
-            target_code += f"    output:\n        {output_files}\n"
+                if input_files:  # Only add input section if there are non-optional input files
+                    target_code += f"    input:\n        {input_files}\n"
 
-        # Params section
-        if 'parameters' in rule and rule['parameters']:
-            param_list = []
-            for param in rule['parameters']:
-                normalized_name = normalize_param_name(param['name'])
-                if param['name'] == "clusters" and param['type'] == "h5adParameter":
-                    param_list.append(f'clusters=lambda wc: ";".join({{{param["name"]}}})')
-                elif "UMAP" in param['name'] and param['type'] == 'h5adParameter':
-                    param_list.append(
-                        'UMAP_lasso=lambda wildcards: {UMAP lasso} if os.path.exists({UMAP lasso}) else "None"'
-                    )
-                elif param['type'] == 'optionalInputFile':
-                    param_list.append(
-                        f"{normalized_name}=lambda wildcards: \"{unique_input_path}/{{{param['defaultValue']}}}\" "
-                        f"if os.path.exists(\"{unique_input_path}/{{{param['defaultValue']}}}\") else \"None\""
-                    )
-                elif param['type'] != 'inputFile' and param['type'] != 'outputFile':
-                    param_list.append(f"{normalized_name}={{{param['name']}}}")
+            # Output section
+            if 'output' in rule and rule['output']:
+                def get_output_param_name(out, rule_params):
+                    for param in rule_params:
+                        if param['type'] == 'outputFile' and param.get('defaultValue') == out:
+                            return normalize_param_name(param['name'])
+                    return normalize_param_name(os.path.splitext(os.path.basename(out))[0])
 
-            if param_list:
-                param_list_str = ",\n        ".join(param_list)
-                target_code += f"    params:\n        {param_list_str}\n"
+                if rule.get('isVisualization', False):
+                    additional_path = "{visualization_result_path}"
+                    output_files = ",\n        ".join([
+                        f"{get_output_param_name(out, rule.get('parameters', []))}=\"{input_output_path}/{additional_path}{out}\""
+                        for out in rule['output']
+                    ])
+                else:
+                    output_files = ",\n        ".join([
+                        f"{get_output_param_name(out, rule.get('parameters', []))}=\"{input_output_path}/{out}\""
+                        for out in rule['output']
+                    ])
+                target_code += f"    output:\n        {output_files}\n"
 
-        # Log section
-        target_code += f"    log:\n"
-        target_code += f"        stdout=\"{logs_path}/{normalize_param_name(rule['name'])}.stdout\",\n"
-        target_code += f"        stderr=\"{logs_path}/{normalize_param_name(rule['name'])}.stderr\"\n"
-
-        # Shell section based on script type
-        if 'script' in rule and rule['script']:
-            script_path = "/app/plugin/{plugin_name}/scripts/" + normalize_string(rule['script'])
-            if rule['script'].endswith('.py'):
-                shell_command = f"/opt/conda/envs/snakemake/bin/python {script_path}"
-            elif rule['script'].endswith('.R'):
-                shell_command = f"/usr/bin/Rscript {script_path}"
-            else:
-                shell_command = script_path
-
-            # Add parameters to shell command with input/output/params distinction
+            # Params section
             if 'parameters' in rule and rule['parameters']:
                 param_list = []
                 for param in rule['parameters']:
                     normalized_name = normalize_param_name(param['name'])
-                    if param['type'] == 'inputFile':
-                        param_list.append(f"{{input.{normalized_name}}}")
+                    if param['name'] == "clusters" and param['type'] == "h5adParameter":
+                        param_list.append(f'clusters=lambda wc: ";".join({{{param["name"]}}})')
+                    elif "UMAP" in param['name'] and param['type'] == 'h5adParameter':
+                        param_list.append(
+                            'UMAP_lasso=lambda wildcards: {UMAP lasso} if os.path.exists({UMAP lasso}) else "None"'
+                        )
                     elif param['type'] == 'optionalInputFile':
-                        param_list.append(f"{{params.{normalized_name}}}")
-                    elif param['type'] == 'outputFile':
-                        param_list.append(f"{{output.{normalized_name}}}")
-                    elif param['name'] == "clusters" and param['type'] == "h5adParameter":
-                        param_list.append(f"'{{{normalize_string(f'params.{normalized_name}')}}}'")
-                    else:
-                        param_list.append(f"{{{normalize_string(f'params.{normalized_name}')}}}")
+                        param_list.append(
+                            f"{normalized_name}=lambda wildcards: \"{unique_input_path}/{{{param['defaultValue']}}}\" "
+                            f"if os.path.exists(\"{unique_input_path}/{{{param['defaultValue']}}}\") else \"None\""
+                        )
+                    elif param['type'] != 'inputFile' and param['type'] != 'outputFile':
+                        param_list.append(f"{normalized_name}={{{param['name']}}}")
 
-                param_list_str = " ".join(param_list)
-                shell_command = f"{shell_command} {param_list_str}"
+                if param_list:
+                    param_list_str = ",\n        ".join(param_list)
+                    target_code += f"    params:\n        {param_list_str}\n"
 
-            target_code += f"    shell:\n        \"{shell_command} {scripts_log_word}\"\n"
+            # Log section
+            target_code += f"    log:\n"
+            target_code += f"        stdout=\"{logs_path}/{normalize_param_name(rule['name'])}.stdout\",\n"
+            target_code += f"        stderr=\"{logs_path}/{normalize_param_name(rule['name'])}.stderr\"\n"
 
-        target_code += "\n"  # Add a newline for separation between rules
+            # Shell section based on script type
+            if 'script' in rule and rule['script']:
+                # Script path 설정 (Docker 내부 경로)
+                script_path = f"plugin/{plugin_name}/scripts/{normalize_string(rule['script'])}"
 
-        # Assign modified code back to the correct variable
-        if rule.get('isVisualization', False):
-            visualization_snakemake_code = target_code
-        else:
-            snakemake_code = target_code
+                # Shell command 설정 (Python/R 분기)
+                if rule['script'].endswith('.py'):
+                    shell_command = f"python {script_path}"
+                elif rule['script'].endswith('.R'):
+                    shell_command = f"Rscript {script_path}"
+                else:
+                    shell_command = script_path
 
-    # Write the generated Snakemake code to a file
-    with open(snakemake_path, 'w') as file:
-        file.write(snakemake_code)
+                # Add parameters to shell command with input/output/params distinction
+                if 'parameters' in rule and rule['parameters']:
+                    param_list = []
+                    for param in rule['parameters']:
+                        normalized_name = normalize_param_name(param['name'])
+                        if param['type'] == 'inputFile':
+                            param_list.append(f"{{input.{normalized_name}}}")
+                        elif param['type'] == 'optionalInputFile':
+                            param_list.append(f"{{params.{normalized_name}}}")
+                        elif param['type'] == 'outputFile':
+                            param_list.append(f"{{output.{normalized_name}}}")
+                        elif param['name'] == "clusters" and param['type'] == "h5adParameter":
+                            param_list.append(f"'{{{normalize_string(f'params.{normalized_name}')}}}'")
+                        else:
+                            param_list.append(f"{{{normalize_string(f'params.{normalized_name}')}}}")
 
-    # Write the generated visualization Snakefile
-    with open(visualization_snakemake_path, 'w') as file:
-        file.write(visualization_snakemake_code)
+                    param_list_str = " ".join(param_list)
+                    shell_command = f"{shell_command} {param_list_str}"
 
-    print(f"Snakemake code has been generated and saved to {output_folder_path}.")
+                target_code += f"    shell:\n        \"{shell_command} {scripts_log_word}\"\n"
+
+            target_code += "\n"  # Add a newline for separation between rules
+
+            # Assign modified code back to the correct variable
+            if rule.get('isVisualization', False):
+                visualization_snakemake_code = target_code
+            else:
+                snakemake_code = target_code
+
+        # Write the generated Snakemake code to files
+        with open(snakemake_path, 'w') as file:
+            file.write(snakemake_code)
+
+        with open(visualization_snakemake_path, 'w') as file:
+            file.write(visualization_snakemake_code)
+
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate Snakemake code: {str(e)}"
+        )
 
 def normalize_pkg_name(name: str) -> str:
     """Normalize package names for consistent comparison."""
@@ -749,15 +775,14 @@ def check_renv_lock(renv_file: str):
 
 def verify_dependencies(dependency_file_name: str):
     """
-    Verify if dependencies from the given file are correctly installed.
-    
+    의존성 파일을 기반으로 시스템에 누락된 패키지를 확인합니다.
+
     Parameters:
-        dependency_file_name (str): The name of the dependency file (requirements.txt, environment.yml, renv.lock)
-    
+        dependency_file_name (str): 의존성 파일 이름 (requirements.txt, environment.yml, renv.lock)
+
     Returns:
-        dict: Installed status and missing packages if any.
+        dict: 누락된 패키지 목록과 설치 상태
     """
-    
     # Ensure dependency_file_name is a valid string
     if not isinstance(dependency_file_name, str):
         raise ValueError(f"Invalid file name: {dependency_file_name}")
@@ -778,115 +803,27 @@ def verify_dependencies(dependency_file_name: str):
             "message": f"Unsupported file: {dependency_file_name}"
         }
 
-def install_dependencies(dependency_file_name: str):
-    """
-    의존성 파일을 기반으로 시스템에 누락된 패키지만 설치합니다.
-
-    Parameters:
-        dependency_file_name (str): 의존성 파일 이름 (requirements.txt, environment.yml, renv.lock)
-    """
-    dependency_file_path = os.path.abspath(dependency_file_name)
-
-    # 의존성 검사 수행
-    check_result = verify_dependencies(dependency_file_path)
-    if check_result.get("installed_status", False):
-        print("모든 의존성이 이미 설치되어 있습니다.")
-        return
-
-    missing_packages = check_result.get("missing_packages", [])
-    if not missing_packages:
-        print("설치할 의존성이 없습니다.")
-        return
-
-    print(f"설치가 필요한 패키지들: {', '.join(missing_packages)}")
-
-    # 실행 환경 변수 설정
-    conda_env_path = "/opt/conda/envs/snakemake"
-    pip_executable = f"{conda_env_path}/bin/pip"
-    conda_executable = f"{conda_env_path}/bin/conda"
-    rscript_executable = "/usr/bin/Rscript"
-
-    try:
-        if dependency_file_name.endswith("requirements.txt"):
-            print(f"{dependency_file_path}에서 Python 의존성 설치 중...")
-            subprocess.run([pip_executable, "install", "--cache-dir", "/tmp/pip_cache", "-r", dependency_file_path], check=True)
-
-            # 2️⃣ NumPy를 원하는 버전으로 재설치 (고정)
-            print("NumPy 버전을 1.23.5로 강제 고정 중...")
-            subprocess.run([pip_executable, "install", "--no-cache-dir", "--force-reinstall", "numpy==1.23.5"], check=True)
-
-        elif dependency_file_name.endswith(("environment.yml", "environment.yaml")):
-            print(f"{dependency_file_path}에서 Conda 의존성 설치 중...")
-            subprocess.run([conda_executable, "env", "update", "--file", dependency_file_path, "--prune"], check=True)
-
-        elif dependency_file_name.endswith("renv.lock"):
-            print(f"{dependency_file_path}에서 R 의존성 설치 중...")
-            dependency_dir = os.path.dirname(dependency_file_path)
-
-            # renv.lock 파일 로드
-            with open(dependency_file_path, "r") as f:
-                renv_data = json.load(f)
-
-            local_packages = {}
-            repo_local_packages = {}
-
-            for pkg, data in renv_data.get("Packages", {}).items():
-                if data.get("Source") == "Local" and os.path.exists(os.path.join(dependency_dir, data["Path"])):
-                    local_packages[pkg] = data["Path"]
-                elif data.get("Source") == "Repository" and data.get("Repository") == "Local" and os.path.exists(os.path.join(dependency_dir, data["Path"])):
-                    repo_local_packages[pkg] = data["Path"]
-
-            # R 설치 스크립트 실행
-            renv_commands = [
-                f'setwd("{dependency_dir}");',
-                'if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv", repos="https://cloud.r-project.org");',
-                'options(download.file.method = "libcurl");',
-                'Sys.setenv(R_HOME_USER = "/root");',  # Docker 환경 대응
-                'Sys.setenv(R_LIBS_USER = "/usr/local/lib/R/site-library");',  # 패키지 저장 위치 설정
-                'renv::settings$use.cache(FALSE);',
-                'renv::repair();',  # 패키지 손상 복구
-                'renv::restore(lockfile = "renv.lock", prompt = FALSE);'
-            ]
-
-            # 기본 패키지 (`optparse`, `gtable`, `scales`, `rlang`) 추가 설치
-            base_packages = ["optparse", "gtable", "scales", "rlang"]
-            renv_commands.append(
-                'missing_base_packages <- setdiff(c("optparse", "gtable", "scales", "rlang"), rownames(installed.packages())); '
-                'if (length(missing_base_packages) > 0) install.packages(missing_base_packages, repos="https://cloud.r-project.org");'
-            )
-
-            # Local 패키지 선행 설치 (e.g., RANNinf)
-            for pkg, path in local_packages.items():
-                renv_commands.append(f'renv::install(local("{path}"));')
-
-            # Repository 기반 Local 패키지 후행 설치 (e.g., Scribe)
-            for pkg, path in repo_local_packages.items():
-                renv_commands.append(f'renv::install(local("{path}"));')
-
-            # R 스크립트 실행
-            subprocess.run([rscript_executable, "-e", " ".join(renv_commands)], check=True)
-
-        else:
-            print(f"지원하지 않는 파일 형식입니다: {dependency_file_name}")
-
-    except subprocess.CalledProcessError as e:
-        print(f"의존성 설치 중 오류 발생: {str(e)}")
-        raise
-
-    print("누락된 의존성 설치가 완료되었습니다.")
-
 def create_plugin_folder(plugin_folder: str):
     """
     Create the plugin folder if it doesn't exist.
     
     Parameters:
         plugin_folder (str): Path to the plugin folder.
+    
+    Raises:
+        HTTPException: If there's an error creating the folder.
     """
-    if not os.path.exists(plugin_folder):
+    try:
+        if os.path.exists(plugin_folder):
+            # 기존 폴더가 있다면 삭제
+            shutil.rmtree(plugin_folder)
         os.makedirs(plugin_folder)
         print(f"Plugin folder created at {plugin_folder}")
-    else:
-        print(f"Plugin folder already exists at {plugin_folder}")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create plugin folder: {str(e)}"
+        )
 
 def create_dependency_folder(dependency_folder: str, dependencies: dict):
     """
@@ -897,31 +834,42 @@ def create_dependency_folder(dependency_folder: str, dependencies: dict):
         dependencies (dict): A dictionary where the keys are file names and values are file contents.
     
     Raises:
-        HTTPException: If the format of dependencies is invalid.
+        HTTPException: If there's an error creating the folder or files.
     """
-    # Check if the dependency folder exists, create it if necessary
-    if not os.path.exists(dependency_folder):
-        os.makedirs(dependency_folder)
-        print(f"Dependency folder created at {dependency_folder}")
-    else:
-        # dependency 폴더 안에 있는 파일들 삭제
-        for file in os.listdir(dependency_folder):
-            file_path = os.path.join(dependency_folder, file)
-            os.remove(file_path)
-        print(f"Dependency folder already exists at {dependency_folder}")
+    try:
+        if os.path.exists(dependency_folder):
+            # 기존 폴더의 내용물 삭제
+            for item in os.listdir(dependency_folder):
+                item_path = os.path.join(dependency_folder, item)
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+        else:
+            os.makedirs(dependency_folder)
 
-    # Validate dependencies format and create files
-    if dependencies is None:
-        dependencies = {}
-    elif isinstance(dependencies, dict):
-        for file_name, file_content in dependencies.items():
-            dep_path = os.path.join(dependency_folder, file_name)
-            with open(dep_path, 'w') as f:
-                f.write(file_content)
-            print(f"Dependency file created: {dep_path}")
-    else:
-        raise HTTPException(status_code=400, detail="Invalid dependencies format")
+        if dependencies:
+            if not isinstance(dependencies, dict):
+                raise ValueError("Dependencies must be a dictionary")
+            
+            for file_name, file_content in dependencies.items():
+                if not isinstance(file_name, str):
+                    raise ValueError(f"Invalid file name: {file_name}")
+                if not isinstance(file_content, str):
+                    raise ValueError(f"Invalid file content for {file_name}")
+                
+                dep_path = os.path.join(dependency_folder, file_name)
+                with open(dep_path, 'w') as f:
+                    f.write(file_content)
+                print(f"Dependency file created: {dep_path}")
 
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create dependency folder or files: {str(e)}"
+        )
 
 def create_reference_folder(script_folder: str, reference_folders: dict):
     """
@@ -932,43 +880,49 @@ def create_reference_folder(script_folder: str, reference_folders: dict):
         reference_folders (dict): A nested dictionary representing folder and file structures.
 
     Raises:
-        HTTPException: If the format of reference_folders is invalid.
+        HTTPException: If there's an error creating the folders or files.
     """
+    try:
+        if os.path.exists(script_folder):
+            shutil.rmtree(script_folder)
+        os.makedirs(script_folder)
 
-    # Check if the script_folder exists, and clear its contents if necessary
-    if os.path.exists(script_folder):
-        shutil.rmtree(script_folder)  # Remove entire folder and its contents
-        print(f"Script folder '{script_folder}' cleared.")
+        def process_folder(current_path: str, folder_data: dict):
+            if not isinstance(folder_data, dict):
+                raise ValueError(f"Invalid folder data format at {current_path}")
 
-    os.makedirs(script_folder)
-    print(f"Script folder '{script_folder}' created.")
+            for name, content in folder_data.items():
+                if not isinstance(name, str):
+                    raise ValueError(f"Invalid folder/file name at {current_path}")
 
-    # Helper function to process folders recursively
-    def process_folder(current_path: str, folder_data: dict):
-        for name, content in folder_data.items():
-            if name == "subFolders" and isinstance(content, list):
-                # subFolders 리스트가 있을 경우, 재귀적으로 처리
-                for sub_folder in content:
-                    for sub_folder_name, sub_folder_data in sub_folder.items():
-                        folder_path = os.path.join(current_path, sub_folder_name)
-                        if not os.path.exists(folder_path):
+                if name == "subFolders" and isinstance(content, list):
+                    for sub_folder in content:
+                        if not isinstance(sub_folder, dict):
+                            raise ValueError("Invalid subfolder format")
+                        for sub_name, sub_data in sub_folder.items():
+                            folder_path = os.path.join(current_path, sub_name)
                             os.makedirs(folder_path, exist_ok=True)
-                            print(f"Folder created: {folder_path}")
-                        process_folder(folder_path, sub_folder_data)  # Recur into the subfolder
-            elif isinstance(content, dict):  # 일반적인 서브 폴더 처리
-                folder_path = os.path.join(current_path, name)
-                if not os.path.exists(folder_path):
+                            process_folder(folder_path, sub_data)
+                elif isinstance(content, dict):
+                    folder_path = os.path.join(current_path, name)
                     os.makedirs(folder_path, exist_ok=True)
-                    print(f"Folder created: {folder_path}")
-                process_folder(folder_path, content)  # Recur into the subfolder
-            else:  # 파일 처리
-                file_path = os.path.join(current_path, name)
-                with open(file_path, 'w') as f:
-                    f.write(content)
-                print(f"File created: {file_path}")
+                    process_folder(folder_path, content)
+                else:
+                    if not isinstance(content, str):
+                        raise ValueError(f"Invalid file content for {name}")
+                    file_path = os.path.join(current_path, name)
+                    with open(file_path, 'w') as f:
+                        f.write(content)
 
-    # Start processing the reference folder structure
-    process_folder(script_folder, reference_folders)
+        process_folder(script_folder, reference_folders)
+
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create reference folder structure: {str(e)}"
+        )
 
 def get_reference_folders_list(folder_path: str) -> list:
     """
@@ -1029,3 +983,387 @@ def create_metadata_file(plugin_folder: str, metadata: dict):
     with open(metadata_path, 'w') as f:
         json.dump(metadata, f, indent=4)
     print(f"Metadata file created at {metadata_path}")
+
+def setup_plugin_environments_via_docker(plugin_name: str):
+    """
+    플러그인의 Python과 R 가상환경을 설치합니다.
+    """
+    try:
+        client = docker.DockerClient(base_url="unix://var/run/docker.sock")
+        celery_container = next(
+            (c for c in client.containers.list() if 'celery' in c.name),
+            None
+        )
+        if not celery_container:
+            raise RuntimeError("Celery container not found")
+
+        plugin_path = f"/app/plugin/{plugin_name}"
+        dep_path = f"{plugin_path}/dependency"
+        env_path = f"{plugin_path}/env"
+        py_env = f"{env_path}/py_env"
+        r_env = f"{env_path}/r_env"
+
+        def run(cmd, error_msg, workdir=None):
+            result = celery_container.exec_run(cmd, workdir=workdir, user="root")
+            if result.exit_code != 0:
+                raise RuntimeError(f"{error_msg}: {result.output.decode()}")
+            return result
+
+        run(f"mkdir -p {env_path} {r_env}", "Failed to create environment directories")
+        run(f"chmod 777 {env_path} {r_env}", "Failed to set permissions")
+
+        if os.path.exists(f"./plugin/{plugin_name}/dependency/environment.yml"):
+            run(f"micromamba create -y -p {py_env} -f {dep_path}/environment.yml", "Failed to create Python env")
+        elif os.path.exists(f"./plugin/{plugin_name}/dependency/requirements.txt"):
+            run(f"micromamba create -y -p {py_env} python=3.10", "Failed to create base Python env")
+            run(f"micromamba run -p {py_env} pip install -r {dep_path}/requirements.txt", "Failed to install pip packages")
+
+        if os.path.exists(f"./plugin/{plugin_name}/dependency/renv.lock"):
+            run(f"cp {dep_path}/renv.lock {r_env}/", "Failed to copy renv.lock")
+            run(f"cp {dep_path}/*.tar.gz {r_env}/ || true", "Failed to copy tar.gz files")
+
+            r_commands = [
+                "R -e 'if (!requireNamespace(\"renv\", quietly=TRUE)) install.packages(\"renv\", repos=\"https://cloud.r-project.org\")'",
+                "R -e 'renv::init(bare=TRUE)'",
+                "R -e 'tryCatch({ renv::restore(lockfile=\"renv.lock\", prompt=FALSE) }, error=function(e) { message(\"Warning: partial restore\") })'",
+                "R -e 'writeLines(c(\"Sys.setenv(RENV_PATHS_LIBRARY=\\\"renv_library\\\")\", \"source(\\\"renv/activate.R\\\")\"), \".Rprofile\")'"
+            ]
+            for cmd in r_commands:
+                run(cmd, "Failed to setup R environment", workdir=r_env)
+
+        run(f"chmod -R 777 {env_path}", "Failed to finalize permissions")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to setup plugin environment: {str(e)}")
+
+def extract_python_version_from_environment_yml(env_path: str) -> str:
+    """environment.yml 파일에서 Python 버전을 추출합니다."""
+    if not os.path.isfile(env_path):
+        return None
+    with open(env_path, 'r') as f:
+        data = yaml.safe_load(f)
+    dependencies = data.get('dependencies', [])
+    for dep in dependencies:
+        if isinstance(dep, str) and dep.startswith("python="):
+            return dep.split("=")[1]
+    return None
+
+def extract_r_version_from_renv_lock(renv_path: str) -> str:
+    """renv.lock 파일에서 R 버전을 추출합니다."""
+    if not os.path.isfile(renv_path):
+        return None
+    with open(renv_path, 'r') as f:
+        data = json.load(f)
+    r_info = data.get("R", {})
+    if isinstance(r_info, dict):
+        return r_info.get("Version", None)
+    return None
+
+def build_plugin_docker_image(plugin_path: str, plugin_name: str) -> dict:
+    """
+    플러그인의 Docker 이미지를 빌드하고 로그를 저장합니다.
+
+    Parameters:
+        plugin_path (str): 플러그인 폴더 경로
+        plugin_name (str): 플러그인 이름
+
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'log_file': str,
+            'image_tag': str
+        }
+    """
+    try:
+        client = docker.from_env()
+        client.ping()  # Docker 데몬 연결 확인
+    except Exception as e:
+        error_msg = f"Failed to connect to Docker daemon: {str(e)}"
+        return {
+            'success': False,
+            'message': error_msg,
+            'log_file': None,
+            'image_tag': None
+        }
+
+    # 로그 디렉토리 및 파일 설정
+    log_dir = os.path.join("user_logs", "plugin_build")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, f"{plugin_name.lower()}.log")
+    image_tag = f"plugin-{plugin_name.lower()}"
+
+    try:
+        with open(log_file, "w", encoding="utf-8") as f:
+            f.write(f"Building Docker image for plugin: {plugin_name}\n")
+            f.write(f"Start time: {datetime.now().isoformat()}\n")
+            f.write(f"Docker version: {client.version().get('Version', 'unknown')}\n\n")
+            f.flush()
+
+        # 기존 이미지 제거 (있다면)
+        try:
+            client.images.remove(image=image_tag, force=True)
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(f"Removed existing image: {image_tag}\n\n")
+        except docker.errors.ImageNotFound:
+            pass
+
+        # Dockerfile 존재 확인
+        dockerfile_path = os.path.join(plugin_path, "Dockerfile")
+        if not os.path.exists(dockerfile_path):
+            error_msg = f"Dockerfile not found in {plugin_path}"
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(f"Error: {error_msg}\n")
+            return {
+                'success': False,
+                'message': error_msg,
+                'log_file': log_file,
+                'image_tag': image_tag
+            }
+
+        # Dockerfile 내용 기록
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write("Dockerfile content:\n")
+            with open(dockerfile_path, "r", encoding="utf-8") as df:
+                f.write(df.read())
+            f.write("\n\nStarting build...\n")
+            f.flush()
+
+        image = None
+        build_output = []
+
+        # 이미지 빌드 (더 자세한 옵션 추가)
+        for chunk in client.api.build(
+            path=plugin_path,
+            tag=image_tag,
+            rm=True,
+            forcerm=True,
+            decode=True,
+            buildargs={
+                'BUILDKIT_PROGRESS': 'plain',  # 더 자세한 출력
+                'DOCKER_BUILDKIT': '0'  # BuildKit 비활성화 (디버깅용)
+            }
+        ):
+            with open(log_file, "a", encoding="utf-8") as f:
+                if 'stream' in chunk:
+                    f.write(chunk['stream'])
+                    build_output.append(chunk['stream'])
+                elif 'error' in chunk:
+                    f.write(f"Build error: {chunk['error']}\n")
+                    raise Exception(chunk['error'])
+                elif 'aux' in chunk and 'ID' in chunk['aux']:
+                    image = client.images.get(chunk['aux']['ID'])
+                f.flush()
+
+        if not image:
+            image = client.images.get(image_tag)
+
+        # 빌드 성공 기록
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(f"\nBuild completed successfully at {datetime.now().isoformat()}\n")
+            if image:
+                f.write(f"Image ID: {image.id}\n")
+                f.write(f"Size: {image.attrs['Size'] / 1024 / 1024:.2f} MB\n")
+                f.write(f"Created: {image.attrs['Created']}\n")
+            f.flush()
+
+        return {
+            'success': True,
+            'message': f"Successfully built image: {image_tag}",
+            'log_file': log_file,
+            'image_tag': image_tag
+        }
+
+    except Exception as e:
+        error_msg = f"Unexpected error during Docker build: {str(e)}"
+        try:
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(f"\nCritical Error: {error_msg}\n")
+        except:
+            pass
+        return {
+            'success': False,
+            'message': error_msg,
+            'log_file': log_file,
+            'image_tag': image_tag
+        }
+
+def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool = True):
+    """
+    플러그인 폴더를 분석해서 Dockerfile을 생성합니다.
+    
+    Parameters:
+        plugin_path (str): 플러그인 폴더 경로
+        output_path (str): 생성할 Dockerfile 경로
+        use_gpu (bool): GPU 사용 여부 (기본값: True)
+    """
+    dependency_path = os.path.join(plugin_path, "dependency")
+    has_requirements = os.path.isfile(os.path.join(dependency_path, "requirements.txt"))
+    has_environment = os.path.isfile(os.path.join(dependency_path, "environment.yml"))
+    has_renv = os.path.isfile(os.path.join(dependency_path, "renv.lock"))
+    has_python = False
+    has_r = False
+
+    # Python, R 버전 추출
+    python_version = None
+    r_version = None
+    if has_environment:
+        python_version = extract_python_version_from_environment_yml(os.path.join(dependency_path, "environment.yml"))
+    if has_renv:
+        r_version = extract_r_version_from_renv_lock(os.path.join(dependency_path, "renv.lock"))
+
+    # 기본값 설정
+    if not python_version:
+        python_version = "3.10"
+    if not r_version:
+        r_version = "4.5.0"
+
+    # 스크립트 파일 확인
+    scripts_path = os.path.join(plugin_path, "scripts")
+    if os.path.exists(scripts_path):
+        for file in os.listdir(scripts_path):
+            if file.endswith(".py"):
+                has_python = True
+            if file.endswith(".R"):
+                has_r = True
+
+    # Dockerfile 내용 작성
+    dockerfile_lines = []
+
+    # 1. 베이스 이미지
+    if use_gpu:
+        dockerfile_lines.append("FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04")
+    else:
+        dockerfile_lines.append("FROM ubuntu:20.04")
+
+    dockerfile_lines.append("")
+    # 비대화형 설치를 위한 환경 변수 설정
+    dockerfile_lines.append("# 비대화형 설치 설정")
+    dockerfile_lines.append("ENV DEBIAN_FRONTEND=noninteractive")
+    dockerfile_lines.append("ENV TZ=Asia/Seoul")
+    dockerfile_lines.append("")
+    
+    dockerfile_lines.append("# 기본 패키지 설치")
+    dockerfile_lines.append("RUN apt-get update && apt-get install -y \\")
+    dockerfile_lines.append("    build-essential gcc g++ gfortran make \\")
+    dockerfile_lines.append("    libssl-dev libcurl4-openssl-dev libxml2-dev \\")
+    dockerfile_lines.append("    libjpeg-dev libpng-dev libfreetype6-dev libtiff-dev \\")
+    dockerfile_lines.append("    libx11-dev xorg-dev libxt-dev libglu1-mesa-dev \\")
+    dockerfile_lines.append("    curl wget unzip git \\")
+    dockerfile_lines.append(f"    python{python_version} python3-pip python3-venv \\")
+    dockerfile_lines.append("    software-properties-common \\")
+    if has_r or has_renv:
+        dockerfile_lines.append(f"    r-base \\")
+    dockerfile_lines.append("    && apt-get clean && rm -rf /var/lib/apt/lists/*")
+    dockerfile_lines.append("")
+
+    if has_python or has_requirements or has_environment:
+        # Micromamba 설치 - 더 안정적인 방법
+        dockerfile_lines.append("# Micromamba 설치")
+        dockerfile_lines.append("RUN mkdir -p /usr/local/bin && \\")
+        dockerfile_lines.append("    cd /tmp && \\")
+        dockerfile_lines.append("    curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj && \\")
+        dockerfile_lines.append("    cp bin/micromamba /usr/local/bin/micromamba && \\")
+        dockerfile_lines.append("    chmod +x /usr/local/bin/micromamba && \\")
+        dockerfile_lines.append("    rm -rf /tmp/bin /tmp/info && \\")
+        dockerfile_lines.append("    # 설치 확인")
+        dockerfile_lines.append("    /usr/local/bin/micromamba --version")
+        dockerfile_lines.append("")
+        
+        # 환경 변수 설정
+        dockerfile_lines.append("# 환경 변수 설정")
+        dockerfile_lines.append("ENV MAMBA_ROOT_PREFIX=/opt/micromamba")
+        dockerfile_lines.append("ENV MAMBA_EXE=/usr/local/bin/micromamba")
+        dockerfile_lines.append("ENV PATH=/usr/local/bin:$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$MAMBA_ROOT_PREFIX/bin:$PATH")
+        dockerfile_lines.append("")
+        
+        # Micromamba 디렉토리 생성 (shell init 대신)
+        dockerfile_lines.append("# Micromamba 환경 디렉토리 생성")
+        dockerfile_lines.append("RUN mkdir -p $MAMBA_ROOT_PREFIX && \\")
+        dockerfile_lines.append("    mkdir -p $MAMBA_ROOT_PREFIX/envs && \\")
+        dockerfile_lines.append("    mkdir -p $MAMBA_ROOT_PREFIX/pkgs && \\")
+        dockerfile_lines.append("    mkdir -p $MAMBA_ROOT_PREFIX/etc/profile.d")
+        dockerfile_lines.append("")
+        
+        # Python 환경 생성
+        dockerfile_lines.append("# Python 환경 생성")
+        dockerfile_lines.append(f"RUN /usr/local/bin/micromamba create -y -n plugin_env python={python_version} -c conda-forge --root-prefix $MAMBA_ROOT_PREFIX")
+        dockerfile_lines.append("")
+        
+        # Snakemake 및 필수 패키지 설치
+        dockerfile_lines.append("# Snakemake 및 필수 패키지 설치")
+        dockerfile_lines.append("RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\")
+        dockerfile_lines.append("    pip install --no-cache-dir \\")
+        dockerfile_lines.append("    'snakemake==7.14.0' \\")
+        dockerfile_lines.append("    'pulp==2.7.0' \\")
+        dockerfile_lines.append("    'tabulate==0.8.10'")
+        dockerfile_lines.append("")
+
+        if has_requirements:
+            dockerfile_lines.append("# Python 패키지 설치")
+            dockerfile_lines.append("COPY dependency/requirements.txt /tmp/")
+            dockerfile_lines.append("RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\")
+            dockerfile_lines.append("    pip install --no-cache-dir -r /tmp/requirements.txt || true")
+            dockerfile_lines.append("")
+            
+        if has_environment:
+            dockerfile_lines.append("# Conda 환경 업데이트")
+            dockerfile_lines.append("COPY dependency/environment.yml /tmp/")
+            dockerfile_lines.append("RUN /usr/local/bin/micromamba env update -n plugin_env -f /tmp/environment.yml -r $MAMBA_ROOT_PREFIX || true")
+            dockerfile_lines.append("")
+
+    if has_r or has_renv:
+        dockerfile_lines.append("# R 패키지 설치")
+        dockerfile_lines.append("COPY dependency/renv.lock /tmp/")
+        dockerfile_lines.append('RUN Rscript -e "if (!requireNamespace(\'renv\', quietly=TRUE)) install.packages(\'renv\', repos=\'https://cloud.r-project.org\', dependencies=TRUE); renv::restore(lockfile=\'/tmp/renv.lock\', prompt=FALSE)"')
+        dockerfile_lines.append("")
+
+    # 작업 디렉토리 생성 및 설정
+    dockerfile_lines.append("# 작업 디렉토리 생성 및 설정")
+    dockerfile_lines.append("RUN mkdir -p /workspace/logs && \\")
+    dockerfile_lines.append("    chmod 777 /workspace")
+    dockerfile_lines.append("")
+
+    # Snakefile 복사
+    dockerfile_lines.append("# Snakefile 복사")
+    dockerfile_lines.append("COPY Snakefile /workspace/Snakefile")
+    if os.path.exists(os.path.join(plugin_path, "visualization_Snakefile")):
+        dockerfile_lines.append("COPY visualization_Snakefile /workspace/visualization_Snakefile")
+    dockerfile_lines.append("")
+
+    dockerfile_lines.append("# 플러그인 스크립트 복사")
+    dockerfile_lines.append("COPY scripts/ /scripts/")
+    dockerfile_lines.append("")
+
+    dockerfile_lines.append("WORKDIR /workspace")
+    dockerfile_lines.append("")
+
+    # Entrypoint 스크립트 수정
+    dockerfile_lines.append("# Entrypoint 스크립트 생성")
+    dockerfile_lines.append("RUN echo '#!/bin/bash' > /entrypoint.sh && \\")
+    dockerfile_lines.append("    echo 'export MAMBA_ROOT_PREFIX=/opt/micromamba' >> /entrypoint.sh && \\")
+    dockerfile_lines.append("    echo 'export MAMBA_EXE=/usr/local/bin/micromamba' >> /entrypoint.sh && \\")
+    dockerfile_lines.append("    echo 'export PATH=$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$PATH' >> /entrypoint.sh && \\")
+    dockerfile_lines.append("    echo '# Activate micromamba environment' >> /entrypoint.sh && \\")
+    dockerfile_lines.append("    echo 'eval \"$($MAMBA_EXE shell activate -s bash -p $MAMBA_ROOT_PREFIX plugin_env)\"' >> /entrypoint.sh && \\")
+    dockerfile_lines.append("    echo 'exec \"$@\"' >> /entrypoint.sh && \\")
+    dockerfile_lines.append("    chmod +x /entrypoint.sh")
+    dockerfile_lines.append("")
+    dockerfile_lines.append("ENTRYPOINT [\"/entrypoint.sh\"]")
+    dockerfile_lines.append("")
+    
+    # 헬스체크 수정
+    dockerfile_lines.append("# 헬스체크 설정")
+    dockerfile_lines.append('HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\')
+    dockerfile_lines.append('    CMD test -f /opt/micromamba/envs/plugin_env/bin/python || exit 1')
+    dockerfile_lines.append("")
+
+    # 기본 명령어 설정
+    dockerfile_lines.append("# 기본 명령어 설정")
+    dockerfile_lines.append('CMD ["/bin/bash"]')
+
+    # Dockerfile 저장
+    with open(output_path, "w") as f:
+        f.write("\n".join(dockerfile_lines))
+
+    print(f"[✓] Dockerfile generated for {plugin_path} (Python {python_version}, R {r_version})")
