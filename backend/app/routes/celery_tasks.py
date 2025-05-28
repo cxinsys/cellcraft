@@ -4,6 +4,7 @@ from celery.signals import worker_process_init
 from celery.exceptions import Ignore
 from celery.worker.request import Request
 import os
+from pathlib import Path
 import time
 from typing import List
 from billiard import Pool, cpu_count
@@ -14,7 +15,6 @@ import logging
 from celery.exceptions import MaxRetriesExceededError
 
 from app.common.utils.snakemake_utils import snakemakeProcess
-from app.common.utils.plugin_utils import install_dependencies
 from app.database.crud.crud_task import start_task, end_task
 
 logger = logging.getLogger('celery.custom')
@@ -79,55 +79,59 @@ class MyTask(Task):
     #     start_task(user_id, self.request.id, workflow_id, start_time)
     #     super().__call__(*args, **kwargs)
 
-@worker_process_init.connect
-def configure_worker(conf=None, **kwargs):
-    os.environ['CONDA_DEFAULT_ENV'] = 'snakemake'
-
 @shared_task(bind=True, base=MyTask, name="workflow_task:process_data_task")
-def process_data_task(self, username: str, snakefile_path: str, plugin_dependency_path: str, 
+def process_data_task(self, username: str, snakefile_path: str, plugin_name: str, 
                       targets: list, user_id: int, workflow_id: int):
-
     try:
         print(f'Processing data for user {username}...')
         print(f"Task ID: {self.request.id}")
+        print(f"Targets: {targets}")
+        print(f"Snakefile path: {snakefile_path}")
 
-        if plugin_dependency_path != "None":
-            self.update_state(state="INSTALLING", meta={"message": "Installing dependencies..."})
-            # 의존성 설치
-            for dependency_file in ['requirements.txt', 'environment.yml', 'environment.yaml', 'renv.lock']:
-                dependency_file_path = os.path.join(plugin_dependency_path, dependency_file)
-                if os.path.exists(dependency_file_path):
-                    print(f"Installing dependencies from {dependency_file}...")
-                    try:
-                        install_dependencies(dependency_file_path)
-                    except Exception as e:
-                        error_message = f"Failed to install dependencies from {dependency_file}: {str(e)}"
-                        print(error_message)
-                        self.update_state(state="FAILURE", meta={"error": error_message})
-                        raise RuntimeError(error_message)
+        self.update_state(state="RUNNING", meta={"message": "Executing workflow..."})
 
-            self.update_state(state="RUNNING", meta={"message": "Executing workflow..."})
+        # 작업 디렉토리 설정
+        workspace_path = Path(os.path.dirname(snakefile_path))
+        log_dir = workspace_path / "logs"
+        log_file = log_dir / "run.log"
 
-        # Snakemake 실행
-        result = snakemakeProcess(targets, snakefile_path)
+        # Docker 컨테이너로 Snakemake 실행
+        result = snakemakeProcess(targets, snakefile_path, plugin_name)
 
-        print(f"Snakemake process return code: {result['returncode']}")
-
-        # Snakemake 실패 감지 후 Celery 태스크 실패 처리
-        if result["returncode"] != 0:
-            error_message = f"Snakemake process failed with error:\n{result.get('stderr', 'No error message')}"
+        # 로그 파일 검증
+        if not log_file.exists() or log_file.stat().st_size == 0:
+            error_message = "run.log not created — Snakemake may not have run"
             print(error_message)
             self.update_state(state="FAILURE", meta={"error": error_message})
-
-            print("Debug: Raising RuntimeError...")
             raise RuntimeError(error_message)
-            
-        else:
-            print('Data processing complete.')
-            retval = {"status": "Success", "message": "Processing complete"}
-            return retval
+
+        # 타겟 파일 존재 여부 확인
+        missing_targets = []
+        for target in targets:
+            target_path = workspace_path / target
+            if not target_path.exists():
+                missing_targets.append(target)
+
+        if missing_targets:
+            error_message = f"Target(s) not produced: {missing_targets}"
+            print(error_message)
+            self.update_state(state="FAILURE", meta={"error": error_message})
+            raise RuntimeError(error_message)
+
+        print('Data processing complete.')
+        retval = {
+            "status": "Success", 
+            "message": "Processing complete",
+            "stdout": result.get("stdout", ""),
+            "stderr": result.get("stderr", ""),
+            "log_path": str(log_file)
+        }
+        return retval
 
     except Exception as e:
-        self.update_state(state="FAILURE", meta={"error": str(e)})
-        raise RuntimeError(str(e)) from e
+        error_message = str(e)
+        if "Plugin image" in error_message:
+            error_message = f"Plugin execution failed: {error_message}. Please ensure the plugin is properly built and available."
+        self.update_state(state="FAILURE", meta={"error": error_message})
+        raise RuntimeError(error_message) from e
 
