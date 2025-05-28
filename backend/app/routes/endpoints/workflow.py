@@ -68,7 +68,7 @@ def compileWorkflow(
 
                 # Celery 작업 실행
                 process_task = process_data_task.apply_async(
-                    args=[current_user.username, user_snakefile_path, plugin_dependency_path, target_list],
+                    args=[current_user.username, user_snakefile_path, selected_plugin, target_list],
                     kwargs={'user_id': current_user.id, 'workflow_id': workflow.id},
                     ignore_result=False
                 )
