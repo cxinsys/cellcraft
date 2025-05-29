@@ -14,25 +14,81 @@ def get_log_path(snakefile_path: str) -> Path:
 
 def wait_for_container_ready(container, max_retries=10):
     """컨테이너가 준비될 때까지 대기"""
+    print(f"컨테이너 준비 대기 중 (최대 {max_retries}회 시도)...")
+    
     for attempt in range(max_retries):
-        container.reload()
-        if container.status != 'running':
-            raise Exception(f"Container exited with status: {container.status}")
-        
-        # 더 신뢰할 수 있는 준비 상태 확인
         try:
-            exit_code, output = container.exec_run(
-                "test -f /opt/micromamba/envs/plugin_env/bin/python && echo 'ready'",
-                demux=True
-            )
-            if exit_code == 0 and b'ready' in (output[0] or b''):
-                return True
+            container.reload()
+            if container.status != 'running':
+                print(f"컨테이너 상태: {container.status}")
+                raise Exception(f"컨테이너가 종료됨: {container.status}")
+            
+            # 기본적인 명령 실행 가능 여부 확인
+            result = container.exec_run("echo 'test'")
+            if result.exit_code == 0:
+                print(f"컨테이너 응답 확인 (시도 {attempt + 1})")
+                
+                # Python 환경 상세 확인
+                python_path = "/opt/micromamba/envs/plugin_env/bin/python"
+                python_checks = [
+                    f"test -f {python_path} && echo 'Python executable exists' || echo 'Python executable not found'",
+                    f"ls -l {python_path}",
+                    f"{python_path} --version",
+                    "ls -la /opt/micromamba/envs/plugin_env/bin/",
+                    "echo '=== Python Environment Info ==='",
+                    "which python",
+                    "python --version",
+                    "echo '=== Micromamba Environment Info ==='",
+                    "micromamba env list",
+                    "echo '=== Environment Variables ==='",
+                    "env | grep -E '(PATH|MAMBA|PYTHON)'",
+                    "echo '=== Plugin Environment Dependencies ==='",
+                    "micromamba list -n plugin_env",
+                    "echo '=== Pip Installed Packages ==='",
+                    f"{python_path} -m pip list"
+                ]
+                
+                for check in python_checks:
+                    check_result = container.exec_run(check)
+                    print(f"Check '{check}':\n{check_result.output.decode().strip()}")
+                
+                # Python 실행 파일 존재 여부 확인
+                python_exists = container.exec_run(f"test -f {python_path}").exit_code == 0
+                if not python_exists:
+                    print(f"Python 실행 파일이 존재하지 않음: {python_path}")
+                    continue
+                
+                # Python 버전 확인
+                python_version = container.exec_run(f"{python_path} --version")
+                if python_version.exit_code == 0:
+                    print(f"Python 환경 확인됨: {python_version.output.decode().strip()}")
+                    return True
+                else:
+                    print(f"Python 환경 확인 실패 (시도 {attempt + 1}): {python_version.output.decode().strip()}")
+                
         except Exception as e:
-            print(f"Container not ready yet: {e}")
+            print(f"컨테이너 확인 실패 (시도 {attempt + 1}): {str(e)}")
         
         time.sleep(2)
     
-    raise Exception("Container failed to become ready")
+    # 실패 시 디버그 정보 수집
+    try:
+        print("\n=== 컨테이너 디버그 정보 ===")
+        # 환경 변수 확인
+        env_result = container.exec_run("env | grep -E '(PATH|MAMBA|PYTHON)'")
+        print(f"환경 변수:\n{env_result.output.decode()}")
+        
+        # 파일 시스템 확인
+        ls_result = container.exec_run("ls -la /opt/micromamba/envs/")
+        print(f"Micromamba 환경 디렉토리:\n{ls_result.output.decode()}")
+        
+        # Entrypoint 확인
+        entrypoint_result = container.exec_run("cat /entrypoint.sh")
+        print(f"Entrypoint 스크립트:\n{entrypoint_result.output.decode()}")
+    except Exception as debug_error:
+        print(f"디버그 정보 수집 실패: {debug_error}")
+    
+    raise Exception("모든 시도 후에도 컨테이너가 준비되지 않음")
 
 def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspace_path: str) -> Dict[str, Any]:
     """
@@ -70,18 +126,45 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         # Snakefile 경로를 workspace 기준으로 수정
         container_snakefile_path = f"/workspace{snakefile_path[1:]}"
         
-        # 더 안정적인 볼륨 마운트 설정
-        host_workspace_path = os.environ.get("HOST_WORKSPACE_PATH", workspace_path)
+        # Celery 컨테이너 ID 가져오기
+        celery_container_id = os.environ.get("HOSTNAME")
+        if not celery_container_id:
+            print("WARNING: HOSTNAME env var not found. Using default celery container name.")
+            celery_container_id = "cellcraft_celery_1"  # docker-compose 서비스 이름
+        
+        print(f"Using celery container ID: {celery_container_id}")
+        
+        # Celery 컨테이너의 마운트 정보 조회
+        try:
+            celery_container = client.containers.get(celery_container_id)
+            celery_mounts = celery_container.attrs.get("Mounts", [])
+            
+            # /app 마운트의 호스트 경로 찾기
+            host_backend_path = None
+            for mount in celery_mounts:
+                if mount["Destination"] == "/app":
+                    host_backend_path = mount["Source"]
+                    break
+            
+            if not host_backend_path:
+                print("WARNING: Could not find host path for /app mount in Celery container")
+                host_backend_path = workspace_path  # 기본값으로 workspace_path 사용
+        except Exception as e:
+            print(f"WARNING: Error getting Celery container mounts: {e}")
+            host_backend_path = workspace_path  # 기본값으로 workspace_path 사용
+        
+        print(f"Using host backend path: {host_backend_path}")
         
         # 컨테이너 실행 설정
         container_config = {
             'image': image_name,
             'volumes': {
-                host_workspace_path: {
+                host_backend_path: {
                     "bind": "/workspace",
                     "mode": "rw"
                 }
             },
+            'volumes_from': [celery_container_id],  # 기존 volumes_from 유지
             'working_dir': '/workspace',
             'environment': {
                 'MAMBA_ROOT_PREFIX': '/opt/micromamba',
@@ -97,12 +180,42 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         
         # Task마다 새로운 컨테이너 생성
         print(f"Starting new container with image: {image_name}")
+        print(f"Using volumes from celery container: {celery_container_id}")
         container = client.containers.run(**container_config)
         print(f"Container started with ID: {container.id}")
         
         # 컨테이너가 준비될 때까지 대기
         wait_for_container_ready(container)
         print("Container is ready for execution")
+        
+        # # 디버깅: 컨테이너 내부의 폴더 구조 확인
+        # print("\n=== 컨테이너 내부 폴더 구조 확인 ===")
+        # # workspace 디렉토리 확인
+        # workspace_check = container.exec_run("ls -la /workspace")
+        # print(f"Workspace 디렉토리 내용:\n{workspace_check.output.decode()}")
+        
+        # # plugin 폴더 구조 확인
+        # print("\n=== Plugin 폴더 구조 확인 ===")
+        # plugin_check = container.exec_run("ls -l /workspace/plugin")
+        # print(f"Plugin 폴더 구조:\n{plugin_check.output.decode()}")
+        
+        # # FastSCODE 폴더 구조 확인
+        # print("\n=== FastSCODE 폴더 구조 확인 ===")
+        # fastscode_check = container.exec_run("ls -la /workspace/plugin/FastSCODE")
+        # print(f"FastSCODE 폴더 구조:\n{fastscode_check.output.decode()}")
+
+        # # scripts 폴더 구조 확인
+        # print("\n=== scripts 폴더 구조 확인 ===")
+        # scripts_check = container.exec_run("ls -la /workspace/plugin/FastSCODE/scripts")
+        # print(f"scripts 폴더 구조:\n{scripts_check.output.decode()}")
+        
+        # # Snakefile이 있는 디렉토리 확인
+        # snakefile_dir_check = container.exec_run(f"ls -la {os.path.dirname(container_snakefile_path)}")
+        # print(f"Snakefile 디렉토리 내용:\n{snakefile_dir_check.output.decode()}")
+        
+        # # Snakefile 존재 여부 확인
+        # snakefile_check = container.exec_run(f"test -f {container_snakefile_path} && echo 'Snakefile exists' || echo 'Snakefile not found'")
+        # print(f"Snakefile 확인 결과: {snakefile_check.output.decode().strip()}")
         
         # Snakemake 실행 명령어 (entrypoint가 환경을 설정하므로 단순화)
         bash_cmd = (

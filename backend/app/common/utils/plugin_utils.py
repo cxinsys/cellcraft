@@ -488,7 +488,7 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
                     normalized_name = normalize_param_name(param['name'])
                     if param['name'] == "clusters" and param['type'] == "h5adParameter":
                         param_list.append(f'clusters=lambda wc: ";".join({{{param["name"]}}})')
-                    elif "UMAP" in param['name'] and param['type'] == 'h5adParameter':
+                    elif (param['name'] == "ScatterPlot" and param['type'] == 'string') or ("UMAP" in param['name'] and param['type'] == 'h5adParameter'):
                         param_list.append(
                             'UMAP_lasso=lambda wildcards: {UMAP lasso} if os.path.exists({UMAP lasso}) else "None"'
                         )
@@ -516,7 +516,7 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
 
                 # Shell command 설정 (Python/R 분기)
                 if rule['script'].endswith('.py'):
-                    shell_command = f"python {script_path}"
+                    shell_command = f"/opt/micromamba/envs/plugin_env/bin/python {script_path}"
                 elif rule['script'].endswith('.R'):
                     shell_command = f"Rscript {script_path}"
                 else:
