@@ -318,31 +318,32 @@ async def upload_scripts(
                 logger.info(f"Removing old previous scripts directory: {scripts_previous_dir}")
                 shutil.rmtree(scripts_previous_dir)
             
-            # scripts_previous_dir 생성
-            scripts_previous_dir.mkdir(parents=True, exist_ok=True)
-            
-            # scripts_dir의 모든 항목을 순회하면서 스크립트 파일만 이동
-            for item in scripts_dir.iterdir():
-                if item.is_file():  # 파일인 경우에만 이동
-                    logger.info(f"Moving file {item.name} to {scripts_previous_dir}")
-                    shutil.move(str(item), str(scripts_previous_dir / item.name))
-                # 폴더는 그대로 유지 (reference 폴더 등)
-            
-            logger.info(f"Backup of script files to {scripts_previous_dir} completed.")
+            # 전체 scripts_dir를 scripts_previous_dir로 이동 (rename)
+            logger.info(f"Moving entire {scripts_dir} to {scripts_previous_dir}")
+            shutil.move(str(scripts_dir), str(scripts_previous_dir))
+            logger.info(f"Backup of {scripts_dir} to {scripts_previous_dir} completed.")
         else:
             logger.info(f"No current scripts directory found at {scripts_dir}. Skipping backup step.")
 
         # --- 핵심 트랜잭션: 스테이징 디렉토리를 최종 디렉토리로 승격 ---
         try:
-            # 4. 스테이징 디렉토리를 최종 스크립트 디렉토리로 이동 (rename)
+            # 4. scripts_dir이 존재하지 않는 상태에서 스테이징 디렉토리를 최종 스크립트 디렉토리로 이동
             logger.info(f"Moving staging scripts {scripts_staging_dir} to final target {scripts_dir}")
+            
+            # 이제 scripts_dir이 존재하지 않으므로 rename 동작이 수행됨
             shutil.move(str(scripts_staging_dir), str(scripts_dir))
-            # 성공 시, scripts_staging_dir 경로는 더 이상 존재하지 않음
+            
+            # 5. (선택사항) 기존 scripts_previous에서 필요한 하위 디렉토리(예: reference) 복원
+            if scripts_previous_dir.exists():
+                for item in scripts_previous_dir.iterdir():
+                    if item.is_dir():  # 디렉토리인 경우
+                        target_dir = scripts_dir / item.name
+                        if not target_dir.exists():  # 새 scripts에 없는 디렉토리만 복원
+                            logger.info(f"Restoring directory {item.name} from previous scripts")
+                            shutil.copytree(str(item), str(target_dir))
+            
             logger.info(f"Successfully moved {scripts_staging_dir} to {scripts_dir}. Script update complete.")
             
-            # `scripts_previous_dir`는 이제 바로 이전 버전의 백업이므로 삭제하지 않고 유지합니다.
-            # 다음 업데이트 시, 현재의 `scripts_dir`가 새로운 `scripts_previous_dir`가 됩니다.
-
             return {
                 "message": "Scripts uploaded successfully",
                 "scripts_path": str(scripts_dir),
@@ -356,7 +357,7 @@ async def upload_scripts(
             logger.info("Attempting rollback...")
             try:
                 # 부분적으로 생성되었을 수 있는 새 scripts_dir 삭제
-                if scripts_dir.exists(): # 실패한 새 버전일 가능성
+                if scripts_dir.exists():
                     logger.info(f"Removing potentially incomplete/failed {scripts_dir}")
                     shutil.rmtree(scripts_dir)
                 
@@ -371,7 +372,7 @@ async def upload_scripts(
             except Exception as e_rollback:
                 logger.critical(f"Rollback failed: {str(e_rollback)}. Original promotion error: {str(e_promote)}")
                 # 롤백 실패 시, 관리자 알림 등의 로직 추가 고려
-                if scripts_staging_dir.exists(): # 스테이징은 확실히 정리
+                if scripts_staging_dir.exists():
                     shutil.rmtree(scripts_staging_dir)
                     logger.info(f"Cleaned up staging directory {scripts_staging_dir} after failed promotion and failed rollback.")
                 raise HTTPException(
@@ -401,7 +402,7 @@ async def upload_scripts(
         if scripts_staging_dir.exists():
              shutil.rmtree(scripts_staging_dir)
              logger.info(f"Cleaned up staging directory {scripts_staging_dir} due to HTTPException.")
-        raise he # 원래의 HTTPException을 다시 발생
+        raise he
 
     except Exception as e_unexpected:
         logger.critical(f"Unexpected error during script upload for plugin {plugin_name}: {str(e_unexpected)}", exc_info=True)
@@ -413,9 +414,6 @@ async def upload_scripts(
             except Exception as e_cleanup_staging:
                 logger.error(f"Failed to cleanup staging directory {scripts_staging_dir} during unexpected error handling: {str(e_cleanup_staging)}")
         
-        # scripts_dir 또는 scripts_previous_dir를 여기서 무조건 삭제하는 것은 위험할 수 있음
-        # (예: 오류가 매우 초기에 발생하여 기존 운영 스크립트가 아직 안전한 상태일 경우)
-
         raise HTTPException(
             status_code=500,
             detail=f"An unexpected error occurred during script upload: {str(e_unexpected)}"

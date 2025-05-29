@@ -108,8 +108,7 @@ def process_data_task(self, username: str, snakefile_path: str, plugin_name: str
         # 타겟 파일 존재 여부 확인
         missing_targets = []
         for target in targets:
-            target_path = workspace_path / target
-            if not target_path.exists():
+            if not target.exists():
                 missing_targets.append(target)
 
         if missing_targets:
