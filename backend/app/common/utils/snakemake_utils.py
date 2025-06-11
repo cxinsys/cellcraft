@@ -188,36 +188,7 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         wait_for_container_ready(container)
         print("Container is ready for execution")
         
-        # # 디버깅: 컨테이너 내부의 폴더 구조 확인
-        # print("\n=== 컨테이너 내부 폴더 구조 확인 ===")
-        # # workspace 디렉토리 확인
-        # workspace_check = container.exec_run("ls -la /workspace")
-        # print(f"Workspace 디렉토리 내용:\n{workspace_check.output.decode()}")
-        
-        # # plugin 폴더 구조 확인
-        # print("\n=== Plugin 폴더 구조 확인 ===")
-        # plugin_check = container.exec_run("ls -l /workspace/plugin")
-        # print(f"Plugin 폴더 구조:\n{plugin_check.output.decode()}")
-        
-        # # FastSCODE 폴더 구조 확인
-        # print("\n=== FastSCODE 폴더 구조 확인 ===")
-        # fastscode_check = container.exec_run("ls -la /workspace/plugin/FastSCODE")
-        # print(f"FastSCODE 폴더 구조:\n{fastscode_check.output.decode()}")
-
-        # # scripts 폴더 구조 확인
-        # print("\n=== scripts 폴더 구조 확인 ===")
-        # scripts_check = container.exec_run("ls -la /workspace/plugin/FastSCODE/scripts")
-        # print(f"scripts 폴더 구조:\n{scripts_check.output.decode()}")
-        
-        # # Snakefile이 있는 디렉토리 확인
-        # snakefile_dir_check = container.exec_run(f"ls -la {os.path.dirname(container_snakefile_path)}")
-        # print(f"Snakefile 디렉토리 내용:\n{snakefile_dir_check.output.decode()}")
-        
-        # # Snakefile 존재 여부 확인
-        # snakefile_check = container.exec_run(f"test -f {container_snakefile_path} && echo 'Snakefile exists' || echo 'Snakefile not found'")
-        # print(f"Snakefile 확인 결과: {snakefile_check.output.decode().strip()}")
-        
-        # Snakemake 실행 명령어 (entrypoint가 환경을 설정하므로 단순화)
+        # Snakemake 실행 명령어
         bash_cmd = (
             f"cd /workspace && "
             f"snakemake {' '.join(targets)} "
@@ -269,7 +240,8 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         return {
             "returncode": exit_code,
             "stdout": stdout,
-            "stderr": stderr
+            "stderr": stderr,
+            "log_path": str(log_file)
         }
         
     except Exception as e:
