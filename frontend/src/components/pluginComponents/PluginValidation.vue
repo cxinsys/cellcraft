@@ -59,13 +59,14 @@
             <div class="loader"></div>
             <p v-if="uploadingStep == 1">Validating Plugin...</p>
             <p v-else-if="uploadingStep == 2">Uploading Plugin Data...</p>
-            <p v-else-if="uploadingStep == 3">Uploading Plugin Scripts...</p>
+            <p v-else-if="uploadingStep == 3">Building Plugin Environment...</p>
+            <p v-else-if="uploadingStep == 4">Uploading Plugin Scripts...</p>
         </div>
     </div>
 </template>
 
 <script>
-import { validationPlugin, uploadPluginMetadata, uploadPluginScripts, uploadPluginPackage } from '@/api/index';
+import { validationPlugin, uploadPluginMetadata, uploadPluginScripts, uploadPluginPackage, buildPluginDocker } from '@/api/index';
 
 export default {
     props: {
@@ -87,11 +88,18 @@ export default {
             processedPlugin: { ...this.plugin },
             validationLoading: false,
             uploadingStep: 0,
+            buildTimer: null,
         };
     },
     async mounted() {
         await this.processDependencyFiles();
         await this.processReferenceFolderFiles();
+    },
+    beforeDestroy() {
+        // 컴포넌트 제거 시 타이머 정리
+        if (this.buildTimer) {
+            clearTimeout(this.buildTimer);
+        }
     },
     methods: {
         async processDependencyFiles() {
@@ -144,20 +152,20 @@ export default {
             if (userConfirmed) {
                 try {
                     this.validationLoading = true;
-                    const rules = this.rules.map(rule => {
-                        return {
-                            name: rule.name,
-                            input: rule.input,
-                            output: rule.output,
-                            script: rule.script.name,
-                            parameters: rule.parameters,
-                            nodeId: rule.nodeId,
-                            isVisualization: rule.isVisualization
-                        };
-                    });
-                    this.uploadingStep += 1;
+                    this.uploadingStep = 1;
 
-                    // plugin 요소 중에서 packageFiles만 따로 빼기
+                    // 1. 규칙 데이터 준비
+                    const rules = this.rules.map(rule => ({
+                        name: rule.name,
+                        input: rule.input,
+                        output: rule.output,
+                        script: rule.script.name,
+                        parameters: rule.parameters,
+                        nodeId: rule.nodeId,
+                        isVisualization: rule.isVisualization
+                    }));
+
+                    // 2. 플러그인 데이터 준비
                     const plugin = {
                         name: this.plugin.name,
                         description: this.plugin.description,
@@ -165,119 +173,117 @@ export default {
                         referenceFolders: this.plugin.referenceFolders
                     };
 
+                    // 3. 플러그인 검증
                     const validation_response = await validationPlugin(plugin, rules, this.drawflow);
                     console.log('Validation Response:', validation_response);
 
-                    this.uploadingStep += 1;
+                    // 4. 메타데이터 업로드
+                    this.uploadingStep = 2;
                     const pluginCreate = validation_response.data.plugin;
-                    const db_plugin = await uploadPluginMetadata(pluginCreate);
-                    console.log("Plugin Data :", db_plugin.data);
-
-                    this.uploadingStep += 1;
                     const scriptNameList = validation_response.data.scripts;
-                    console.log('Script Name List:', scriptNameList);
 
-                    // Script 파일 처리
-                    const scriptCreate = this.rules.map(rule => {
-                        const scriptName = scriptNameList.find(s => s === rule.script.name);
-                        if (scriptName) {
-                            return {
-                                name: scriptName,
-                                content: rule.script // File 객체 자체를 content로 저장
-                            };
+                    const db_plugin = await uploadPluginMetadata(pluginCreate);
+                    console.log("Plugin Metadata Uploaded:", db_plugin.data);
+
+                    // 5. 파일 업로드 준비
+                    const prepareFiles = async () => {
+                        try {
+                            // 스크립트 파일 업로드 준비
+                            const scriptFormData = new FormData();
+                            scriptFormData.append('plugin_name', pluginCreate.name);
+
+                            // 스크립트 파일 처리
+                            await Promise.all(this.rules
+                                .filter(rule => rule.script && scriptNameList.includes(rule.script.name))
+                                .map(async (rule) => {
+                                    try {
+                                        const fileContent = await this.readFileAsText(rule.script);
+                                        const file = new Blob([fileContent], { type: rule.script.type });
+                                        scriptFormData.append('files', file, rule.script.name);
+                                    } catch (error) {
+                                        console.error(`Error processing script ${rule.script.name}:`, error);
+                                        throw error;
+                                    }
+                                })
+                            );
+
+                            // 패키지 파일 업로드 준비
+                            const packageFormData = this.plugin.packageFiles?.length > 0 ? new FormData() : null;
+                            if (packageFormData) {
+                                packageFormData.append("plugin_name", pluginCreate.name);
+                                await Promise.all(this.plugin.packageFiles.map(async (packageFile) => {
+                                    try {
+                                        if (!packageFile.file) return;
+                                        const fileBlob = new Blob([await packageFile.file.arrayBuffer()], {
+                                            type: packageFile.file.type
+                                        });
+                                        packageFormData.append("files", fileBlob, packageFile.fileName);
+                                    } catch (error) {
+                                        console.error(`Error processing package file ${packageFile.fileName}:`, error);
+                                        throw error;
+                                    }
+                                }));
+                            }
+
+                            return { scriptFormData, packageFormData };
+                        } catch (error) {
+                            console.error('Error preparing files:', error);
+                            throw error;
                         }
-                    }).filter(s => s);
+                    };
 
-                    const scriptFormData = new FormData();
+                    const preparedFiles = await prepareFiles();
 
-                    // 비동기 작업을 처리하기 위한 Promise 배열
-                    const scriptPromises = scriptCreate.map((script) => {
-                        return new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                                const fileContent = event.target.result;
-                                console.log(`Script Name: ${script.name}`);
-                                console.log(`Script Content: ${fileContent}`);
+                    // 6. 스크립트 및 패키지 파일 업로드
+                    this.uploadingStep = 4;
+                    const uploadPromises = [];
 
-                                const file = new Blob([fileContent], { type: script.content.type });
-                                scriptFormData.append('files', file, script.name);
-                                resolve();
-                            };
-                            reader.onerror = (error) => {
-                                reject(error);
-                            };
-                            reader.readAsText(script.content); // File 객체를 텍스트로 읽기
-                        });
-                    });
+                    if (preparedFiles.scriptFormData) {
+                        uploadPromises.push(
+                            uploadPluginScripts(preparedFiles.scriptFormData)
+                                .then(() => console.log('Scripts uploaded successfully'))
+                                .catch(error => {
+                                    console.error('Error uploading scripts:', error);
+                                    throw error;
+                                })
+                        );
+                    }
 
-                    // Script 파일 업로드 처리
-                    Promise.all(scriptPromises).then(() => {
-                        // plugin_name을 Script FormData에 추가
-                        scriptFormData.append('plugin_name', db_plugin.data.plugin.name);
+                    if (preparedFiles.packageFormData) {
+                        uploadPromises.push(
+                            uploadPluginPackage(preparedFiles.packageFormData)
+                                .then(() => console.log('Packages uploaded successfully'))
+                                .catch(error => {
+                                    console.error('Error uploading packages:', error);
+                                    throw error;
+                                })
+                        );
+                    }
 
-                        // FormData 내용 확인 (선택 사항)
-                        for (let [key, value] of scriptFormData.entries()) {
-                            console.log(`[SCRIPT FORM] ${key}: ${value}`);
-                        }
-                        // 스크립트 업로드
-                        uploadPluginScripts(scriptFormData).then((scripts) => {
-                            console.log('Scripts uploaded successfully:', scripts);
+                    // 모든 파일 업로드 완료 대기
+                    await Promise.all(uploadPromises);
+                    console.log('All files uploaded successfully');
 
-                            // Package 파일 처리
-                            const packageFormData = new FormData();
+                    // 7. Docker 이미지 빌드 (마지막 단계)
+                    this.uploadingStep = 3;
+                    console.log('Starting Docker build...');
 
-                            packageFormData.append("plugin_name", db_plugin.data.plugin.name); // FastAPI API에 맞게 추가
+                    const buildResponse = await buildPluginDocker(pluginCreate.name);
+                    console.log('Docker build completed:', buildResponse.data);
 
-                            const packagePromises = this.plugin.packageFiles.map(async (packageFile) => {
-                                const fileToRead = packageFile.file; // File 객체 접근
-                                const fileName = packageFile.fileName; // 파일명
-
-                                try {
-                                    // Blob 데이터 생성 및 FormData 추가
-                                    const fileBlob = new Blob([await fileToRead.arrayBuffer()], { type: fileToRead.type });
-                                    packageFormData.append("files", fileBlob, fileName); // 여러 파일을 업로드할 수 있도록 수정
-
-                                    console.log(`Added package file: ${fileName}`);
-
-                                } catch (error) {
-                                    console.error(`Error while processing package file: ${fileName}`, error);
-                                }
-                            });
-
-                            // 모든 패키지 파일을 FormData에 추가한 후 업로드
-                            Promise.all(packagePromises).then(() => {
-                                // FormData 내용 확인 (선택 사항)
-                                for (let [key, value] of packageFormData.entries()) {
-                                    console.log(`[PACKAGE FORM] ${key}: ${value}`);
-                                }
-
-                                uploadPluginPackage(packageFormData).then((packages) => {
-                                    console.log('Package files uploaded successfully:', packages);
-                                }).catch((error) => {
-                                    console.error('Error while uploading package files:', error);
-                                });
-
-                            }).catch((error) => {
-                                console.error('Error preparing package files:', error);
-                            });
-
-                        }).catch((error) => {
-                            console.error('Error while uploading plugin scripts:', error);
-                        });
-                    }).catch((error) => {
-                        console.error('Error reading script files:', error);
-                    });
-
-
-                    this.uploadingStep = 0;
+                    // 업로드 완료 처리
                     this.validationLoading = false;
-                    alert('Plugin uploaded successfully!');
-
+                    alert('Plugin uploaded and built successfully!');
                     this.$emit('close');
+
                 } catch (error) {
                     console.error('Error while uploading plugin:', error);
-                    alert('Error while uploading plugin. Please try again.');
                     this.validationLoading = false;
+                    this.uploadingStep = 0;
+                    if (this.buildTimer) {
+                        clearTimeout(this.buildTimer);
+                    }
+                    alert(error.response?.data?.detail?.message || error.response?.data?.detail || 'Error while uploading plugin. Please try again.');
                 }
             } else {
                 alert('Please verify the plugin details and try again.');
@@ -303,6 +309,15 @@ export default {
             }
 
             return `${command} ${paramStr}`;
+        },
+        // 파일을 텍스트로 읽는 헬퍼 함수
+        readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => resolve(event.target.result);
+                reader.onerror = (error) => reject(error);
+                reader.readAsText(file);
+            });
         },
     },
 };
