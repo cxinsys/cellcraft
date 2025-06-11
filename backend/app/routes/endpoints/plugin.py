@@ -155,11 +155,23 @@ async def upload_plugin(
 
         try:
             # 3. 새 폴더 생성
+            print(f"Creating plugin folder: {plugin_folder}")
             plugin_utils.create_plugin_folder(plugin_folder)
+            
+            print(f"Creating dependency folder: {dependency_folder}")
             plugin_utils.create_dependency_folder(dependency_folder, plugin_data.dependencies)
 
+            # scripts 폴더는 항상 생성 (Docker 빌드를 위해 필요)
+            print(f"Ensuring scripts folder exists: {script_folder}")
+            if not os.path.exists(script_folder):
+                os.makedirs(script_folder)
+                print(f"Created scripts folder: {script_folder}")
+            
             if plugin_data.reference_folders:
+                print(f"Creating reference folders in: {script_folder}")
                 plugin_utils.create_reference_folder(script_folder, plugin_data.reference_folders)
+            else:
+                print("No reference folders provided")
         except Exception as e:
             # 폴더 생성 실패 시 백업 복원
             if backup_folder and os.path.exists(backup_folder):
@@ -186,45 +198,34 @@ async def upload_plugin(
             # 5. Snakefile 생성
             plugin_utils.generate_snakemake_code(plugin_data.rules, plugin_folder, plugin_data.name)
 
-            # 6. Dockerfile 생성
-            dockerfile_path = os.path.join(plugin_folder, "Dockerfile")
-            plugin_utils.generate_plugin_dockerfile(plugin_folder, dockerfile_path)
+            # 6. scripts 폴더는 항상 생성 (후에 업로드될 스크립트를 위해 필요)
+            print(f"Ensuring scripts folder exists: {script_folder}")
+            if not os.path.exists(script_folder):
+                os.makedirs(script_folder)
+                print(f"Created scripts folder: {script_folder}")
+            
+            if plugin_data.reference_folders:
+                print(f"Creating reference folders in: {script_folder}")
+                plugin_utils.create_reference_folder(script_folder, plugin_data.reference_folders)
+            else:
+                print("No reference folders provided")
 
-            # 7. Docker 이미지 빌드
-            build_result = plugin_utils.build_plugin_docker_image(
-                plugin_path=plugin_folder,
-                plugin_name=plugin_data.name,
-            )
-
-            if not build_result['success']:
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "message": build_result['message'],
-                        "log_file": build_result['log_file']
-                    }
-                )
-
-            # 8. 데이터베이스 업데이트
+            # 7. 데이터베이스 업데이트
             if db_existing_plugin:
                 db_plugin = crud_plugin.update_plugin(db=db, plugin=plugin_data, plugin_id=db_existing_plugin.id)
             else:
                 db_plugin = crud_plugin.create_plugin(db=db, plugin=plugin_data)
 
-            # 9. 트랜잭션 커밋
+            # 8. 트랜잭션 커밋
             db.commit()
 
-            # 10. 성공 시 백업 삭제
+            # 9. 성공 시 백업 삭제
             if backup_folder and os.path.exists(backup_folder):
                 shutil.rmtree(backup_folder)
 
             return {
-                "message": "플러그인 데이터 업로드 및 Docker 이미지 빌드 성공",
-                "plugin": db_plugin,
-                "build_info": {
-                    "log_file": build_result['log_file'],
-                    "image_tag": build_result['image_tag']
-                }
+                "message": "플러그인 메타데이터 업로드 성공",
+                "plugin": db_plugin
             }
 
         except HTTPException as he:
@@ -239,13 +240,7 @@ async def upload_plugin(
                 shutil.copytree(backup_folder, plugin_folder)
                 shutil.rmtree(backup_folder)
             
-            error_detail = {
-                "message": f"플러그인 업데이트 실패: {str(e)}",
-            }
-            if build_result and 'log_file' in build_result:
-                error_detail["log_file"] = build_result['log_file']
-            
-            raise HTTPException(status_code=500, detail=error_detail)
+            raise HTTPException(status_code=500, detail=f"플러그인 메타데이터 업데이트 실패: {str(e)}")
 
     except HTTPException as he:
         raise he
@@ -255,13 +250,7 @@ async def upload_plugin(
         if backup_folder and os.path.exists(backup_folder):
             shutil.rmtree(backup_folder)
         
-        error_detail = {
-            "message": f"플러그인 업로드 중 예기치 않은 오류: {str(e)}",
-        }
-        if build_result and 'log_file' in build_result:
-            error_detail["log_file"] = build_result['log_file']
-        
-        raise HTTPException(status_code=500, detail=error_detail)
+        raise HTTPException(status_code=500, detail=f"플러그인 업로드 중 예기치 않은 오류: {str(e)}")
             
     
 @router.post("/upload_scripts")
@@ -426,12 +415,20 @@ async def upload_package(
     current_user: models.User = Depends(dep.get_current_active_user),
     ):
     try:
-        # 1. 임시 폴더 생성
+        dependency_folder = f"./plugin/{plugin_name}/dependency/"
         temp_folder = f"./plugin/{plugin_name}/dependency_temp/"
+        backup_folder = None
+        
+        # 1. dependency 폴더가 존재하지 않으면 생성
+        if not os.path.exists(dependency_folder):
+            os.makedirs(dependency_folder)
+
+        # 2. 임시 폴더 생성
         if not os.path.exists(temp_folder):
             os.makedirs(temp_folder)
 
-        # 2. 패키지 파일을 임시 폴더에 저장
+        # 3. 패키지 파일을 임시 폴더에 저장
+        uploaded_file_names = []
         for file in files:
             if not file.filename.endswith(('.whl', '.tar.gz')):
                 raise HTTPException(
@@ -439,10 +436,11 @@ async def upload_package(
                     detail=f"Invalid package file format: {file.filename}"
                 )
             
+            uploaded_file_names.append(file.filename)
             file_path = os.path.join(temp_folder, file.filename)
             try:
                 with open(file_path, "wb") as f:
-                    content = file.file.read()
+                    content = await file.read()
                     f.write(content)
             except Exception as e:
                 # 실패 시 임시 폴더 삭제
@@ -453,32 +451,57 @@ async def upload_package(
                     detail=f"Failed to save package file {file.filename}: {str(e)}"
                 )
 
-        # 3. 기존 dependency 폴더 백업
-        dependency_folder = f"./plugin/{plugin_name}/dependency/"
-        backup_folder = None
+        # 4. 기존 dependency 폴더 백업
         if os.path.exists(dependency_folder):
             backup_folder = f"{dependency_folder}_backup_{int(time.time())}"
-            shutil.move(dependency_folder, backup_folder)
+            shutil.copytree(dependency_folder, backup_folder)
 
         try:
-            # 4. 임시 폴더를 dependency 폴더로 이동
-            shutil.move(temp_folder, dependency_folder)
+            # 5. 기존 dependency 폴더에서 동일한 이름의 패키지 파일만 제거 (선택적 교체)
+            if os.path.exists(dependency_folder):
+                for uploaded_filename in uploaded_file_names:
+                    existing_file_path = os.path.join(dependency_folder, uploaded_filename)
+                    if os.path.isfile(existing_file_path):
+                        os.remove(existing_file_path)
+                        print(f"Removed existing package file for replacement: {uploaded_filename}")
+
+            # 6. 새로운 패키지 파일들을 dependency 폴더로 복사
+            for file in files:
+                src_path = os.path.join(temp_folder, file.filename)
+                dst_path = os.path.join(dependency_folder, file.filename)
+                shutil.copy2(src_path, dst_path)
+                print(f"Copied new package file: {file.filename}")
+
+            # 7. 임시 폴더 삭제
+            if os.path.exists(temp_folder):
+                shutil.rmtree(temp_folder)
             
-            # 5. 성공 시 백업 폴더 삭제
+            # 8. 성공 시 백업 폴더 삭제
             if backup_folder and os.path.exists(backup_folder):
                 shutil.rmtree(backup_folder)
+
+            # 최종 파일 목록 출력 (디버깅용)
+            final_package_files = [f for f in os.listdir(dependency_folder) if f.endswith(('.whl', '.tar.gz'))]
+            print(f"Final package files in dependency folder: {final_package_files}")
 
             return {"message": "Package uploaded successfully", "packages": [file.filename for file in files]}
 
         except Exception as e:
             # 실패 시 복구
-            if os.path.exists(dependency_folder):
-                shutil.rmtree(dependency_folder)
             if backup_folder and os.path.exists(backup_folder):
-                shutil.move(backup_folder, dependency_folder)
+                # 기존 dependency 폴더 삭제 후 백업에서 복원
+                if os.path.exists(dependency_folder):
+                    shutil.rmtree(dependency_folder)
+                shutil.copytree(backup_folder, dependency_folder)
+                shutil.rmtree(backup_folder)
+            
+            # 임시 폴더 정리
+            if os.path.exists(temp_folder):
+                shutil.rmtree(temp_folder)
+                
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to move package files: {str(e)}"
+                detail=f"Failed to update package files: {str(e)}"
             )
 
     except HTTPException as he:
@@ -487,6 +510,83 @@ async def upload_package(
         raise HTTPException(
             status_code=500,
             detail=f"Unexpected error during package upload: {str(e)}"
+        )
+
+@router.post("/build_docker/{plugin_name}")
+async def build_plugin_docker(
+    *,
+    plugin_name: str,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """
+    플러그인의 Dockerfile 생성 및 Docker 이미지 빌드
+    스크립트와 패키지 파일들이 모두 업로드된 후에 실행되어야 함
+    """
+    try:
+        # 플러그인 폴더 경로 설정
+        plugin_folder = f"./plugin/{plugin_name}/"
+        script_folder = os.path.join(plugin_folder, "scripts")
+        
+        # 플러그인 폴더가 존재하는지 확인
+        if not os.path.exists(plugin_folder):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Plugin folder not found: {plugin_name}"
+            )
+        
+        # scripts 폴더 존재 확인 및 더미 파일 생성 (Docker 빌드를 위해 필요)
+        print(f"Checking scripts folder before Docker build: {script_folder}")
+        print(f"Scripts folder exists: {os.path.exists(script_folder)}")
+        
+        if not os.path.exists(script_folder):
+            os.makedirs(script_folder)
+            print(f"Created empty scripts folder at {script_folder}")
+        
+        # scripts 폴더가 비어있다면 더미 파일 생성
+        scripts_contents = os.listdir(script_folder) if os.path.exists(script_folder) else []
+        print(f"Scripts folder contents: {scripts_contents}")
+        
+        if not scripts_contents:
+            dummy_file_path = os.path.join(script_folder, ".gitkeep")
+            with open(dummy_file_path, 'w') as f:
+                f.write("# This file ensures the scripts directory is not empty\n")
+            print(f"Created dummy file at {dummy_file_path}")
+            print(f"Scripts folder contents after dummy file: {os.listdir(script_folder)}")
+
+        # Dockerfile 생성
+        dockerfile_path = os.path.join(plugin_folder, "Dockerfile")
+        plugin_utils.generate_plugin_dockerfile(plugin_folder, dockerfile_path)
+        print(f"Generated Dockerfile at: {dockerfile_path}")
+
+        # Docker 이미지 빌드
+        build_result = plugin_utils.build_plugin_docker_image(
+            plugin_path=plugin_folder,
+            plugin_name=plugin_name,
+        )
+
+        if not build_result['success']:
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": build_result['message'],
+                    "log_file": build_result['log_file']
+                }
+            )
+
+        return {
+            "message": "플러그인 Docker 이미지 빌드 성공",
+            "build_info": {
+                "log_file": build_result['log_file'],
+                "image_tag": build_result['image_tag']
+            }
+        }
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to build plugin Docker image: {str(e)}"
         )
 
 @router.get("/reference_folders/{plugin_name}")
@@ -670,3 +770,101 @@ def get_plugin_template(
         return { "drawflow": drawflow }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/build/{plugin_name}")
+async def build_plugin(
+    *,
+    plugin_name: str,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    try:
+        # 플러그인 폴더 경로 설정
+        plugin_folder = f"./plugin/{plugin_name}/"
+        
+        # 플러그인 폴더가 존재하는지 확인
+        if not os.path.exists(plugin_folder):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Plugin folder not found: {plugin_name}"
+            )
+        
+        # Dockerfile이 존재하는지 확인
+        dockerfile_path = os.path.join(plugin_folder, "Dockerfile")
+        if not os.path.exists(dockerfile_path):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Dockerfile not found in plugin folder: {plugin_name}"
+            )
+
+        # Docker 이미지 빌드
+        build_result = plugin_utils.build_plugin_docker_image(
+            plugin_path=plugin_folder,
+            plugin_name=plugin_name,
+        )
+
+        if not build_result['success']:
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": build_result['message'],
+                    "log_file": build_result['log_file']
+                }
+            )
+
+        return {
+            "message": "Plugin Docker image built successfully",
+            "build_info": {
+                "log_file": build_result['log_file'],
+                "image_tag": build_result['image_tag']
+            }
+        }
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to build plugin Docker image: {str(e)}"
+        )
+
+@router.get("/check_image/{plugin_name}")
+async def check_plugin_image(
+    *,
+    plugin_name: str,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    try:
+        # 플러그인 폴더 경로 설정
+        plugin_folder = f"./plugin/{plugin_name}/"
+        
+        # 플러그인 폴더가 존재하는지 확인
+        if not os.path.exists(plugin_folder):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Plugin folder not found: {plugin_name}"
+            )
+        
+        # Dockerfile이 존재하는지 확인
+        dockerfile_path = os.path.join(plugin_folder, "Dockerfile")
+        if not os.path.exists(dockerfile_path):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Dockerfile not found in plugin folder: {plugin_name}"
+            )
+
+        # Docker 이미지 존재 여부 확인
+        image_exists = plugin_utils.check_plugin_docker_image(plugin_name)
+
+        return {
+            "plugin_name": plugin_name,
+            "image_exists": image_exists,
+            "image_tag": f"{plugin_name}:latest" if image_exists else None
+        }
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to check plugin Docker image: {str(e)}"
+        )
