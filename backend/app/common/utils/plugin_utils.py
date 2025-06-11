@@ -5,6 +5,7 @@ import subprocess
 import yaml
 import shutil
 import numpy as np
+import time
 from fastapi import HTTPException
 from typing import List, Dict, Any
 from pathlib import Path
@@ -518,7 +519,13 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
                 if rule['script'].endswith('.py'):
                     shell_command = f"/opt/micromamba/envs/plugin_env/bin/python {script_path}"
                 elif rule['script'].endswith('.R'):
-                    shell_command = f"Rscript {script_path}"
+                    # R 스크립트를 위한 환경 설정과 함께 실행 - /opt/r_env 사용
+                    shell_command = f"if [ -d \"/opt/r_env\" ] && [ -f \"/opt/r_env/renv/activate.R\" ]; then " \
+                                  f"export R_LIBS_USER=/opt/r_env/renv/library && export RENV_PROJECT=/opt/r_env; " \
+                                  f"else " \
+                                  f"export R_LIBS_USER=/opt/r_env/library && export RENV_PROJECT=/opt/r_env; " \
+                                  f"fi; " \
+                                  f"Rscript {script_path}"
                 else:
                     shell_command = script_path
 
@@ -806,6 +813,7 @@ def verify_dependencies(dependency_file_name: str):
 def create_plugin_folder(plugin_folder: str):
     """
     Create the plugin folder if it doesn't exist.
+    Preserves existing dependency folder and its contents.
     
     Parameters:
         plugin_folder (str): Path to the plugin folder.
@@ -813,12 +821,54 @@ def create_plugin_folder(plugin_folder: str):
     Raises:
         HTTPException: If there's an error creating the folder.
     """
+    import tempfile
+    
     try:
+        dependency_folder = os.path.join(plugin_folder, "dependency")
+        
         if os.path.exists(plugin_folder):
-            # 기존 폴더가 있다면 삭제
-            shutil.rmtree(plugin_folder)
-        os.makedirs(plugin_folder)
-        print(f"Plugin folder created at {plugin_folder}")
+            # dependency 폴더가 있으면 백업
+            if os.path.exists(dependency_folder):
+                # 임시 디렉터리에 dependency 폴더 백업
+                temp_backup_dir = tempfile.mkdtemp()
+                dependency_backup = os.path.join(temp_backup_dir, "dependency_backup")
+                
+                try:
+                    shutil.copytree(dependency_folder, dependency_backup)
+                    print(f"Backed up dependency folder to: {dependency_backup}")
+                    
+                    # 기존 폴더 삭제
+                    shutil.rmtree(plugin_folder)
+                    print(f"Removed existing plugin folder: {plugin_folder}")
+                    
+                    # 새 플러그인 폴더 생성
+                    os.makedirs(plugin_folder)
+                    print(f"Created plugin folder: {plugin_folder}")
+                    
+                    # dependency 폴더 복원
+                    shutil.copytree(dependency_backup, dependency_folder)
+                    print(f"Restored dependency folder from backup")
+                    
+                    # 백업된 파일 목록 출력 (디버깅용)
+                    restored_files = os.listdir(dependency_folder)
+                    print(f"Restored dependency files: {restored_files}")
+                    
+                finally:
+                    # 임시 백업 디렉터리 정리
+                    if os.path.exists(temp_backup_dir):
+                        shutil.rmtree(temp_backup_dir)
+                        print(f"Cleaned up temporary backup directory")
+            else:
+                # dependency 폴더가 없는 경우
+                shutil.rmtree(plugin_folder)
+                print(f"Removed existing plugin folder: {plugin_folder}")
+                os.makedirs(plugin_folder)
+                print(f"Created plugin folder: {plugin_folder}")
+        else:
+            # 플러그인 폴더가 없는 경우 새로 생성
+            os.makedirs(plugin_folder)
+            print(f"Created plugin folder: {plugin_folder}")
+            
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -828,6 +878,7 @@ def create_plugin_folder(plugin_folder: str):
 def create_dependency_folder(dependency_folder: str, dependencies: dict):
     """
     Create the dependency folder and add dependency files.
+    Only updates/adds files provided in dependencies dict, preserves existing package files (.whl, .tar.gz).
 
     Parameters:
         dependency_folder (str): Path to the dependency folder.
@@ -837,17 +888,30 @@ def create_dependency_folder(dependency_folder: str, dependencies: dict):
         HTTPException: If there's an error creating the folder or files.
     """
     try:
+        # 기존 패키지 파일들 백업
+        existing_package_files = []
         if os.path.exists(dependency_folder):
-            # 기존 폴더의 내용물 삭제
-            for item in os.listdir(dependency_folder):
-                item_path = os.path.join(dependency_folder, item)
-                if os.path.isfile(item_path):
-                    os.remove(item_path)
-                elif os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
+            print(f"Using existing dependency folder: {dependency_folder}")
+            # 기존 파일들 목록 출력 (디버깅용)
+            existing_files = os.listdir(dependency_folder)
+            print(f"Existing dependency files: {existing_files}")
+            
+            # 기존 패키지 파일들(.whl, .tar.gz) 찾기
+            for file_name in existing_files:
+                if file_name.endswith(('.whl', '.tar.gz')):
+                    file_path = os.path.join(dependency_folder, file_name)
+                    if os.path.isfile(file_path):
+                        # 파일 내용을 읽어서 백업
+                        with open(file_path, 'rb') as f:
+                            file_content = f.read()
+                        existing_package_files.append((file_name, file_content))
+                        print(f"Backed up existing package file: {file_name}")
         else:
+            # dependency 폴더가 없으면 생성
             os.makedirs(dependency_folder)
+            print(f"Created dependency folder: {dependency_folder}")
 
+        # dependencies 딕셔너리에 있는 파일들만 업데이트/추가
         if dependencies:
             if not isinstance(dependencies, dict):
                 raise ValueError("Dependencies must be a dictionary")
@@ -859,9 +923,29 @@ def create_dependency_folder(dependency_folder: str, dependencies: dict):
                     raise ValueError(f"Invalid file content for {file_name}")
                 
                 dep_path = os.path.join(dependency_folder, file_name)
+                
+                # 기존 파일이 있으면 업데이트, 없으면 새로 생성
+                action = "Updated" if os.path.exists(dep_path) else "Created"
+                
                 with open(dep_path, 'w') as f:
                     f.write(file_content)
-                print(f"Dependency file created: {dep_path}")
+                print(f"{action} dependency file: {dep_path}")
+        else:
+            print("No dependency files to update")
+
+        # 백업된 패키지 파일들 복원
+        for file_name, file_content in existing_package_files:
+            package_path = os.path.join(dependency_folder, file_name)
+            if not os.path.exists(package_path):  # 새로운 의존성 파일에 포함되지 않은 경우에만 복원
+                with open(package_path, 'wb') as f:
+                    f.write(file_content)
+                print(f"Restored existing package file: {file_name}")
+            else:
+                print(f"Package file already exists, skipping restore: {file_name}")
+
+        # 최종 파일 목록 출력 (디버깅용)
+        final_files = os.listdir(dependency_folder) if os.path.exists(dependency_folder) else []
+        print(f"Final dependency files: {final_files}")
 
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -1198,6 +1282,23 @@ def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool
         use_gpu (bool): GPU 사용 여부 (기본값: True)
     """
     dependency_path = os.path.join(plugin_path, "dependency")
+    
+    # 디버깅: dependency 폴더 파일 목록 출력
+    print(f"[DEBUG] Checking dependency folder: {dependency_path}")
+    if os.path.exists(dependency_path):
+        dependency_files = os.listdir(dependency_path)
+        print(f"[DEBUG] Files in dependency folder: {dependency_files}")
+        # 각 파일의 크기도 함께 출력
+        for file in dependency_files:
+            file_path = os.path.join(dependency_path, file)
+            if os.path.isfile(file_path):
+                file_size = os.path.getsize(file_path)
+                print(f"[DEBUG]   - {file} ({file_size} bytes)")
+            else:
+                print(f"[DEBUG]   - {file} (directory)")
+    else:
+        print(f"[DEBUG] Dependency folder does not exist: {dependency_path}")
+    
     has_requirements = os.path.isfile(os.path.join(dependency_path, "requirements.txt"))
     has_environment = os.path.isfile(os.path.join(dependency_path, "environment.yml"))
     has_renv = os.path.isfile(os.path.join(dependency_path, "renv.lock"))
@@ -1252,10 +1353,62 @@ def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool
     dockerfile_lines.append("    curl wget unzip git \\")
     dockerfile_lines.append(f"    python{python_version} python3-pip python3-venv \\")
     dockerfile_lines.append("    software-properties-common \\")
-    if has_r or has_renv:
-        dockerfile_lines.append(f"    r-base \\")
+    dockerfile_lines.append("    gnupg ca-certificates \\")
     dockerfile_lines.append("    && apt-get clean && rm -rf /var/lib/apt/lists/*")
     dockerfile_lines.append("")
+    
+    # R 설치 (특정 버전)
+    if has_r or has_renv:
+        dockerfile_lines.append("# R 설치 (특정 버전)")
+        dockerfile_lines.append("RUN apt-get update && \\")
+        dockerfile_lines.append("    apt-get install -y dirmngr gpg-agent && \\")
+        dockerfile_lines.append("    wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc && \\")
+        dockerfile_lines.append("    add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/' && \\")
+        dockerfile_lines.append("    apt-get update")
+        dockerfile_lines.append("")
+        
+        # R 버전에 따른 설치 전략
+        if r_version and r_version != "4.5.0":
+            # 특정 버전 설치 시도 후 실패하면 기본 버전 설치
+            dockerfile_lines.append(f"# R {r_version} 설치 시도")
+            major_minor = ".".join(r_version.split(".")[:2])  # 4.3.2 -> 4.3
+            dockerfile_lines.append(f"RUN (apt-get install -y r-base-core={major_minor}* r-recommended={major_minor}* r-base-dev={major_minor}* 2>/dev/null) || \\")
+            dockerfile_lines.append(f"    (echo 'Specific R version {r_version} not available, installing latest' && \\")
+            dockerfile_lines.append("     apt-get install -y r-base r-base-dev r-recommended) && \\")
+            dockerfile_lines.append("    apt-get clean && rm -rf /var/lib/apt/lists/*")
+        else:
+            dockerfile_lines.append("# R 최신 버전 설치")
+            dockerfile_lines.append("RUN apt-get install -y r-base r-base-dev r-recommended && \\")
+            dockerfile_lines.append("    apt-get clean && rm -rf /var/lib/apt/lists/*")
+        
+        dockerfile_lines.append("")
+        
+        # R 버전 확인
+        dockerfile_lines.append("# R 버전 확인")
+        dockerfile_lines.append("RUN R --version | head -1")
+        dockerfile_lines.append("")
+
+    # dependency 폴더가 있는 경우 복사
+    if has_python or has_requirements or has_environment or has_r or has_renv:
+        dockerfile_lines.append("# dependency 폴더 복사")
+        dockerfile_lines.append("COPY dependency/ /workspace/dependency/")
+        dockerfile_lines.append("")
+        
+        # 디버깅: 복사된 dependency 폴더 내용 확인
+        dockerfile_lines.append("# 디버깅: dependency 폴더 내용 확인")
+        dockerfile_lines.append("RUN echo '[DEBUG] Contents of /workspace/dependency folder:' && \\")
+        dockerfile_lines.append("    ls -la /workspace/dependency/ && \\")
+        dockerfile_lines.append("    echo '[DEBUG] Detailed file information:' && \\")
+        dockerfile_lines.append("    find /workspace/dependency -type f -exec ls -lh {} \\; && \\")
+        dockerfile_lines.append("    echo '[DEBUG] File contents preview:' && \\")
+        dockerfile_lines.append("    for file in /workspace/dependency/*.txt /workspace/dependency/*.yml /workspace/dependency/*.yaml /workspace/dependency/*.lock; do \\")
+        dockerfile_lines.append("        if [ -f \"$file\" ]; then \\")
+        dockerfile_lines.append("            echo \"=== Contents of $(basename $file) ===\"; \\")
+        dockerfile_lines.append("            head -20 \"$file\" || echo \"Could not read $file\"; \\")
+        dockerfile_lines.append("            echo \"\"; \\")
+        dockerfile_lines.append("        fi; \\")
+        dockerfile_lines.append("    done")
+        dockerfile_lines.append("")
 
     if has_python or has_requirements or has_environment:
         # Micromamba 설치 - 더 안정적인 방법
@@ -1301,21 +1454,60 @@ def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool
 
         if has_requirements:
             dockerfile_lines.append("# Python 패키지 설치")
-            dockerfile_lines.append("COPY dependency/requirements.txt /tmp/")
             dockerfile_lines.append("RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\")
-            dockerfile_lines.append("    pip install --no-cache-dir -r /tmp/requirements.txt || true")
+            dockerfile_lines.append("    pip install --no-cache-dir -r /workspace/dependency/requirements.txt || true")
             dockerfile_lines.append("")
             
         if has_environment:
             dockerfile_lines.append("# Conda 환경 업데이트")
-            dockerfile_lines.append("COPY dependency/environment.yml /tmp/")
-            dockerfile_lines.append("RUN /usr/local/bin/micromamba env update -n plugin_env -f /tmp/environment.yml -r $MAMBA_ROOT_PREFIX || true")
+            dockerfile_lines.append("RUN /usr/local/bin/micromamba env update -n plugin_env -f /workspace/dependency/environment.yml -r $MAMBA_ROOT_PREFIX || true")
             dockerfile_lines.append("")
 
     if has_r or has_renv:
-        dockerfile_lines.append("# R 패키지 설치")
-        dockerfile_lines.append("COPY dependency/renv.lock /tmp/")
-        dockerfile_lines.append('RUN Rscript -e "if (!requireNamespace(\'renv\', quietly=TRUE)) install.packages(\'renv\', repos=\'https://cloud.r-project.org\', dependencies=TRUE); renv::restore(lockfile=\'/tmp/renv.lock\', prompt=FALSE)"')
+        dockerfile_lines.append("# R 패키지 설치 - 시스템 라이브러리에 직접 설치")
+        dockerfile_lines.append("RUN Rscript -e \"options(repos = c(CRAN = 'https://cloud.r-project.org'))\"")
+        dockerfile_lines.append("")
+        
+        # renv 설치 (renv.lock 사용을 위해)
+        dockerfile_lines.append("# renv 설치")
+        dockerfile_lines.append("RUN Rscript -e \"install.packages('renv')\"")
+        dockerfile_lines.append("")
+        
+        if has_renv:
+            dockerfile_lines.append("# renv.lock을 사용해서 시스템 라이브러리에 직접 패키지 설치")
+            dockerfile_lines.append("RUN if [ -f \"/workspace/dependency/renv.lock\" ]; then \\")
+            dockerfile_lines.append("    echo 'Installing packages from renv.lock...' && \\")
+            dockerfile_lines.append("    # dependency 폴더로 이동 (로컬 패키지 파일들이 있는 곳) \\")
+            dockerfile_lines.append("    cd /workspace/dependency && \\")
+            dockerfile_lines.append("    # 로컬 패키지 파일 확인 \\")
+            dockerfile_lines.append("    ls -la *.tar.gz 2>/dev/null || echo 'No local package files found' && \\")
+            dockerfile_lines.append("    # renv restore 실행 \\")
+            dockerfile_lines.append("    Rscript -e \"Sys.setenv(RENV_PATHS_LIBRARY = .libPaths()[1])\" && \\")
+            dockerfile_lines.append("    Rscript -e \"renv::restore(lockfile = 'renv.lock', library = .libPaths()[1], prompt = FALSE)\" && \\")
+            dockerfile_lines.append("    Rscript -e \"cat('\\\\nInstalled packages:\\\\n'); print(installed.packages()[, c('Package', 'Version')])\"; \\")
+            dockerfile_lines.append("    fi")
+            dockerfile_lines.append("")
+        
+        # 추가 필수 패키지 확인 및 설치
+        dockerfile_lines.append("# 추가 필수 패키지 확인 및 설치")
+        dockerfile_lines.append("RUN Rscript -e \" \\")
+        dockerfile_lines.append("    required_pkgs <- c('optparse', 'jsonlite', 'readr', 'dplyr', 'ggplot2'); \\")
+        dockerfile_lines.append("    missing_pkgs <- required_pkgs[!required_pkgs %in% installed.packages()[,'Package']]; \\")
+        dockerfile_lines.append("    if (length(missing_pkgs) > 0) { \\")
+        dockerfile_lines.append("        cat('Installing missing packages:', paste(missing_pkgs, collapse=', '), '\\\\n'); \\")
+        dockerfile_lines.append("        install.packages(missing_pkgs, dependencies = TRUE) \\")
+        dockerfile_lines.append("    } \\")
+        dockerfile_lines.append("    \"")
+        dockerfile_lines.append("")
+        
+        # renv 자동 활성화 비활성화를 위한 환경 변수
+        dockerfile_lines.append("# renv 자동 활성화 비활성화를 위한 환경 변수")
+        dockerfile_lines.append("ENV RENV_CONFIG_AUTOLOADER_ENABLED=FALSE")
+        dockerfile_lines.append("")
+        
+        # R 환경 변수 설정 (renv 프로젝트 경로 없음)
+        dockerfile_lines.append("# R 환경 변수 설정")
+        dockerfile_lines.append("ENV R_HOME=/usr/lib/R")
         dockerfile_lines.append("")
 
     # 작업 디렉토리 생성 및 설정
@@ -1331,23 +1523,33 @@ def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool
         dockerfile_lines.append("COPY visualization_Snakefile /workspace/visualization_Snakefile")
     dockerfile_lines.append("")
 
-    dockerfile_lines.append("# 플러그인 스크립트 복사")
+    dockerfile_lines.append("# scripts 폴더 복사")
     dockerfile_lines.append("COPY scripts/ /scripts/")
     dockerfile_lines.append("")
 
     dockerfile_lines.append("WORKDIR /workspace")
     dockerfile_lines.append("")
 
-    # Entrypoint 스크립트 수정
+    # Entrypoint 스크립트 수정 (Python과 R 환경 모두 지원)
     dockerfile_lines.append("# Entrypoint 스크립트 생성")
-    dockerfile_lines.append("RUN echo '#!/bin/bash' > /entrypoint.sh && \\")
-    dockerfile_lines.append("    echo 'export MAMBA_ROOT_PREFIX=/opt/micromamba' >> /entrypoint.sh && \\")
-    dockerfile_lines.append("    echo 'export MAMBA_EXE=/usr/local/bin/micromamba' >> /entrypoint.sh && \\")
-    dockerfile_lines.append("    echo 'export PATH=$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$PATH' >> /entrypoint.sh && \\")
-    dockerfile_lines.append("    echo '# Activate micromamba environment' >> /entrypoint.sh && \\")
-    dockerfile_lines.append("    echo 'eval \"$($MAMBA_EXE shell activate -s bash -p $MAMBA_ROOT_PREFIX plugin_env)\"' >> /entrypoint.sh && \\")
-    dockerfile_lines.append("    echo 'exec \"$@\"' >> /entrypoint.sh && \\")
-    dockerfile_lines.append("    chmod +x /entrypoint.sh")
+    dockerfile_lines.append("RUN echo '#!/bin/bash' > /entrypoint.sh")
+    
+    if has_python or has_requirements or has_environment:
+        dockerfile_lines.append("RUN echo 'export MAMBA_ROOT_PREFIX=/opt/micromamba' >> /entrypoint.sh")
+        dockerfile_lines.append("RUN echo 'export MAMBA_EXE=/usr/local/bin/micromamba' >> /entrypoint.sh")
+        dockerfile_lines.append("RUN echo 'export PATH=$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$PATH' >> /entrypoint.sh")
+    
+    if has_r or has_renv:
+        dockerfile_lines.append("RUN echo '# Set R environment' >> /entrypoint.sh")
+        dockerfile_lines.append("RUN echo 'export R_HOME=/usr/lib/R' >> /entrypoint.sh")
+        dockerfile_lines.append("RUN echo 'export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE' >> /entrypoint.sh")
+    
+    if has_python or has_requirements or has_environment:
+        dockerfile_lines.append("RUN echo '# Activate micromamba environment' >> /entrypoint.sh")
+        dockerfile_lines.append("RUN echo 'eval \"$($MAMBA_EXE shell activate -s bash -p $MAMBA_ROOT_PREFIX plugin_env)\" 2>/dev/null || true' >> /entrypoint.sh")
+    dockerfile_lines.append("RUN echo 'cd /workspace' >> /entrypoint.sh")
+    dockerfile_lines.append("RUN echo 'exec \"$@\"' >> /entrypoint.sh")
+    dockerfile_lines.append("RUN chmod +x /entrypoint.sh")
     dockerfile_lines.append("")
     dockerfile_lines.append("ENTRYPOINT [\"/entrypoint.sh\"]")
     dockerfile_lines.append("")
@@ -1366,4 +1568,42 @@ def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool
     with open(output_path, "w") as f:
         f.write("\n".join(dockerfile_lines))
 
-    print(f"[✓] Dockerfile generated for {plugin_path} (Python {python_version}, R {r_version})")
+    # 버전 정보 로그 출력
+    version_info = f"Python {python_version}"
+    if has_r or has_renv:
+        version_info += f", R {r_version}"
+    print(f"[✓] Dockerfile generated for {plugin_path} ({version_info})")
+    
+    # 디버깅용 추가 정보
+    print(f"    - has_python: {has_python}, has_r: {has_r}")
+    print(f"    - has_requirements: {has_requirements}, has_environment: {has_environment}, has_renv: {has_renv}")
+    if has_renv:
+        print(f"    - R version from renv.lock: {r_version}")
+
+def check_plugin_docker_image(plugin_name: str) -> bool:
+    """
+    플러그인의 Docker 이미지가 존재하는지 확인합니다.
+
+    Parameters:
+        plugin_name (str): 플러그인 이름
+
+    Returns:
+        bool: Docker 이미지 존재 여부
+    """
+    try:
+        client = docker.from_env()
+        image_tag = f"plugin-{plugin_name.lower()}"
+        
+        # 이미지 존재 여부 확인
+        try:
+            client.images.get(image_tag)
+            return True
+        except docker.errors.ImageNotFound:
+            return False
+        except Exception as e:
+            print(f"Error checking Docker image: {str(e)}")
+            return False
+            
+    except Exception as e:
+        print(f"Failed to connect to Docker daemon: {str(e)}")
+        return False
