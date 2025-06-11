@@ -90,17 +90,12 @@ def process_data_task(self, username: str, snakefile_path: str, plugin_name: str
 
         self.update_state(state="RUNNING", meta={"message": "Executing workflow..."})
 
-        # 작업 디렉토리 설정
-        workspace_path = Path(os.path.dirname(snakefile_path))
-        log_dir = workspace_path / "logs"
-        log_file = log_dir / "run.log"
-
         # Docker 컨테이너로 Snakemake 실행
         result = snakemakeProcess(targets, snakefile_path, plugin_name)
 
-        # 로그 파일 검증
-        if not log_file.exists() or log_file.stat().st_size == 0:
-            error_message = "run.log not created — Snakemake may not have run"
+        # 실행 결과 검증
+        if result["returncode"] != 0:
+            error_message = result.get("stderr", "Unknown error occurred")
             print(error_message)
             self.update_state(state="FAILURE", meta={"error": error_message})
             raise RuntimeError(error_message)
@@ -108,7 +103,7 @@ def process_data_task(self, username: str, snakefile_path: str, plugin_name: str
         # 타겟 파일 존재 여부 확인
         missing_targets = []
         for target in targets:
-            if not target.exists():
+            if not Path(target).exists():
                 missing_targets.append(target)
 
         if missing_targets:
@@ -118,14 +113,13 @@ def process_data_task(self, username: str, snakefile_path: str, plugin_name: str
             raise RuntimeError(error_message)
 
         print('Data processing complete.')
-        retval = {
+        return {
             "status": "Success", 
             "message": "Processing complete",
             "stdout": result.get("stdout", ""),
             "stderr": result.get("stderr", ""),
-            "log_path": str(log_file)
+            "log_path": result.get("log_path", "")
         }
-        return retval
 
     except Exception as e:
         error_message = str(e)
