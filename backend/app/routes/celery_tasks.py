@@ -45,7 +45,10 @@ class MyTask(Task):
         print(f'Task {task_id} started at {start_time}')
         user_id = kwargs.get('user_id')
         workflow_id = kwargs.get('workflow_id')
-        start_task(user_id, task_id, workflow_id, start_time)
+        algorithm_id = kwargs.get('algorithm_id')
+        plugin_name = kwargs.get('plugin_name')
+        task_type = kwargs.get('task_type')
+        start_task(user_id, task_id, workflow_id, start_time, algorithm_id, plugin_name, task_type)
 
     def on_success(self, retval, task_id: str, args, kwargs):
         end_time = datetime.now()
@@ -123,20 +126,20 @@ class MyTask(Task):
                 logger.warning(f"Error unregistering container for task {task_id}: {e}")
 
 @shared_task(bind=True, base=MyTask, name="workflow_task:process_data_task")
-def process_data_task(self, username: str, snakefile_path: str, plugin_name: str, 
-                      targets: list, user_id: int, workflow_id: int):
+def process_data_task(self, username: str, snakefile_path: str, selected_plugin: str, 
+                      targets: list, user_id: int, workflow_id: int, algorithm_id: int, plugin_name: str, task_type: str):
     try:
         task_id = self.request.id
         print(f'Processing data for user {username}...')
         print(f"Task ID: {task_id}")
         print(f"Targets: {targets}")
         print(f"Snakefile path: {snakefile_path}")
-        print(f"Plugin name: {plugin_name}")
+        print(f"Plugin name: {selected_plugin}")
 
         self.update_state(state="RUNNING", meta={"message": "Executing workflow..."})
 
         # Docker 컨테이너로 Snakemake 실행 (task_id 전달)
-        result = snakemakeProcess(targets, snakefile_path, plugin_name, task_id)
+        result = snakemakeProcess(targets, snakefile_path, selected_plugin, task_id)
 
         # 실행 결과 검증
         if result["returncode"] != 0:
