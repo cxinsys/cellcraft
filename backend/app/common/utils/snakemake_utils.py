@@ -4,6 +4,9 @@ import yaml
 from pathlib import Path
 from typing import Dict, Any
 import time
+from datetime import datetime
+
+from app.common.utils.docker_utils import container_manager
 
 def get_log_path(snakefile_path: str) -> Path:
     """일관된 로그 파일 경로 반환"""
@@ -90,7 +93,7 @@ def wait_for_container_ready(container, max_retries=10):
     
     raise Exception("모든 시도 후에도 컨테이너가 준비되지 않음")
 
-def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspace_path: str) -> Dict[str, Any]:
+def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspace_path: str, task_id: str = None) -> Dict[str, Any]:
     """
     플러그인 컨테이너에서 Snakemake 작업을 실행하고 로그를 파일로 저장합니다.
     
@@ -99,11 +102,14 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         snakefile_path (str): Snakefile 경로
         targets (list): Snakemake 타겟 목록
         workspace_path (str): 작업 공간 경로
+        task_id (str): Celery 작업 ID (컨테이너 추적용)
     
     Returns:
         Dict[str, Any]: 실행 결과
     """
     container = None
+    container_name = None
+    
     try:
         client = docker.from_env()
         
@@ -125,6 +131,12 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         
         # Snakefile 경로를 workspace 기준으로 수정
         container_snakefile_path = f"/workspace{snakefile_path[1:]}"
+        
+        # 컨테이너 이름 생성 (task_id 포함)
+        if task_id:
+            container_name = container_manager.get_container_name_for_task(task_id, plugin_name)
+        else:
+            container_name = f"plugin-{plugin_name.lower()}-{int(datetime.now().timestamp())}"
         
         # Celery 컨테이너 ID 가져오기
         celery_container_id = os.environ.get("HOSTNAME")
@@ -158,6 +170,7 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         # 컨테이너 실행 설정
         container_config = {
             'image': image_name,
+            'name': container_name,  # 컨테이너 이름 지정
             'volumes': {
                 host_backend_path: {
                     "bind": "/workspace",
@@ -169,20 +182,39 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
             'environment': {
                 'MAMBA_ROOT_PREFIX': '/opt/micromamba',
                 'PATH': '/opt/micromamba/envs/plugin_env/bin:/opt/micromamba/bin:/usr/local/bin:/usr/bin:/bin',
-                'PYTHONUNBUFFERED': '1'
+                'PYTHONUNBUFFERED': '1',
+                'CELERY_TASK_ID': task_id or 'unknown'  # 환경변수로 task_id 전달
             },
             'user': f"{os.getuid()}:{os.getgid()}",  # 권한 문제 해결
             'detach': True,
             'network': 'cellcraft_app-network',
             'tty': True,
-            'stdin_open': True
+            'stdin_open': True,
+            'labels': {
+                'celery.task_id': task_id or 'unknown',
+                'plugin.name': plugin_name,
+                'container.type': 'plugin-execution'
+            }  # 라벨로 메타데이터 추가
         }
         
         # Task마다 새로운 컨테이너 생성
         print(f"Starting new container with image: {image_name}")
+        print(f"Container name: {container_name}")
         print(f"Using volumes from celery container: {celery_container_id}")
+        
         container = client.containers.run(**container_config)
         print(f"Container started with ID: {container.id}")
+        
+        # 컨테이너 매니저에 등록
+        if task_id:
+            container_manager.register_container(task_id, container.id)
+            # 등록 직후 컨테이너 상태 확인
+            try:
+                container.reload()  # 컨테이너 정보 새로고침
+                if container.status != 'running':
+                    print(f"Warning: Container {container.id} status is {container.status}")
+            except Exception as status_check_error:
+                print(f"Warning: Could not check container status: {status_check_error}")
         
         # 컨테이너가 준비될 때까지 대기
         wait_for_container_ready(container)
@@ -219,7 +251,10 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
                 "exit_code": exit_code,
                 "plugin_name": plugin_name,
                 "targets": targets,
-                "snakefile_path": snakefile_path
+                "snakefile_path": snakefile_path,
+                "task_id": task_id,
+                "container_id": container.id,
+                "container_name": container_name
             })
         )
         
@@ -241,7 +276,9 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
             "returncode": exit_code,
             "stdout": stdout,
             "stderr": stderr,
-            "log_path": str(log_file)
+            "log_path": str(log_file),
+            "container_id": container.id,
+            "container_name": container_name
         }
         
     except Exception as e:
@@ -249,34 +286,60 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         if container:
             try:
                 logs = container.logs(tail=100).decode()
-                return {
-                    "returncode": 1,
-                    "stdout": "",
-                    "stderr": f"Error: {str(e)}\nContainer logs:\n{logs}"
-                }
+                error_msg = f"Error: {str(e)}\nContainer logs:\n{logs}"
             except:
-                pass
-        raise
+                error_msg = f"Error: {str(e)}"
+            
+            # 컨테이너 매니저에서 등록 해제
+            if task_id:
+                container_manager.unregister_container(task_id)
+        else:
+            error_msg = f"Error: {str(e)}"
+        
+        return {
+            "returncode": 1,
+            "stdout": "",
+            "stderr": error_msg
+        }
     finally:
         # 확실한 컨테이너 정리
         if container:
             try:
-                container.stop(timeout=10)
-                container.remove(force=True)
+                # Race condition 방지: 이미 정리 중이면 스킵
+                if task_id and container_manager._is_cleanup_in_progress(container.id):
+                    print(f"Container {container.id} cleanup already in progress, skipping")
+                else:
+                    container.stop(timeout=10)
+                    container.remove(force=True)
+                    print(f"Container {container.id} cleaned up successfully")
+                
+                # 컨테이너 매니저에서 등록 해제
+                if task_id:
+                    container_manager.unregister_container(task_id)
+                    
+            except docker.errors.APIError as e:
+                if "already in progress" in str(e).lower() or "409" in str(e):
+                    print(f"Container {container.id} removal already in progress (in finally block)")
+                    # 이미 정리 중이므로 매핑만 해제
+                    if task_id:
+                        container_manager.unregister_container(task_id)
+                else:
+                    print(f"Container cleanup error: {e}")
             except Exception as cleanup_error:
                 print(f"Container cleanup error: {cleanup_error}")
 
-def snakemakeProcess(targets, snakefile_path, plugin_name):
-    """기존 snakemakeProcess 함수는 유지하되, 내부에서 run_plugin_container를 호출하도록 수정"""
+def snakemakeProcess(targets, snakefile_path, plugin_name, task_id=None):
+    """기존 snakemakeProcess 함수는 유지하되, 내부에서 exec_in_plugin를 호출하도록 수정"""
     print("Targets:", targets)
     print("Snakefile path:", snakefile_path)
+    print("Task ID:", task_id)
     
     # 호스트 시스템의 backend 폴더 절대 경로 지정
     workspace_path = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
     print(f"Workspace path: {workspace_path}")
     
-    # Docker 컨테이너로 실행
-    return exec_in_plugin(plugin_name, snakefile_path, targets, workspace_path)
+    # Docker 컨테이너로 실행 (task_id 전달)
+    return exec_in_plugin(plugin_name, snakefile_path, targets, workspace_path, task_id)
 
 def read_stream(stream, output):
     for line in iter(stream.readline, b''):
