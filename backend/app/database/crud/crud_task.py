@@ -4,15 +4,18 @@ from sqlalchemy.orm.exc import MultipleResultsFound
 from app.database import models
 from app.database.conn import get_new_engine_and_session
 
-def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetime):
+def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetime, algorithm_id: str = None, plugin_name: str = None, task_type: str = None):
     db = get_new_engine_and_session()
     try:
         db_task = models.Task(
             user_id=user_id,
             task_id=task_id,
             workflow_id=workflow_id,
+            algorithm_id=algorithm_id,
             start_time=start_time,
-            status='RUNNING'
+            status='RUNNING',
+            plugin_name=plugin_name,
+            task_type=task_type
         )
         db.add(db_task)
         db.commit()
@@ -44,6 +47,9 @@ def end_task(user_id: int, task_id: str, end_time: datetime, status: str):
 
 def get_user_task(db: Session, id: int):
     return db.query(models.Task).filter(models.Task.user_id == id).all()
+
+def get_task_by_task_id(db: Session, task_id: str):
+    return db.query(models.Task).filter(models.Task.task_id == task_id).first()
 
 def delete_user_task(db: Session, user_id: int, task_id: str):
     target_task = db.query(models.Task).filter(models.Task.task_id == task_id, models.Task.user_id == user_id).first()
