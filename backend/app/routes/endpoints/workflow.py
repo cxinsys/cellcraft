@@ -164,7 +164,7 @@ def visualizeData(
                 target_list = [user_workflow_visualization_result_path]
 
                 process_task = process_data_task.apply_async(
-                    (current_user.username, user_visualization_snakefile_path, plugin_dependency_path, target_list),
+                    (current_user.username, user_visualization_snakefile_path, selected_plugin, target_list),
                     kwargs={'user_id': current_user.id, 'workflow_id': workflow.id}
                 )
 
