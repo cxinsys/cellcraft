@@ -69,7 +69,7 @@ def compileWorkflow(
                 # Celery 작업 실행
                 process_task = process_data_task.apply_async(
                     args=[current_user.username, user_snakefile_path, selected_plugin, target_list],
-                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id},
+                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id, 'algorithm_id': algorithm['id'], 'plugin_name': selected_plugin, 'task_type': 'compile'},
                     ignore_result=False
                 )
 
@@ -165,7 +165,7 @@ def visualizeData(
 
                 process_task = process_data_task.apply_async(
                     (current_user.username, user_visualization_snakefile_path, selected_plugin, target_list),
-                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id}
+                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id, 'algorithm_id': extract_algorithm['id'], 'plugin_name': selected_plugin, 'task_type': 'visualization'}
                 )
 
                 message = "Tasks added to queue"
