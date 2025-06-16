@@ -6,6 +6,7 @@ import asyncio
 from datetime import datetime
 
 from app.common.utils.celery_utils import get_task_info
+from app.common.utils.docker_utils import container_manager
 from app.database.crud import crud_task, crud_workflow
 from app.routes import dep
 from app.database import models
@@ -53,6 +54,7 @@ async def get_task_monitoring(
         workflow = crud_workflow.get_workflow_by_id(db, task.workflow_id)
         task_dict = {
             "id": task.id,
+            "task_id": task.task_id,  # 실제 Celery task ID 추가
             "workflow_id": task.workflow_id,
             "user_id": task.user_id,
             "status": task.status,
@@ -72,29 +74,88 @@ def revoke_task(
     task_id: str
     ) -> dict:
     """
-    Revoke the task
+    Revoke the task and cleanup associated containers
     """
-    from app.main import get_celery_app
-    celery = get_celery_app()
-    celery.control.revoke(task_id, terminate=True, signal='SIGTERM')
-    task = get_task_info(task_id)
-
-    print(task)
-
-    # task_info가 사전 형식인 경우 상태를 접근하는 방식
-    task_status = task.get("status")
-    if task_status == 'REVOKED':
-        return {"message": "Task Revoked", "task_id": task_id}
-    else:
-        # 태스크 상태를 'REVOKED'로 업데이트
-        crud_task.end_task(current_user.id, task_id, datetime.now(), 'REVOKED')
-        # 태스크가 업데이트 되었는지 확인
+    try:
+        from app.main import get_celery_app
+        celery = get_celery_app()
+        
+        print(f"Attempting to revoke task {task_id}")
+        
+        # 1. 먼저 관련 컨테이너 정보 확인
+        container_id = container_manager.get_container_id(task_id)
+        if container_id:
+            print(f"Found associated container {container_id} for task {task_id}")
+        
+        # 2. Celery 작업 취소
+        celery.control.revoke(task_id, terminate=True, signal='SIGTERM')
+        print(f"Celery revoke command sent for task {task_id}")
+        
+        # 3. 컨테이너 매니저를 통한 컨테이너 강제 정리
+        container_cleanup_success = False
+        if container_id:
+            print(f"Attempting to stop container {container_id}")
+            container_cleanup_success = container_manager.stop_task_container(task_id, timeout=10)
+        
+        # 4. 컨테이너 이름 패턴으로도 정리 시도 (백업 방법)
+        if not container_cleanup_success:
+            print("Attempting container cleanup by name pattern")
+            try:
+                # task_id의 앞 8자리를 사용하여 컨테이너 이름 패턴 매칭
+                task_short_id = task_id[:8]
+                container_name_pattern = f"*task-{task_short_id}*"
+                container_manager.stop_container_by_name(container_name_pattern)
+            except Exception as pattern_error:
+                print(f"Pattern-based container cleanup failed: {pattern_error}")
+        
+        # 5. 작업 상태 확인 및 DB 업데이트
         task = get_task_info(task_id)
+        print(f"Task info after revoke: {task}")
+
         task_status = task.get("status")
         if task_status == 'REVOKED':
-            return {"message": "Task Revoked", "task_id": task_id}
+            return {
+                "message": "Task Revoked Successfully", 
+                "task_id": task_id,
+                "container_cleanup": container_cleanup_success
+            }
         else:
-            return {"message": "Task Revoked Failed", "task_id": task_id}
+            # 태스크 상태를 'REVOKED'로 강제 업데이트
+            crud_task.end_task(current_user.id, task_id, datetime.now(), 'REVOKED')
+            print(f"Forced task status update to REVOKED for task {task_id}")
+            
+            # 업데이트 후 다시 확인
+            task = get_task_info(task_id)
+            task_status = task.get("status")
+            
+            if task_status == 'REVOKED':
+                return {
+                    "message": "Task Revoked Successfully (Forced Update)", 
+                    "task_id": task_id,
+                    "container_cleanup": container_cleanup_success
+                }
+            else:
+                return {
+                    "message": "Task Revoke Completed with Warnings", 
+                    "task_id": task_id,
+                    "warning": "Task status update may be delayed",
+                    "container_cleanup": container_cleanup_success
+                }
+    
+    except Exception as e:
+        print(f"Error during task revocation: {str(e)}")
+        
+        # 오류 발생 시에도 컨테이너 정리 시도
+        try:
+            container_manager.stop_task_container(task_id, timeout=5)
+        except Exception as cleanup_error:
+            print(f"Emergency container cleanup failed: {cleanup_error}")
+        
+        return {
+            "message": "Task Revoke Failed", 
+            "task_id": task_id,
+            "error": str(e)
+        }
 
 @router.delete("/delete/{task_id}")
 def delete_task(
@@ -108,3 +169,60 @@ def delete_task(
     """
     task = crud_task.delete_user_task(db, current_user.id, task_id)
     return {"message": "Task Deleted", "task_id": task_id}
+
+@router.get("/containers/status")
+def get_container_status(
+    current_user: models.User = Depends(dep.get_current_active_user)
+) -> dict:
+    """
+    Get current container status for debugging
+    """
+    try:
+        import docker
+        client = docker.from_env()
+        
+        # 실행 중인 플러그인 컨테이너 조회
+        containers = client.containers.list(
+            filters={"label": "container.type=plugin-execution"}
+        )
+        
+        container_info = []
+        for container in containers:
+            labels = container.labels
+            
+            # 환경변수에서 CELERY_TASK_ID 찾기
+            env_task_id = "unknown"
+            env_vars = container.attrs.get('Config', {}).get('Env', [])
+            for env in env_vars:
+                if env.startswith('CELERY_TASK_ID='):
+                    env_task_id = env.split('=', 1)[1]
+                    break
+            
+            container_info.append({
+                "id": container.id[:12],
+                "name": container.name,
+                "status": container.status,
+                "task_id_label": labels.get("celery.task_id", "unknown"),
+                "task_id_env": env_task_id,
+                "plugin_name": labels.get("plugin.name", "unknown"),
+                "created": str(container.attrs["Created"]),
+                "is_tracked": container.id in container_manager._container_tasks
+            })
+        
+        # 컨테이너 매니저 상태 추가
+        manager_status = container_manager.get_status()
+        
+        return {
+            "running_containers": len(container_info),
+            "containers": container_info,
+            "container_manager": manager_status,
+            "orphaned_containers": [
+                c for c in container_info 
+                if not c["is_tracked"] and c["task_id_label"] != "unknown"
+            ]
+        }
+        
+    except Exception as e:
+        return {
+            "error": f"Failed to get container status: {str(e)}"
+        }
