@@ -10,6 +10,8 @@ from app.common.utils.docker_utils import container_manager
 from app.database.crud import crud_task, crud_workflow
 from app.routes import dep
 from app.database import models
+import os
+from pathlib import Path
 
 router = APIRouter()                  
 
@@ -48,10 +50,21 @@ async def get_task_monitoring(
             detail="this user not exists task",
         )
     
-    # 각 task에 workflow 정보 추가
+    # 각 task에 workflow 정보 및 task_title 추가
     tasks_with_workflow = []
     for task in user_tasks:
         workflow = crud_workflow.get_workflow_by_id(db, task.workflow_id)
+        
+        # task_title 생성 로직
+        task_title = None
+        if task.plugin_name:
+            if task.task_type == 'compile':
+                task_title = task.plugin_name
+            elif task.task_type == 'visualization':
+                task_title = f"{task.plugin_name}-visualization"
+            else:
+                task_title = task.plugin_name  # 기본값
+        
         task_dict = {
             "id": task.id,
             "task_id": task.task_id,  # 실제 Celery task ID 추가
@@ -60,7 +73,8 @@ async def get_task_monitoring(
             "status": task.status,
             "start_time": task.start_time,
             "end_time": task.end_time,
-            "workflow_title": workflow.title if workflow else None
+            "workflow_title": workflow.title if workflow else None,
+            "task_title": task_title
         }
         tasks_with_workflow.append(task_dict)
     
@@ -226,3 +240,83 @@ def get_container_status(
         return {
             "error": f"Failed to get container status: {str(e)}"
         }
+
+@router.get("/logs/{task_id}")
+def get_task_logs(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    task_id: str
+) -> dict:
+    """
+    특정 task의 로그 파일들을 조회합니다.
+    """
+    try:
+        # task_id로 task 정보 조회
+        task = crud_task.get_task_by_task_id(db, task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # 권한 확인 (해당 유저의 task인지 확인)
+        if task.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # 로그 폴더 경로 구성
+        logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/logs"
+        
+        if not os.path.exists(logs_folder_path):
+            return {
+                "message": "Logs folder not found", 
+                "logs": [],
+                "task_info": {
+                    "task_id": task.task_id,
+                    "workflow_id": task.workflow_id,
+                    "algorithm_id": task.algorithm_id,
+                    "status": task.status
+                }
+            }
+        
+        # 로그 파일들 읽기
+        log_files = []
+        logs_path = Path(logs_folder_path)
+        
+        for log_file_path in logs_path.glob("*"):
+            if log_file_path.is_file():
+                try:
+                    with open(log_file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    log_files.append({
+                        "filename": log_file_path.name,
+                        "content": content,
+                        "size": log_file_path.stat().st_size,
+                        "modified_time": str(log_file_path.stat().st_mtime)
+                    })
+                except Exception as e:
+                    # 파일 읽기 실패 시에도 파일 정보는 포함
+                    log_files.append({
+                        "filename": log_file_path.name,
+                        "content": f"Error reading file: {str(e)}",
+                        "size": log_file_path.stat().st_size,
+                        "modified_time": str(log_file_path.stat().st_mtime)
+                    })
+        
+        # run.log 파일을 맨 앞으로 정렬
+        log_files.sort(key=lambda x: (x["filename"] != "run.log", x["filename"]))
+        
+        return {
+            "message": "Logs retrieved successfully",
+            "logs": log_files,
+            "task_info": {
+                "task_id": task.task_id,
+                "workflow_id": task.workflow_id,
+                "algorithm_id": task.algorithm_id,
+                "status": task.status,
+                "start_time": str(task.start_time),
+                "end_time": str(task.end_time) if task.end_time else None
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving logs: {str(e)}")
