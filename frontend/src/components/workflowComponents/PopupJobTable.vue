@@ -6,6 +6,7 @@
           <tr>
             <th>No.</th>
             <th>Name</th>
+            <th>Task</th>
             <th>Start</th>
             <th>End</th>
             <th>Time</th>
@@ -17,6 +18,7 @@
           <tr v-for="(task, index) in taskList" :key="index" @click.right.prevent="RMouseClick($event, task)">
             <td>{{ index + 1 }}</td>
             <td>{{ task.workflow_title | titleNone }}</td>
+            <td>{{ task.task_title | titleNone }}</td>
             <td>{{ task.start_time | formatDateTime }}</td>
             <td>{{ task.end_time | formatDateTime }}</td>
             <td>{{ task.running_time }}</td>
@@ -38,7 +40,7 @@
       @click.stop>
       <li @click="confirmDelete" v-if="isCompleted">Delete</li>
       <li @click="cancelTask" v-else>Cancle</li>
-      <!-- <li @click="showLogs">View Logs</li> -->
+      <li @click="showLogs">View Logs</li>
     </ul>
   </div>
 </template>
@@ -82,6 +84,10 @@ export default {
     },
     confirmDelete() {
       this.$emit('confirm-delete', this.currentTaskId);
+      this.R_Mouse_isActive = false;
+    },
+    showLogs() {
+      this.$emit('show-logs', this.currentTaskId);
       this.R_Mouse_isActive = false;
     },
     getStatusClass(status) {
