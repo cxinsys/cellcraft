@@ -41,6 +41,13 @@
               <div class="setting" @click="editPluginExtension(plugin)">
                 <img class="setting__button--icon" src="@/assets/settings.png" />
               </div>
+              <button class="build-button" @click="handleBuildPlugin(plugin)"
+                :disabled="plugin.building || plugin.imageExists"
+                :class="{ 'building': plugin.building, 'image-exists': plugin.imageExists }">
+                <span v-if="plugin.building">Building...</span>
+                <span v-else-if="plugin.imageExists">Built</span>
+                <span v-else>Build</span>
+              </button>
               <label class="switch">
                 <input v-model="plugin.checked" type="checkbox" @change="handlePluginAssociate(plugin)"
                   :disabled="isCheckboxDisabled" />
@@ -55,7 +62,7 @@
 </template>
 
 <script>
-import { getUser, getPlugins, associatePlugin, dissociatePlugin } from "@/api/index";
+import { getUser, getPlugins, associatePlugin, dissociatePlugin, buildPlugin, checkPluginImage } from "@/api/index";
 import PluginExtention from "@/components/PluginExtention.vue";
 
 export default {
@@ -156,8 +163,13 @@ export default {
           return {
             ...plugin,
             checked: userIncluded,
+            building: false,
+            imageExists: false,
           };
         });
+
+        // 각 플러그인의 이미지 존재 여부 확인
+        await this.checkAllPluginImages();
       } catch (error) {
         console.error(error);
       }
@@ -181,6 +193,55 @@ export default {
         }, 1000);
       } catch (error) {
         console.error('Error associating/disassociating plugin:', error);
+      }
+    },
+    async checkAllPluginImages() {
+      for (let plugin of this.plugins) {
+        try {
+          const result = await checkPluginImage(plugin.name);
+          plugin.imageExists = result.data.image_exists;
+        } catch (error) {
+          console.error(`Error checking image for plugin ${plugin.name}:`, error);
+          plugin.imageExists = false;
+        }
+      }
+    },
+    async handleBuildPlugin(plugin) {
+      if (plugin.building || plugin.imageExists) {
+        return;
+      }
+
+      try {
+        plugin.building = true;
+        const result = await buildPlugin(plugin.name);
+
+        // 빌드 성공 후 이미지 존재 여부 다시 확인
+        setTimeout(async () => {
+          try {
+            const checkResult = await checkPluginImage(plugin.name);
+            plugin.imageExists = checkResult.data.image_exists;
+          } catch (error) {
+            console.error(`Error checking image after build for plugin ${plugin.name}:`, error);
+          }
+          plugin.building = false;
+        }, 1000);
+
+        console.log('Build result:', result.data);
+        alert(`Plugin ${plugin.name} built successfully!`);
+      } catch (error) {
+        console.error(`Error building plugin ${plugin.name}:`, error);
+        plugin.building = false;
+
+        // 에러 메시지 표시
+        let errorMessage = `Failed to build plugin ${plugin.name}`;
+        if (error.response && error.response.data && error.response.data.detail) {
+          if (typeof error.response.data.detail === 'string') {
+            errorMessage += `: ${error.response.data.detail}`;
+          } else if (error.response.data.detail.message) {
+            errorMessage += `: ${error.response.data.detail.message}`;
+          }
+        }
+        alert(errorMessage);
       }
     },
   },
@@ -420,6 +481,41 @@ button:disabled {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+}
+
+.build-button {
+  padding: 8px 16px;
+  margin: 8px 0;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #2196f3;
+  color: white;
+  min-width: 80px;
+}
+
+.build-button:hover:not(:disabled) {
+  background-color: #1976d2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.build-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.build-button.building {
+  background-color: #ff9800;
+  cursor: not-allowed;
+}
+
+.build-button.image-exists {
+  background-color: #4caf50;
+  cursor: not-allowed;
 }
 
 .switch {
