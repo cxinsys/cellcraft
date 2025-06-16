@@ -15,6 +15,7 @@ import logging
 from celery.exceptions import MaxRetriesExceededError
 
 from app.common.utils.snakemake_utils import snakemakeProcess
+from app.common.utils.docker_utils import container_manager
 from app.database.crud.crud_task import start_task, end_task
 
 logger = logging.getLogger('celery.custom')
@@ -51,6 +52,9 @@ class MyTask(Task):
         print(f'Task {task_id} completed at {end_time}, return value: {retval}')
         user_id = kwargs.get('user_id')
         end_task(user_id, task_id, end_time, status='SUCCESS')
+        
+        # 작업 완료 시 컨테이너 매니저에서 등록 해제
+        container_manager.unregister_container(task_id)
 
     def on_failure(self, exc, task_id: str, args, kwargs, einfo):
         """Ensure the failure is logged and state is correctly updated."""
@@ -59,39 +63,80 @@ class MyTask(Task):
         print(f'Task {task_id} failed at {end_time}, error: {exc}')
         user_id = kwargs.get('user_id')
         end_task(user_id, task_id, end_time, status='FAILURE')
+        
+        # 작업 실패 시 관련 컨테이너 정리
+        try:
+            if container_manager.stop_task_container(task_id):
+                print(f"Container for failed task {task_id} cleaned up successfully")
+            else:
+                print(f"No container found or cleanup failed for task {task_id}")
+        except Exception as cleanup_error:
+            logger.error(f"Error cleaning up container for failed task {task_id}: {cleanup_error}")
 
     def on_revoke(self, task_id: str, kwargs, terminated, signum, expired):
         end_time = datetime.now()
         print(f'Task {task_id} revoked at {end_time}')
-        user_id = kwargs.get('user_id')
-        end_task(user_id, task_id, end_time, status='REVOKED')
+        print(f'Revoke details - terminated: {terminated}, signal: {signum}, expired: {expired}')
+        
+        user_id = kwargs.get('user_id') if kwargs else None
+        if user_id:
+            end_task(user_id, task_id, end_time, status='REVOKED')
+        
+        # 작업 취소 시 관련 컨테이너 강제 정리
+        try:
+            print(f"Attempting to stop container for revoked task {task_id}")
+            
+            # 1. 컨테이너 매니저를 통한 정리
+            container_stopped = container_manager.stop_task_container(task_id, timeout=5)
+            
+            # 2. 컨테이너 이름 패턴으로도 정리 시도 (백업 방법)
+            if not container_stopped:
+                # task_id 기반 패턴 매칭 (더 정확한 패턴)
+                task_short_id = task_id[:8]
+                container_patterns = [
+                    f"*task-{task_short_id}*",  # 기존 패턴
+                    f"plugin-*-task-{task_short_id}-*",  # 더 구체적인 패턴
+                ]
+                
+                for pattern in container_patterns:
+                    print(f"Trying to stop containers with pattern: {pattern}")
+                    if container_manager.stop_container_by_name(pattern):
+                        container_stopped = True
+                        break
+            
+            print(f"Container cleanup completed for revoked task {task_id}")
+            
+        except Exception as cleanup_error:
+            logger.error(f"Error cleaning up container for revoked task {task_id}: {cleanup_error}")
+            print(f"Container cleanup failed for task {task_id}: {cleanup_error}")
 
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
         print('----------------------------------------')
         print(f'Task {task_id} returned with status {status}, return value: {retval}')
         print('----------------------------------------')
-
-    # def __call__(self, *args, **kwargs):
-    #     start_time = datetime.now()
-    #     print(f'Task {self.request.id} started at {start_time}')
-    #     user_id = kwargs.get('user_id')
-    #     workflow_id = kwargs.get('workflow_id')
-    #     start_task(user_id, self.request.id, workflow_id, start_time)
-    #     super().__call__(*args, **kwargs)
+        
+        # 모든 작업 완료 후 컨테이너 정리 확인
+        if status in ['SUCCESS', 'FAILURE', 'REVOKED']:
+            try:
+                container_manager.unregister_container(task_id)
+            except Exception as e:
+                logger.warning(f"Error unregistering container for task {task_id}: {e}")
 
 @shared_task(bind=True, base=MyTask, name="workflow_task:process_data_task")
 def process_data_task(self, username: str, snakefile_path: str, plugin_name: str, 
                       targets: list, user_id: int, workflow_id: int):
     try:
+        task_id = self.request.id
         print(f'Processing data for user {username}...')
-        print(f"Task ID: {self.request.id}")
+        print(f"Task ID: {task_id}")
         print(f"Targets: {targets}")
         print(f"Snakefile path: {snakefile_path}")
+        print(f"Plugin name: {plugin_name}")
 
         self.update_state(state="RUNNING", meta={"message": "Executing workflow..."})
 
-        # Docker 컨테이너로 Snakemake 실행
-        result = snakemakeProcess(targets, snakefile_path, plugin_name)
+        # Docker 컨테이너로 Snakemake 실행 (task_id 전달)
+        result = snakemakeProcess(targets, snakefile_path, plugin_name, task_id)
 
         # 실행 결과 검증
         if result["returncode"] != 0:
@@ -118,7 +163,9 @@ def process_data_task(self, username: str, snakefile_path: str, plugin_name: str
             "message": "Processing complete",
             "stdout": result.get("stdout", ""),
             "stderr": result.get("stderr", ""),
-            "log_path": result.get("log_path", "")
+            "log_path": result.get("log_path", ""),
+            "container_id": result.get("container_id", ""),
+            "container_name": result.get("container_name", "")
         }
 
     except Exception as e:
