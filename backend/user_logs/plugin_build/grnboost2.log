@@ -1,0 +1,53 @@
+Building Docker image for plugin GRNBOOST2
+Start time: 2025-04-29T16:28:09.704898
+Docker daemon version: {'Platform': {'Name': 'Docker Engine - Community'}, 'Components': [{'Name': 'Engine', 'Version': '27.1.2', 'Details': {'ApiVersion': '1.46', 'Arch': 'amd64', 'BuildTime': '2024-08-12T11:50:54.000000000+00:00', 'Experimental': 'false', 'GitCommit': 'f9522e5', 'GoVersion': 'go1.21.13', 'KernelVersion': '6.8.0-31-generic', 'MinAPIVersion': '1.24', 'Os': 'linux'}}, {'Name': 'containerd', 'Version': '1.7.20', 'Details': {'GitCommit': '8fc6bcff51318944179630522a095cc9dbf9f353'}}, {'Name': 'nvidia', 'Version': '1.1.13', 'Details': {'GitCommit': 'v1.1.13-0-g58aa920'}}, {'Name': 'docker-init', 'Version': '0.19.0', 'Details': {'GitCommit': 'de40ad0'}}], 'Version': '27.1.2', 'ApiVersion': '1.46', 'MinAPIVersion': '1.24', 'GitCommit': 'f9522e5', 'GoVersion': 'go1.21.13', 'Os': 'linux', 'Arch': 'amd64', 'KernelVersion': '6.8.0-31-generic', 'BuildTime': '2024-08-12T11:50:54.000000000+00:00'}
+
+
+Dockerfile contents:
+FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
+
+# 기본 패키지 설치
+RUN apt-get update && apt-get install -y \
+    build-essential gcc g++ gfortran make \
+    libssl-dev libcurl4-openssl-dev libxml2-dev \
+    libjpeg-dev libpng-dev libfreetype6-dev libtiff-dev \
+    libx11-dev xorg-dev libxt-dev libglu1-mesa-dev \
+    curl wget unzip git \
+    python3.10 python3-pip python3-venv \
+    software-properties-common \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Micromamba 설치
+RUN curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba -C /usr/local/bin/
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV PATH=$MAMBA_ROOT_PREFIX/bin:$PATH
+
+# Python 환경 생성
+RUN micromamba create -y -n plugin_env python=3.10
+SHELL ["micromamba", "run", "-n", "plugin_env", "/bin/bash", "-c"]
+
+# Snakemake 설치
+RUN pip install 'snakemake==7.14.0'
+
+COPY dependency/requirements.txt /tmp/
+RUN pip install -r /tmp/requirements.txt || true
+
+# Snakefile 복사
+COPY Snakefile /workspace/Snakefile
+COPY visualization_Snakefile /workspace/visualization_Snakefile
+
+# 플러그인 스크립트 복사
+COPY scripts/ /scripts/
+
+WORKDIR /workspace
+
+# 로그 디렉토리 생성
+RUN mkdir -p /workspace/logs
+
+# 기본 명령어 설정
+ENTRYPOINT ["/bin/bash", "-c"]
+CMD ["snakemake --cores all > /workspace/logs/stdout.log 2> /workspace/logs/stderr.log"]
+Starting Docker build...
+
+Build Error: Build process failed: 'dict' object has no attribute 'decode'
+Build output so far:
