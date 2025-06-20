@@ -1,6 +1,6 @@
 FROM tiangolo/uvicorn-gunicorn:python3.10
 
-# 필요한 패키지 설치
+# 시스템 패키지 설치
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     bzip2 \
@@ -19,23 +19,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Miniconda 설치
-RUN wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
-    && rm Miniconda3-latest-Linux-x86_64.sh
+    # Micromamba 설치
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
 
-# Conda 환경 변수 설정
-ENV PATH /opt/conda/bin:$PATH
+# ✅ 신뢰성 높은 설치 방식
+RUN curl -L https://micromamba.snakepit.net/api/micromamba/linux-64/latest | tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba
 
-# Conda 환경 설정
+# Conda 환경 구성
 COPY environment.yml ./
-RUN conda env create -f environment.yml
+RUN micromamba create -y -n snakemake -f environment.yml
 
-# 작업 디렉토리 설정
+# Micromamba 환경 PATH 등록
+ENV PATH=/opt/micromamba/envs/snakemake/bin:$PATH
+ENV CONDA_DEFAULT_ENV=snakemake
+
+
+# 작업 디렉토리 설정 및 코드 복사
 WORKDIR /app
-
-# 애플리케이션 소스 코드 복사
 COPY . .
 
-# Conda 환경 활성화 및 FastAPI 애플리케이션 실행
-CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# FastAPI 서버 실행 (Micromamba env 내 python 사용)
+CMD ["/opt/micromamba/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

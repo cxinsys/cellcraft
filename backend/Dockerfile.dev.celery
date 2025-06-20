@@ -1,13 +1,8 @@
-FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
+FROM tiangolo/uvicorn-gunicorn:python3.10
 
-# 필요한 패키지 설치
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    software-properties-common \
-    dirmngr \
+# 시스템 패키지 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
-    && wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | gpg --dearmor -o /usr/share/keyrings/r-project.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/r-project.gpg] https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/" | tee /etc/apt/sources.list.d/r-project.list \
-    && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     bzip2 \
     git \
     build-essential \
@@ -22,51 +17,27 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     python3-pip \
     python3-dev \
     jq \
-    openssh-client \
-    r-base \
-    r-base-dev \
-    # R 패키지 빌드 및 설치에 필요한 시스템 의존성
-    libcurl4-openssl-dev \
-    libssl-dev \
-    libxml2-dev \
-    libfontconfig1-dev \
-    libharfbuzz-dev \
-    libfribidi-dev \
-    libfreetype6-dev \
-    libpng-dev \
-    libtiff5-dev \
-    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# R 패키지 설치를 위한 기본 설정
-RUN echo "options(repos = c(CRAN = 'https://cloud.r-project.org/'))" > /usr/lib/R/etc/Rprofile.site
+    # Micromamba 설치
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
 
-# renv 설치
-RUN R -e "install.packages('renv', repos='https://cloud.r-project.org/')"
+# ✅ 신뢰성 높은 설치 방식
+RUN curl -L https://micromamba.snakepit.net/api/micromamba/linux-64/latest | tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba
 
-# 작업 디렉토리 설정
-WORKDIR /app
-
-# renv.lock 파일 복사
-COPY renv.lock /app/renv.lock
-
-# renv 환경 복원
-RUN R -e "renv::restore()"
-
-# Miniconda 설치
-RUN wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
-    && rm Miniconda3-latest-Linux-x86_64.sh
-
-# Conda 환경 변수 설정
-ENV PATH /opt/conda/bin:$PATH
-
-# Conda 환경 설정
+# Conda 환경 구성
 COPY environment.yml ./
-RUN conda env create -f environment.yml
+RUN micromamba create -y -n snakemake -f environment.yml
 
-# 애플리케이션 소스 코드 복사
+# Micromamba 환경 PATH 등록
+ENV PATH=/opt/micromamba/envs/snakemake/bin:$PATH
+ENV CONDA_DEFAULT_ENV=snakemake
+
+
+# 작업 디렉토리 설정 및 코드 복사
+WORKDIR /app
 COPY . .
 
-# Celery 애플리케이션 실행
-CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "-n", "worker@%h", "--loglevel=info", "-E", "-Q", "workflow_task"]
+# Celery 실행
+CMD ["/opt/micromamba/envs/snakemake/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "-n", "worker@%h", "--loglevel=info", "-E", "-Q", "workflow_task"]
