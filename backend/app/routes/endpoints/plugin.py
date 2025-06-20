@@ -868,3 +868,178 @@ async def check_plugin_image(
             status_code=500,
             detail=f"Failed to check plugin Docker image: {str(e)}"
         )
+
+@router.post("/update/{plugin_name}")
+async def update_plugin_complete(
+    *,
+    plugin_name: str,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """
+    플러그인의 메타데이터를 물리적 파일에서 DB로 동기화하는 엔드포인트
+    스크립트나 패키지 파일 업데이트 후 DB 정보를 최신화할 때 사용
+    """
+    try:
+        # 1. 플러그인 존재 확인
+        db_plugin = db.query(models.Plugin).filter(models.Plugin.name == plugin_name).first()
+        if not db_plugin:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Plugin {plugin_name} not found in database"
+            )
+        
+        # 2. 물리적 파일에서 메타데이터 읽기
+        plugin_folder = f"./plugin/{plugin_name}/"
+        metadata_file = os.path.join(plugin_folder, "metadata.json")
+        
+        if not os.path.exists(metadata_file):
+            raise HTTPException(
+                status_code=404,
+                detail=f"metadata.json not found for plugin {plugin_name}"
+            )
+        
+        try:
+            with open(metadata_file, 'r') as f:
+                metadata = json.load(f)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to read metadata.json: {str(e)}"
+            )
+        
+        # 3. 의존성 파일들 읽기 및 DB 업데이트 (텍스트 파일만)
+        dependency_folder = os.path.join(plugin_folder, "dependency")
+        dependencies_dict = {}
+        
+        if os.path.exists(dependency_folder):
+            for file_name in os.listdir(dependency_folder):
+                # 텍스트 의존성 파일만 DB에 저장 (.whl, .tar.gz 제외)
+                if file_name.endswith(('.txt', '.yml', '.lock')):
+                    file_path = os.path.join(dependency_folder, file_name)
+                    try:
+                        # 텍스트 파일은 내용 저장
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            dependencies_dict[file_name] = f.read()
+                    except Exception as e:
+                        print(f"Warning: Failed to read dependency file {file_name}: {str(e)}")
+        
+        # 4. DB 업데이트
+        try:
+            db_plugin.dependencies = dependencies_dict if dependencies_dict else None
+            db_plugin.drawflow = metadata.get('drawflow', db_plugin.drawflow)
+            db_plugin.rules = metadata.get('rules', db_plugin.rules)
+            db_plugin.description = metadata.get('description', db_plugin.description)
+            
+            db.commit()
+            db.refresh(db_plugin)
+            
+            return {
+                "message": f"Plugin {plugin_name} successfully synchronized",
+                "updated_fields": {
+                    "dependencies": len(dependencies_dict) if dependencies_dict else 0,
+                    "rules": len(metadata.get('rules', {})),
+                    "drawflow_nodes": len(metadata.get('drawflow', {}).get('drawflow', {}).get('Home', {}).get('data', {})) if metadata.get('drawflow') else 0
+                }
+            }
+            
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to update database: {str(e)}"
+            )
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error during plugin synchronization: {str(e)}"
+        )
+
+@router.post("/upload_text_dependencies")
+async def upload_text_dependencies(
+    plugin_name: str = Form(...),
+    files: List[UploadFile] = File(...),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    db: Session = Depends(dep.get_db),
+):
+    """
+    텍스트 의존성 파일들(requirements.txt, environment.yml, renv.lock)을 업로드하고 DB도 업데이트
+    """
+    try:
+        dependency_folder = f"./plugin/{plugin_name}/dependency/"
+        
+        # 1. dependency 폴더가 존재하지 않으면 생성
+        if not os.path.exists(dependency_folder):
+            os.makedirs(dependency_folder)
+
+        # 2. 플러그인 DB 정보 확인
+        db_plugin = db.query(models.Plugin).filter(models.Plugin.name == plugin_name).first()
+        if not db_plugin:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Plugin {plugin_name} not found in database"
+            )
+
+        # 3. 업로드된 파일들 처리
+        uploaded_files = []
+        dependencies_dict = db_plugin.dependencies or {}
+        
+        for file in files:
+            # 텍스트 의존성 파일만 허용
+            if not file.filename.endswith(('.txt', '.yml', '.lock')):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid dependency file format: {file.filename}. Only .txt, .yml, .lock files are allowed."
+                )
+            
+            # 파일 내용 읽기
+            try:
+                content = await file.read()
+                file_content = content.decode('utf-8')
+                
+                # 물리적 파일 저장
+                file_path = os.path.join(dependency_folder, file.filename)
+                with open(file_path, "w", encoding='utf-8') as f:
+                    f.write(file_content)
+                
+                # DB용 데이터 준비
+                dependencies_dict[file.filename] = file_content
+                uploaded_files.append(file.filename)
+                
+                print(f"Updated dependency file: {file.filename}")
+                
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to process file {file.filename}: {str(e)}"
+                )
+
+        # 4. DB 업데이트
+        try:
+            db_plugin.dependencies = dependencies_dict
+            db.commit()
+            db.refresh(db_plugin)
+            
+            return {
+                "message": "Text dependency files uploaded and synchronized successfully", 
+                "uploaded_files": uploaded_files,
+                "total_dependencies": len(dependencies_dict)
+            }
+            
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to update database: {str(e)}"
+            )
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error during text dependency upload: {str(e)}"
+        )

@@ -88,7 +88,7 @@ def create_plugin(db: Session, plugin: plugin.PluginUpdate):
         if existing_plugin:
             raise HTTPException(status_code=400, detail=f"Plugin with name {plugin.name} already exists")
 
-        plugin_data = plugin.dict(exclude={"reference_folders"})
+        plugin_data = plugin.dict()
         db_plugin = models.Plugin(**plugin_data)
         db.add(db_plugin)
         db.commit()
@@ -129,7 +129,11 @@ def update_plugin(db: Session, plugin: plugin.PluginUpdate, plugin_id: int):
 
         update_data = plugin.dict(exclude_unset=True)
         for key, value in update_data.items():
-            setattr(db_plugin, key, value)
+            if key in ['dependencies', 'drawflow', 'rules']:
+                # JSON 필드는 완전 교체
+                setattr(db_plugin, key, value)
+            else:
+                setattr(db_plugin, key, value)
 
         db.commit()
         db.refresh(db_plugin)
@@ -140,6 +144,42 @@ def update_plugin(db: Session, plugin: plugin.PluginUpdate, plugin_id: int):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating plugin: {str(e)}")
+
+def force_update_plugin(db: Session, plugin_id: int, update_fields: dict):
+    """
+    Force update specific fields of a plugin, ignoring exclude_unset logic.
+    
+    Args:
+        db (Session): Database session
+        plugin_id (int): ID of plugin to update
+        update_fields (dict): Dictionary of fields to update
+    
+    Returns:
+        Plugin: Updated plugin object
+    
+    Raises:
+        HTTPException: If plugin update fails
+    """
+    try:
+        db_plugin = db.query(models.Plugin).filter(models.Plugin.id == plugin_id).first()
+        if not db_plugin:
+            raise HTTPException(status_code=404, detail=f"Plugin with id {plugin_id} not found")
+
+        # 필드별 강제 업데이트
+        for key, value in update_fields.items():
+            if hasattr(db_plugin, key):
+                setattr(db_plugin, key, value)
+                print(f"Force updated {key} for plugin {plugin_id}")
+
+        db.commit()
+        db.refresh(db_plugin)
+        return db_plugin
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error force updating plugin: {str(e)}")
 
 def delete_plugin(db: Session, plugin_id: int):
     """
