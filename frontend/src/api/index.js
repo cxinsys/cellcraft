@@ -249,6 +249,10 @@ function uploadPluginMetadata(pluginCreate) {
   return instance.post("/routes/plugin/upload", pluginCreate);
 }
 
+function syncPluginData(pluginName) {
+  return instance.post(`/routes/plugin/update/${pluginName}`);
+}
+
 function uploadPluginScripts(formData) {
   return instance.post("/routes/plugin/upload_scripts", formData, {
     headers: {
@@ -263,6 +267,10 @@ function uploadPluginPackage(formData) {
       "Content-Type": "multipart/form-data",
     },
   });
+}
+
+function uploadTextDependencies(formData) {
+  return instance.post("/routes/plugin/upload_text_dependencies", formData);
 }
 
 function getPlugins() {
@@ -405,8 +413,10 @@ export {
   getResultFileOne,
   validationPlugin,
   uploadPluginMetadata,
+  syncPluginData,
   uploadPluginScripts,
   uploadPluginPackage,
+  uploadTextDependencies,
   getPlugins,
   associatePlugin,
   dissociatePlugin,
