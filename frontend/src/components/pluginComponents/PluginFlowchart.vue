@@ -25,67 +25,244 @@
             <div class="warning-comment" v-if="rules.length === 0">
                 <p>Rule content does not exist</p>
             </div>
-            <div v-else>
-                <div v-for="(rule, index) in rules" :key="index" class="rule-item">
-                    <div>
-                        <h4 v-if="rule.isEditing">
-                            <input type="text" v-model="rule.name" class="edit-input">
-                        </h4>
-                        <h4 v-else>
-                            rule {{ rule.name }}:
-                        </h4>
-                    </div>
-                    <div>
-                        <strong>input:</strong>
-                        <div v-for="(value, key) in rule.input" :key="'input-' + key">
-                            <span v-if="rule.isEditing">
-                                <input type="text" v-model="rule.input[key]" class="edit-input">
-                            </span>
-                            <span v-else>
-                                {{ key }}="{{ value }}"
-                            </span>
-                        </div>
-                    </div>
-                    <div>
-                        <strong>output:</strong>
-                        <div v-for="(value, key) in rule.output" :key="'output-' + key">
-                            <span v-if="rule.isEditing">
-                                <input type="text" v-model="rule.output[key]" class="edit-input">
-                            </span>
-                            <span v-else>
-                                {{ key }}="{{ value }}"
-                            </span>
-                        </div>
-                    </div>
-                    <div v-if="rule.script">
-                        <strong>script:</strong>
-                        <div class="script-container">
-                            <div>{{ generateShellCommand(rule) }}</div>
-                            <draggable class="script-drag-component" v-model="rule.parameters" @start="drag = true"
-                                @end="drag = false">
-                                <div class="script-drag-parameter" v-for="(param, paramIndex) in rule.parameters"
-                                    :key="paramIndex">
-                                    <span v-if="rule.isEditing"><input type="text" v-model="param.name"
-                                            class="edit-input"></span><span v-else>{{ param.name }}</span>
-                                    ({{ param.type }})
+            <div v-else class="rules-grid">
+                <div v-for="(rule, index) in rules" :key="index" class="rule-card">
+                    <!-- Rule Header -->
+                    <div class="rule-header">
+                        <div class="rule-title-section">
+                            <div class="rule-icon">
+                                <i class="fas fa-cogs"></i>
+                            </div>
+                            <div class="rule-title-content">
+                                <h3 v-if="!rule.isEditing" class="rule-name">rule {{ rule.name }}</h3>
+                                <div v-else class="rule-name-edit">
+                                    <input type="text" v-model="rule.name" class="rule-name-input"
+                                        @keyup.enter="toggleEditRule(index)" @keyup.escape="toggleEditRule(index)"
+                                        placeholder="Rule name">
                                 </div>
-                            </draggable>
+                                <div class="rule-meta">
+                                    <span class="rule-node-id">Node ID: {{ rule.nodeId }}</span>
+                                    <div v-if="rule.script" class="script-info">{{ getScriptName(rule.script) }}</div>
+                                    <span v-if="rule.isVisualization" class="visualization-badge">
+                                        <i class="fas fa-chart-bar"></i> Visualization
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="rule-button-group">
-                        <div class="arrow-buttons">
-                            <button class="rule-arrow-button" @click="moveRuleUp(index)" :disabled="index === 0">
+
+                        <div class="rule-actions">
+                            <button class="rule-action-btn move-btn" @click="moveRuleUp(index)" :disabled="index === 0"
+                                title="Move Up">
                                 <i class="fas fa-arrow-up"></i>
                             </button>
-                            <button class="rule-arrow-button" @click="moveRuleDown(index)"
-                                :disabled="index === rules.length - 1">
+                            <button class="rule-action-btn move-btn" @click="moveRuleDown(index)"
+                                :disabled="index === rules.length - 1" title="Move Down">
                                 <i class="fas fa-arrow-down"></i>
                             </button>
+                            <button class="rule-action-btn edit-btn" @click="toggleEditRule(index)"
+                                :title="rule.isEditing ? 'Save' : 'Edit'">
+                                <i :class="rule.isEditing ? 'fas fa-check' : 'fas fa-edit'"></i>
+                            </button>
+                            <button class="rule-action-btn delete-btn" @click="removeRule(index)" title="Delete Rule">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
-                        <button class="rule-edit-button" @click="toggleEditRule(index)">
-                            {{ rule.isEditing ? 'Save' : 'Edit' }}
-                        </button>
-                        <button class="rule-remove-button" @click="removeRule(index)">remove</button>
+                    </div>
+
+                    <!-- Rule Content -->
+                    <div class="rule-content">
+                        <!-- Input Section -->
+                        <div class="rule-section">
+                            <div class="section-header">
+                                <div class="section-title">
+                                    <i class="fas fa-arrow-right section-icon"></i>
+                                    <strong>input:</strong>
+                                </div>
+                                <div class="section-count">{{ getInputFiles(rule).length }} files</div>
+                            </div>
+                            <div class="section-content">
+                                <div v-if="getInputFiles(rule).length === 0" class="empty-state">
+                                    No input files
+                                </div>
+                                <div v-else class="file-list">
+                                    <div v-for="(inputFile, fileIndex) in getInputFiles(rule)"
+                                        :key="'input-' + fileIndex" class="file-item input-file">
+                                        <div class="file-icon">
+                                            <i class="fas fa-file-import"></i>
+                                        </div>
+                                        <div class="file-info">
+                                            <span class="file-name">{{ inputFile }}</span>
+                                            <span class="file-type">{{ getFileExtension(inputFile) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Output Section -->
+                        <div class="rule-section">
+                            <div class="section-header">
+                                <div class="section-title">
+                                    <i class="fas fa-arrow-left section-icon"></i>
+                                    <strong>output:</strong>
+                                </div>
+                                <div class="section-count">{{ getOutputFiles(rule).length }} files</div>
+                            </div>
+                            <div class="section-content">
+                                <div v-if="getOutputFiles(rule).length === 0" class="empty-state">
+                                    No output files
+                                </div>
+                                <div v-else class="file-list">
+                                    <div v-for="(outputFile, fileIndex) in getOutputFiles(rule)"
+                                        :key="'output-' + fileIndex" class="file-item output-file">
+                                        <div class="file-icon">
+                                            <i class="fas fa-file-export"></i>
+                                        </div>
+                                        <div class="file-info">
+                                            <span class="file-name">{{ outputFile }}</span>
+                                            <span class="file-type">{{ getFileExtension(outputFile) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parameters Section -->
+                        <div class="rule-section" v-if="rule.script">
+                            <div class="section-header">
+                                <div class="section-title">
+                                    <i class="fas fa-sliders-h section-icon"></i>
+                                    <strong>params:</strong>
+                                    <button class="add-param-btn-inline" @click="addParameterToRule(rule, index)"
+                                        title="Add Parameter">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div class="section-count">{{ rule.parameters.length }} parameters</div>
+                            </div>
+                            <div class="section-content">
+                                <div v-if="rule.parameters.length === 0" class="empty-state">
+                                    No parameters configured
+                                </div>
+                                <div v-else class="parameters-container">
+                                    <draggable class="script-drag-component" v-model="rule.parameters"
+                                        @start="drag = true" @end="drag = false" handle=".drag-handle">
+                                        <div class="script-drag-parameter"
+                                            v-for="(param, paramIndex) in rule.parameters" :key="paramIndex"
+                                            :class="{ 'editing': param.isEditing }">
+
+                                            <!-- 일반 보기 모드 -->
+                                            <div v-if="!param.isEditing" class="param-view-mode">
+                                                <div class="drag-handle" title="Drag to reorder">
+                                                    <i class="fas fa-grip-vertical"></i>
+                                                </div>
+                                                <span class="param-name">{{ param.name }}</span>
+                                                <span class="param-type" :class="'type-' + param.type">{{ param.type
+                                                }}</span>
+                                                <div class="param-actions-inline">
+                                                    <button class="action-btn edit-btn"
+                                                        @click="toggleParameterEdit(rule, paramIndex)" title="Edit">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="action-btn duplicate-btn"
+                                                        @click="duplicateParameter(rule, paramIndex)" title="Duplicate">
+                                                        <i class="fas fa-copy"></i>
+                                                    </button>
+                                                    <button class="action-btn delete-btn"
+                                                        @click="removeParameter(rule, paramIndex)" title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- 편집 모드 -->
+                                            <div v-else class="param-edit-mode">
+                                                <div class="edit-form-compact">
+                                                    <div class="edit-row">
+                                                        <input type="text" v-model="param.name"
+                                                            class="edit-input-compact" placeholder="Name"
+                                                            @keyup.enter="toggleParameterEdit(rule, paramIndex)"
+                                                            @keyup.escape="cancelParameterEdit(rule, paramIndex)">
+                                                        <select v-model="param.type" class="edit-select-compact"
+                                                            @change="resetParameterEditOption(param)">
+                                                            <option value="inputFile">Input File</option>
+                                                            <option value="optionalInputFile">Input File(Optional)
+                                                            </option>
+                                                            <option value="outputFile">Output File</option>
+                                                            <option v-if="isSelectedH5adInEdit(rule)"
+                                                                value="h5adParameter">h5ad Parameter</option>
+                                                            <option value="string">String</option>
+                                                            <option value="int">Integer</option>
+                                                            <option value="float">Float</option>
+                                                            <option value="boolean">Boolean</option>
+                                                        </select>
+                                                    </div>
+                                                    <!-- File type parameters -->
+                                                    <div v-if="param.type === 'inputFile' || param.type === 'outputFile' || param.type === 'optionalInputFile'"
+                                                        class="edit-row">
+                                                        <input type="text" v-model="param.fileExtension"
+                                                            class="edit-input-compact" placeholder="File Type">
+                                                        <select v-model="param.selectedFileExtension"
+                                                            @change="updateEditFileExtension(param)"
+                                                            class="edit-select-compact">
+                                                            <option value="">Enter directly</option>
+                                                            <option value=".h5ad">.h5ad</option>
+                                                            <option value=".sif">.sif</option>
+                                                            <option value=".txt">.txt</option>
+                                                            <option value=".csv">.csv</option>
+                                                            <option value=".json">.json</option>
+                                                        </select>
+                                                    </div>
+                                                    <!-- h5ad parameter type -->
+                                                    <div v-else-if="param.type === 'h5adParameter'" class="edit-row">
+                                                        <select v-model="param.name" class="edit-select-compact">
+                                                            <option value="">Please select h5ad parameter</option>
+                                                            <option value="cell group">cell group</option>
+                                                            <option value="pseudotime">pseudotime column</option>
+                                                            <option value="clusters">clusters</option>
+                                                            <option value="UMAP lasso">UMAP lasso</option>
+                                                        </select>
+                                                    </div>
+                                                    <!-- Other types -->
+                                                    <div v-else class="edit-row">
+                                                        <input type="text"
+                                                            v-if="param.type !== 'inputFile' && param.type !== 'outputFile' && param.type !== 'optionalInputFile' && param.type !== 'boolean'"
+                                                            v-model="param.defaultValue" class="edit-input-compact"
+                                                            placeholder="Default Value">
+                                                        <select v-if="param.type === 'boolean'"
+                                                            v-model="param.defaultValue" class="edit-select-compact">
+                                                            <option value="">Select Value</option>
+                                                            <option value="true">True</option>
+                                                            <option value="false">False</option>
+                                                        </select>
+                                                        <div v-if="param.type === 'int' || param.type === 'float'"
+                                                            class="edit-range-inputs">
+                                                            <input type="number" v-model.number="param.min"
+                                                                placeholder="Min" class="edit-input-compact" />
+                                                            <input type="number" v-model.number="param.max"
+                                                                placeholder="Max" class="edit-input-compact" />
+                                                        </div>
+                                                    </div>
+                                                    <div class="edit-actions">
+                                                        <button class="action-btn save-btn"
+                                                            @click="toggleParameterEdit(rule, paramIndex)" title="Save">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                        <button class="action-btn cancel-btn"
+                                                            @click="cancelParameterEdit(rule, paramIndex)"
+                                                            title="Cancel">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </draggable>
+                                </div>
+                            </div>
+                        </div>
+
+
                     </div>
                 </div>
             </div>
@@ -246,6 +423,7 @@ export default {
             },
             drawflowInstance: null,
             isSelectedH5ad: false,
+            showParameterDetails: {},
         };
     },
     mounted() {
@@ -753,6 +931,176 @@ export default {
                 this.emitRules();
             }
         },
+        // 정리: 불필요한 메서드들 제거됨
+        toggleParameterEdit(rule, paramIndex) {
+            const param = rule.parameters[paramIndex];
+            if (param.isEditing) {
+                // 저장 로직
+                this.saveParameterChanges(rule, paramIndex);
+            } else {
+                // 편집 모드 진입 전 백업
+                this.backupParameterData(rule, paramIndex);
+            }
+            this.$set(param, 'isEditing', !param.isEditing);
+        },
+        saveParameterChanges(rule, paramIndex) {
+            const param = rule.parameters[paramIndex];
+
+            // 타입별 검증
+            if (!this.validateParameter(param)) {
+                return false;
+            }
+
+            // 파일 타입의 경우 defaultValue 업데이트
+            if (param.type === 'inputFile' || param.type === 'outputFile' || param.type === 'optionalInputFile') {
+                param.defaultValue = param.name + (param.fileExtension || '');
+            }
+
+            // h5adParameter 타입의 경우 defaultValue를 name과 동일하게 설정
+            if (param.type === 'h5adParameter') {
+                param.defaultValue = param.name;
+            }
+
+            // 백업 데이터 삭제
+            delete param._backup;
+
+            this.emitRules();
+            return true;
+        },
+        backupParameterData(rule, paramIndex) {
+            const param = rule.parameters[paramIndex];
+            param._backup = {
+                ...param,
+                selectedFileExtension: param.selectedFileExtension || ''
+            };
+        },
+        cancelParameterEdit(rule, paramIndex) {
+            const param = rule.parameters[paramIndex];
+            if (param._backup) {
+                // 백업 데이터로 복원
+                Object.keys(param._backup).forEach(key => {
+                    if (key !== '_backup') {
+                        param[key] = param._backup[key];
+                    }
+                });
+                delete param._backup;
+            }
+            this.$set(param, 'isEditing', false);
+        },
+        validateParameter(param) {
+            if (!param.name || param.name.trim() === '') {
+                this.showAlertandFillContent(
+                    "Validation Error",
+                    ["Parameter name is required."]
+                );
+                return false;
+            }
+
+            if (param.type === 'int' || param.type === 'float') {
+                if (param.min !== null && param.max !== null && param.min > param.max) {
+                    this.showAlertandFillContent(
+                        "Validation Error",
+                        ["Minimum value cannot be greater than maximum value."]
+                    );
+                    return false;
+                }
+            }
+
+            return true;
+        },
+        addParameterToRule(rule, ruleIndex) {
+            const newParam = {
+                name: 'new_parameter',
+                type: 'string',
+                defaultValue: '',
+                isEditing: true,
+                _isNew: true
+            };
+
+            rule.parameters.push(newParam);
+            this.$set(this.showParameterDetails, `${ruleIndex}-${rule.parameters.length - 1}`, true);
+        },
+        removeParameter(rule, paramIndex) {
+            const confirmed = confirm('이 파라미터를 삭제하시겠습니까?');
+            if (confirmed) {
+                rule.parameters.splice(paramIndex, 1);
+                this.emitRules();
+            }
+        },
+        duplicateParameter(rule, paramIndex) {
+            const originalParam = rule.parameters[paramIndex];
+            const duplicatedParam = {
+                ...originalParam,
+                name: originalParam.name + '_copy',
+                isEditing: false,
+                _backup: undefined
+            };
+
+            rule.parameters.splice(paramIndex + 1, 0, duplicatedParam);
+            this.emitRules();
+        },
+        moveParameterUp(rule, paramIndex) {
+            if (paramIndex > 0) {
+                const temp = rule.parameters[paramIndex];
+                this.$set(rule.parameters, paramIndex, rule.parameters[paramIndex - 1]);
+                this.$set(rule.parameters, paramIndex - 1, temp);
+                this.emitRules();
+            }
+        },
+        moveParameterDown(rule, paramIndex) {
+            if (paramIndex < rule.parameters.length - 1) {
+                const temp = rule.parameters[paramIndex];
+                this.$set(rule.parameters, paramIndex, rule.parameters[paramIndex + 1]);
+                this.$set(rule.parameters, paramIndex + 1, temp);
+                this.emitRules();
+            }
+        },
+        // Helper methods for new rule display
+        getInputFiles(rule) {
+            if (!rule.parameters) return [];
+            return rule.parameters
+                .filter(param => param.type === 'inputFile' || param.type === 'optionalInputFile')
+                .map(param => param.defaultValue || param.name)
+                .filter(value => value);
+        },
+        getOutputFiles(rule) {
+            if (!rule.parameters) return [];
+            return rule.parameters
+                .filter(param => param.type === 'outputFile')
+                .map(param => param.defaultValue || param.name)
+                .filter(value => value);
+        },
+        getFileExtension(filename) {
+            if (!filename) return '';
+            const parts = filename.split('.');
+            return parts.length > 1 ? '.' + parts[parts.length - 1] : '';
+        },
+        getScriptName(script) {
+            if (!script) return '';
+            if (typeof script === 'string') return script;
+            return script.name || 'Unknown script';
+        },
+        getParametersByType(rule, type) {
+            if (!rule.parameters) return [];
+            return rule.parameters.filter(param => param.type === type);
+        },
+        // 편집 모드용 헬퍼 메서드들
+        resetParameterEditOption(param) {
+            param.defaultValue = '';
+            param.fileExtension = '';
+            param.selectedFileExtension = '';
+            param.min = null;
+            param.max = null;
+        },
+        updateEditFileExtension(param) {
+            param.fileExtension = param.selectedFileExtension;
+        },
+        isSelectedH5adInEdit(rule) {
+            if (!rule.parameters) return false;
+            return rule.parameters.some(param =>
+                param.type === 'inputFile' && param.fileExtension === '.h5ad'
+            );
+        },
     },
 };
 </script>
@@ -835,8 +1183,7 @@ export default {
     border-radius: 1rem;
     box-shadow: 0px 0px 1px 1px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
-    background: white;
-    color: #333;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     overflow-y: auto;
 }
 
@@ -1135,50 +1482,58 @@ img {
 
 #rule-drawflow .drawflow .drawflow-node {
     display: flex;
-    background: #ffffff;
-    color: #000000;
-    border: 2px solid #000000;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    color: #2c3e50;
+    border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 1rem;
     min-height: 40px;
     width: auto;
     min-width: 160px;
     padding-top: 15px;
     padding-bottom: 15px;
-    -webkit-box-shadow: 0px 2px 15px 2px #000000;
-    box-shadow: 0px 2px 15px 2px #000000;
+    backdrop-filter: blur(10px);
+    -webkit-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #rule-drawflow .drawflow .drawflow-node:hover {
-    background: #ffffff;
-    color: #000000;
-    border: 2px solid #000000;
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    color: #1565c0;
+    border: 1px solid rgba(21, 101, 192, 0.3);
     border-radius: 1rem;
-    -webkit-box-shadow: 0px 2px 15px 2px rgba(255, 255, 255, 1);
-    box-shadow: 0px 2px 15px 2px rgba(255, 255, 255, 1);
+    transform: translateY(-2px);
+    -webkit-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 #rule-drawflow .drawflow .drawflow-node.selected {
-    background: rgba(230, 230, 230, 0.75);
-    color: rgba(0, 0, 0, 1);
-    border: 2px solid #000000;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: 1px solid rgba(102, 126, 234, 0.5);
     border-radius: 1rem;
-    -webkit-box-shadow: 0px 2px 15px 2px rgba(0, 0, 0, 1);
-    box-shadow: 0px 2px 15px 2px rgba(0, 0, 0, 1);
+    transform: translateY(-2px);
+    -webkit-box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
 }
 
 #rule-drawflow .drawflow .drawflow-node .input {
     left: -25px;
-    background: #ffffff;
-    border: 2px solid #000000;
+    background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%);
+    border: 2px solid rgba(79, 195, 247, 0.3);
     border-radius: 50px;
     height: 13px;
     width: 13px;
+    box-shadow: 0 2px 8px rgba(79, 195, 247, 0.3);
+    transition: all 0.2s ease;
 }
 
 #rule-drawflow .drawflow .drawflow-node .input:hover {
-    background: #ffffff;
-    border: 2px solid #000000;
+    background: linear-gradient(135deg, #29b6f6 0%, #0288d1 100%);
+    border: 2px solid rgba(41, 182, 246, 0.6);
     border-radius: 50px;
+    transform: scale(1.2);
+    box-shadow: 0 4px 12px rgba(41, 182, 246, 0.5);
 }
 
 #rule-drawflow .drawflow .drawflow-node .outputs {
@@ -1187,42 +1542,56 @@ img {
 
 #rule-drawflow .drawflow .drawflow-node .output {
     right: -8px;
-    background: #ffffff;
-    border: 2px solid #000000;
+    background: linear-gradient(135deg, #ff7043 0%, #ff5722 100%);
+    border: 2px solid rgba(255, 112, 67, 0.3);
     border-radius: 50px;
     height: 13px;
     width: 13px;
+    box-shadow: 0 2px 8px rgba(255, 112, 67, 0.3);
+    transition: all 0.2s ease;
 }
 
 #rule-drawflow .drawflow .drawflow-node .output:hover {
-    background: #ffffff;
-    border: 2px solid #000000;
+    background: linear-gradient(135deg, #ff5722 0%, #e64a19 100%);
+    border: 2px solid rgba(255, 87, 34, 0.6);
     border-radius: 50px;
+    transform: scale(1.2);
+    box-shadow: 0 4px 12px rgba(255, 87, 34, 0.5);
 }
 
 #rule-drawflow .drawflow .connection .main-path {
-    stroke-width: 5px;
-    stroke: #4682b4;
+    stroke-width: 3px;
+    stroke: #667eea;
+    filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.3));
+    transition: all 0.2s ease;
 }
 
 #rule-drawflow .drawflow .connection .main-path:hover {
-    stroke: #4682b4;
+    stroke: #5a6fd8;
+    stroke-width: 4px;
+    filter: drop-shadow(0 4px 8px rgba(102, 126, 234, 0.5));
 }
 
 #rule-drawflow .drawflow .connection .main-path.selected {
-    stroke: #43b993;
+    stroke: #4fc3f7;
+    stroke-width: 4px;
+    filter: drop-shadow(0 4px 12px rgba(79, 195, 247, 0.6));
 }
 
 #rule-drawflow .drawflow .connection .point {
-    stroke: #000000;
+    stroke: #667eea;
     stroke-width: 2px;
     fill: #ffffff;
+    filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.3));
+    transition: all 0.2s ease;
 }
 
 #rule-drawflow .drawflow .connection .point:hover {
-    stroke: #000000;
-    stroke-width: 2px;
-    fill: #ffffff;
+    stroke: #4fc3f7;
+    stroke-width: 3px;
+    fill: #e3f2fd;
+    filter: drop-shadow(0 4px 8px rgba(79, 195, 247, 0.5));
+    transform: scale(1.2);
 }
 
 #rule-drawflow .drawflow-delete {
@@ -1310,5 +1679,1054 @@ img {
     font-size: inherit;
     width: auto;
     min-width: 50px;
+}
+
+.parameters-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.parameters-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+}
+
+.parameters-header span {
+    font-weight: bold;
+    color: #495057;
+}
+
+.add-param-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: background-color 0.2s ease;
+}
+
+.add-param-btn:hover {
+    background-color: #218838;
+}
+
+.parameters-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.parameter-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.parameter-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    border-color: #007BFF;
+}
+
+.parameter-card.editing {
+    border-color: #28a745;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
+}
+
+.parameter-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.drag-handle {
+    cursor: grab;
+    color: #6c757d;
+    padding: 0.25rem;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+}
+
+.drag-handle:hover {
+    background-color: #f8f9fa;
+    color: #495057;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.parameter-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.param-name {
+    font-weight: 600;
+    color: #212529;
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+
+.param-edit-input {
+    width: 100%;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.param-edit-input:focus {
+    border-color: #007BFF;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    outline: none;
+}
+
+.param-type {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.type-inputFile {
+    background-color: #e3f2fd;
+    color: #1565c0;
+}
+
+.type-outputFile {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.type-optionalInputFile {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+}
+
+.type-string {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+.type-int,
+.type-float {
+    background-color: #fce4ec;
+    color: #c2185b;
+}
+
+.type-boolean {
+    background-color: #e0f2f1;
+    color: #00695c;
+}
+
+.type-h5adParameter {
+    background-color: #f1f8e9;
+    color: #33691e;
+}
+
+.parameter-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.parameter-actions button {
+    padding: 0.375rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.param-edit-btn {
+    background-color: #007BFF;
+    color: white;
+}
+
+.param-edit-btn:hover {
+    background-color: #0056b3;
+}
+
+.param-cancel-btn {
+    background-color: #6c757d;
+    color: white;
+}
+
+.param-cancel-btn:hover {
+    background-color: #545b62;
+}
+
+.param-duplicate-btn {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.param-duplicate-btn:hover {
+    background-color: #138496;
+}
+
+.param-move-btn {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.param-move-btn:hover:not(:disabled) {
+    background-color: #e0a800;
+}
+
+.param-move-btn:disabled {
+    background-color: #e9ecef;
+    color: #6c757d;
+    cursor: not-allowed;
+}
+
+.param-delete-btn {
+    background-color: #dc3545;
+    color: white;
+}
+
+.param-delete-btn:hover {
+    background-color: #c82333;
+}
+
+.parameter-details {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.parameter-toggle {
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+.details-toggle-btn {
+    background: none;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    color: #6c757d;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin: 0 auto;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.details-toggle-btn:hover {
+    background-color: #f8f9fa;
+    color: #495057;
+}
+
+.param-field {
+    margin-bottom: 0.75rem;
+}
+
+.param-field label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    color: #495057;
+    font-size: 0.875rem;
+}
+
+.param-field input,
+.param-field select {
+    width: 100%;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.param-field input:focus,
+.param-field select:focus {
+    border-color: #007BFF;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    outline: none;
+}
+
+.param-field input:read-only {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.range-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.range-input {
+    width: 100% !important;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .parameters-list {
+        grid-template-columns: 1fr;
+    }
+
+    .parameter-actions {
+        justify-content: center;
+    }
+
+    .parameter-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .drag-handle {
+        align-self: flex-end;
+    }
+}
+
+/* 드래그 중일 때 스타일 */
+.sortable-ghost {
+    opacity: 0.6;
+    background-color: #e3f2fd;
+}
+
+.sortable-chosen {
+    transform: scale(1.02);
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .script-drag-parameter {
+        min-width: 200px;
+    }
+
+    .edit-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .edit-input-compact,
+    .edit-select-compact {
+        width: 100%;
+    }
+}
+
+/* ============================================
+   새로운 모던 Rule 카드 스타일
+   ============================================ */
+
+.rules-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem;
+}
+
+.rule-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e1e5e9;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rule-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Rule Header */
+.rule-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rule-title-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+}
+
+.rule-icon {
+    width: 3rem;
+    height: 3rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.rule-title-content {
+    flex: 1;
+}
+
+.rule-name {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.rule-name-edit {
+    margin-bottom: 0.5rem;
+}
+
+.rule-name-input {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    padding: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #333;
+    width: 100%;
+    max-width: 300px;
+}
+
+.rule-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    opacity: 0.9;
+}
+
+.rule-node-id {
+    font-size: 0.875rem;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.visualization-badge {
+    background: #ff6b6b;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.rule-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.rule-action-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.rule-action-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.rule-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.rule-action-btn.delete-btn:hover:not(:disabled) {
+    background: #ff4757;
+    border-color: #ff4757;
+}
+
+/* Rule Content */
+.rule-content {
+    padding: 1.5rem;
+}
+
+.rule-section {
+    margin-bottom: 2rem;
+}
+
+.rule-section:last-child {
+    margin-bottom: 0;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #f1f3f4;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.125rem;
+    color: #2c3e50;
+}
+
+.section-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    color: #667eea;
+    font-size: 1rem;
+}
+
+.section-count {
+    background: #667eea;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.script-info {
+    background: #34495e;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.section-content {
+    padding-left: 2.25rem;
+}
+
+/* File Lists */
+.file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+    transition: all 0.2s ease;
+}
+
+.file-item:hover {
+    background: #e9ecef;
+    transform: translateX(4px);
+}
+
+.file-item.input-file {
+    border-left-color: #28a745;
+}
+
+.file-item.output-file {
+    border-left-color: #dc3545;
+}
+
+.file-icon {
+    width: 2rem;
+    height: 2rem;
+    background: #667eea;
+    color: white;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+}
+
+.input-file .file-icon {
+    background: #28a745;
+}
+
+.output-file .file-icon {
+    background: #dc3545;
+}
+
+.file-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.file-name {
+    font-weight: 600;
+    /* color: #2c3e50; */
+    color: white;
+    font-size: 0.95rem;
+}
+
+.file-type {
+    font-size: 0.75rem;
+    color: #6c757d;
+    background: #e9ecef;
+    padding: 0.125rem 0.5rem;
+    border-radius: 8px;
+    align-self: flex-start;
+    font-weight: 500;
+}
+
+/* Empty States */
+.empty-state {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 2rem 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px dashed #dee2e6;
+}
+
+/* Shell Command */
+.shell-command {
+    background: #2c3e50;
+    color: #ecf0f1;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.shell-command code {
+    font-size: 0.875rem;
+    line-height: 1.4;
+    color: #ecf0f1;
+    white-space: pre-wrap;
+}
+
+/* Parameters Container - 기존 스타일과 통합 */
+.rule-section .parameters-container {
+    margin-top: 0;
+}
+
+.rule-section .parameters-header-inline {
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+}
+
+.rule-section .script-drag-component {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .rule-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .rule-title-section {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .rule-actions {
+        justify-content: center;
+    }
+
+    .section-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+
+    .section-content {
+        padding-left: 0;
+    }
+
+    .file-list {
+        gap: 0.5rem;
+    }
+
+    .file-item {
+        padding: 0.5rem;
+    }
+}
+
+/* 다크모드 지원 */
+@media (prefers-color-scheme: dark) {
+    .rule-card {
+        background: #2c3e50;
+        border-color: #34495e;
+        color: #ecf0f1;
+    }
+
+    .section-title {
+        color: #ecf0f1;
+    }
+
+    .file-item {
+        background: #34495e;
+        color: #ecf0f1;
+    }
+
+    .file-item:hover {
+        background: #4a6741;
+    }
+
+    .empty-state {
+        background: #34495e;
+        color: #bdc3c7;
+        border-color: #4a6741;
+    }
+}
+
+/* 파라미터 컨테이너 - 컴팩트 디자인 스타일 */
+.parameters-container {
+    margin-top: 0.5rem;
+}
+
+.parameters-header-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.add-param-btn-inline {
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+}
+
+.add-param-btn-inline:hover {
+    background-color: #0056b3;
+}
+
+/* 기존 스크립트 드래그 컴포넌트 스타일 */
+.script-drag-component {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.25rem 0;
+    min-height: 2.5rem;
+}
+
+.script-drag-parameter {
+    display: flex;
+    align-items: center;
+    min-width: fit-content;
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 0.5rem;
+    cursor: grab;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    position: relative;
+}
+
+.script-drag-parameter:hover {
+    background-color: #e9ecef;
+    border-color: #007BFF;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.script-drag-parameter.editing {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+    min-width: 280px;
+}
+
+.script-drag-parameter:active {
+    cursor: grabbing;
+}
+
+/* 일반 보기 모드 */
+.param-view-mode {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.drag-handle {
+    color: #999;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    padding: 0.125rem;
+    border-radius: 2px;
+}
+
+.drag-handle:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #666;
+}
+
+.param-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #333;
+    margin-right: 0.25rem;
+}
+
+.param-type {
+    font-size: 0.7rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 8px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.param-actions-inline {
+    display: flex;
+    gap: 0.125rem;
+    margin-left: 0.25rem;
+}
+
+.action-btn {
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+.script-drag-parameter:hover .action-btn {
+    opacity: 1;
+}
+
+.edit-btn {
+    background-color: #007BFF;
+    color: white;
+}
+
+.edit-btn:hover {
+    background-color: #0056b3;
+}
+
+.duplicate-btn {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.duplicate-btn:hover {
+    background-color: #138496;
+}
+
+.delete-btn {
+    background-color: #dc3545;
+    color: white;
+}
+
+.delete-btn:hover {
+    background-color: #c82333;
+}
+
+.save-btn {
+    background-color: #28a745;
+    color: white;
+}
+
+.save-btn:hover {
+    background-color: #218838;
+}
+
+.cancel-btn {
+    background-color: #6c757d;
+    color: white;
+}
+
+.cancel-btn:hover {
+    background-color: #545b62;
+}
+
+/* 편집 모드 */
+.param-edit-mode {
+    width: 100%;
+}
+
+.edit-form-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    width: 100%;
+}
+
+.edit-row {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.edit-input-compact,
+.edit-select-compact {
+    border: 1px solid #ced4da;
+    border-radius: 3px;
+    padding: 0.25rem 0.375rem;
+    font-size: 0.75rem;
+    background-color: white;
+    transition: border-color 0.15s ease;
+}
+
+.edit-input-compact {
+    flex: 1;
+    min-width: 60px;
+}
+
+.edit-select-compact {
+    min-width: 80px;
+}
+
+.edit-input-compact:focus,
+.edit-select-compact:focus {
+    border-color: #007BFF;
+    outline: none;
+    box-shadow: 0 0 0 1px rgba(0, 123, 255, 0.25);
+}
+
+.edit-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.edit-range-inputs {
+    display: flex;
+    gap: 0.25rem;
+    width: 100%;
+}
+
+.edit-range-inputs .edit-input-compact {
+    flex: 1;
+}
+
+/* 타입별 색상 유지 */
+.type-inputFile {
+    background-color: #e3f2fd;
+    color: #1565c0;
+}
+
+.type-outputFile {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.type-optionalInputFile {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+}
+
+.type-string {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+.type-int,
+.type-float {
+    background-color: #fce4ec;
+    color: #c2185b;
+}
+
+.type-boolean {
+    background-color: #e0f2f1;
+    color: #00695c;
+}
+
+.type-h5adParameter {
+    background-color: #f1f8e9;
+    color: #33691e;
+}
+
+/* 스크롤바 개선 */
+.script-drag-component::-webkit-scrollbar {
+    height: 6px;
+}
+
+.script-drag-component::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.script-drag-component::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.script-drag-component::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 드래그 상태 스타일 */
+.sortable-ghost {
+    opacity: 0.6;
+    background-color: #e3f2fd;
+}
+
+.sortable-chosen {
+    transform: scale(1.02);
 }
 </style>
