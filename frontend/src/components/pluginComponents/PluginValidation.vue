@@ -185,7 +185,7 @@
                                         <div class="param-header">
                                             <span class="param-name">{{ param.name }}</span>
                                             <span class="param-type" :class="'type-' + param.type">{{ param.type
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                         <div v-if="param.defaultValue" class="param-value">{{ param.defaultValue }}
                                         </div>
@@ -210,10 +210,24 @@
                         <li><i class="fas fa-check"></i> Verified that final output is correctly visualized</li>
                     </ul>
                 </div>
-                <button @click="uploadPluginData" class="upload-button">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <span>Upload Plugin</span>
-                </button>
+                <div class="upload-section">
+                    <!-- GPU Configuration -->
+                    <div class="gpu-config-option">
+                        <label class="gpu-toggle-label">
+                            <input type="checkbox" class="gpu-toggle-input" v-model="useGpu">
+                            <span class="gpu-toggle-slider"></span>
+                            <div class="gpu-toggle-text">
+                                <span class="gpu-toggle-title">Enable GPU Support</span>
+                                <span class="gpu-toggle-desc">Use GPU acceleration for this plugin</span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <button @click="uploadPluginData" class="upload-button">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span>Upload Plugin</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -257,6 +271,7 @@ export default {
             validationLoading: false,
             uploadingStep: 0,
             buildTimer: null,
+            useGpu: false,
         };
     },
     async mounted() {
@@ -338,7 +353,8 @@ export default {
                         name: this.plugin.name,
                         description: this.plugin.description,
                         dependencyFiles: this.plugin.dependencyFiles,
-                        referenceFolders: this.plugin.referenceFolders
+                        referenceFolders: this.plugin.referenceFolders,
+                        useGpu: this.useGpu
                     };
 
                     // 3. 플러그인 검증
@@ -453,7 +469,7 @@ export default {
                     this.uploadingStep = 3;
                     console.log('Starting Docker build...');
 
-                    const buildResponse = await buildPluginDocker(pluginCreate.name);
+                    const buildResponse = await buildPluginDocker(pluginCreate.name, this.useGpu);
                     console.log('Docker build completed:', buildResponse.data);
 
                     // 업로드 완료 처리
@@ -1248,6 +1264,95 @@ export default {
     }
 }
 
+/* Upload Section Styles */
+.upload-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+/* GPU Configuration Styles */
+.gpu-config-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.gpu-toggle-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    gap: 1rem;
+    padding: 0.75rem 1.5rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border: 1px solid #e1e5e9;
+    transition: all 0.3s ease;
+}
+
+.gpu-toggle-label:hover {
+    background: #e9ecef;
+    border-color: #667eea;
+}
+
+.gpu-toggle-input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.gpu-toggle-slider {
+    position: relative;
+    width: 48px;
+    height: 24px;
+    background-color: #ccc;
+    border-radius: 24px;
+    transition: all 0.3s ease;
+}
+
+.gpu-toggle-slider::before {
+    content: "";
+    position: absolute;
+    height: 20px;
+    width: 20px;
+    left: 2px;
+    top: 2px;
+    background-color: white;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.gpu-toggle-input:checked + .gpu-toggle-slider {
+    background-color: #667eea;
+}
+
+.gpu-toggle-input:checked + .gpu-toggle-slider::before {
+    transform: translateX(24px);
+}
+
+.gpu-toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.gpu-toggle-title {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 1rem;
+}
+
+.gpu-toggle-desc {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
 @media (max-width: 480px) {
     .validation-container {
         padding: 0.5rem;
@@ -1263,6 +1368,15 @@ export default {
 
     .rule-content {
         padding: 1rem;
+    }
+    
+    .upload-section {
+        gap: 1rem;
+    }
+    
+    .gpu-toggle-label {
+        padding: 0.5rem 1rem;
+        gap: 0.75rem;
     }
 }
 </style>

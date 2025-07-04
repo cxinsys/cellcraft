@@ -315,8 +315,8 @@ function buildPlugin(plugin_name) {
   return instance.post(`/routes/plugin/build/${plugin_name}`);
 }
 
-function buildPluginDocker(plugin_name) {
-  return instance.post(`/routes/plugin/build_docker/${plugin_name}`);
+function buildPluginDocker(plugin_name, use_gpu = false) {
+  return instance.post(`/routes/plugin/build_docker/${plugin_name}`, { use_gpu });
 }
 
 function checkPluginImage(plugin_name) {
