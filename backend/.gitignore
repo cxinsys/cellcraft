@@ -33,3 +33,6 @@ Rplots.pdf
 MAC_temp.csv
 
 src/
+
+user_logs/
+plugin/build_logs/

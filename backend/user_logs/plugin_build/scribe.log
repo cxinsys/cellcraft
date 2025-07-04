@@ -1,0 +1,1626 @@
+Building Docker image for plugin: Scribe
+Start time: 2025-06-11T16:14:03.185636
+Docker version: 27.1.2
+
+Dockerfile content:
+FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
+
+# 비대화형 설치 설정
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Seoul
+
+# 기본 패키지 설치
+RUN apt-get update && apt-get install -y \
+    build-essential gcc g++ gfortran make \
+    libssl-dev libcurl4-openssl-dev libxml2-dev \
+    libjpeg-dev libpng-dev libfreetype6-dev libtiff-dev \
+    libx11-dev xorg-dev libxt-dev libglu1-mesa-dev \
+    curl wget unzip git \
+    python3.10 python3-pip python3-venv \
+    software-properties-common \
+    gnupg ca-certificates \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# R 설치 (특정 버전)
+RUN apt-get update && \
+    apt-get install -y dirmngr gpg-agent && \
+    wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc && \
+    add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/' && \
+    apt-get update
+
+# R 4.4.2 설치 시도
+RUN (apt-get install -y r-base-core=4.4* r-recommended=4.4* r-base-dev=4.4* 2>/dev/null) || \
+    (echo 'Specific R version 4.4.2 not available, installing latest' && \
+     apt-get install -y r-base r-base-dev r-recommended) && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# R 버전 확인
+RUN R --version | head -1
+
+# dependency 폴더 복사
+COPY dependency/ /workspace/dependency/
+
+# 디버깅: dependency 폴더 내용 확인
+RUN echo '[DEBUG] Contents of /workspace/dependency folder:' && \
+    ls -la /workspace/dependency/ && \
+    echo '[DEBUG] Detailed file information:' && \
+    find /workspace/dependency -type f -exec ls -lh {} \; && \
+    echo '[DEBUG] File contents preview:' && \
+    for file in /workspace/dependency/*.txt /workspace/dependency/*.yml /workspace/dependency/*.yaml /workspace/dependency/*.lock; do \
+        if [ -f "$file" ]; then \
+            echo "=== Contents of $(basename $file) ==="; \
+            head -20 "$file" || echo "Could not read $file"; \
+            echo ""; \
+        fi; \
+    done
+
+# Micromamba 설치
+RUN mkdir -p /usr/local/bin && \
+    cd /tmp && \
+    curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj && \
+    cp bin/micromamba /usr/local/bin/micromamba && \
+    chmod +x /usr/local/bin/micromamba && \
+    rm -rf /tmp/bin /tmp/info && \
+    # 설치 확인
+    /usr/local/bin/micromamba --version
+
+# 환경 변수 설정
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV MAMBA_EXE=/usr/local/bin/micromamba
+ENV PATH=/usr/local/bin:$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$MAMBA_ROOT_PREFIX/bin:$PATH
+
+# Micromamba 환경 디렉토리 생성
+RUN mkdir -p $MAMBA_ROOT_PREFIX && \
+    mkdir -p $MAMBA_ROOT_PREFIX/envs && \
+    mkdir -p $MAMBA_ROOT_PREFIX/pkgs && \
+    mkdir -p $MAMBA_ROOT_PREFIX/etc/profile.d
+
+# Python 환경 생성
+RUN /usr/local/bin/micromamba create -y -n plugin_env python=3.10 -c conda-forge --root-prefix $MAMBA_ROOT_PREFIX
+
+# Snakemake 및 필수 패키지 설치
+RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \
+    pip install --no-cache-dir \
+    'snakemake==7.14.0' \
+    'pulp==2.7.0' \
+    'tabulate==0.8.10'
+
+# Python 패키지 설치
+RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \
+    pip install --no-cache-dir -r /workspace/dependency/requirements.txt || true
+
+# R 패키지 설치 - 시스템 라이브러리에 직접 설치
+RUN Rscript -e "options(repos = c(CRAN = 'https://cloud.r-project.org'))"
+
+# renv 설치
+RUN Rscript -e "install.packages('renv')"
+
+# renv.lock을 사용해서 시스템 라이브러리에 직접 패키지 설치
+RUN if [ -f "/workspace/dependency/renv.lock" ]; then \
+    echo 'Installing packages from renv.lock...' && \
+    # dependency 폴더로 이동 (로컬 패키지 파일들이 있는 곳) \
+    cd /workspace/dependency && \
+    # 로컬 패키지 파일 확인 \
+    ls -la *.tar.gz 2>/dev/null || echo 'No local package files found' && \
+    # renv restore 실행 \
+    Rscript -e "Sys.setenv(RENV_PATHS_LIBRARY = .libPaths()[1])" && \
+    Rscript -e "renv::restore(lockfile = 'renv.lock', library = .libPaths()[1], prompt = FALSE)" && \
+    Rscript -e "cat('\\nInstalled packages:\\n'); print(installed.packages()[, c('Package', 'Version')])"; \
+    fi
+
+# 추가 필수 패키지 확인 및 설치
+RUN Rscript -e " \
+    required_pkgs <- c('optparse', 'jsonlite', 'readr', 'dplyr', 'ggplot2'); \
+    missing_pkgs <- required_pkgs[!required_pkgs %in% installed.packages()[,'Package']]; \
+    if (length(missing_pkgs) > 0) { \
+        cat('Installing missing packages:', paste(missing_pkgs, collapse=', '), '\\n'); \
+        install.packages(missing_pkgs, dependencies = TRUE) \
+    } \
+    "
+
+# renv 자동 활성화 비활성화를 위한 환경 변수
+ENV RENV_CONFIG_AUTOLOADER_ENABLED=FALSE
+
+# R 환경 변수 설정
+ENV R_HOME=/usr/lib/R
+
+# 작업 디렉토리 생성 및 설정
+RUN mkdir -p /workspace/logs && \
+    chmod 777 /workspace
+
+# Snakefile 복사
+COPY Snakefile /workspace/Snakefile
+COPY visualization_Snakefile /workspace/visualization_Snakefile
+
+# scripts 폴더 복사
+COPY scripts/ /scripts/
+
+WORKDIR /workspace
+
+# Entrypoint 스크립트 생성
+RUN echo '#!/bin/bash' > /entrypoint.sh
+RUN echo 'export MAMBA_ROOT_PREFIX=/opt/micromamba' >> /entrypoint.sh
+RUN echo 'export MAMBA_EXE=/usr/local/bin/micromamba' >> /entrypoint.sh
+RUN echo 'export PATH=$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$PATH' >> /entrypoint.sh
+RUN echo '# Set R environment' >> /entrypoint.sh
+RUN echo 'export R_HOME=/usr/lib/R' >> /entrypoint.sh
+RUN echo 'export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE' >> /entrypoint.sh
+RUN echo '# Activate micromamba environment' >> /entrypoint.sh
+RUN echo 'eval "$($MAMBA_EXE shell activate -s bash -p $MAMBA_ROOT_PREFIX plugin_env)" 2>/dev/null || true' >> /entrypoint.sh
+RUN echo 'cd /workspace' >> /entrypoint.sh
+RUN echo 'exec "$@"' >> /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+
+# 헬스체크 설정
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD test -f /opt/micromamba/envs/plugin_env/bin/python || exit 1
+
+# 기본 명령어 설정
+CMD ["/bin/bash"]
+
+Starting build...
+Step 1/43 : FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
+ ---> a1ffe80dc4e1
+Step 2/43 : ENV DEBIAN_FRONTEND=noninteractive
+ ---> Using cache
+ ---> 62ca82dc3808
+Step 3/43 : ENV TZ=Asia/Seoul
+ ---> Using cache
+ ---> d3aa5b565b25
+Step 4/43 : RUN apt-get update && apt-get install -y     build-essential gcc g++ gfortran make     libssl-dev libcurl4-openssl-dev libxml2-dev     libjpeg-dev libpng-dev libfreetype6-dev libtiff-dev     libx11-dev xorg-dev libxt-dev libglu1-mesa-dev     curl wget unzip git     python3.10 python3-pip python3-venv     software-properties-common     gnupg ca-certificates     && apt-get clean && rm -rf /var/lib/apt/lists/*
+ ---> Using cache
+ ---> b7a8963acecf
+Step 5/43 : RUN apt-get update &&     apt-get install -y dirmngr gpg-agent &&     wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc &&     add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/' &&     apt-get update
+ ---> Using cache
+ ---> 1516933623b8
+Step 6/43 : RUN (apt-get install -y r-base-core=4.4* r-recommended=4.4* r-base-dev=4.4* 2>/dev/null) ||     (echo 'Specific R version 4.4.2 not available, installing latest' &&      apt-get install -y r-base r-base-dev r-recommended) &&     apt-get clean && rm -rf /var/lib/apt/lists/*
+ ---> Using cache
+ ---> 11b8c8ae90f5
+Step 7/43 : RUN R --version | head -1
+ ---> Using cache
+ ---> 3aa6d874041c
+Step 8/43 : COPY dependency/ /workspace/dependency/
+ ---> Using cache
+ ---> ff100fc90101
+Step 9/43 : RUN echo '[DEBUG] Contents of /workspace/dependency folder:' &&     ls -la /workspace/dependency/ &&     echo '[DEBUG] Detailed file information:' &&     find /workspace/dependency -type f -exec ls -lh {} \; &&     echo '[DEBUG] File contents preview:' &&     for file in /workspace/dependency/*.txt /workspace/dependency/*.yml /workspace/dependency/*.yaml /workspace/dependency/*.lock; do         if [ -f "$file" ]; then             echo "=== Contents of $(basename $file) ===";             head -20 "$file" || echo "Could not read $file";             echo "";         fi;     done
+ ---> Using cache
+ ---> 3c5c34615421
+Step 10/43 : RUN mkdir -p /usr/local/bin &&     cd /tmp &&     curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj &&     cp bin/micromamba /usr/local/bin/micromamba &&     chmod +x /usr/local/bin/micromamba &&     rm -rf /tmp/bin /tmp/info &&     /usr/local/bin/micromamba --version
+ ---> Using cache
+ ---> c0bbac0ad424
+Step 11/43 : ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ ---> Using cache
+ ---> 30fd46904b80
+Step 12/43 : ENV MAMBA_EXE=/usr/local/bin/micromamba
+ ---> Using cache
+ ---> e20baff2f803
+Step 13/43 : ENV PATH=/usr/local/bin:$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$MAMBA_ROOT_PREFIX/bin:$PATH
+ ---> Using cache
+ ---> 6ded07fad895
+Step 14/43 : RUN mkdir -p $MAMBA_ROOT_PREFIX &&     mkdir -p $MAMBA_ROOT_PREFIX/envs &&     mkdir -p $MAMBA_ROOT_PREFIX/pkgs &&     mkdir -p $MAMBA_ROOT_PREFIX/etc/profile.d
+ ---> Using cache
+ ---> c62faf44700c
+Step 15/43 : RUN /usr/local/bin/micromamba create -y -n plugin_env python=3.10 -c conda-forge --root-prefix $MAMBA_ROOT_PREFIX
+ ---> Using cache
+ ---> 7c90cdd35b21
+Step 16/43 : RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX     pip install --no-cache-dir     'snakemake==7.14.0'     'pulp==2.7.0'     'tabulate==0.8.10'
+ ---> Using cache
+ ---> eab9f5fd4f07
+Step 17/43 : RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX     pip install --no-cache-dir -r /workspace/dependency/requirements.txt || true
+ ---> Using cache
+ ---> 61ed9dfada56
+Step 18/43 : RUN Rscript -e "options(repos = c(CRAN = 'https://cloud.r-project.org'))"
+ ---> Using cache
+ ---> ea4311b1b49c
+Step 19/43 : RUN Rscript -e "install.packages('renv')"
+ ---> Using cache
+ ---> d41cc9c1063c
+Step 20/43 : RUN if [ -f "/workspace/dependency/renv.lock" ]; then     echo 'Installing packages from renv.lock...' &&     cd /workspace/dependency &&     ls -la *.tar.gz 2>/dev/null || echo 'No local package files found' &&     Rscript -e "Sys.setenv(RENV_PATHS_LIBRARY = .libPaths()[1])" &&     Rscript -e "renv::restore(lockfile = 'renv.lock', library = .libPaths()[1], prompt = FALSE)" &&     Rscript -e "cat('\\nInstalled packages:\\n'); print(installed.packages()[, c('Package', 'Version')])";     fi
+ ---> Running in 7b867de603d8
+Installing packages from renv.lock...
+-rw-r--r-- 1 root root   671096 Jun 11 15:24 RANNinf_2.5.0.99.tar.gz
+-rw-r--r-- 1 root root 52373869 Jun 11 15:24 Scribe_0.1.tar.gz
+The following package(s) will be updated:
+
+# Bioconductor 3.20 ----------------------------------------------------------
+- Biobase          [* -> 2.66.0]
+- BiocGenerics     [* -> 0.52.0]
+- BiocVersion      [* -> 3.20.0]
+- HSMMSingleCell   [* -> 1.26.0]
+- RBGL             [* -> 1.82.0]
+- biocViews        [* -> 1.74.0]
+- graph            [* -> 1.84.1]
+- limma            [* -> 3.62.2]
+- monocle          [* -> 2.34.0]
+
+# CRAN -----------------------------------------------------------------------
+- BiocManager      [1.30.26 -> 1.30.25]
+- MASS             [7.3-65 -> 7.3-64]
+- Matrix           [1.7-3 -> 1.7-1]
+- cluster          [2.1.8.1 -> 2.1.8]
+- lattice          [0.22-5 -> 0.22-6]
+- nlme             [3.1-168 -> 3.1-166]
+- renv             [1.1.4 -> 1.0.11]
+- BH               [* -> 1.87.0-1]
+- DDRTree          [* -> 0.1.5]
+- DEoptimR         [* -> 1.1-3-1]
+- HiveR            [* -> 0.4.0]
+- R6               [* -> 2.5.1]
+- RANN             [* -> 2.6.2]
+- RColorBrewer     [* -> 1.1-3]
+- RCurl            [* -> 1.98-1.16]
+- RUnit            [* -> 0.4.33]
+- Rcpp             [* -> 1.0.14]
+- RcppArmadillo    [* -> 14.2.2-1]
+- RcppEigen        [* -> 0.3.4.0.2]
+- Rtsne            [* -> 0.17]
+- VGAM             [* -> 1.1-12]
+- XML              [* -> 3.99-0.18]
+- base64enc        [* -> 0.1-3]
+- bitops           [* -> 1.0-9]
+- brio             [* -> 1.1.5]
+- bslib            [* -> 0.8.0]
+- cachem           [* -> 1.1.0]
+- callr            [* -> 3.7.6]
+- cli              [* -> 3.6.3]
+- colorspace       [* -> 2.1-1]
+- combinat         [* -> 0.0-8]
+- cowplot          [* -> 1.1.3]
+- cpp11            [* -> 0.5.1]
+- crayon           [* -> 1.5.3]
+- desc             [* -> 1.4.3]
+- di               [* -> 1.1.4]
+- diffobj          [* -> 0.3.5]
+- digest           [* -> 0.6.37]
+- diptest          [* -> 0.77-1]
+- dplyr            [* -> 1.1.4]
+- evaluate         [* -> 1.0.3]
+- fansi            [* -> 1.0.6]
+- farver           [* -> 2.1.2]
+- fastICA          [* -> 1.2-7]
+- fastmap          [* -> 1.2.0]
+- flexmix          [* -> 2.3-19]
+- fontawesome      [* -> 0.5.3]
+- fpc              [* -> 2.2-13]
+- fs               [* -> 1.6.5]
+- generics         [* -> 0.1.3]
+- ggplot2          [* -> 3.5.1]
+- glue             [* -> 1.8.0]
+- gridExtra        [* -> 2.3]
+- gtable           [* -> 0.3.6]
+- highr            [* -> 0.11]
+- htmltools        [* -> 0.5.8.1]
+- htmlwidgets      [* -> 1.6.4]
+- igraph           [* -> 2.1.3]
+- inflection       [* -> 1.3.6]
+- irlba            [* -> 2.3.5.1]
+- isoband          [* -> 0.2.7]
+- jpeg             [* -> 0.1-10]
+- jquerylib        [* -> 0.1.4]
+- jsonlite         [* -> 1.8.9]
+- kernlab          [* -> 0.9-33]
+- knitr            [* -> 1.49]
+- labeling         [* -> 0.4.3]
+- leidenbase       [* -> 0.1.31]
+- lifecycle        [* -> 1.0.4]
+- lpSolveAPI       [* -> 5.5.2.0-17.12]
+- magrittr         [* -> 2.0.3]
+- matrixStats      [* -> 1.5.0]
+- mclust           [* -> 6.1.1]
+- memoise          [* -> 2.0.1]
+- mime             [* -> 0.12]
+- modeltools       [* -> 0.2-23]
+- munsell          [* -> 0.5.1]
+- parmigene        [* -> 1.1.1]
+- pheatmap         [* -> 1.0.12]
+- pillar           [* -> 1.10.1]
+- pkgbuild         [* -> 1.4.5]
+- pkgconfig        [* -> 2.0.3]
+- pkgload          [* -> 1.4.0]
+- plyr             [* -> 1.8.9]
+- png              [* -> 0.1-8]
+- prabclus         [* -> 2.3-4]
+- praise           [* -> 1.0.0]
+- princurve        [* -> 2.1.6]
+- processx         [* -> 3.8.5]
+- proxy            [* -> 0.4-27]
+- ps               [* -> 1.8.1]
+- rappdirs         [* -> 0.3.3]
+- reshape2         [* -> 1.4.4]
+- rgl              [* -> 1.3.16]
+- rlang            [* -> 1.1.4]
+- rmarkdown        [* -> 2.29]
+- robustbase       [* -> 0.99-4-1]
+- rprojroot        [* -> 2.0.4]
+- sass             [* -> 0.4.9]
+- scales           [* -> 1.3.0]
+- slam             [* -> 0.1-55]
+- statmod          [* -> 1.5.0]
+- stringi          [* -> 1.8.4]
+- stringr          [* -> 1.5.1]
+- testthat         [* -> 3.2.3]
+- tibble           [* -> 3.2.1]
+- tidyselect       [* -> 1.2.1]
+- tinytex          [* -> 0.54]
+- utf8             [* -> 1.2.4]
+- vctrs            [* -> 0.6.5]
+- viridis          [* -> 0.6.5]
+- viridisLite      [* -> 0.4.2]
+- waldo            [* -> 0.6.1]
+- withr            [* -> 3.0.2]
+- xfun             [* -> 0.50]
+- xtable           [* -> 1.8-4]
+- yaml             [* -> 2.3.10]
+
+# Local ----------------------------------------------------------------------
+- RANNinf          [* -> 2.5.0.99]
+- Scribe           [* -> 0.1]
+
+# Downloading packages -------------------------------------------------------
+- Downloading MASS from CRAN ...                OK [498.2 Kb in 0.45s]
+- Downloading BiocManager from CRAN ...         OK [579.5 Kb in 0.47s]
+- Downloading Matrix from CRAN ...              OK [2.4 Mb in 0.29s]
+- Downloading lattice from CRAN ...             OK [584.6 Kb in 0.28s]
+- Downloading nlme from CRAN ...                OK [827.8 Kb in 0.43s]
+- Downloading renv from CRAN ...                OK [1.2 Mb in 0.49s]
+- Downloading cluster from CRAN ...             OK [363.3 Kb in 0.47s]
+- Downloading BH from CRAN ...                  OK [13.7 Mb in 0.63s]
+- Downloading Biobase from Bioconductor 3.20 ... OK [1.9 Mb in 2.3s]
+- Downloading BiocGenerics from Bioconductor 3.20 ... OK [55.7 Kb in 1.3s]
+- Downloading BiocVersion from Bioconductor 3.20 ... OK [983 bytes in 0.85s]
+- Downloading DDRTree from CRAN ...             OK [13.4 Kb in 0.26s]
+- Downloading Rcpp from CRAN ...                OK [2.9 Mb in 0.49s]
+- Downloading irlba from CRAN ...               OK [228.1 Kb in 0.45s]
+- Downloading RcppEigen from CRAN ...           OK [1.7 Mb in 0.51s]
+- Downloading DEoptimR from CRAN ...            OK [19.1 Kb in 0.45s]
+- Downloading HSMMSingleCell from Bioconductor 3.20 ... OK [16.1 Mb in 3.2s]
+- Downloading HiveR from CRAN ...               OK [548.7 Kb in 0.3s]
+- Downloading plyr from CRAN ...                OK [392.1 Kb in 0.44s]
+- Downloading jpeg from CRAN ...                OK [18.2 Kb in 0.44s]
+- Downloading png from CRAN ...                 OK [24.3 Kb in 0.26s]
+- Downloading RColorBrewer from CRAN ...        OK [11.4 Kb in 0.26s]
+- Downloading rgl from CRAN ...                 OK [3.9 Mb in 0.33s]
+- Downloading htmlwidgets from CRAN ...         OK [848.5 Kb in 0.29s]
+- Downloading htmltools from CRAN ...           OK [132 Kb in 0.44s]
+- Downloading base64enc from CRAN ...           OK [7.6 Kb in 0.43s]
+- Downloading digest from CRAN ...              OK [226.9 Kb in 0.46s]
+- Downloading fastmap from CRAN ...             OK [45.6 Kb in 0.45s]
+- Downloading rlang from CRAN ...               OK [749.1 Kb in 0.44s]
+- Downloading jsonlite from CRAN ...            OK [1 Mb in 0.29s]
+- Downloading knitr from CRAN ...               OK [533 Kb in 0.45s]
+- Downloading evaluate from CRAN ...            OK [36.9 Kb in 0.26s]
+- Downloading highr from CRAN ...               OK [13.5 Kb in 0.45s]
+- Downloading xfun from CRAN ...                OK [169.9 Kb in 0.46s]
+- Downloading yaml from CRAN ...                OK [92.3 Kb in 0.44s]
+- Downloading rmarkdown from CRAN ...           OK [2.1 Mb in 0.31s]
+- Downloading bslib from CRAN ...               OK [4.9 Mb in 0.65s]
+- Downloading cachem from CRAN ...              OK [26.6 Kb in 0.44s]
+- Downloading jquerylib from CRAN ...           OK [508 Kb in 0.45s]
+- Downloading lifecycle from CRAN ...           OK [105.1 Kb in 0.27s]
+- Downloading cli from CRAN ...                 OK [554.8 Kb in 0.29s]
+- Downloading glue from CRAN ...                OK [123.7 Kb in 0.44s]
+- Downloading memoise from CRAN ...             OK [17.4 Kb in 0.26s]
+- Downloading mime from CRAN ...                OK [12.3 Kb in 0.24s]
+- Downloading sass from CRAN ...                OK [2.9 Mb in 0.31s]
+- Downloading fs from CRAN ...                  OK [1.1 Mb in 0.29s]
+- Downloading R6 from CRAN ...                  OK [61.9 Kb in 0.27s]
+- Downloading rappdirs from CRAN ...            OK [12 Kb in 0.26s]
+- Downloading fontawesome from CRAN ...         OK [1.3 Mb in 0.29s]
+- Downloading tinytex from CRAN ...             OK [34.8 Kb in 0.25s]
+- Downloading magrittr from CRAN ...            OK [260.8 Kb]
+- Downloading xtable from CRAN ...              OK [551.4 Kb in 0.28s]
+- Downloading RANN from CRAN ...                OK [58.4 Kb in 0.27s]
+- Downloading RcppArmadillo from CRAN ...       OK [1.3 Mb in 0.28s]
+- Downloading RBGL from Bioconductor 3.20 ...   OK [3.8 Mb in 2.5s]
+- Downloading graph from Bioconductor 3.20 ...  OK [1.4 Mb in 2.4s]
+- Downloading RCurl from CRAN ...               OK [711.9 Kb in 0.48s]
+- Downloading bitops from CRAN ...              OK [10.7 Kb]
+- Downloading RUnit from CRAN ...               OK [420.6 Kb]
+- Downloading Rtsne from CRAN ...               OK [69.2 Kb in 0.81s]
+- Downloading monocle from Bioconductor 3.20 ... OK [9 Mb in 2.8s]
+- Downloading igraph from CRAN ...              OK [4.8 Mb in 0.45s]
+- Downloading pkgconfig from CRAN ...           OK [5.9 Kb]
+- Downloading vctrs from CRAN ...               OK [946.4 Kb]
+- Downloading cpp11 from CRAN ...               OK [285 Kb in 0.46s]
+- Downloading combinat from CRAN ...            OK [9 Kb in 0.44s]
+- Downloading fastICA from CRAN ...             OK [11.5 Kb]
+- Downloading matrixStats from CRAN ...         OK [207.2 Kb in 0.46s]
+- Downloading reshape2 from CRAN ...            OK [36.4 Kb]
+- Downloading stringr from CRAN ...             OK [172.5 Kb in 0.46s]
+- Downloading stringi from CRAN ...             OK [11.4 Mb in 0.64s]
+- Downloading leidenbase from CRAN ...          OK [3.6 Mb in 0.34s]
+- Downloading limma from Bioconductor 3.20 ...  OK [2.7 Mb in 2.6s]
+- Downloading statmod from CRAN ...             OK [90.3 Kb]
+- Downloading tibble from CRAN ...              OK [552.7 Kb in 0.27s]
+- Downloading fansi from CRAN ...               OK [471.2 Kb]
+- Downloading pillar from CRAN ...              OK [397.5 Kb in 0.44s]
+- Downloading utf8 from CRAN ...                OK [235.4 Kb in 0.28s]
+- Downloading dplyr from CRAN ...               OK [1.2 Mb in 0.44s]
+- Downloading generics from CRAN ...            OK [168.2 Kb in 0.43s]
+- Downloading tidyselect from CRAN ...          OK [101.2 Kb]
+- Downloading withr from CRAN ...               OK [100.8 Kb]
+- Downloading pheatmap from CRAN ...            OK [14.7 Kb in 0.26s]
+- Downloading scales from CRAN ...              OK [295.5 Kb in 0.26s]
+- Downloading farver from CRAN ...              OK [1.2 Mb]
+- Downloading labeling from CRAN ...            OK [9.9 Kb]
+- Downloading munsell from CRAN ...             OK [178 Kb in 0.47s]
+- Downloading colorspace from CRAN ...          OK [2 Mb in 0.46s]
+- Downloading viridisLite from CRAN ...         OK [1.2 Mb in 0.1s]
+- Downloading gtable from CRAN ...              OK [144.7 Kb]
+- Downloading proxy from CRAN ...               OK [72.9 Kb]
+- Downloading slam from CRAN ...                OK [53.7 Kb in 0.82s]
+- Downloading viridis from CRAN ...             OK [2.9 Mb in 0.11s]
+- Downloading ggplot2 from CRAN ...             OK [3.4 Mb in 0.5s]
+- Downloading isoband from CRAN ...             OK [1.5 Mb]
+- Downloading gridExtra from CRAN ...           OK [1 Mb]
+- Downloading biocViews from Bioconductor 3.20 ... OK [509.5 Kb in 2.0s]
+- Downloading XML from CRAN ...                 OK [944 Kb in 0.48s]
+- Downloading VGAM from CRAN ...                OK [1.6 Mb in 0.29s]
+- Downloading cowplot from CRAN ...             OK [1.3 Mb in 0.45s]
+- Downloading lpSolveAPI from CRAN ...          OK [481.7 Kb in 0.45s]
+- Downloading brio from CRAN ...                OK [12.9 Kb in 0.45s]
+- Downloading callr from CRAN ...               OK [101.9 Kb in 0.46s]
+- Downloading processx from CRAN ...            OK [161.2 Kb in 0.29s]
+- Downloading ps from CRAN ...                  OK [160.5 Kb in 0.45s]
+- Downloading crayon from CRAN ...              OK [39.4 Kb]
+- Downloading desc from CRAN ...                OK [78.2 Kb in 0.44s]
+- Downloading di from CRAN ...                  OK [285.9 Kb in 0.28s]
+- Downloading diffobj from CRAN ...             OK [468 Kb in 0.28s]
+- Downloading diptest from CRAN ...             OK [151.7 Kb in 0.45s]
+- Downloading flexmix from CRAN ...             OK [1.1 Mb in 0.47s]
+- Downloading modeltools from CRAN ...          OK [14.5 Kb in 0.27s]
+- Downloading fpc from CRAN ...                 OK [199.3 Kb in 0.81s]
+- Downloading mclust from CRAN ...              OK [2.6 Mb in 0.12s]
+- Downloading prabclus from CRAN ...            OK [185.9 Kb in 0.45s]
+- Downloading robustbase from CRAN ...          OK [2.2 Mb]
+- Downloading kernlab from CRAN ...             OK [1001.3 Kb]
+- Downloading inflection from CRAN ...          OK [212.9 Kb in 0.25s]
+- Downloading parmigene from CRAN ...           OK [26 Kb in 0.27s]
+- Downloading pkgbuild from CRAN ...            OK [47 Kb in 0.26s]
+- Downloading pkgload from CRAN ...             OK [83.7 Kb in 0.44s]
+- Downloading rprojroot from CRAN ...           OK [58.5 Kb in 0.26s]
+- Downloading praise from CRAN ...              OK [6 Kb in 0.43s]
+- Downloading princurve from CRAN ...           OK [51.4 Kb in 0.61s]
+- Downloading testthat from CRAN ...            OK [721.6 Kb in 0.27s]
+- Downloading waldo from CRAN ...               OK [44.1 Kb in 0.44s]
+Successfully downloaded 126 packages in 87 seconds.
+
+# Installing packages --------------------------------------------------------
+- Installing MASS ...                           OK [built from source and cached in 8.0s]
+- Installing BiocManager ...                    OK [built from source and cached in 2.3s]
+- Installing lattice ...                        OK [built from source and cached in 11s]
+- Installing Matrix ...                         OK [built from source and cached in 3.2m]
+- Installing nlme ...                           OK [built from source and cached in 17s]
+- Installing renv ...                           OK [built from source and cached in 13s]
+- Installing cluster ...                        OK [built from source and cached in 6.5s]
+- Installing BH ...                             OK [built from source and cached in 5.4s]
+- Installing BiocGenerics ...                   OK [built from source and cached in 4.0s]
+- Installing BiocVersion ...                    OK [built from source and cached in 0.96s]
+- Installing Biobase ...                        OK [built from source and cached in 8.6s]
+- Installing Rcpp ...                           OK [built from source and cached in 31s]
+- Installing irlba ...                          OK [built from source and cached in 7.1s]
+- Installing RcppEigen ...                      OK [built from source and cached in 50s]
+- Installing DDRTree ...                        OK [built from source and cached in 1.0m]
+- Installing DEoptimR ...                       OK [built from source and cached in 1.8s]
+- Installing HSMMSingleCell ...                 OK [built from source and cached in 1.6s]
+- Installing plyr ...                           OK [built from source and cached in 9.6s]
+- Installing jpeg ...                           OK [built from source and cached in 1.8s]
+- Installing png ...                            OK [built from source and cached in 1.8s]
+- Installing RColorBrewer ...                   OK [built from source and cached in 2.0s]
+- Installing base64enc ...                      OK [built from source and cached in 1.8s]
+- Installing digest ...                         OK [built from source and cached in 8.0s]
+- Installing fastmap ...                        OK [built from source and cached in 4.1s]
+- Installing rlang ...                          OK [built from source and cached in 14s]
+- Installing htmltools ...                      OK [built from source and cached in 4.6s]
+- Installing jsonlite ...                       OK [built from source and cached in 5.5s]
+- Installing evaluate ...                       OK [built from source and cached in 1.8s]
+- Installing xfun ...                           OK [built from source and cached in 5.1s]
+- Installing highr ...                          OK [built from source and cached in 1.4s]
+- Installing yaml ...                           OK [built from source and cached in 6.1s]
+- Installing knitr ...                          OK [built from source and cached in 7.2s]
+- Installing cachem ...                         OK [built from source and cached in 2.2s]
+- Installing jquerylib ...                      OK [built from source and cached in 1.7s]
+- Installing cli ...                            OK [built from source and cached in 12s]
+- Installing glue ...                           OK [built from source and cached in 2.1s]
+- Installing lifecycle ...                      OK [built from source and cached in 2.3s]
+- Installing memoise ...                        OK [built from source and cached in 2.0s]
+- Installing mime ...                           OK [built from source and cached in 1.6s]
+- Installing fs ...                             OK [built from source and cached in 35s]
+- Installing R6 ...                             OK [built from source and cached in 1.6s]
+- Installing rappdirs ...                       OK [built from source and cached in 1.6s]
+- Installing sass ...                           OK [built from source and cached in 2.1m]
+- Installing bslib ...                          OK [built from source and cached in 5.6s]
+- Installing fontawesome ...                    OK [built from source and cached in 2.4s]
+- Installing tinytex ...                        OK [built from source and cached in 2.1s]
+- Installing rmarkdown ...                      OK [built from source and cached in 6.9s]
+- Installing htmlwidgets ...                    OK [built from source and cached in 2.6s]
+- Installing magrittr ...                       OK [built from source and cached in 1.8s]
+- Installing rgl ...                            OK [built from source and cached in 1.4m]
+- Installing xtable ...                         OK [built from source and cached in 2.4s]
+- Installing HiveR ...                          OK [built from source and cached in 9.2s]
+- Installing RANN ...                           OK [built from source and cached in 3.6s]
+- Installing RcppArmadillo ...                  OK [built from source and cached in 24s]
+- Installing RANNinf ...                        OK [built from source in 20s]
+- Installing graph ...                          OK [built from source and cached in 12s]
+- Installing RBGL ...                           OK [built from source and cached in 1.9m]
+- Installing bitops ...                         OK [built from source and cached in 1.8s]
+- Installing RCurl ...                          OK [built from source and cached in 14s]
+- Installing RUnit ...                          OK [built from source and cached in 2.4s]
+- Installing Rtsne ...                          OK [built from source and cached in 20s]
+- Installing pkgconfig ...                      OK [built from source and cached in 1.3s]
+- Installing vctrs ...                          OK [built from source and cached in 24s]
+- Installing cpp11 ...                          OK [built from source and cached in 1.5s]
+- Installing igraph ...                         OK [built from source and cached in 3.2m]
+- Installing combinat ...                       OK [built from source and cached in 1.5s]
+- Installing fastICA ...                        OK [built from source and cached in 2.1s]
+- Installing matrixStats ...                    OK [built from source and cached in 14s]
+- Installing stringi ...                        OK [built from source and cached in 1.5m]
+- Installing stringr ...                        OK [built from source and cached in 3.0s]
+- Installing reshape2 ...                       OK [built from source and cached in 10s]
+- Installing leidenbase ...                     OK [built from source and cached in 2.3m]
+- Installing statmod ...                        OK [built from source and cached in 4.2s]
+- Installing limma ...                          OK [built from source and cached in 16s]
+- Installing fansi ...                          OK [built from source and cached in 5.4s]
+- Installing utf8 ...                           OK [built from source and cached in 4.8s]
+- Installing pillar ...                         OK [built from source and cached in 5.0s]
+- Installing tibble ...                         OK [built from source and cached in 4.9s]
+- Installing generics ...                       OK [built from source and cached in 1.6s]
+- Installing withr ...                          OK [built from source and cached in 2.1s]
+- Installing tidyselect ...                     OK [built from source and cached in 3.1s]
+- Installing dplyr ...                          OK [built from source and cached in 15s]
+- Installing farver ...                         OK [built from source and cached in 29s]
+- Installing labeling ...                       OK [built from source and cached in 1.7s]
+- Installing colorspace ...                     OK [built from source and cached in 7.5s]
+- Installing munsell ...                        OK [built from source and cached in 1.9s]
+- Installing viridisLite ...                    OK [built from source and cached in 1.4s]
+- Installing scales ...                         OK [built from source and cached in 5.7s]
+- Installing gtable ...                         OK [built from source and cached in 2.7s]
+- Installing pheatmap ...                       OK [built from source and cached in 2.8s]
+- Installing proxy ...                          OK [built from source and cached in 3.3s]
+- Installing slam ...                           OK [built from source and cached in 4.2s]
+- Installing isoband ...                        OK [built from source and cached in 6.5s]
+- Installing ggplot2 ...                        OK [built from source and cached in 21s]
+- Installing gridExtra ...                      OK [built from source and cached in 2.4s]
+- Installing viridis ...                        OK [built from source and cached in 3.4s]
+- Installing XML ...                            OK [built from source and cached in 17s]
+- Installing biocViews ...                      OK [built from source and cached in 14s]
+- Installing VGAM ...                           OK [built from source and cached in 1.1m]
+- Installing monocle ...                        OK [built from source and cached in 35s]
+- Installing cowplot ...                        OK [built from source and cached in 4.6s]
+- Installing lpSolveAPI ...                     OK [built from source and cached in 21s]
+- Installing Scribe ...                         OK [built from source and cached in 48s]
+- Installing brio ...                           OK [built from source and cached in 2.1s]
+- Installing ps ...                             OK [built from source and cached in 6.6s]
+- Installing processx ...                       OK [built from source and cached in 6.5s]
+- Installing callr ...                          OK [built from source and cached in 5.2s]
+- Installing crayon ...                         OK [built from source and cached in 2.3s]
+- Installing desc ...                           OK [built from source and cached in 3.5s]
+- Installing di ...                             OK [built from source and cached in 2.2s]
+- Installing diffobj ...                        OK [built from source and cached in 10s]
+- Installing diptest ...                        OK [built from source and cached in 1.8s]
+- Installing modeltools ...                     OK [built from source and cached in 2.8s]
+- Installing flexmix ...                        OK [built from source and cached in 10s]
+- Installing mclust ...                         OK [built from source and cached in 26s]
+- Installing prabclus ...                       OK [built from source and cached in 4.7s]
+- Installing robustbase ...                     OK [built from source and cached in 15s]
+- Installing kernlab ...                        OK [built from source and cached in 32s]
+- Installing fpc ...                            OK [built from source and cached in 11s]
+- Installing inflection ...                     OK [built from source and cached in 1.8s]
+- Installing parmigene ...                      OK [built from source and cached in 2.3s]
+- Installing pkgbuild ...                       OK [built from source and cached in 3.1s]
+- Installing rprojroot ...                      OK [built from source and cached in 1.8s]
+- Installing pkgload ...                        OK [built from source and cached in 4.0s]
+- Installing praise ...                         OK [built from source and cached in 1.3s]
+- Installing princurve ...                      OK [built from source and cached in 9.4s]
+- Installing waldo ...                          OK [built from source and cached in 3.0s]
+- Installing testthat ...                       OK [built from source and cached in 37s]
+
+The following loaded package(s) have been updated:
+- BiocManager
+- renv
+Restart your R session to use the new versions.
+
+
+Installed packages:
+               Package          Version        
+BH             "BH"             "1.87.0-1"     
+Biobase        "Biobase"        "2.66.0"       
+BiocGenerics   "BiocGenerics"   "0.52.0"       
+BiocManager    "BiocManager"    "1.30.25"      
+BiocVersion    "BiocVersion"    "3.20.0"       
+DDRTree        "DDRTree"        "0.1.5"        
+DEoptimR       "DEoptimR"       "1.1-3-1"      
+HSMMSingleCell "HSMMSingleCell" "1.26.0"       
+HiveR          "HiveR"          "0.4.0"        
+MASS           "MASS"           "7.3-64"       
+Matrix         "Matrix"         "1.7-1"        
+R6             "R6"             "2.5.1"        
+RANN           "RANN"           "2.6.2"        
+RANNinf        "RANNinf"        "2.5.0.99"     
+RBGL           "RBGL"           "1.82.0"       
+RColorBrewer   "RColorBrewer"   "1.1-3"        
+RCurl          "RCurl"          "1.98-1.16"    
+RUnit          "RUnit"          "0.4.33"       
+Rcpp           "Rcpp"           "1.0.14"       
+RcppArmadillo  "RcppArmadillo"  "14.2.2-1"     
+RcppEigen      "RcppEigen"      "0.3.4.0.2"    
+Rtsne          "Rtsne"          "0.17"         
+Scribe         "Scribe"         "0.1"          
+VGAM           "VGAM"           "1.1-12"       
+XML            "XML"            "3.99-0.18"    
+base64enc      "base64enc"      "0.1-3"        
+biocViews      "biocViews"      "1.74.0"       
+bitops         "bitops"         "1.0-9"        
+brio           "brio"           "1.1.5"        
+bslib          "bslib"          "0.8.0"        
+cachem         "cachem"         "1.1.0"        
+callr          "callr"          "3.7.6"        
+cli            "cli"            "3.6.3"        
+cluster        "cluster"        "2.1.8"        
+colorspace     "colorspace"     "2.1-1"        
+combinat       "combinat"       "0.0-8"        
+cowplot        "cowplot"        "1.1.3"        
+cpp11          "cpp11"          "0.5.1"        
+crayon         "crayon"         "1.5.3"        
+desc           "desc"           "1.4.3"        
+di             "di"             "1.1.4"        
+diffobj        "diffobj"        "0.3.5"        
+digest         "digest"         "0.6.37"       
+diptest        "diptest"        "0.77-1"       
+dplyr          "dplyr"          "1.1.4"        
+evaluate       "evaluate"       "1.0.3"        
+fansi          "fansi"          "1.0.6"        
+farver         "farver"         "2.1.2"        
+fastICA        "fastICA"        "1.2-7"        
+fastmap        "fastmap"        "1.2.0"        
+flexmix        "flexmix"        "2.3-19"       
+fontawesome    "fontawesome"    "0.5.3"        
+fpc            "fpc"            "2.2-13"       
+fs             "fs"             "1.6.5"        
+generics       "generics"       "0.1.3"        
+ggplot2        "ggplot2"        "3.5.1"        
+glue           "glue"           "1.8.0"        
+graph          "graph"          "1.84.1"       
+gridExtra      "gridExtra"      "2.3"          
+gtable         "gtable"         "0.3.6"        
+highr          "highr"          "0.11"         
+htmltools      "htmltools"      "0.5.8.1"      
+htmlwidgets    "htmlwidgets"    "1.6.4"        
+igraph         "igraph"         "2.1.3"        
+inflection     "inflection"     "1.3.6"        
+irlba          "irlba"          "2.3.5.1"      
+isoband        "isoband"        "0.2.7"        
+jpeg           "jpeg"           "0.1-10"       
+jquerylib      "jquerylib"      "0.1.4"        
+jsonlite       "jsonlite"       "1.8.9"        
+kernlab        "kernlab"        "0.9-33"       
+knitr          "knitr"          "1.49"         
+labeling       "labeling"       "0.4.3"        
+lattice        "lattice"        "0.22-6"       
+leidenbase     "leidenbase"     "0.1.31"       
+lifecycle      "lifecycle"      "1.0.4"        
+limma          "limma"          "3.62.2"       
+lpSolveAPI     "lpSolveAPI"     "5.5.2.0-17.12"
+magrittr       "magrittr"       "2.0.3"        
+matrixStats    "matrixStats"    "1.5.0"        
+mclust         "mclust"         "6.1.1"        
+memoise        "memoise"        "2.0.1"        
+mime           "mime"           "0.12"         
+modeltools     "modeltools"     "0.2-23"       
+monocle        "monocle"        "2.34.0"       
+munsell        "munsell"        "0.5.1"        
+nlme           "nlme"           "3.1-166"      
+parmigene      "parmigene"      "1.1.1"        
+pheatmap       "pheatmap"       "1.0.12"       
+pillar         "pillar"         "1.10.1"       
+pkgbuild       "pkgbuild"       "1.4.5"        
+pkgconfig      "pkgconfig"      "2.0.3"        
+pkgload        "pkgload"        "1.4.0"        
+plyr           "plyr"           "1.8.9"        
+png            "png"            "0.1-8"        
+prabclus       "prabclus"       "2.3-4"        
+praise         "praise"         "1.0.0"        
+princurve      "princurve"      "2.1.6"        
+processx       "processx"       "3.8.5"        
+proxy          "proxy"          "0.4-27"       
+ps             "ps"             "1.8.1"        
+rappdirs       "rappdirs"       "0.3.3"        
+renv           "renv"           "1.0.11"       
+reshape2       "reshape2"       "1.4.4"        
+rgl            "rgl"            "1.3.16"       
+rlang          "rlang"          "1.1.4"        
+rmarkdown      "rmarkdown"      "2.29"         
+robustbase     "robustbase"     "0.99-4-1"     
+rprojroot      "rprojroot"      "2.0.4"        
+sass           "sass"           "0.4.9"        
+scales         "scales"         "1.3.0"        
+slam           "slam"           "0.1-55"       
+statmod        "statmod"        "1.5.0"        
+stringi        "stringi"        "1.8.4"        
+stringr        "stringr"        "1.5.1"        
+testthat       "testthat"       "3.2.3"        
+tibble         "tibble"         "3.2.1"        
+tidyselect     "tidyselect"     "1.2.1"        
+tinytex        "tinytex"        "0.54"         
+utf8           "utf8"           "1.2.4"        
+vctrs          "vctrs"          "0.6.5"        
+viridis        "viridis"        "0.6.5"        
+viridisLite    "viridisLite"    "0.4.2"        
+waldo          "waldo"          "0.6.1"        
+withr          "withr"          "3.0.2"        
+xfun           "xfun"           "0.50"         
+xtable         "xtable"         "1.8-4"        
+yaml           "yaml"           "2.3.10"       
+KernSmooth     "KernSmooth"     "2.23-26"      
+MASS           "MASS"           "7.3-65"       
+Matrix         "Matrix"         "1.7-3"        
+base           "base"           "4.4.3"        
+boot           "boot"           "1.3-31"       
+class          "class"          "7.3-23"       
+cluster        "cluster"        "2.1.8.1"      
+codetools      "codetools"      "0.2-19"       
+compiler       "compiler"       "4.4.3"        
+datasets       "datasets"       "4.4.3"        
+foreign        "foreign"        "0.8-90"       
+grDevices      "grDevices"      "4.4.3"        
+graphics       "graphics"       "4.4.3"        
+grid           "grid"           "4.4.3"        
+lattice        "lattice"        "0.22-5"       
+methods        "methods"        "4.4.3"        
+mgcv           "mgcv"           "1.9-1"        
+nlme           "nlme"           "3.1-168"      
+nnet           "nnet"           "7.3-20"       
+parallel       "parallel"       "4.4.3"        
+rpart          "rpart"          "4.1.24"       
+spatial        "spatial"        "7.3-11"       
+splines        "splines"        "4.4.3"        
+stats          "stats"          "4.4.3"        
+stats4         "stats4"         "4.4.3"        
+survival       "survival"       "3.8-3"        
+tcltk          "tcltk"          "4.4.3"        
+tools          "tools"          "4.4.3"        
+utils          "utils"          "4.4.3"        
+ ---> Removed intermediate container 7b867de603d8
+ ---> 6c9767402624
+Step 21/43 : RUN Rscript -e "     required_pkgs <- c('optparse', 'jsonlite', 'readr', 'dplyr', 'ggplot2');     missing_pkgs <- required_pkgs[!required_pkgs %in% installed.packages()[,'Package']];     if (length(missing_pkgs) > 0) {         cat('Installing missing packages:', paste(missing_pkgs, collapse=', '), '\\n');         install.packages(missing_pkgs, dependencies = TRUE)     }     "
+ ---> Running in 7228f01c8413
+Installing missing packages: optparse, readr 
+[91mInstalling packages into '/usr/local/lib/R/site-library'
+(as 'lib' is unspecified)
+[0m[91malso installing the dependencies 'sys', 'askpass', 'bit', 'prettyunits', 'lazyeval', 'openssl', 'bit64', 'progress', 'cpp11', 'rex', 'httr', 'commonmark', 'hunspell', 'getopt', 'clipr', 'hms', 'vroom', 'tzdb', 'covr', 'curl', 'spelling', 'xml2'
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/sys_3.4.3.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 19936 bytes (19 KB)
+==================================================
+downloaded 19 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/askpass_1.2.1.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 6058 bytes
+==================================================
+downloaded 6058 bytes
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/bit_4.6.0.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 304585 bytes (297 KB)
+=============[0m[91m==[0m[91m===[0m[91m===[0m[91m==[0m[91m===[0m[91m===[0m[91m==[0m[91m===[0m[91m===[0m[91m===[0m[91m=[0m[91m=====[0m[91m==[0m[91m==
+downloaded 297 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/prettyunits_1.2.0.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 97496 bytes (95 KB)
+========[0m[91m========[0m[91m========[0m[91m========[0m[91m=========[0m[91m=========
+downloaded 95 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/lazyeval_0.2.2.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 83482 bytes (81 KB)
+==================================================
+downloaded 81 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/openssl_2.3.3.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 1206720 bytes (1.2 MB)
+===[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m==
+downloaded 1.2 MB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/bit64_4.6.0-1.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 142045 bytes (138 KB)
+============================[0m[91m======[0m[91m=====[0m[91m======[0m[91m=====
+downloaded 138 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/progress_1.2.3.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 30499 bytes (29 KB)
+==========================[0m[91m========================
+downloaded 29 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/cpp11_0.5.2.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 291993 bytes (285 KB)
+=============[0m[91m===[0m[91m===[0m[91m===[0m[91m===[0m[91m==[0m[91m===[0m[91m===[0m[91m===[0m[91m===[0m[91m==[0m[91m===[0m[91m===[0m[91m===[0m[91m
+downloaded 285 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/rex_1.2.1.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 93583 bytes (91 KB)
+===========================================[0m[91m=======
+downloaded 91 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/httr_1.4.7.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 118500 bytes (115 KB)
+======[0m[91m=======[0m[91m=====================================
+downloaded 115 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/commonmark_1.9.5.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 145876 bytes (142 KB)
+===========================[0m[91m======[0m[91m=====[0m[91m======[0m[91m======[0m[91m
+downloaded 142 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/hunspell_3.0.6.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 3214078 bytes (3.1 MB)
+[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m======[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m================
+downloaded 3.1 MB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/getopt_1.20.4.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 23126 bytes (22 KB)
+==================================================
+downloaded 22 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/clipr_0.8.0.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 21898 bytes (21 KB)
+==================================================[0m[91m
+downloaded 21 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/hms_1.1.3.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 43379 bytes (42 KB)
+==================[0m[91m================================
+downloaded 42 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/vroom_1.6.5.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 750416 bytes (732 KB)
+=====[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m==
+[0m[91mdownloaded 732 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/tzdb_0.5.0.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 600718 bytes (586 KB)
+======[0m[91m==[0m[91m=[0m[91m===[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m==[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m==[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m=[0m[91m==
+downloaded 586 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/covr_3.6.4.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 163362 bytes (159 KB)
+====[0m[91m=====[0m[91m=====[0m[91m=====[0m[91m=====[0m[91m=====[0m[91m=====[0m[91m=====[0m[91m=======[0m[91m====
+downloaded 159 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/curl_6.3.0.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 934046 bytes (912 KB)
+[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m=[0m[91m==[0m[91m=[0m[91m=[0m[91m=[0m[91m==
+downloaded 912 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/spelling_2.3.1.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 11737 bytes (11 KB)
+==================================================
+downloaded 11 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/xml2_1.3.8.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 152925 bytes (149 KB)
+=====[0m[91m=====[0m[91m=====[0m[91m======[0m[91m=====[0m[91m=====[0m[91m======[0m[91m=====[0m[91m========
+downloaded 149 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/optparse_1.7.5.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 41938 bytes (40 KB)
+===================[0m[91m===============================
+downloaded 40 KB
+
+[0m[91mtrying URL 'https://cloud.r-project.org/src/contrib/readr_2.1.5.tar.gz'
+[0m[91mContent type 'application/x-gzip' length 298065 bytes (291 KB)
+==[0m[91m===[0m[91m===[0m[91m==[0m[91m===[0m[91m===[0m[91m===[0m[91m==[0m[91m===[0m[91m===[0m[91m===[0m[91m==[0m[91m===[0m[91m===[0m[91m===[0m[91m==[0m[91m===[0m[91m===[0m[91m=[0m[91m
+downloaded 291 KB
+
+[0m[91m* installing *source* package 'sys' ...
+[0m[91m** package 'sys' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mgcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c exec.c -o exec.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c init.c -o init.o
+gcc -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o sys.so exec.o init.o -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-sys/00new/sys/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (sys)
+[0m[91m* installing *source* package 'bit' ...
+[0m[91m** package 'bit' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mgcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c attrutil.c -o attrutil.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c bit.c -o bit.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c chunkutil.c -o chunkutil.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c clone.c -o clone.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c init.c -o init.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c integerutil.c -o integerutil.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c merge.c -o merge.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c rle.c -o rle.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c sort.c -o sort.o
+gcc -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o bit.so attrutil.o bit.o chunkutil.o clone.o init.o integerutil.o merge.o rle.o sort.o -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-bit/00new/bit/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (bit)
+[0m[91m* installing *source* package 'prettyunits' ...
+[0m[91m** package 'prettyunits' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** R
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (prettyunits)
+[0m[91m* installing *source* package 'lazyeval' ...
+[0m[91m** package 'lazyeval' successfully unpacked and MD5 sums checked
+** using staged installation
+[0m[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mgcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c expr.c -o expr.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c init.c -o init.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c interp.c -o interp.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c lazy.c -o lazy.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c name.c -o name.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c utils.c -o utils.o
+gcc -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o lazyeval.so expr.o init.o interp.o lazy.o name.o utils.o -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-lazyeval/00new/lazyeval/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (lazyeval)
+[0m[91m* installing *source* package 'cpp11' ...
+[0m[91m** package 'cpp11' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (cpp11)
+[0m[91m* installing *source* package 'commonmark' ...
+[0m[91m** package 'commonmark' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mgcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c extensions.c -o extensions.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c init.c -o init.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c wrapper.c -o wrapper.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/cmark.c -o cmark/cmark.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/node.c -o cmark/node.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/iterator.c -o cmark/iterator.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/blocks.c -o cmark/blocks.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/inlines.c -o cmark/inlines.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/scanners.c -o cmark/scanners.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/utf8.c -o cmark/utf8.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/buffer.c -o cmark/buffer.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/references.c -o cmark/references.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/render.c -o cmark/render.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/man.c -o cmark/man.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/xml.c -o cmark/xml.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/html.c -o cmark/html.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/commonmark.c -o cmark/commonmark.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/latex.c -o cmark/latex.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/houdini_href_e.c -o cmark/houdini_href_e.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/houdini_html_e.c -o cmark/houdini_html_e.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/houdini_html_u.c -o cmark/houdini_html_u.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/cmark_ctype.c -o cmark/cmark_ctype.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/arena.c -o cmark/arena.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/linked_list.c -o cmark/linked_list.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/plugin.c -o cmark/plugin.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/registry.c -o cmark/registry.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/syntax_extension.c -o cmark/syntax_extension.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/plaintext.c -o cmark/plaintext.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/footnotes.c -o cmark/footnotes.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cmark/map.c -o cmark/map.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c extensions/autolink.c -o extensions/autolink.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c extensions/core-extensions.c -o extensions/core-extensions.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c extensions/ext_scanners.c -o extensions/ext_scanners.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c extensions/strikethrough.c -o extensions/strikethrough.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c extensions/table.c -o extensions/table.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c extensions/tagfilter.c -o extensions/tagfilter.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Icmark -I. -DCMARK_GFM_STATIC_DEFINE -DCMARK_GFM_EXTENSIONS_STATIC_DEFINE -DR_NO_REMAP -DSTRICT_R_HEADERS     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c extensions/tasklist.c -o extensions/tasklist.o
+ar rcs cmark/libstatcmark.a cmark/cmark.o cmark/node.o cmark/iterator.o cmark/blocks.o cmark/inlines.o cmark/scanners.o cmark/utf8.o cmark/buffer.o cmark/references.o cmark/render.o cmark/man.o cmark/xml.o cmark/html.o cmark/commonmark.o cmark/latex.o cmark/houdini_href_e.o cmark/houdini_html_e.o cmark/houdini_html_u.o cmark/cmark_ctype.o cmark/arena.o cmark/linked_list.o cmark/plugin.o cmark/registry.o cmark/syntax_extension.o cmark/plaintext.o cmark/footnotes.o cmark/map.o extensions/autolink.o extensions/core-extensions.o extensions/ext_scanners.o extensions/strikethrough.o extensions/table.o extensions/tagfilter.o extensions/tasklist.o
+gcc -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o commonmark.so extensions.o init.o wrapper.o -Lcmark -lstatcmark -L/usr/lib/R/lib -lR
+rm -f cmark/cmark.o cmark/node.o cmark/iterator.o cmark/blocks.o cmark/inlines.o cmark/scanners.o cmark/utf8.o cmark/buffer.o cmark/references.o cmark/render.o cmark/man.o cmark/xml.o cmark/html.o cmark/commonmark.o cmark/latex.o cmark/houdini_href_e.o cmark/houdini_html_e.o cmark/houdini_html_u.o cmark/cmark_ctype.o cmark/arena.o cmark/linked_list.o cmark/plugin.o cmark/registry.o cmark/syntax_extension.o cmark/plaintext.o cmark/footnotes.o cmark/map.o extensions/autolink.o extensions/core-extensions.o extensions/ext_scanners.o extensions/strikethrough.o extensions/table.o extensions/tagfilter.o extensions/tasklist.o cmark/libstatcmark.a
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-commonmark/00new/commonmark/libs
+[0m[91m** R
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (commonmark)
+[0m[91m* installing *source* package 'hunspell' ...
+[0m[91m** package 'hunspell' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** libs
+[0m[91musing C++ compiler: 'g++ (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mg++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c RcppExports.cpp -o RcppExports.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c dictionary.cpp -o dictionary.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c parser.cpp -o parser.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c parsers/textparser.cc -o parsers/textparser.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c parsers/latexparser.cc -o parsers/latexparser.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c parsers/manparser.cc -o parsers/manparser.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c parsers/xmlparser.cc -o parsers/xmlparser.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c parsers/htmlparser.cc -o parsers/htmlparser.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c hunspell/affentry.cc -o hunspell/affentry.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c hunspell/affixmgr.cc -o hunspell/affixmgr.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c hunspell/filemgr.cc -o hunspell/filemgr.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c hunspell/hashmgr.cc -o hunspell/hashmgr.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c hunspell/hunspell.cc -o hunspell/hunspell.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c hunspell/hunzip.cc -o hunspell/hunzip.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c hunspell/phonet.cc -o hunspell/phonet.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c hunspell/replist.cc -o hunspell/replist.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c hunspell/suggestmgr.cc -o hunspell/suggestmgr.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I. -Ihunspell -DBUILDING_LIBHUNSPELL -I'/usr/local/lib/R/site-library/Rcpp/include'    -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c hunspell/csutil.cc -o hunspell/csutil.o
+ar rcs hunspell/libstathunspell.a parsers/textparser.o parsers/latexparser.o parsers/manparser.o parsers/xmlparser.o parsers/htmlparser.o hunspell/affentry.o hunspell/affixmgr.o hunspell/filemgr.o hunspell/hashmgr.o hunspell/hunspell.o hunspell/hunzip.o hunspell/phonet.o hunspell/replist.o hunspell/suggestmgr.o hunspell/csutil.o
+g++ -std=gnu++17 -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o hunspell.so RcppExports.o dictionary.o parser.o -Lhunspell -lstathunspell -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-hunspell/00new/hunspell/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (hunspell)
+[0m[91m* installing *source* package 'getopt' ...
+[0m[91m** package 'getopt' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** R
+[0m[91m** exec
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m*** copying figures
+[0m[91m** building package indices
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (getopt)
+[0m[91m* installing *source* package 'clipr' ...
+[0m[91m** package 'clipr' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (clipr)
+[0m[91m* installing *source* package 'hms' ...
+[0m[91m** package 'hms' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** R
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m*** copying figures
+[0m[91m** building package indices
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (hms)
+[0m[91m* installing *source* package 'curl' ...
+[0m[91m** package 'curl' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0mFound pkg-config cflags and libs!
+Using PKG_CFLAGS=-I/usr/include/x86_64-linux-gnu 
+Using PKG_LIBS=-L/usr/lib/x86_64-linux-gnu -lcurl 
+Curl runtime version 7.68.0 
+[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mgcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c callbacks.c -o callbacks.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c curl.c -o curl.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c download.c -o download.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c dryrun.c -o dryrun.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c escape.c -o escape.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c fetch.c -o fetch.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c findport.c -o findport.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c form.c -o form.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c getdate.c -o getdate.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c handle.c -o handle.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c ieproxy.c -o ieproxy.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c init.c -o init.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c interrupt.c -o interrupt.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c multi.c -o multi.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c nslookup.c -o nslookup.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c options.c -o options.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c reflist.c -o reflist.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c split.c -o split.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c ssl.c -o ssl.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c typechecking.c -o typechecking.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c urlparser.c -o urlparser.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c utils.c -o utils.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c version.c -o version.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c winidn.c -o winidn.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c writer.c -o writer.o
+gcc -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o curl.so callbacks.o curl.o download.o dryrun.o escape.o fetch.o findport.o form.o getdate.o handle.o ieproxy.o init.o interrupt.o multi.o nslookup.o options.o reflist.o split.o ssl.o typechecking.o urlparser.o utils.o version.o winidn.o writer.o -L/usr/lib/x86_64-linux-gnu -lcurl -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-curl/00new/curl/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (curl)
+[0m[91m* installing *source* package 'xml2' ...
+[0m[91m** package 'xml2' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0mFound pkg-config cflags and libs!
+Using PKG_CFLAGS=-I/usr/include/libxml2
+Using PKG_LIBS=-lxml2
+[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0m[91musing C++ compiler: 'g++ (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mg++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I../inst/include -I/usr/include/libxml2 -DUCHAR_TYPE=wchar_t -DU_SHOW_CPLUSPLUS_API=0 -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c connection.cpp -o connection.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I../inst/include -I/usr/include/libxml2 -DUCHAR_TYPE=wchar_t -DU_SHOW_CPLUSPLUS_API=0 -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c init.c -o init.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I../inst/include -I/usr/include/libxml2 -DUCHAR_TYPE=wchar_t -DU_SHOW_CPLUSPLUS_API=0 -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c xml2_doc.cpp -o xml2_doc.o
+gcc -I"/usr/share/R/include" -DNDEBUG -I../inst/include -I/usr/include/libxml2 -DUCHAR_TYPE=wchar_t -DU_SHOW_CPLUSPLUS_API=0 -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c xml2_init.c -o xml2_init.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I../inst/include -I/usr/include/libxml2 -DUCHAR_TYPE=wchar_t -DU_SHOW_CPLUSPLUS_API=0 -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c xml2_namespace.cpp -o xml2_namespace.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I../inst/include -I/usr/include/libxml2 -DUCHAR_TYPE=wchar_t -DU_SHOW_CPLUSPLUS_API=0 -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c xml2_node.cpp -o xml2_node.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I../inst/include -I/usr/include/libxml2 -DUCHAR_TYPE=wchar_t -DU_SHOW_CPLUSPLUS_API=0 -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c xml2_output.cpp -o xml2_output.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I../inst/include -I/usr/include/libxml2 -DUCHAR_TYPE=wchar_t -DU_SHOW_CPLUSPLUS_API=0 -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c xml2_schema.cpp -o xml2_schema.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I../inst/include -I/usr/include/libxml2 -DUCHAR_TYPE=wchar_t -DU_SHOW_CPLUSPLUS_API=0 -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c xml2_url.cpp -o xml2_url.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -I../inst/include -I/usr/include/libxml2 -DUCHAR_TYPE=wchar_t -DU_SHOW_CPLUSPLUS_API=0 -DSTRICT_R_HEADERS -DR_NO_REMAP     -fvisibility=hidden -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c xml2_xpath.cpp -o xml2_xpath.o
+g++ -std=gnu++17 -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o xml2.so connection.o init.o xml2_doc.o xml2_init.o xml2_namespace.o xml2_node.o xml2_output.o xml2_schema.o xml2_url.o xml2_xpath.o -lxml2 -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-xml2/00new/xml2/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m*** copying figures
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (xml2)
+[0m[91m* installing *source* package 'askpass' ...
+[0m[91m** package 'askpass' successfully unpacked and MD5 sums checked
+** using staged installation
+[0m[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mgcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c askpass.c -o askpass.o
+gcc -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o askpass.so askpass.o -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-askpass/00new/askpass/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (askpass)
+[0m[91m* installing *source* package 'bit64' ...
+[0m[91m** package 'bit64' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mgcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c bsearch.c -o bsearch.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cache.c -o cache.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c hash64.c -o hash64.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c init.c -o init.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c integer64.c -o integer64.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c sort64.c -o sort64.o
+gcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c sortuse64.c -o sortuse64.o
+gcc -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o bit64.so bsearch.o cache.o hash64.o init.o integer64.o sort64.o sortuse64.o -lm -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-bit64/00new/bit64/libs
+[0m[91m** R
+[0m[91m** data
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (bit64)
+[0m[91m* installing *source* package 'progress' ...
+[0m[91m** package 'progress' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m*** copying figures
+[0m[91m** building package indices
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (progress)
+[0m[91m* installing *source* package 'rex' ...
+[0m[91m** package 'rex' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (rex)
+[0m[91m* installing *source* package 'tzdb' ...
+[0m[91m** package 'tzdb' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** libs
+[0m[91musing C++ compiler: 'g++ (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mg++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include'    -I../inst/include -DINSTALL=dummy -DAUTO_DOWNLOAD=0 -DHAS_REMOTE_API=0 -DUSE_OS_TZDB=0 -DONLY_C_LOCALE=1 -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c api.cpp -o api.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include'    -I../inst/include -DINSTALL=dummy -DAUTO_DOWNLOAD=0 -DHAS_REMOTE_API=0 -DUSE_OS_TZDB=0 -DONLY_C_LOCALE=1 -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c cpp11.cpp -o cpp11.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include'    -I../inst/include -DINSTALL=dummy -DAUTO_DOWNLOAD=0 -DHAS_REMOTE_API=0 -DUSE_OS_TZDB=0 -DONLY_C_LOCALE=1 -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c names.cpp -o names.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include'    -I../inst/include -DINSTALL=dummy -DAUTO_DOWNLOAD=0 -DHAS_REMOTE_API=0 -DUSE_OS_TZDB=0 -DONLY_C_LOCALE=1 -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c path.cpp -o path.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include'    -I../inst/include -DINSTALL=dummy -DAUTO_DOWNLOAD=0 -DHAS_REMOTE_API=0 -DUSE_OS_TZDB=0 -DONLY_C_LOCALE=1 -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c tz.cpp -o tz.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include'    -I../inst/include -DINSTALL=dummy -DAUTO_DOWNLOAD=0 -DHAS_REMOTE_API=0 -DUSE_OS_TZDB=0 -DONLY_C_LOCALE=1 -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c version.cpp -o version.o
+g++ -std=gnu++17 -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o tzdb.so api.o cpp11.o names.o path.o tz.o version.o -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-tzdb/00new/tzdb/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (tzdb)
+[0m[91m* installing *source* package 'spelling' ...
+[0m[91m** package 'spelling' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (spelling)
+[0m[91m* installing *source* package 'optparse' ...
+[0m[91m** package 'optparse' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** R
+[0m[91m** exec
+** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m*** copying figures
+** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (optparse)
+[0m[91m* installing *source* package 'openssl' ...
+[0m[91m** package 'openssl' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0mFound pkg-config cflags and libs!
+Using PKG_CFLAGS=
+Using PKG_LIBS=-L/usr/lib/x86_64-linux-gnu -l:libssl.so.1.1 -l:libcrypto.so.1.1 
+[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mrm -f aes.o base64.o bignum.o cert.o compatibility.o diffie.o envelope.o error.o hash.o info.o keygen.o keys.o onload.o openssh.o password.o pbkdf.o pem.o pkcs12.o pkcs7.o rand.o rsa.o signing.o ssl.o stream.o write.o x25519.o openssl.so bcrypt/libstatbcrypt.a bcrypt/bcrypt_pbkdf.o bcrypt/blowfish.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c aes.c -o aes.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c base64.c -o base64.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c bignum.c -o bignum.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c cert.c -o cert.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c compatibility.c -o compatibility.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c diffie.c -o diffie.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c envelope.c -o envelope.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c error.c -o error.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c hash.c -o hash.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c info.c -o info.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c keygen.c -o keygen.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c keys.c -o keys.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c onload.c -o onload.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c openssh.c -o openssh.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c password.c -o password.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c pbkdf.c -o pbkdf.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c pem.c -o pem.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c pkcs12.c -o pkcs12.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c pkcs7.c -o pkcs7.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c rand.c -o rand.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c rsa.c -o rsa.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c signing.c -o signing.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c ssl.c -o ssl.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c stream.c -o stream.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c write.c -o write.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c x25519.c -o x25519.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c bcrypt/bcrypt_pbkdf.c -o bcrypt/bcrypt_pbkdf.o
+gcc -I"/usr/share/R/include" -DNDEBUG -DSTRICT_R_HEADERS -DR_NO_REMAP      -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c bcrypt/blowfish.c -o bcrypt/blowfish.o
+ar rcs bcrypt/libstatbcrypt.a bcrypt/bcrypt_pbkdf.o bcrypt/blowfish.o
+gcc -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o openssl.so aes.o base64.o bignum.o cert.o compatibility.o diffie.o envelope.o error.o hash.o info.o keygen.o keys.o onload.o openssh.o password.o pbkdf.o pem.o pkcs12.o pkcs7.o rand.o rsa.o signing.o ssl.o stream.o write.o x25519.o -Lbcrypt -lstatbcrypt -L/usr/lib/x86_64-linux-gnu -l:libssl.so.1.1 -l:libcrypto.so.1.1 -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-openssl/00new/openssl/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (openssl)
+[0m[91m* installing *source* package 'vroom' ...
+[0m[91m** package 'vroom' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0m[91musing C++ compiler: 'g++ (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mg++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c Iconv.cpp -o Iconv.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c LocaleInfo.cpp -o LocaleInfo.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c altrep.cc -o altrep.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c cpp11.cpp -o cpp11.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c delimited_index.cc -o delimited_index.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c delimited_index_connection.cc -o delimited_index_connection.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c fixed_width_index_connection.cc -o fixed_width_index_connection.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c gen.cc -o gen.o
+gcc -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c grisu3.c -o grisu3.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c guess_type.cc -o guess_type.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c iconv_file.cc -o iconv_file.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c index_collection.cc -o index_collection.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom.cc -o vroom.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_big_int.cc -o vroom_big_int.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_chr.cc -o vroom_chr.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_date.cc -o vroom_date.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_dbl.cc -o vroom_dbl.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_dttm.cc -o vroom_dttm.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_errors.cpp -o vroom_errors.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_fct.cc -o vroom_fct.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_fwf.cc -o vroom_fwf.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_int.cc -o vroom_int.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_num.cc -o vroom_num.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_rle.cc -o vroom_rle.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_time.cc -o vroom_time.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG -Imio/include -DWIN32_LEAN_AND_MEAN -Ispdlog/include -DFMT_HEADER_ONLY -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/progress/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c vroom_write.cc -o vroom_write.o
+g++ -std=gnu++17 -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o vroom.so Iconv.o LocaleInfo.o altrep.o cpp11.o delimited_index.o delimited_index_connection.o fixed_width_index_connection.o gen.o grisu3.o guess_type.o iconv_file.o index_collection.o vroom.o vroom_big_int.o vroom_chr.o vroom_date.o vroom_dbl.o vroom_dttm.o vroom_errors.o vroom_fct.o vroom_fwf.o vroom_int.o vroom_num.o vroom_rle.o vroom_time.o vroom_write.o -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-vroom/00new/vroom/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m*** copying figures
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (vroom)
+[0m[91m* installing *source* package 'httr' ...
+[0m[91m** package 'httr' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** R
+[0m[91m** demo
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (httr)
+[0m[91m* installing *source* package 'readr' ...
+[0m[91m** package 'readr' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0m[91musing C++ compiler: 'g++ (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mg++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c Collector.cpp -o Collector.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c CollectorGuess.cpp -o CollectorGuess.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c Iconv.cpp -o Iconv.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c LocaleInfo.cpp -o LocaleInfo.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c Reader.cpp -o Reader.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c Source.cpp -o Source.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c Tokenizer.cpp -o Tokenizer.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c TokenizerDelim.cpp -o TokenizerDelim.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c TokenizerFwf.cpp -o TokenizerFwf.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c TokenizerWs.cpp -o TokenizerWs.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c connection.cpp -o connection.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c cpp11.cpp -o cpp11.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c datetime.cpp -o datetime.o
+gcc -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c grisu3.c -o grisu3.o
+gcc -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c init.c -o init.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c parse.cpp -o parse.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c read.cpp -o read.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c type_convert.cpp -o type_convert.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c write.cpp -o write.o
+g++ -std=gnu++17 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/cpp11/include' -I'/usr/local/lib/R/site-library/tzdb/include'     -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2   -c write_delim.cpp -o write_delim.o
+g++ -std=gnu++17 -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o readr.so Collector.o CollectorGuess.o Iconv.o LocaleInfo.o Reader.o Source.o Tokenizer.o TokenizerDelim.o TokenizerFwf.o TokenizerWs.o connection.o cpp11.o datetime.o grisu3.o init.o parse.o read.o type_convert.o write.o write_delim.o -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-readr/00new/readr/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m*** copying figures
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (readr)
+[0m[91m* installing *source* package 'covr' ...
+[0m[91m** package 'covr' successfully unpacked and MD5 sums checked
+[0m[91m** using staged installation
+[0m[91m** libs
+[0m[91musing C compiler: 'gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0'
+[0mgcc -I"/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -fdebug-prefix-map=/build/r-base-0GHeEU/r-base-4.4.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2  -c reassign.c -o reassign.o
+gcc -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o covr.so reassign.o -L/usr/lib/R/lib -lR
+[91minstalling to /usr/local/lib/R/site-library/00LOCK-covr/00new/covr/libs
+[0m[91m** R
+[0m[91m** inst
+[0m[91m** byte-compile and prepare package for lazy loading
+[0m[91m** help
+[0m[91m*** installing help indices
+[0m[91m*** copying figures
+[0m[91m** building package indices
+[0m[91m** installing vignettes
+[0m[91m** testing if installed package can be loaded from temporary location
+[0m[91m** checking absolute paths in shared objects and dynamic libraries
+[0m[91m** testing if installed package can be loaded from final location
+[0m[91m** testing if installed package keeps a record of temporary installation path
+[0m[91m* DONE (covr)
+[0m[91m
+The downloaded source packages are in
+	'/tmp/RtmpKmToxL/downloaded_packages'
+[0m ---> Removed intermediate container 7228f01c8413
+ ---> b9611cbcb4f8
+Step 22/43 : ENV RENV_CONFIG_AUTOLOADER_ENABLED=FALSE
+ ---> Running in d95660c68159
+ ---> Removed intermediate container d95660c68159
+ ---> feecc27a3d1b
+Step 23/43 : ENV R_HOME=/usr/lib/R
+ ---> Running in 5dbfcbc7634d
+ ---> Removed intermediate container 5dbfcbc7634d
+ ---> bca3b3a7c461
+Step 24/43 : RUN mkdir -p /workspace/logs &&     chmod 777 /workspace
+ ---> Running in 65c50afcbf57
+ ---> Removed intermediate container 65c50afcbf57
+ ---> 80a5f6fc9d69
+Step 25/43 : COPY Snakefile /workspace/Snakefile
+ ---> 37f00f8dc6c4
+Step 26/43 : COPY visualization_Snakefile /workspace/visualization_Snakefile
+ ---> 6f34b362a77d
+Step 27/43 : COPY scripts/ /scripts/
+ ---> f191411b7a4b
+Step 28/43 : WORKDIR /workspace
+ ---> Running in c0321802df3d
+ ---> Removed intermediate container c0321802df3d
+ ---> 6b5849b6f704
+Step 29/43 : RUN echo '#!/bin/bash' > /entrypoint.sh
+ ---> Running in d66b86c12e46
+ ---> Removed intermediate container d66b86c12e46
+ ---> b57560f523d9
+Step 30/43 : RUN echo 'export MAMBA_ROOT_PREFIX=/opt/micromamba' >> /entrypoint.sh
+ ---> Running in 7a8cdf00eae4
+ ---> Removed intermediate container 7a8cdf00eae4
+ ---> 728cb76fdd45
+Step 31/43 : RUN echo 'export MAMBA_EXE=/usr/local/bin/micromamba' >> /entrypoint.sh
+ ---> Running in 4e41a920f4b3
+ ---> Removed intermediate container 4e41a920f4b3
+ ---> c5374d691279
+Step 32/43 : RUN echo 'export PATH=$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$PATH' >> /entrypoint.sh
+ ---> Running in d89930f68c3a
+ ---> Removed intermediate container d89930f68c3a
+ ---> a3ab7b5eb4fe
+Step 33/43 : RUN echo '# Set R environment' >> /entrypoint.sh
+ ---> Running in c9067e69b318
+ ---> Removed intermediate container c9067e69b318
+ ---> 5089f0acd072
+Step 34/43 : RUN echo 'export R_HOME=/usr/lib/R' >> /entrypoint.sh
+ ---> Running in 355ac658aa1f
+ ---> Removed intermediate container 355ac658aa1f
+ ---> de64af0656d4
+Step 35/43 : RUN echo 'export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE' >> /entrypoint.sh
+ ---> Running in 577053f15d2d
+ ---> Removed intermediate container 577053f15d2d
+ ---> c2852e31044a
+Step 36/43 : RUN echo '# Activate micromamba environment' >> /entrypoint.sh
+ ---> Running in 8b6975fe470e
+ ---> Removed intermediate container 8b6975fe470e
+ ---> 26d86dcb5cca
+Step 37/43 : RUN echo 'eval "$($MAMBA_EXE shell activate -s bash -p $MAMBA_ROOT_PREFIX plugin_env)" 2>/dev/null || true' >> /entrypoint.sh
+ ---> Running in ade677f50fa6
+ ---> Removed intermediate container ade677f50fa6
+ ---> 9bda2c82b8ca
+Step 38/43 : RUN echo 'cd /workspace' >> /entrypoint.sh
+ ---> Running in 06e0006897dc
+ ---> Removed intermediate container 06e0006897dc
+ ---> 1c8915cfccb5
+Step 39/43 : RUN echo 'exec "$@"' >> /entrypoint.sh
+ ---> Running in e283166ee3ef
+ ---> Removed intermediate container e283166ee3ef
+ ---> 2b9116e8b876
+Step 40/43 : RUN chmod +x /entrypoint.sh
+ ---> Running in ea9925bd3c50
+ ---> Removed intermediate container ea9925bd3c50
+ ---> 64888db8ec56
+Step 41/43 : ENTRYPOINT ["/entrypoint.sh"]
+ ---> Running in a8f6c7ede5e9
+ ---> Removed intermediate container a8f6c7ede5e9
+ ---> 71563e17bf2c
+Step 42/43 : HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3     CMD test -f /opt/micromamba/envs/plugin_env/bin/python || exit 1
+ ---> Running in 081b70487622
+ ---> Removed intermediate container 081b70487622
+ ---> 0200c35cb742
+Step 43/43 : CMD ["/bin/bash"]
+ ---> Running in 3a8fdc82d0a9
+ ---> Removed intermediate container 3a8fdc82d0a9
+ ---> 6c4f0644c843
+[Warning] One or more build-args [BUILDKIT_PROGRESS DOCKER_BUILDKIT] were not consumed
+Successfully built 6c4f0644c843
+Successfully tagged plugin-scribe:latest
+
+Build completed successfully at 2025-06-11T16:55:53.246235
+Image ID: sha256:6c4f0644c8435555e899c72544c4681d5f3f53ec1f120c5889b15a6916d68e93
+Size: 13620.32 MB
+Created: 2025-06-11T07:55:53.207126955Z

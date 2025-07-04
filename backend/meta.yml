@@ -1,0 +1,8 @@
+exit_code: 1
+plugin_name: FastSCODE
+snakefile_path: ./user/test/workflow_5/algorithm_17/Snakefile
+targets:
+- ./user/test/workflow_5/algorithm_17/results/GRN.sif
+- ./user/test/workflow_5/algorithm_17/results/GRNOutdegree.txt
+- ./user/test/workflow_5/algorithm_17/results/GRNTrim.sif
+- ./user/test/workflow_5/algorithm_17/results/GRNTrimOutdegree.txt

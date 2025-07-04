@@ -17,7 +17,8 @@
     <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
     <CompileCheck v-if="compile_check" @deactivate-compile-check="deactivateCompileCheck" @run-workflow="runWorkflow" />
     <!-- <FileTable :show_files="show_files" :files_list="files_list" /> -->
-    <JobTable :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" @confirm-delete="confirmDelete" />
+    <JobTable :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" @confirm-delete="confirmDelete"
+      @show-logs="showLogs" />
     <ControlBar :on_progress="on_progress" :isTabView="isTabView" @toggle-file="toggleFile"
       @save-workflow-project="saveWorkflowProject" @activate-compile-check="activateCompileCheck"
       @toggle-task="toggleTask" @toggle-tab-view="toggleTabView" @zoom-in="zoomIn" @zoom-out="zoomOut" />
@@ -34,6 +35,50 @@
         </p>
       </div>
       <img class="message__close" @click="toggleMessage = !toggleMessage" src="@/assets/close.png" />
+    </div>
+
+    <!-- 로그 모달 -->
+    <div v-if="showLogsModal" class="logs-modal-overlay" @click.self="closeLogsModal">
+      <div class="logs-modal">
+        <div class="logs-modal-header">
+          <h3>Task Logs</h3>
+          <div class="logs-modal-controls">
+            <button @click="refreshLogs" :disabled="logsLoading" class="refresh-btn">
+              <img src="@/assets/refresh.png" alt="Refresh" class="refresh-icon" />
+            </button>
+            <button @click="closeLogsModal" class="close-btn">
+              <img src="@/assets/close.png" alt="Close" class="close-icon" />
+            </button>
+          </div>
+        </div>
+
+        <div v-if="logsLoading" class="logs-loading">
+          Loading logs...
+        </div>
+
+        <div v-else-if="selectedTaskLogs" class="logs-content">
+          <div class="logs-task-info">
+            <p><strong>Task ID:</strong> {{ selectedTaskLogs.task_info.task_id }}</p>
+            <p><strong>Status:</strong> {{ selectedTaskLogs.task_info.status }}</p>
+            <p><strong>Workflow ID:</strong> {{ selectedTaskLogs.task_info.workflow_id }}</p>
+            <p><strong>Algorithm ID:</strong> {{ selectedTaskLogs.task_info.algorithm_id }}</p>
+          </div>
+
+          <div v-if="selectedTaskLogs.logs.length === 0" class="no-logs">
+            No log files have been generated yet.
+          </div>
+
+          <div v-else class="logs-files">
+            <div v-for="(logFile, index) in selectedTaskLogs.logs" :key="index" class="log-file">
+              <div class="log-file-header">
+                <h4>{{ logFile.filename }}</h4>
+                <span class="log-file-size">{{ formatFileSize(logFile.size) }}</span>
+              </div>
+              <pre class="log-file-content">{{ logFile.content }}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -65,6 +110,7 @@ import {
   findFolder,
   revokeTask,
   deleteTask,
+  getTaskLogs,
   getPluginTemplate,
   createTaskEventSource,
 } from "@/api/index";
@@ -144,6 +190,9 @@ export default {
       messageContent: "",
       messageStatus: "",
       notRemoveConnectionOutputId: "",
+      showLogsModal: false,
+      selectedTaskLogs: null,
+      logsLoading: false,
     };
   },
   async mounted() {
@@ -561,6 +610,41 @@ export default {
       } catch (error) {
         console.error(error);
       }
+    },
+    async showLogs(task_id) {
+      try {
+        this.logsLoading = true;
+        this.showLogsModal = true;
+
+        const response = await getTaskLogs(task_id);
+        console.log(response.data);
+
+        this.selectedTaskLogs = response.data;
+        this.setMessage("success", "Logs loaded successfully!");
+      } catch (error) {
+        console.error(error);
+        this.setMessage("error", "Failed to load logs: " + error.message);
+        this.showLogsModal = false;
+      } finally {
+        this.logsLoading = false;
+      }
+    },
+    async refreshLogs() {
+      if (this.selectedTaskLogs && this.selectedTaskLogs.task_info) {
+        await this.showLogs(this.selectedTaskLogs.task_info.task_id);
+      }
+    },
+    closeLogsModal() {
+      this.showLogsModal = false;
+      this.selectedTaskLogs = null;
+      this.logsLoading = false;
+    },
+    formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     },
     async toggleFile() {
       if (!this.show_files) {
@@ -1127,6 +1211,271 @@ export default {
 
 .margin__top-4 {
   margin-top: 4px;
+}
+
+/* 로그 모달 스타일 */
+.logs-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  backdrop-filter: blur(5px);
+}
+
+.logs-modal {
+  background: #2c3e50;
+  border-radius: 16px;
+  max-width: 90vw;
+  max-height: 90vh;
+  width: 900px;
+  height: 700px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logs-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: #1f2a38;
+  border-radius: 16px 16px 0 0;
+}
+
+.logs-modal-header h3 {
+  margin: 0;
+  color: #ecf0f1;
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+
+.logs-modal-controls {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.close-btn,
+.refresh-btn {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.refresh-btn {
+  background: #007bff;
+}
+
+.close-btn:hover {
+  background: #c0392b;
+  transform: translateY(-1px);
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.refresh-btn:disabled {
+  background: #576574;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.refresh-icon,
+.close-icon {
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+
+.refresh-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.logs-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  font-size: 1.2rem;
+  color: #ecf0f1;
+  background: #34495e;
+}
+
+.logs-content {
+  flex: 1;
+  overflow: auto;
+  padding: 1.5rem;
+  background: #34495e;
+  border-radius: 0 0 16px 16px;
+}
+
+/* 스크롤바 스타일 */
+.logs-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.logs-content::-webkit-scrollbar-track {
+  background: #2c3e50;
+  border-radius: 8px;
+}
+
+.logs-content::-webkit-scrollbar-thumb {
+  background: #576574;
+  border-radius: 8px;
+}
+
+.logs-content::-webkit-scrollbar-thumb:hover {
+  background: #5a6c7d;
+}
+
+.logs-task-info {
+  background: rgba(31, 42, 56, 0.8);
+  padding: 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+}
+
+.logs-task-info p {
+  margin: 0.75rem 0;
+  font-size: 0.95rem;
+  color: #ecf0f1;
+  line-height: 1.5;
+}
+
+.logs-task-info strong {
+  color: #3498db;
+  font-weight: 600;
+}
+
+.no-logs {
+  text-align: center;
+  color: #bdc3c7;
+  font-style: italic;
+  padding: 3rem;
+  font-size: 1.1rem;
+  background: rgba(31, 42, 56, 0.5);
+  border-radius: 12px;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+}
+
+.logs-files {
+  max-height: 450px;
+  overflow-y: auto;
+}
+
+/* 로그 파일 스크롤바 */
+.logs-files::-webkit-scrollbar {
+  width: 6px;
+}
+
+.logs-files::-webkit-scrollbar-track {
+  background: #2c3e50;
+  border-radius: 6px;
+}
+
+.logs-files::-webkit-scrollbar-thumb {
+  background: #576574;
+  border-radius: 6px;
+}
+
+.logs-files::-webkit-scrollbar-thumb:hover {
+  background: #5a6c7d;
+}
+
+.log-file {
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #2c3e50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.log-file-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: #1f2a38;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.log-file-header h4 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #ecf0f1;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+.log-file-size {
+  font-size: 0.85rem;
+  color: #95a5a6;
+  background: rgba(52, 73, 94, 0.7);
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+}
+
+.log-file-content {
+  margin: 0;
+  padding: 1.25rem;
+  background: #1e2833;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 350px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #e8f4f8;
+  border: none;
+  font-weight: 400;
+}
+
+/* 로그 내용 스크롤바 */
+.log-file-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.log-file-content::-webkit-scrollbar-track {
+  background: #1a252f;
+  border-radius: 6px;
+}
+
+.log-file-content::-webkit-scrollbar-thumb {
+  background: #34495e;
+  border-radius: 6px;
+}
+
+.log-file-content::-webkit-scrollbar-thumb:hover {
+  background: #4a6378;
 }
 
 /* @media (prefers-color-scheme: dark) {

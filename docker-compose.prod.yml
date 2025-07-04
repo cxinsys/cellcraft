@@ -75,7 +75,6 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
-      - NVIDIA_VISIBLE_DEVICES=all
     ipc: host
     build:
       context: ./backend
@@ -87,13 +86,6 @@ services:
         condition: service_started
       db:
         condition: service_healthy
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: "${GPU_COUNT:-all}"
-              capabilities: [gpu, compute, utility]
     restart: always
 
 volumes:

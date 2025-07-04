@@ -207,6 +207,10 @@ function deleteTask(taskId) {
   return instance.delete(`/routes/task/delete/${taskId}`);
 }
 
+function getTaskLogs(taskId) {
+  return instance.get(`/routes/task/logs/${taskId}`);
+}
+
 function getHtml(filename) {
   return instance.get(`/routes/files/html/${filename}`);
 }
@@ -245,6 +249,10 @@ function uploadPluginMetadata(pluginCreate) {
   return instance.post("/routes/plugin/upload", pluginCreate);
 }
 
+function syncPluginData(pluginName) {
+  return instance.post(`/routes/plugin/update/${pluginName}`);
+}
+
 function uploadPluginScripts(formData) {
   return instance.post("/routes/plugin/upload_scripts", formData, {
     headers: {
@@ -259,6 +267,10 @@ function uploadPluginPackage(formData) {
       "Content-Type": "multipart/form-data",
     },
   });
+}
+
+function uploadTextDependencies(formData) {
+  return instance.post("/routes/plugin/upload_text_dependencies", formData);
 }
 
 function getPlugins() {
@@ -297,6 +309,18 @@ function getDataTableFile(vgt_info) {
 
 function getPluginInfo(name) {
   return instance.get(`/routes/plugin/info/${name}`);
+}
+
+function buildPlugin(plugin_name) {
+  return instance.post(`/routes/plugin/build/${plugin_name}`);
+}
+
+function buildPluginDocker(plugin_name, use_gpu = false) {
+  return instance.post(`/routes/plugin/build_docker/${plugin_name}`, { use_gpu });
+}
+
+function checkPluginImage(plugin_name) {
+  return instance.get(`/routes/plugin/check_image/${plugin_name}`);
 }
 
 function createTaskEventSource(taskId, callbacks = {}) {
@@ -375,6 +399,7 @@ export {
   deleteFile,
   revokeTask,
   deleteTask,
+  getTaskLogs,
   convertFile,
   getColumns,
   getClusters,
@@ -388,8 +413,10 @@ export {
   getResultFileOne,
   validationPlugin,
   uploadPluginMetadata,
+  syncPluginData,
   uploadPluginScripts,
   uploadPluginPackage,
+  uploadTextDependencies,
   getPlugins,
   associatePlugin,
   dissociatePlugin,
@@ -412,4 +439,7 @@ export {
   deleteUserAdmin,
   deleteFileAdmin,
   deleteWorkflowAdmin,
+  buildPlugin,
+  buildPluginDocker,
+  checkPluginImage,
 };

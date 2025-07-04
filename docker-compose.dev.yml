@@ -12,16 +12,17 @@ services:
       - /app/node_modules
     environment:
       - TZ=Asia/Seoul
-      - VUE_APP_BASE_URL=http://0.0.0.0:8000
+      - VUE_APP_BASE_URL=http://localhost:8000
     restart: always
+    networks:
+      - app-network
 
   backend:
     environment:
-      - CONDA_DEFAULT_ENV=snakemake
       - TZ=Asia/Seoul
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "8000:8000"
     volumes:
@@ -30,20 +31,29 @@ services:
     depends_on:
       - db
     restart: always
+    networks:
+      - app-network
 
   db:
     image: postgres:15
     environment:
+      - TZ=Asia/Seoul
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - TZ=Asia/Seoul
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: always
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: "rabbitmq:management"
@@ -55,10 +65,11 @@ services:
     volumes:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     restart: always
+    networks:
+      - app-network
 
   celery:
       environment:
-        - CONDA_DEFAULT_ENV=snakemake
         - C_FORCE_ROOT=true
         - TZ=Asia/Seoul
       ipc: host
@@ -66,6 +77,7 @@ services:
         context: ./backend
         dockerfile: Dockerfile.dev.celery
       volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
         - ./backend:/app
       depends_on:
         - rabbitmq
@@ -78,5 +90,12 @@ services:
                 count: "${GPU_COUNT:-all}"  # 사용자가 설정하지 않으면 모든 GPU 사용
                 capabilities: [gpu]
       restart: always
+      networks:
+        - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
 volumes:
   postgres_data:

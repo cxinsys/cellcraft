@@ -33,79 +33,95 @@
 
                 <!-- CPU 정보 표시 -->
                 <div class="resource-bar">
-                    <label>CPU Usage: {{ Number(serverResources.cpu.usage_percent).toFixed(2) }}% ({{
-                        serverResources.cpu.num_cpus }} Cores)</label>
+                    <label>CPU Usage: {{ Number(serverResources.total_cpu_usage_percent).toFixed(2) }}%</label>
                     <div class="bar">
-                        <div class="fill" :style="{ width: Math.min(serverResources.cpu.usage_percent, 100) + '%' }">
+                        <div class="fill"
+                            :style="{ width: Math.min(serverResources.total_cpu_usage_percent, 100) + '%' }">
                         </div>
                     </div>
                     <div class="resource-details">
-                        <p><strong>Total CPU Usage:</strong> {{ formatCPUUsage(serverResources.cpu.total_usage) }}
-                            cycles</p>
-                        <p><strong>System CPU Usage:</strong> {{ formatCPUUsage(serverResources.cpu.system_usage) }}
-                            cycles</p>
-                        <div class="cpu-cores">
-                            <p v-for="(usage, index) in serverResources.cpu.per_cpu_usage" :key="index">
-                                <strong>Core {{ index }}:</strong>
-                                <span :class="getCPUUsageClass(calculateCPUPercentage(usage))">
-                                    {{ calculateCPUPercentage(usage).toFixed(2) }}%
-                                </span>
-                            </p>
-                        </div>
+                        <p><strong>Total Memory Usage:</strong> {{ formatBytes(serverResources.total_memory_usage_bytes)
+                            }}</p>
+                        <p><strong>Total Memory Limit:</strong> {{ formatBytes(serverResources.total_memory_limit_bytes)
+                            }}</p>
                     </div>
                 </div>
 
                 <!-- 메모리 정보 표시 -->
                 <div class="resource-bar">
-                    <label>Memory Usage: {{ Number(serverResources.memory.percent).toFixed(2) }}%</label>
+                    <label>Memory Usage: {{ Number(serverResources.total_memory_usage_percent).toFixed(2) }}%</label>
                     <div class="bar">
-                        <div class="fill" :style="{ width: Math.min(serverResources.memory.percent, 100) + '%' }"></div>
+                        <div class="fill"
+                            :style="{ width: Math.min(serverResources.total_memory_usage_percent, 100) + '%' }"></div>
                     </div>
                     <div class="resource-details">
                         <p>
-                            <strong>Total Memory:</strong> {{ formatBytes(serverResources.memory.total_bytes) }}
+                            <strong>Total Memory:</strong> {{ formatBytes(serverResources.total_memory_limit_bytes) }}
                         </p>
                         <p>
                             <strong>Used Memory:</strong>
-                            <span :class="getMemoryUsageClass(serverResources.memory.percent)">
-                                {{ formatBytes(serverResources.memory.used_bytes) }}
+                            <span :class="getMemoryUsageClass(serverResources.total_memory_usage_percent)">
+                                {{ formatBytes(serverResources.total_memory_usage_bytes) }}
                             </span>
                         </p>
                         <p>
-                            <strong>Available Memory:</strong> {{ formatBytes(serverResources.memory.available_bytes) }}
+                            <strong>Available Memory:</strong> {{ formatBytes(serverResources.total_memory_limit_bytes -
+                                serverResources.total_memory_usage_bytes) }}
                         </p>
                     </div>
                 </div>
 
-                <!-- GPU 정보 표시 -->
-                <div class="resource-bar" v-if="serverResources.gpu">
-                    <div v-for="(gpu, index) in serverResources.gpu" :key="index" class="gpu-info">
-                        <label>{{ gpu.name }} (GPU {{ gpu.id }})</label>
-                        <div class="resource-sub-bar">
-                            <label>GPU Usage: {{ gpu.utilization_percent }}%</label>
-                            <div class="bar">
-                                <div class="fill" :style="{ width: Math.min(gpu.utilization_percent, 100) + '%' }">
+                <!-- 컨테이너별 정보 표시 -->
+                <div v-for="(container, index) in serverResources.containers" :key="index" class="container-info">
+                    <h4>{{ container.container_info.name }}</h4>
+
+                    <!-- 컨테이너 CPU 정보 -->
+                    <div class="resource-sub-bar">
+                        <label>CPU Usage: {{ Number(container.cpu.usage_percent).toFixed(2) }}%</label>
+                        <div class="bar">
+                            <div class="fill" :style="{ width: Math.min(container.cpu.usage_percent, 100) + '%' }">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 컨테이너 메모리 정보 -->
+                    <div class="resource-sub-bar">
+                        <label>Memory Usage: {{ Number(container.memory.percent).toFixed(2) }}%</label>
+                        <div class="bar">
+                            <div class="fill" :style="{ width: Math.min(container.memory.percent, 100) + '%' }"></div>
+                        </div>
+                    </div>
+
+                    <!-- 컨테이너 GPU 정보 -->
+                    <div v-if="container.gpu" class="gpu-info">
+                        <div v-for="(gpu, gpuIndex) in container.gpu" :key="gpuIndex">
+                            <label>{{ gpu.name }} (GPU {{ gpu.id }})</label>
+                            <div class="resource-sub-bar">
+                                <label>GPU Usage: {{ gpu.utilization_percent }}%</label>
+                                <div class="bar">
+                                    <div class="fill" :style="{ width: Math.min(gpu.utilization_percent, 100) + '%' }">
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="resource-sub-bar">
-                            <label>Memory Usage: {{ gpu.memory.utilization_percent.toFixed(2) }}%</label>
-                            <div class="bar">
-                                <div class="fill"
-                                    :style="{ width: Math.min(gpu.memory.utilization_percent, 100) + '%' }"></div>
+                            <div class="resource-sub-bar">
+                                <label>Memory Usage: {{ gpu.memory.utilization_percent.toFixed(2) }}%</label>
+                                <div class="bar">
+                                    <div class="fill"
+                                        :style="{ width: Math.min(gpu.memory.utilization_percent, 100) + '%' }"></div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="resource-details">
-                            <p>
-                                <strong>Memory:</strong>
-                                {{ formatBytes(gpu.memory.used_bytes) }} / {{ formatBytes(gpu.memory.total_bytes) }}
-                            </p>
-                            <p>
-                                <strong>Temperature:</strong> {{ gpu.temperature_c }}°C
-                            </p>
-                            <p>
-                                <strong>Power:</strong> {{ gpu.power.draw_watts }}W / {{ gpu.power.limit_watts }}W
-                            </p>
+                            <div class="resource-details">
+                                <p>
+                                    <strong>Memory:</strong>
+                                    {{ formatBytes(gpu.memory.used_bytes) }} / {{ formatBytes(gpu.memory.total_bytes) }}
+                                </p>
+                                <p>
+                                    <strong>Temperature:</strong> {{ gpu.temperature_c }}°C
+                                </p>
+                                <p>
+                                    <strong>Power:</strong> {{ gpu.power.draw_watts }}W / {{ gpu.power.limit_watts }}W
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -128,27 +144,12 @@ export default {
         return {
             taskInfoList: [],
             serverResources: {
-                container_info: {
-                    id: '',
-                    name: '',
-                    status: '',
-                    created: ''
-                },
-                cpu: {
-                    usage_percent: 0,
-                    num_cpus: 0,
-                    total_usage: 0,
-                    system_usage: 0,
-                    per_cpu_usage: []
-                },
-                memory: {
-                    total_bytes: 0,
-                    used_bytes: 0,
-                    available_bytes: 0,
-                    percent: 0
-                },
-                gpu: null,
-                network: {}
+                total_containers: 0,
+                total_cpu_usage_percent: 0,
+                total_memory_usage_bytes: 0,
+                total_memory_limit_bytes: 0,
+                total_memory_usage_percent: 0,
+                containers: []
             },
             intervalId: null,
         };
@@ -481,5 +482,17 @@ export default {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.container-info {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #2c3e50;
+    border-radius: 8px;
+}
+
+.container-info h4 {
+    margin-bottom: 10px;
+    color: #ecf0f1;
 }
 </style>

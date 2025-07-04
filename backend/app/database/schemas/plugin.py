@@ -36,6 +36,7 @@ class PluginInfo(BaseModel):
     description: str
     referenceFolders: List[ReferenceFolder]
     dependencyFiles: List[DependencyFile] = None
+    useGpu: Optional[bool] = False
 
 class PluginData(BaseModel):
     plugin: PluginInfo
@@ -48,9 +49,10 @@ class PluginCreate(BaseModel):
     author: str
     plugin_path: str
     dependencies: Optional[Dict[str, str]]
-    reference_folders: Optional[Dict[str, Union[str, Dict[str, Any]]]] = None
+    reference_folders: Optional[Dict[str, Any]] = None
     drawflow: Dict[str, Any]
     rules: Dict[str, Any]
+    use_gpu: Optional[bool] = False
 
 class PluginUpdate(BaseModel):
     name: Optional[str] = None
@@ -58,9 +60,12 @@ class PluginUpdate(BaseModel):
     author: Optional[str] = None
     plugin_path: Optional[str] = None
     dependencies: Optional[Dict[str, str]] = None
-    reference_folders: Optional[Dict[str, Union[str, Dict[str, Any]]]] = None
     drawflow: Optional[Dict[str, Any]] = None
     rules: Optional[Dict[str, Any]] = None
+    use_gpu: Optional[bool] = None
 
 class PluginAssociate(BaseModel):
     plugin_id: int
+
+class BuildDockerRequest(BaseModel):
+    use_gpu: Optional[bool] = False

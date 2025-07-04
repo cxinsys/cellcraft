@@ -1,0 +1,303 @@
+Building Docker image for plugin: LEAP
+Start time: 2025-06-05T17:37:23.305482
+Docker version: 27.1.2
+
+Dockerfile content:
+FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
+
+# 비대화형 설치 설정
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Seoul
+
+# 기본 패키지 설치
+RUN apt-get update && apt-get install -y \
+    build-essential gcc g++ gfortran make \
+    libssl-dev libcurl4-openssl-dev libxml2-dev \
+    libjpeg-dev libpng-dev libfreetype6-dev libtiff-dev \
+    libx11-dev xorg-dev libxt-dev libglu1-mesa-dev \
+    curl wget unzip git \
+    python3.10 python3-pip python3-venv \
+    software-properties-common \
+    r-base \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# dependency 폴더 복사
+COPY dependency/ /workspace/dependency/
+
+# Micromamba 설치
+RUN mkdir -p /usr/local/bin && \
+    cd /tmp && \
+    curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj && \
+    cp bin/micromamba /usr/local/bin/micromamba && \
+    chmod +x /usr/local/bin/micromamba && \
+    rm -rf /tmp/bin /tmp/info && \
+    # 설치 확인
+    /usr/local/bin/micromamba --version
+
+# 환경 변수 설정
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV MAMBA_EXE=/usr/local/bin/micromamba
+ENV PATH=/usr/local/bin:$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$MAMBA_ROOT_PREFIX/bin:$PATH
+
+# Micromamba 환경 디렉토리 생성
+RUN mkdir -p $MAMBA_ROOT_PREFIX && \
+    mkdir -p $MAMBA_ROOT_PREFIX/envs && \
+    mkdir -p $MAMBA_ROOT_PREFIX/pkgs && \
+    mkdir -p $MAMBA_ROOT_PREFIX/etc/profile.d
+
+# Python 환경 생성
+RUN /usr/local/bin/micromamba create -y -n plugin_env python=3.10 -c conda-forge --root-prefix $MAMBA_ROOT_PREFIX
+
+# Snakemake 및 필수 패키지 설치
+RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \
+    pip install --no-cache-dir \
+    'snakemake==7.14.0' \
+    'pulp==2.7.0' \
+    'tabulate==0.8.10'
+
+# Python 패키지 설치
+RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \
+    pip install --no-cache-dir -r /workspace/dependency/requirements.txt || true
+
+# R 환경 설정 및 패키지 설치
+RUN mkdir -p /workspace/r_env
+
+# renv.lock을 이용한 R 패키지 복원
+WORKDIR /workspace/r_env
+RUN cp /workspace/dependency/renv.lock . || echo 'renv.lock not found'
+
+# renv 설치
+RUN Rscript -e "options(repos = c(CRAN = 'https://cloud.r-project.org'))"
+RUN Rscript -e "if (!requireNamespace('renv', quietly=TRUE)) install.packages('renv', dependencies=TRUE)"
+RUN Rscript -e "renv::init(bare=TRUE, restart=FALSE)" || echo 'renv init completed'
+RUN Rscript -e "renv::restore(lockfile='renv.lock', prompt=FALSE)" || echo 'renv restore completed with warnings'
+
+# R 환경 설정 파일 생성
+RUN echo 'source("renv/activate.R")' > /workspace/r_env/.Rprofile
+RUN echo 'Sys.setenv(RENV_PATHS_LIBRARY = "/workspace/r_env/renv/library")' >> /workspace/r_env/.Rprofile
+
+# R 환경 변수 설정
+ENV R_HOME=/usr/lib/R
+ENV R_LIBS_USER=/workspace/r_env/renv/library
+ENV RENV_PROJECT=/workspace/r_env
+
+# 작업 디렉토리 생성 및 설정
+RUN mkdir -p /workspace/logs && \
+    chmod 777 /workspace
+
+# Snakefile 복사
+COPY Snakefile /workspace/Snakefile
+COPY visualization_Snakefile /workspace/visualization_Snakefile
+
+# 플러그인 스크립트 복사
+COPY scripts/ /scripts/
+
+WORKDIR /workspace
+
+# Entrypoint 스크립트 생성
+RUN echo '#!/bin/bash' > /entrypoint.sh
+RUN echo 'export MAMBA_ROOT_PREFIX=/opt/micromamba' >> /entrypoint.sh
+RUN echo 'export MAMBA_EXE=/usr/local/bin/micromamba' >> /entrypoint.sh
+RUN echo 'export PATH=$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$PATH' >> /entrypoint.sh
+RUN echo '# Set R environment' >> /entrypoint.sh
+RUN echo 'export R_HOME=/usr/lib/R' >> /entrypoint.sh
+RUN echo 'export R_LIBS_USER=/workspace/r_env/renv/library' >> /entrypoint.sh
+RUN echo 'export RENV_PROJECT=/workspace/r_env' >> /entrypoint.sh
+RUN echo 'cd /workspace/r_env 2>/dev/null || true' >> /entrypoint.sh
+RUN echo '# Activate micromamba environment' >> /entrypoint.sh
+RUN echo 'eval "$($MAMBA_EXE shell activate -s bash -p $MAMBA_ROOT_PREFIX plugin_env)" 2>/dev/null || true' >> /entrypoint.sh
+RUN echo 'cd /workspace' >> /entrypoint.sh
+RUN echo 'exec "$@"' >> /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+
+# 헬스체크 설정
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD test -f /opt/micromamba/envs/plugin_env/bin/python || exit 1
+
+# 기본 명령어 설정
+CMD ["/bin/bash"]
+
+Starting build...
+Step 1/47 : FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
+ ---> a1ffe80dc4e1
+Step 2/47 : ENV DEBIAN_FRONTEND=noninteractive
+ ---> Using cache
+ ---> 62ca82dc3808
+Step 3/47 : ENV TZ=Asia/Seoul
+ ---> Using cache
+ ---> d3aa5b565b25
+Step 4/47 : RUN apt-get update && apt-get install -y     build-essential gcc g++ gfortran make     libssl-dev libcurl4-openssl-dev libxml2-dev     libjpeg-dev libpng-dev libfreetype6-dev libtiff-dev     libx11-dev xorg-dev libxt-dev libglu1-mesa-dev     curl wget unzip git     python3.10 python3-pip python3-venv     software-properties-common     r-base     && apt-get clean && rm -rf /var/lib/apt/lists/*
+ ---> Using cache
+ ---> e80bdcc457a1
+Step 5/47 : COPY dependency/ /workspace/dependency/
+ ---> 02f3ad4fbd5c
+Step 6/47 : RUN mkdir -p /usr/local/bin &&     cd /tmp &&     curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj &&     cp bin/micromamba /usr/local/bin/micromamba &&     chmod +x /usr/local/bin/micromamba &&     rm -rf /tmp/bin /tmp/info &&     /usr/local/bin/micromamba --version
+ ---> Running in 7dc8f5c0987d
+info/files
+info/has_prefix
+info/index.json
+info/test/run_test.sh
+info/hash_input.json
+info/paths.json
+info/licenses/C_ARES_LICENSE.txt
+info/recipe/C_ARES_LICENSE.txt
+info/recipe/conda_build_config.yaml
+info/licenses/REPROC_LICENSE.txt
+info/recipe/REPROC_LICENSE.txt
+info/licenses/NLOHMANN_JSON_LICENSE.txt
+info/recipe/NLOHMANN_JSON_LICENSE.txt
+info/licenses/CURL_LICENSE.txt
+info/recipe/CURL_LICENSE.txt
+info/recipe/CPP_FILESYSTEM_LICENSE.txt
+info/licenses/ZLIB_LICENSE.txt
+info/recipe/ZLIB_LICENSE.txt
+info/recipe/LIBNGHTTP2_LICENSE.txt
+info/licenses/LIBNGHTTP2_LICENSE.txt
+info/recipe/LIBLZ4_LICENSE.txt
+info/licenses/LIBLZ4_LICENSE.txt
+info/licenses/SPDLOG_LICENSE.txt
+info/recipe/SPDLOG_LICENSE.txt
+info/recipe/FMT_LICENSE.txt
+info/licenses/FMT_LICENSE.txt
+info/licenses/LIBSOLV_LICENSE.txt
+info/recipe/LIBSOLV_LICENSE.txt
+info/licenses/mamba/LICENSE
+info/recipe/build.sh
+info/recipe/bld.bat
+info/recipe/TERMCOLOR_CPP_LICENSE.txt
+info/recipe/ZSTD_LICENSE.txt
+info/licenses/ZSTD_LICENSE.txt
+info/recipe/recipe-scripts-license.txt
+info/recipe/CLI11_LICENSE.txt
+info/licenses/CLI11_LICENSE.txt
+info/licenses/LIBEV_LICENSE.txt
+info/recipe/LIBEV_LICENSE.txt
+info/recipe/LIBARCHIVE_LICENSE.txt
+info/licenses/LIBARCHIVE_LICENSE.txt
+info/recipe/meta.yaml.template
+info/recipe/meta.yaml
+info/licenses/LIBOPENSSL_LICENSE.txt
+info/recipe/LIBOPENSSL_LICENSE.txt
+info/licenses/TL_EXPECTED_LICENSE.txt
+info/recipe/TL_EXPECTED_LICENSE.txt
+info/about.json
+info/licenses/LIBOPENSSL_3_LICENSE.txt
+info/recipe/LIBOPENSSL_3_LICENSE.txt
+info/recipe/SIMDJSON_LICENSE.txt
+info/recipe/KRB5_LICENSE.txt
+info/licenses/KRB5_LICENSE.txt
+info/git
+bin/micromamba
+2.1.1
+ ---> Removed intermediate container 7dc8f5c0987d
+ ---> 003481d09771
+Step 7/47 : ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ ---> Running in 2e9a9726b455
+ ---> Removed intermediate container 2e9a9726b455
+ ---> a47ae8b27186
+Step 8/47 : ENV MAMBA_EXE=/usr/local/bin/micromamba
+ ---> Running in c4b7b649fb90
+ ---> Removed intermediate container c4b7b649fb90
+ ---> d3a9e121630d
+Step 9/47 : ENV PATH=/usr/local/bin:$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$MAMBA_ROOT_PREFIX/bin:$PATH
+ ---> Running in 2d44e4ac57a3
+ ---> Removed intermediate container 2d44e4ac57a3
+ ---> b989b5188314
+Step 10/47 : RUN mkdir -p $MAMBA_ROOT_PREFIX &&     mkdir -p $MAMBA_ROOT_PREFIX/envs &&     mkdir -p $MAMBA_ROOT_PREFIX/pkgs &&     mkdir -p $MAMBA_ROOT_PREFIX/etc/profile.d
+ ---> Running in b573a9521ac5
+ ---> Removed intermediate container b573a9521ac5
+ ---> d4de3c5f5eef
+Step 11/47 : RUN /usr/local/bin/micromamba create -y -n plugin_env python=3.10 -c conda-forge --root-prefix $MAMBA_ROOT_PREFIX
+ ---> Running in 27cc09486dde
+
+
+Transaction
+
+  Prefix: /opt/micromamba/envs/plugin_env
+
+  Updating specs:
+
+   - python=3.10
+
+
+  Package               Version  Build               Channel          Size
+────────────────────────────────────────────────────────────────────────────
+  Install:
+────────────────────────────────────────────────────────────────────────────
+
+  + _libgcc_mutex           0.1  conda_forge         conda-forge       3kB
+  + _openmp_mutex           4.5  2_gnu               conda-forge      24kB
+  + bzip2                 1.0.8  h4bc722e_7          conda-forge     253kB
+  + ca-certificates   2025.4.26  hbd8a1cb_0          conda-forge     152kB
+  + ld_impl_linux-64       2.43  h712a8e2_4          conda-forge     671kB
+  + libexpat              2.7.0  h5888daf_0          conda-forge      74kB
+  + libffi                3.4.6  h2dba641_1          conda-forge      57kB
+  + libgcc               15.1.0  h767d61c_2          conda-forge     829kB
+  + libgcc-ng            15.1.0  h69a702a_2          conda-forge      35kB
+  + libgomp              15.1.0  h767d61c_2          conda-forge     453kB
+  + liblzma               5.8.1  hb9d3cd8_1          conda-forge     113kB
+  + libnsl                2.0.1  hd590300_0          conda-forge      33kB
+  + libsqlite            3.50.0  hee588c1_0          conda-forge     919kB
+  + libuuid              2.38.1  h0b41bf4_0          conda-forge      34kB
+  + libxcrypt            4.4.36  hd590300_1          conda-forge     100kB
+  + libzlib               1.3.1  hb9d3cd8_2          conda-forge      61kB
+  + ncurses                 6.5  h2d0b736_3          conda-forge     892kB
+  + openssl               3.5.0  h7b32b05_1          conda-forge       3MB
+  + pip                  25.1.1  pyh8b19718_0        conda-forge       1MB
+  + python              3.10.18  hd6af730_0_cpython  conda-forge      25MB
+  + readline                8.2  h8c095d6_2          conda-forge     282kB
+  + setuptools           80.9.0  pyhff2d567_0        conda-forge     749kB
+  + tk                   8.6.13  noxft_hd72426e_102  conda-forge       3MB
+  + tzdata                2025b  h78e105d_0          conda-forge     123kB
+  + wheel                0.45.1  pyhd8ed1ab_1        conda-forge      63kB
+
+  Summary:
+
+  Install: 25 packages
+
+  Total download: 39MB
+
+────────────────────────────────────────────────────────────────────────────
+
+
+
+Transaction starting
+Linking ld_impl_linux-64-2.43-h712a8e2_4
+Linking libgomp-15.1.0-h767d61c_2
+Linking _libgcc_mutex-0.1-conda_forge
+Linking _openmp_mutex-4.5-2_gnu
+Linking libgcc-15.1.0-h767d61c_2
+Linking ncurses-6.5-h2d0b736_3
+Linking libzlib-1.3.1-hb9d3cd8_2
+Linking liblzma-5.8.1-hb9d3cd8_1
+Linking libgcc-ng-15.1.0-h69a702a_2
+Linking libffi-3.4.6-h2dba641_1
+Linking libexpat-2.7.0-h5888daf_0
+Linking readline-8.2-h8c095d6_2
+Linking tk-8.6.13-noxft_hd72426e_102
+Linking libsqlite-3.50.0-hee588c1_0
+Linking libxcrypt-4.4.36-hd590300_1
+Linking bzip2-1.0.8-h4bc722e_7
+Linking libuuid-2.38.1-h0b41bf4_0
+Linking libnsl-2.0.1-hd590300_0
+Linking tzdata-2025b-h78e105d_0
+Linking ca-certificates-2025.4.26-hbd8a1cb_0
+Linking openssl-3.5.0-h7b32b05_1
+Linking python-3.10.18-hd6af730_0_cpython
+Linking wheel-0.45.1-pyhd8ed1ab_1
+Linking setuptools-80.9.0-pyhff2d567_0
+Linking pip-25.1.1-pyh8b19718_0
+
+Transaction finished
+
+
+To activate this environment, use:
+
+    micromamba activate plugin_env
+
+Or to execute a single command in this environment, use:
+
+    micromamba run -n plugin_env mycommand
+

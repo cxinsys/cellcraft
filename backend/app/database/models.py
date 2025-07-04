@@ -61,6 +61,9 @@ class Task(Base):
     status = Column(String, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"))
     workflow_id = Column(Integer, ForeignKey("workflows.id"))
+    algorithm_id = Column(String, nullable=True)  # algorithm_id 필드 추가
+    plugin_name = Column(String, nullable=True)  # plugin_name 필드 추가
+    task_type = Column(String, nullable=True)  # task_type 필드 추가 (compile, visualization)
 
     user = relationship("User", back_populates="tasks")
     workflows = relationship("Workflow", back_populates="tasks")
@@ -76,5 +79,6 @@ class Plugin(Base):
     dependencies = Column(JSONB, nullable=True)
     drawflow = Column(JSONB, nullable=False)
     rules = Column(JSONB, nullable=False)
+    use_gpu = Column(Boolean, default=False)
 
     users = relationship("User", secondary=user_plugin_association, back_populates="plugins")
