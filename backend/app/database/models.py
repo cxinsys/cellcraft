@@ -79,5 +79,6 @@ class Plugin(Base):
     dependencies = Column(JSONB, nullable=True)
     drawflow = Column(JSONB, nullable=False)
     rules = Column(JSONB, nullable=False)
+    use_gpu = Column(Boolean, default=False)
 
     users = relationship("User", secondary=user_plugin_association, back_populates="plugins")

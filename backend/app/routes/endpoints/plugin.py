@@ -13,7 +13,7 @@ from datetime import datetime
 import logging
 
 from app.routes import dep
-from app.database.schemas.plugin import PluginData, PluginCreate, PluginUpdate, PluginAssociate
+from app.database.schemas.plugin import PluginData, PluginCreate, PluginUpdate, PluginAssociate, BuildDockerRequest
 from app.database.crud import crud_plugin
 from app.database import models
 from app.common.utils import plugin_utils
@@ -105,6 +105,7 @@ def validate_plugin(
             reference_folders=reference_folders if reference_folders else None,
             drawflow=plugin_data.drawflow,
             rules=rules_dict,
+            use_gpu=plugin_data.plugin.useGpu if hasattr(plugin_data.plugin, 'useGpu') else False,
         )
 
         return {
@@ -198,28 +199,16 @@ async def upload_plugin(
             # 5. Snakefile 생성
             plugin_utils.generate_snakemake_code(plugin_data.rules, plugin_folder, plugin_data.name)
 
-            # 6. scripts 폴더는 항상 생성 (후에 업로드될 스크립트를 위해 필요)
-            print(f"Ensuring scripts folder exists: {script_folder}")
-            if not os.path.exists(script_folder):
-                os.makedirs(script_folder)
-                print(f"Created scripts folder: {script_folder}")
-            
-            if plugin_data.reference_folders:
-                print(f"Creating reference folders in: {script_folder}")
-                plugin_utils.create_reference_folder(script_folder, plugin_data.reference_folders)
-            else:
-                print("No reference folders provided")
-
-            # 7. 데이터베이스 업데이트
+            # 6. 데이터베이스 업데이트
             if db_existing_plugin:
                 db_plugin = crud_plugin.update_plugin(db=db, plugin=plugin_data, plugin_id=db_existing_plugin.id)
             else:
                 db_plugin = crud_plugin.create_plugin(db=db, plugin=plugin_data)
 
-            # 8. 트랜잭션 커밋
+            # 7. 트랜잭션 커밋
             db.commit()
 
-            # 9. 성공 시 백업 삭제
+            # 8. 성공 시 백업 삭제
             if backup_folder and os.path.exists(backup_folder):
                 shutil.rmtree(backup_folder)
 
@@ -516,6 +505,7 @@ async def upload_package(
 async def build_plugin_docker(
     *,
     plugin_name: str,
+    request: BuildDockerRequest,
     current_user: models.User = Depends(dep.get_current_active_user),
 ):
     """
@@ -555,8 +545,8 @@ async def build_plugin_docker(
 
         # Dockerfile 생성
         dockerfile_path = os.path.join(plugin_folder, "Dockerfile")
-        plugin_utils.generate_plugin_dockerfile(plugin_folder, dockerfile_path)
-        print(f"Generated Dockerfile at: {dockerfile_path}")
+        plugin_utils.generate_plugin_dockerfile(plugin_folder, dockerfile_path, use_gpu=request.use_gpu)
+        print(f"Generated Dockerfile at: {dockerfile_path} (GPU: {request.use_gpu})")
 
         # Docker 이미지 빌드
         build_result = plugin_utils.build_plugin_docker_image(
