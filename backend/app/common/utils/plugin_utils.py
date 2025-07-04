@@ -489,7 +489,11 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
                     normalized_name = normalize_param_name(param['name'])
                     if param['name'] == "clusters" and param['type'] == "h5adParameter":
                         param_list.append(f'clusters=lambda wc: ";".join({{{param["name"]}}})')
-                    elif (param['name'] == "ScatterPlot" and param['type'] == 'string') or ("UMAP" in param['name'] and param['type'] == 'h5adParameter'):
+                    elif param['name'] == "ScatterPlot" and param['type'] == 'string':
+                        param_list.append(
+                            'ScatterPlot=lambda wildcards: {ScatterPlot} if os.path.exists({ScatterPlot}) else "None"'
+                        )
+                    elif "UMAP" in param['name'] and param['type'] == 'h5adParameter':
                         param_list.append(
                             'UMAP_lasso=lambda wildcards: {UMAP lasso} if os.path.exists({UMAP lasso}) else "None"'
                         )
@@ -1172,7 +1176,7 @@ def build_plugin_docker_image(plugin_path: str, plugin_name: str) -> dict:
         }
 
     # 로그 디렉토리 및 파일 설정
-    log_dir = os.path.join("user_logs", "plugin_build")
+    log_dir = os.path.join("plugin", "build_logs")
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, f"{plugin_name.lower()}.log")
     image_tag = f"plugin-{plugin_name.lower()}"

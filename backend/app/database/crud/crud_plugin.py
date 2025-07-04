@@ -1,3 +1,4 @@
+from typing import Union
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from app.database import models
@@ -68,13 +69,13 @@ def get_plugins(db: Session, skip: int = 0, limit: int = 100):
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-def create_plugin(db: Session, plugin: plugin.PluginUpdate):
+def create_plugin(db: Session, plugin: plugin.PluginCreate):
     """
     Create a new plugin.
     
     Args:
         db (Session): Database session
-        plugin (PluginUpdate): Plugin data
+        plugin (PluginCreate): Plugin data
     
     Returns:
         Plugin: Created plugin object
@@ -89,6 +90,8 @@ def create_plugin(db: Session, plugin: plugin.PluginUpdate):
             raise HTTPException(status_code=400, detail=f"Plugin with name {plugin.name} already exists")
 
         plugin_data = plugin.dict()
+        # reference_folders는 데이터베이스에 저장하지 않음 (파일 시스템에만 저장)
+        plugin_data.pop('reference_folders', None)
         db_plugin = models.Plugin(**plugin_data)
         db.add(db_plugin)
         db.commit()
@@ -101,13 +104,13 @@ def create_plugin(db: Session, plugin: plugin.PluginUpdate):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error creating plugin: {str(e)}")
 
-def update_plugin(db: Session, plugin: plugin.PluginUpdate, plugin_id: int):
+def update_plugin(db: Session, plugin: Union[plugin.PluginCreate, plugin.PluginUpdate], plugin_id: int):
     """
     Update an existing plugin.
     
     Args:
         db (Session): Database session
-        plugin (PluginUpdate): Updated plugin data
+        plugin (PluginCreate or PluginUpdate): Updated plugin data
         plugin_id (int): ID of plugin to update
     
     Returns:
@@ -127,7 +130,14 @@ def update_plugin(db: Session, plugin: plugin.PluginUpdate, plugin_id: int):
             if existing_plugin:
                 raise HTTPException(status_code=400, detail=f"Plugin with name {plugin.name} already exists")
 
-        update_data = plugin.dict(exclude_unset=True)
+        # PluginCreate인 경우 모든 필드 사용, PluginUpdate인 경우 설정된 필드만 사용
+        if isinstance(plugin, plugin.PluginCreate):
+            update_data = plugin.dict()
+        else:
+            update_data = plugin.dict(exclude_unset=True)
+        
+        # reference_folders는 데이터베이스에 저장하지 않음 (파일 시스템에만 저장)
+        update_data.pop('reference_folders', None)
         for key, value in update_data.items():
             if key in ['dependencies', 'drawflow', 'rules']:
                 # JSON 필드는 완전 교체
