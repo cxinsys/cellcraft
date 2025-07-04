@@ -14,6 +14,10 @@
           <img class="add__button--icon" src="@/assets/add_circle.png" />
           <h1>Add Plugin</h1>
         </div>
+        <!-- <div class="build-all__button" @click="buildAllPlugins">
+          <img class="build-all__button--icon" src="@/assets/add_circle.png" />
+          <h1>Build All</h1>
+        </div> -->
         <div class="search">
           <input type="text" v-model="searchTerm" placeholder="Search titles..." />
         </div>
@@ -62,7 +66,7 @@
 </template>
 
 <script>
-import { getUser, getPlugins, associatePlugin, dissociatePlugin, buildPlugin, checkPluginImage } from "@/api/index";
+import { getUser, getPlugins, associatePlugin, dissociatePlugin, buildPluginDocker, checkPluginImage } from "@/api/index";
 import PluginExtention from "@/components/PluginExtention.vue";
 
 export default {
@@ -213,7 +217,7 @@ export default {
 
       try {
         plugin.building = true;
-        const result = await buildPlugin(plugin.name);
+        const result = await buildPluginDocker(plugin.name, false); // 기존 플러그인은 기본적으로 GPU 비활성화
 
         // 빌드 성공 후 이미지 존재 여부 다시 확인
         setTimeout(async () => {
@@ -242,6 +246,57 @@ export default {
           }
         }
         alert(errorMessage);
+      }
+    },
+    async buildAllPlugins() {
+      try {
+        // 빌드가 필요한 플러그인들만 필터링 (building이 아니고 imageExists가 false인 것들)
+        const pluginsToBuild = this.plugins.filter(plugin => !plugin.building && !plugin.imageExists);
+
+        if (pluginsToBuild.length === 0) {
+          alert('빌드할 플러그인이 없습니다. 모든 플러그인이 이미 빌드되었거나 빌드 중입니다.');
+          return;
+        }
+
+        if (!confirm(`${pluginsToBuild.length}개의 플러그인을 빌드하시겠습니까?`)) {
+          return;
+        }
+
+        const buildPromises = pluginsToBuild.map(plugin => {
+          plugin.building = true;
+          return buildPluginDocker(plugin.name, false) // 기존 플러그인은 기본적으로 GPU 비활성화
+            .then(result => {
+              console.log(`Build result for ${plugin.name}:`, result.data);
+              setTimeout(async () => {
+                try {
+                  const checkResult = await checkPluginImage(plugin.name);
+                  plugin.imageExists = checkResult.data.image_exists;
+                } catch (error) {
+                  console.error(`Error checking image after build for plugin ${plugin.name}:`, error);
+                }
+                plugin.building = false;
+              }, 1000);
+              return { success: true, plugin: plugin.name };
+            })
+            .catch(error => {
+              console.error(`Error building plugin ${plugin.name}:`, error);
+              plugin.building = false;
+              return { success: false, plugin: plugin.name, error };
+            });
+        });
+
+        const results = await Promise.all(buildPromises);
+        const successful = results.filter(r => r.success).length;
+        const failed = results.filter(r => !r.success).length;
+
+        if (failed === 0) {
+          alert(`모든 플러그인(${successful}개)이 성공적으로 빌드되었습니다!`);
+        } else {
+          alert(`${successful}개 플러그인은 성공, ${failed}개 플러그인은 실패했습니다.`);
+        }
+      } catch (error) {
+        console.error('Error building all plugins:', error);
+        alert('플러그인 빌드 중 오류가 발생했습니다.');
       }
     },
   },
@@ -594,5 +649,35 @@ input:checked+.slider:before {
 .disabled-toggle {
   opacity: 0.5;
   cursor: default;
+}
+
+.build-all__button {
+  min-width: 8rem;
+  height: 2rem;
+  padding: 0.2rem 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: #2196f3;
+  color: white;
+  border-radius: 1.2rem;
+  margin-right: 1rem;
+  box-shadow: rgba(0, 0, 0, 0.15) 0px 0px 4px;
+}
+
+.build-all__button:hover {
+  cursor: pointer;
+  background: #1976d2;
+  box-shadow: rgba(0, 0, 0, 0.35) 0px 0px 4px;
+}
+
+.build-all__button--icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  object-fit: contain;
+  opacity: 0.8;
+  margin-right: 0.5rem;
+  filter: brightness(0) invert(1);
 }
 </style>

@@ -158,7 +158,7 @@
                                                 </div>
                                                 <span class="param-name">{{ param.name }}</span>
                                                 <span class="param-type" :class="'type-' + param.type">{{ param.type
-                                                }}</span>
+                                                    }}</span>
                                                 <div class="param-actions-inline">
                                                     <button class="action-btn edit-btn"
                                                         @click="toggleParameterEdit(rule, paramIndex)" title="Edit">
@@ -2302,8 +2302,8 @@ img {
 
 .file-name {
     font-weight: 600;
-    /* color: #2c3e50; */
-    color: white;
+    color: #2c3e50;
+    /* color: white; */
     font-size: 0.95rem;
 }
 
