@@ -17,6 +17,9 @@ from app.database.schemas.plugin import PluginData, PluginCreate, PluginUpdate, 
 from app.database.crud import crud_plugin
 from app.database import models
 from app.common.utils import plugin_utils
+from app.routes.celery_tasks import build_plugin_task
+from celery.result import AsyncResult
+from celery import current_app as celery_app
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -214,7 +217,9 @@ async def upload_plugin(
 
             return {
                 "message": "플러그인 메타데이터 업로드 성공",
-                "plugin": db_plugin
+                "plugin": db_plugin,
+                "success": True,
+                "redirect_to": "plugin_list"  # 프론트엔드에서 플러그인 페이지로 리다이렉트하도록 지시
             }
 
         except HTTPException as he:
@@ -325,7 +330,8 @@ async def upload_scripts(
             return {
                 "message": "Scripts uploaded successfully",
                 "scripts_path": str(scripts_dir),
-                "scripts": [file.filename for file in files]
+                "scripts": [file.filename for file in files],
+                "success": True
             }
 
         except Exception as e_promote:
@@ -473,7 +479,11 @@ async def upload_package(
             final_package_files = [f for f in os.listdir(dependency_folder) if f.endswith(('.whl', '.tar.gz'))]
             print(f"Final package files in dependency folder: {final_package_files}")
 
-            return {"message": "Package uploaded successfully", "packages": [file.filename for file in files]}
+            return {
+                "message": "Package uploaded successfully", 
+                "packages": [file.filename for file in files],
+                "success": True
+            }
 
         except Exception as e:
             # 실패 시 복구
@@ -548,27 +558,24 @@ async def build_plugin_docker(
         plugin_utils.generate_plugin_dockerfile(plugin_folder, dockerfile_path, use_gpu=request.use_gpu)
         print(f"Generated Dockerfile at: {dockerfile_path} (GPU: {request.use_gpu})")
 
-        # Docker 이미지 빌드
-        build_result = plugin_utils.build_plugin_docker_image(
-            plugin_path=plugin_folder,
-            plugin_name=plugin_name,
+        # 비동기 빌드 태스크 시작
+        task = build_plugin_task.apply_async(
+            args=[],
+            kwargs={
+                'plugin_name': plugin_name,
+                'user_id': current_user.id,
+                'workflow_id': None,
+                'algorithm_id': None,
+                'task_type': "plugin_build"
+            },
+            ignore_result=False
         )
 
-        if not build_result['success']:
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "message": build_result['message'],
-                    "log_file": build_result['log_file']
-                }
-            )
-
         return {
-            "message": "플러그인 Docker 이미지 빌드 성공",
-            "build_info": {
-                "log_file": build_result['log_file'],
-                "image_tag": build_result['image_tag']
-            }
+            "message": f"플러그인 Docker 이미지 빌드 시작: {plugin_name}",
+            "task_id": task.id,
+            "plugin_name": plugin_name,
+            "status": "PENDING"
         }
 
     except HTTPException as he:
@@ -675,6 +682,39 @@ def list_plugins(
                 rules_array = [rules_dict[str(i)] for i in range(len(rules_dict))]
                 plugin_dict['rules'] = rules_array
             
+            # 빌드 상태 정보 추가
+            try:
+                plugin_dict['docker_image_exists'] = plugin_utils.check_plugin_docker_image(plugin.name)
+            except Exception as e:
+                print(f"Error checking Docker image for {plugin.name}: {e}")
+                plugin_dict['docker_image_exists'] = False
+            
+            # 최근 빌드 태스크 정보 조회
+            try:
+                from app.database.crud.crud_task import get_user_task
+                user_tasks = get_user_task(db, current_user.id)
+                plugin_build_tasks = [
+                    task for task in user_tasks 
+                    if task.task_type == "plugin_build" and task.plugin_name == plugin.name
+                ]
+                
+                if plugin_build_tasks:
+                    # 가장 최근 빌드 태스크 정보
+                    latest_task = max(plugin_build_tasks, key=lambda x: x.start_time or datetime.min.replace(tzinfo=None))
+                    task_result = AsyncResult(latest_task.task_id)
+                    
+                    plugin_dict['latest_build'] = {
+                        "task_id": latest_task.task_id,
+                        "status": task_result.state,
+                        "start_time": latest_task.start_time.isoformat() if latest_task.start_time else None,
+                        "end_time": latest_task.end_time.isoformat() if latest_task.end_time else None
+                    }
+                else:
+                    plugin_dict['latest_build'] = None
+            except Exception as e:
+                print(f"Error getting build tasks for {plugin.name}: {e}")
+                plugin_dict['latest_build'] = None
+            
             plugin_list.append(plugin_dict)
         
         return {"plugins": plugin_list}
@@ -767,6 +807,10 @@ async def build_plugin(
     plugin_name: str,
     current_user: models.User = Depends(dep.get_current_active_user),
 ):
+    """
+    플러그인 Docker 이미지를 비동기적으로 빌드합니다.
+    Celery task를 사용하여 백그라운드에서 처리됩니다.
+    """
     try:
         # 플러그인 폴더 경로 설정
         plugin_folder = f"./plugin/{plugin_name}/"
@@ -786,27 +830,24 @@ async def build_plugin(
                 detail=f"Dockerfile not found in plugin folder: {plugin_name}"
             )
 
-        # Docker 이미지 빌드
-        build_result = plugin_utils.build_plugin_docker_image(
-            plugin_path=plugin_folder,
-            plugin_name=plugin_name,
+        # 비동기 빌드 태스크 시작
+        task = build_plugin_task.apply_async(
+            args=[],
+            kwargs={
+                'plugin_name': plugin_name,
+                'user_id': current_user.id,
+                'workflow_id': None,
+                'algorithm_id': None,
+                'task_type': "plugin_build"
+            },
+            ignore_result=False
         )
 
-        if not build_result['success']:
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "message": build_result['message'],
-                    "log_file": build_result['log_file']
-                }
-            )
-
         return {
-            "message": "Plugin Docker image built successfully",
-            "build_info": {
-                "log_file": build_result['log_file'],
-                "image_tag": build_result['image_tag']
-            }
+            "message": f"Plugin build started for {plugin_name}",
+            "task_id": task.id,
+            "plugin_name": plugin_name,
+            "status": "PENDING"
         }
 
     except HTTPException as he:
@@ -814,7 +855,7 @@ async def build_plugin(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to build plugin Docker image: {str(e)}"
+            detail=f"Failed to start plugin build: {str(e)}"
         )
 
 @router.get("/check_image/{plugin_name}")
@@ -1016,7 +1057,8 @@ async def upload_text_dependencies(
             return {
                 "message": "Text dependency files uploaded and synchronized successfully", 
                 "uploaded_files": uploaded_files,
-                "total_dependencies": len(dependencies_dict)
+                "total_dependencies": len(dependencies_dict),
+                "success": True
             }
             
         except Exception as e:
@@ -1032,4 +1074,185 @@ async def upload_text_dependencies(
         raise HTTPException(
             status_code=500,
             detail=f"Unexpected error during text dependency upload: {str(e)}"
+        )
+
+@router.get("/build/status/{task_id}")
+async def get_build_status(
+    *,
+    task_id: str,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """
+    플러그인 빌드 태스크의 상태를 조회합니다.
+    """
+    try:
+        task_result = AsyncResult(task_id)
+        
+        result = {
+            "task_id": task_id,
+            "state": task_result.state,
+            "current": 0,
+            "total": 100,
+            "info": {}
+        }
+        
+        if task_result.state == 'PENDING':
+            result["info"] = {"message": "Build is waiting to start..."}
+        elif task_result.state == 'RUNNING':
+            if task_result.info:
+                result["info"] = task_result.info
+            else:
+                result["info"] = {"message": "Build is in progress..."}
+        elif task_result.state == 'SUCCESS':
+            result["current"] = 100
+            result["info"] = task_result.result
+        elif task_result.state == 'FAILURE':
+            result["info"] = task_result.info
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get build status: {str(e)}"
+        )
+
+@router.get("/build/tasks")
+async def get_build_tasks(
+    *,
+    plugin_name: str = None,
+    current_user: models.User = Depends(dep.get_current_active_user),
+    db: Session = Depends(dep.get_db),
+):
+    """
+    플러그인 빌드 태스크 목록을 조회합니다.
+    plugin_name이 제공되면 해당 플러그인의 태스크만 필터링합니다.
+    """
+    try:
+        from app.database.crud.crud_task import get_user_task
+        
+        # 사용자의 태스크 목록 조회 (task_type이 'plugin_build'인 것만)
+        tasks = get_user_task(db, current_user.id)
+        
+        # plugin_build 태스크만 필터링
+        build_tasks = [task for task in tasks if task.task_type == "plugin_build"]
+        
+        # plugin_name으로 필터링 (제공된 경우)
+        if plugin_name:
+            build_tasks = [task for task in build_tasks if task.plugin_name == plugin_name]
+        
+        # 태스크 정보를 dict로 변환
+        task_list = []
+        for task in build_tasks:
+            # Celery 태스크 상태 조회
+            task_result = AsyncResult(task.task_id)
+            
+            task_info = {
+                "task_id": task.task_id,
+                "plugin_name": task.plugin_name,
+                "state": task_result.state,
+                "start_time": task.start_time.isoformat() if task.start_time else None,
+                "end_time": task.end_time.isoformat() if task.end_time else None,
+                "status": task.status,
+                "result": None,
+                "error": None
+            }
+            
+            # 태스크 결과 정보 추가
+            if task_result.state == 'SUCCESS' and task_result.result:
+                task_info["result"] = task_result.result
+            elif task_result.state == 'FAILURE' and task_result.info:
+                task_info["error"] = task_result.info
+            elif task_result.state == 'RUNNING' and task_result.info:
+                task_info["info"] = task_result.info
+                
+            task_list.append(task_info)
+        
+        # 시작 시간 역순으로 정렬
+        task_list.sort(key=lambda x: x["start_time"] or "", reverse=True)
+        
+        return {
+            "tasks": task_list,
+            "count": len(task_list),
+            "plugin_name": plugin_name
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get build tasks: {str(e)}"
+        )
+
+@router.post("/build/cancel/{task_id}")
+async def cancel_build_task(
+    *,
+    task_id: str,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """
+    실행 중인 플러그인 빌드 태스크를 취소합니다.
+    """
+    try:
+        # Celery 태스크 취소
+        celery_app.control.revoke(task_id, terminate=True)
+        
+        task_result = AsyncResult(task_id)
+        
+        return {
+            "message": f"Build task {task_id} cancellation requested",
+            "task_id": task_id,
+            "state": task_result.state
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to cancel build task: {str(e)}"
+        )
+
+@router.get("/build/logs/{plugin_name}")
+async def get_build_logs(
+    *,
+    plugin_name: str,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """
+    플러그인 빌드 로그를 조회합니다.
+    """
+    try:
+        # 로그 파일 경로
+        log_dir = os.path.join("plugin", "build_logs")
+        log_file = os.path.join(log_dir, f"{plugin_name.lower()}.log")
+        
+        if not os.path.exists(log_file):
+            return {
+                "plugin_name": plugin_name,
+                "log_content": "Build log not found. Build may not have started yet.",
+                "log_exists": False
+            }
+        
+        # 로그 파일 읽기 (마지막 100줄만)
+        try:
+            with open(log_file, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+                # 마지막 100줄만 가져오기
+                if len(lines) > 100:
+                    lines = lines[-100:]
+                    log_content = f"... (showing last 100 lines) ...\n\n" + "".join(lines)
+                else:
+                    log_content = "".join(lines)
+        except Exception as e:
+            log_content = f"Error reading log file: {str(e)}"
+        
+        return {
+            "plugin_name": plugin_name,
+            "log_content": log_content,
+            "log_exists": True,
+            "log_file_path": log_file
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get build logs: {str(e)}"
         )

@@ -16,6 +16,7 @@ from celery.exceptions import MaxRetriesExceededError
 
 from app.common.utils.snakemake_utils import snakemakeProcess
 from app.common.utils.docker_utils import container_manager
+from app.common.utils import plugin_utils
 from app.database.crud.crud_task import start_task, end_task
 
 logger = logging.getLogger('celery.custom')
@@ -175,6 +176,88 @@ def process_data_task(self, username: str, snakefile_path: str, selected_plugin:
         error_message = str(e)
         if "Plugin image" in error_message:
             error_message = f"Plugin execution failed: {error_message}. Please ensure the plugin is properly built and available."
+        self.update_state(state="FAILURE", meta={"error": error_message})
+        raise RuntimeError(error_message) from e
+
+@shared_task(bind=True, base=MyTask, name="plugin_task:build_plugin_task")
+def build_plugin_task(self, plugin_name: str = None, user_id: int = None, workflow_id: int = None, algorithm_id: int = None, task_type: str = "plugin_build"):
+    """
+    플러그인 Docker 이미지를 비동기적으로 빌드하는 Celery task
+    
+    Parameters:
+        plugin_name (str): 빌드할 플러그인 이름
+        user_id (int): 사용자 ID
+        workflow_id (int, optional): 워크플로우 ID (기본값: None)
+        algorithm_id (int, optional): 알고리즘 ID (기본값: None)
+        task_type (str): 태스크 타입 (기본값: "plugin_build")
+    
+    Returns:
+        dict: 빌드 결과 정보
+    """
+    try:
+        # 필수 매개변수 검증
+        if not plugin_name:
+            raise ValueError("plugin_name is required")
+        if not user_id:
+            raise ValueError("user_id is required")
+            
+        task_id = self.request.id
+        print(f'Building plugin Docker image for {plugin_name}...')
+        print(f"Task ID: {task_id}")
+        print(f"User ID: {user_id}")
+
+        self.update_state(state="RUNNING", meta={"message": f"Building Docker image for plugin {plugin_name}..."})
+
+        # 플러그인 폴더 경로 설정
+        plugin_folder = f"./plugin/{plugin_name}/"
+        
+        # 플러그인 폴더가 존재하는지 확인
+        if not os.path.exists(plugin_folder):
+            error_message = f"Plugin folder not found: {plugin_name}"
+            print(error_message)
+            self.update_state(state="FAILURE", meta={"error": error_message})
+            raise RuntimeError(error_message)
+        
+        # Dockerfile이 존재하는지 확인
+        dockerfile_path = os.path.join(plugin_folder, "Dockerfile")
+        if not os.path.exists(dockerfile_path):
+            error_message = f"Dockerfile not found in plugin folder: {plugin_name}"
+            print(error_message)
+            self.update_state(state="FAILURE", meta={"error": error_message})
+            raise RuntimeError(error_message)
+
+        # 빌드 상태 업데이트
+        self.update_state(state="RUNNING", meta={"message": "Starting Docker build process..."})
+
+        # Docker 이미지 빌드
+        build_result = plugin_utils.build_plugin_docker_image(
+            plugin_path=plugin_folder,
+            plugin_name=plugin_name,
+        )
+
+        if not build_result['success']:
+            error_message = build_result['message']
+            print(error_message)
+            self.update_state(state="FAILURE", meta={
+                "error": error_message,
+                "log_file": build_result.get('log_file'),
+                "image_tag": build_result.get('image_tag')
+            })
+            raise RuntimeError(error_message)
+
+        print(f'Plugin Docker image build complete for {plugin_name}')
+        return {
+            "status": "Success", 
+            "message": f"Plugin Docker image built successfully for {plugin_name}",
+            "plugin_name": plugin_name,
+            "log_file": build_result['log_file'],
+            "image_tag": build_result['image_tag']
+        }
+
+    except Exception as e:
+        error_message = str(e)
+        if "Docker" in error_message:
+            error_message = f"Docker build failed: {error_message}. Please check Docker daemon and plugin configuration."
         self.update_state(state="FAILURE", meta={"error": error_message})
         raise RuntimeError(error_message) from e
 

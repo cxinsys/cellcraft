@@ -2,7 +2,7 @@ from typing import Union
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from app.database import models
-from app.database.schemas import plugin
+from app.database.schemas.plugin import PluginCreate, PluginUpdate
 from fastapi import HTTPException
 
 def get_plugin_by_id(db: Session, plugin_id: int):
@@ -69,7 +69,7 @@ def get_plugins(db: Session, skip: int = 0, limit: int = 100):
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-def create_plugin(db: Session, plugin: plugin.PluginCreate):
+def create_plugin(db: Session, plugin: PluginCreate):
     """
     Create a new plugin.
     
@@ -104,7 +104,7 @@ def create_plugin(db: Session, plugin: plugin.PluginCreate):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error creating plugin: {str(e)}")
 
-def update_plugin(db: Session, plugin: Union[plugin.PluginCreate, plugin.PluginUpdate], plugin_id: int):
+def update_plugin(db: Session, plugin: Union[PluginCreate, PluginUpdate], plugin_id: int):
     """
     Update an existing plugin.
     
@@ -131,7 +131,7 @@ def update_plugin(db: Session, plugin: Union[plugin.PluginCreate, plugin.PluginU
                 raise HTTPException(status_code=400, detail=f"Plugin with name {plugin.name} already exists")
 
         # PluginCreate인 경우 모든 필드 사용, PluginUpdate인 경우 설정된 필드만 사용
-        if isinstance(plugin, plugin.PluginCreate):
+        if isinstance(plugin, PluginCreate):
             update_data = plugin.dict()
         else:
             update_data = plugin.dict(exclude_unset=True)
