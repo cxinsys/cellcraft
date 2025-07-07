@@ -17,7 +17,7 @@ rule TENET_Input:
         stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/TENET_Input.stdout",
         stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/TENET_Input.stderr"
     shell:
-        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/tenet_input.py {input.input} {params.geneList} {params.ScatterPlot} {output.expression} {output.trajectory} {output.cellSelect} {params.cell_group} {params.pseudotime} '{params.clusters}' > {log.stdout} 2> {log.stderr}"
+        "/opt/micromamba/envs/plugin_env/bin/python plugin/GENIE3/scripts/tenet_input.py {input.input} {params.geneList} {params.ScatterPlot} {output.expression} {output.trajectory} {output.cellSelect} {params.cell_group} {params.pseudotime} '{params.clusters}' > {log.stdout} 2> {log.stderr}"
 
 rule Run:
     input:
@@ -35,5 +35,5 @@ rule Run:
         stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stdout",
         stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stderr"
     shell:
-        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/genie3_for_cellcraft.py {input.expression} {input.trajectory} {input.cellSelect} {params.TF} {params.FDR} {params.number_of_outdegrees} {output.GRN} {output.GRNOutdegree} > {log.stdout} 2> {log.stderr}"
+        "/opt/micromamba/envs/plugin_env/bin/python plugin/GENIE3/scripts/genie3_for_cellcraft.py {input.expression} {input.trajectory} {input.cellSelect} {params.TF} {params.FDR} {params.number_of_outdegrees} {output.GRN} {output.GRNOutdegree} > {log.stdout} 2> {log.stderr}"
 

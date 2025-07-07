@@ -11,7 +11,7 @@ rule Barplot:
         stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Barplot.stdout",
         stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Barplot.stderr"
     shell:
-        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/Barplot.py {input.target} {output.output} {params.Top_Genes} > {log.stdout} 2> {log.stderr}"
+        "/opt/micromamba/envs/plugin_env/bin/python plugin/TENET/scripts/Barplot.py {input.target} {output.output} {params.Top_Genes} > {log.stdout} 2> {log.stderr}"
 
 rule Heatmap:
     input:
@@ -27,7 +27,7 @@ rule Heatmap:
         stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Heatmap.stdout",
         stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Heatmap.stderr"
     shell:
-        "/usr/bin/Rscript /app/plugin/{plugin_name}/scripts/Pseudotime_heatmap.R {input.expression} {input.trajectory} {input.target} {output.output} {params.Top_Genes} {params.Sample_Size} > {log.stdout} 2> {log.stderr}"
+        "if [ -d "/opt/r_env" ] && [ -f "/opt/r_env/renv/activate.R" ]; then export R_LIBS_USER=/opt/r_env/renv/library && export RENV_PROJECT=/opt/r_env; else export R_LIBS_USER=/opt/r_env/library && export RENV_PROJECT=/opt/r_env; fi; Rscript plugin/TENET/scripts/Pseudotime_heatmap.R {input.expression} {input.trajectory} {input.target} {output.output} {params.Top_Genes} {params.Sample_Size} > {log.stdout} 2> {log.stderr}"
 
 rule Network:
     input:
@@ -40,5 +40,5 @@ rule Network:
         stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Network.stdout",
         stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Network.stderr"
     shell:
-        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/NetworkX.py {input.target} {output.output} {params.Top_Genes} > {log.stdout} 2> {log.stderr}"
+        "/opt/micromamba/envs/plugin_env/bin/python plugin/TENET/scripts/NetworkX.py {input.target} {output.output} {params.Top_Genes} > {log.stdout} 2> {log.stderr}"
 

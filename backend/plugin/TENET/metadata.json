@@ -643,23 +643,22 @@
                     },
                     "7": {
                         "id": 7,
-                        "name": "ruleNode",
                         "data": {
                             "title": "Barplot",
                             "inputs": [
                                 "target.sif"
                             ],
+                            "script": {},
                             "outputs": [
                                 "Barplot.json"
                             ],
-                            "script": {},
                             "parameters": [
                                 {
+                                    "max": null,
+                                    "min": null,
                                     "name": "target",
                                     "type": "inputFile",
                                     "defaultValue": "target.sif",
-                                    "min": null,
-                                    "max": null,
                                     "fileExtension": ".sif"
                                 },
                                 {
@@ -669,19 +668,21 @@
                                     "fileExtension": ".json"
                                 },
                                 {
+                                    "max": null,
+                                    "min": 5,
                                     "name": "Top Genes",
                                     "type": "int",
                                     "defaultValue": "10",
-                                    "min": 5,
-                                    "max": null,
                                     "fileExtension": ""
                                 }
                             ],
                             "isVisualization": true
                         },
-                        "class": "visualizationNode",
                         "html": "ruleNode",
-                        "typenode": "vue",
+                        "name": "ruleNode",
+                        "class": "visualizationNode",
+                        "pos_x": 800,
+                        "pos_y": 364,
                         "inputs": {
                             "input_1": {
                                 "connections": []
@@ -692,12 +693,10 @@
                                 "connections": []
                             }
                         },
-                        "pos_x": 800,
-                        "pos_y": 364
+                        "typenode": "vue"
                     },
                     "8": {
                         "id": 8,
-                        "name": "ruleNode",
                         "data": {
                             "title": "Heatmap",
                             "inputs": [
@@ -705,33 +704,33 @@
                                 "trajectory.txt",
                                 "target.sif"
                             ],
+                            "script": {},
                             "outputs": [
                                 "Heatmap.json"
                             ],
-                            "script": {},
                             "parameters": [
                                 {
+                                    "max": null,
+                                    "min": null,
                                     "name": "expression",
                                     "type": "inputFile",
                                     "defaultValue": "expression.csv",
-                                    "min": null,
-                                    "max": null,
                                     "fileExtension": ".csv"
                                 },
                                 {
+                                    "max": null,
+                                    "min": null,
                                     "name": "trajectory",
                                     "type": "inputFile",
                                     "defaultValue": "trajectory.txt",
-                                    "min": null,
-                                    "max": null,
                                     "fileExtension": ".txt"
                                 },
                                 {
+                                    "max": null,
+                                    "min": null,
                                     "name": "target",
                                     "type": "inputFile",
                                     "defaultValue": "target.sif",
-                                    "min": null,
-                                    "max": null,
                                     "fileExtension": ".sif"
                                 },
                                 {
@@ -741,27 +740,29 @@
                                     "fileExtension": ".json"
                                 },
                                 {
+                                    "max": null,
+                                    "min": 5,
                                     "name": "Top Genes",
                                     "type": "int",
                                     "defaultValue": "10",
-                                    "min": 5,
-                                    "max": null,
                                     "fileExtension": ""
                                 },
                                 {
+                                    "max": null,
+                                    "min": 50,
                                     "name": "Sample Size",
                                     "type": "int",
                                     "defaultValue": "100",
-                                    "min": 50,
-                                    "max": null,
                                     "fileExtension": ""
                                 }
                             ],
                             "isVisualization": true
                         },
-                        "class": "visualizationNode",
                         "html": "ruleNode",
-                        "typenode": "vue",
+                        "name": "ruleNode",
+                        "class": "visualizationNode",
+                        "pos_x": 526,
+                        "pos_y": 395,
                         "inputs": {
                             "input_1": {
                                 "connections": [
@@ -788,28 +789,26 @@
                                 "connections": []
                             }
                         },
-                        "pos_x": 526,
-                        "pos_y": 395
+                        "typenode": "vue"
                     },
                     "9": {
                         "id": 9,
-                        "name": "ruleNode",
                         "data": {
                             "title": "Network",
                             "inputs": [
                                 "target.sif"
                             ],
+                            "script": {},
                             "outputs": [
                                 "Network.json"
                             ],
-                            "script": {},
                             "parameters": [
                                 {
+                                    "max": null,
+                                    "min": null,
                                     "name": "target",
                                     "type": "inputFile",
                                     "defaultValue": "target.sif",
-                                    "min": null,
-                                    "max": null,
                                     "fileExtension": ".sif"
                                 },
                                 {
@@ -819,19 +818,21 @@
                                     "fileExtension": ".json"
                                 },
                                 {
+                                    "max": null,
+                                    "min": 10,
                                     "name": "Top Genes",
                                     "type": "int",
                                     "defaultValue": "50",
-                                    "min": 10,
-                                    "max": null,
                                     "fileExtension": ""
                                 }
                             ],
                             "isVisualization": true
                         },
-                        "class": "visualizationNode",
                         "html": "ruleNode",
-                        "typenode": "vue",
+                        "name": "ruleNode",
+                        "class": "visualizationNode",
+                        "pos_x": 760,
+                        "pos_y": 454,
                         "inputs": {
                             "input_1": {
                                 "connections": []
@@ -842,8 +843,7 @@
                                 "connections": []
                             }
                         },
-                        "pos_x": 760,
-                        "pos_y": 454
+                        "typenode": "vue"
                     }
                 }
             }

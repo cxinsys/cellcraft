@@ -17,7 +17,7 @@ rule TENET_Input:
         stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/TENET_Input.stdout",
         stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/TENET_Input.stderr"
     shell:
-        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/tenet_input.py {input.input} {params.geneList} {params.ScatterPlot} {output.expression} {output.trajectory} {output.cellSelect} {params.cell_group} {params.pseudotime} '{params.clusters}' > {log.stdout} 2> {log.stderr}"
+        "/opt/micromamba/envs/plugin_env/bin/python plugin/TENET/scripts/tenet_input.py {input.input} {params.geneList} {params.ScatterPlot} {output.expression} {output.trajectory} {output.cellSelect} {params.cell_group} {params.pseudotime} '{params.clusters}' > {log.stdout} 2> {log.stderr}"
 
 rule Run:
     input:
@@ -33,7 +33,7 @@ rule Run:
         stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stdout",
         stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stderr"
     shell:
-        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/tenet_for_cellcraft.py {input.expression} {input.trajectory} {input.cellSelect} {params.TF} {output.resultMatrix} {params.number_of_devices} > {log.stdout} 2> {log.stderr}"
+        "/opt/micromamba/envs/plugin_env/bin/python plugin/TENET/scripts/tenet_for_cellcraft.py {input.expression} {input.trajectory} {input.cellSelect} {params.TF} {output.resultMatrix} {params.number_of_devices} > {log.stdout} 2> {log.stderr}"
 
 rule GRN_Reconstruction__FDR:
     input:
@@ -46,7 +46,7 @@ rule GRN_Reconstruction__FDR:
         stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/GRN_Reconstruction__FDR.stdout",
         stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/GRN_Reconstruction__FDR.stderr"
     shell:
-        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/makeGRN.py {params.FDR} {input.resultMatrix} {output.Fdr} > {log.stdout} 2> {log.stderr}"
+        "/opt/micromamba/envs/plugin_env/bin/python plugin/TENET/scripts/makeGRN.py {params.FDR} {input.resultMatrix} {output.Fdr} > {log.stdout} 2> {log.stderr}"
 
 rule GRN_Reconstruction__NumLinks:
     input:
@@ -59,7 +59,7 @@ rule GRN_Reconstruction__NumLinks:
         stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/GRN_Reconstruction__NumLinks.stdout",
         stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/GRN_Reconstruction__NumLinks.stderr"
     shell:
-        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/makeGRNsameNumberOfLinks.py {params.number_of_outdegrees} {input.resultMatrix} {output.Numlinks} > {log.stdout} 2> {log.stderr}"
+        "/opt/micromamba/envs/plugin_env/bin/python plugin/TENET/scripts/makeGRNsameNumberOfLinks.py {params.number_of_outdegrees} {input.resultMatrix} {output.Numlinks} > {log.stdout} 2> {log.stderr}"
 
 rule Indirect_Edge_Trimming:
     input:
@@ -74,7 +74,7 @@ rule Indirect_Edge_Trimming:
         stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Indirect_Edge_Trimming.stdout",
         stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Indirect_Edge_Trimming.stderr"
     shell:
-        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/trim_indirect.py {input.Fdr} {input.Numlinks} {output.FdrTrim} {output.NumlinksTrim} {params.trimming_threshold} > {log.stdout} 2> {log.stderr}"
+        "/opt/micromamba/envs/plugin_env/bin/python plugin/TENET/scripts/trim_indirect.py {input.Fdr} {input.Numlinks} {output.FdrTrim} {output.NumlinksTrim} {params.trimming_threshold} > {log.stdout} 2> {log.stderr}"
 
 rule Counting_Outdegree:
     input:
@@ -91,5 +91,5 @@ rule Counting_Outdegree:
         stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Counting_Outdegree.stdout",
         stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Counting_Outdegree.stderr"
     shell:
-        "/opt/conda/envs/snakemake/bin/python /app/plugin/{plugin_name}/scripts/countOutdegree.py {input.Fdr} {input.Numlinks} {input.FdrTrim} {input.NumlinksTrim} {output.FdrOutdegree} {output.NumlinksOutdegree} {output.FdrTrimOutdegree} {output.NumlinksTrimOutdegree} > {log.stdout} 2> {log.stderr}"
+        "/opt/micromamba/envs/plugin_env/bin/python plugin/TENET/scripts/countOutdegree.py {input.Fdr} {input.Numlinks} {input.FdrTrim} {input.NumlinksTrim} {output.FdrOutdegree} {output.NumlinksOutdegree} {output.FdrTrimOutdegree} {output.NumlinksTrimOutdegree} > {log.stdout} 2> {log.stderr}"
 
