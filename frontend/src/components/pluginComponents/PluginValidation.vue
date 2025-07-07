@@ -465,17 +465,24 @@ export default {
                         // 수동으로 동기화할 수 있도록 안내 메시지 추가 가능
                     }
 
-                    // 8. Docker 이미지 빌드 (마지막 단계)
+                    // 8. Docker 이미지 빌드 시작 (비동기)
                     this.uploadingStep = 3;
-                    console.log('Starting Docker build...');
+                    console.log('Starting asynchronous Docker build...');
 
+                    // 비동기 빌드 시작
                     const buildResponse = await buildPluginDocker(pluginCreate.name, this.useGpu);
-                    console.log('Docker build completed:', buildResponse.data);
+                    console.log('Docker build started:', buildResponse.data);
 
-                    // 업로드 완료 처리
+                    // 업로드 완료 처리 (빌드는 백그라운드에서 실행)
                     this.validationLoading = false;
-                    alert('Plugin uploaded and built successfully!');
-                    this.$emit('close');
+                    alert('Plugin uploaded and build started! You can view the build progress in the plugins page.');
+                    
+                    // 플러그인 페이지로 이동하면서 빌드 상태 전달
+                    this.$emit('close', {
+                        pluginName: pluginCreate.name,
+                        buildStarted: true,
+                        taskId: buildResponse.data.task_id
+                    });
 
                 } catch (error) {
                     console.error('Error while uploading plugin:', error);
