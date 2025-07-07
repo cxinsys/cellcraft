@@ -323,6 +323,24 @@ function checkPluginImage(plugin_name) {
   return instance.get(`/routes/plugin/check_image/${plugin_name}`);
 }
 
+// 새로운 플러그인 빌드 관련 API 함수들
+function getBuildStatus(task_id) {
+  return instance.get(`/routes/plugin/build/status/${task_id}`);
+}
+
+function getBuildTasks(plugin_name = null) {
+  const params = plugin_name ? { plugin_name } : {};
+  return instance.get('/routes/plugin/build/tasks', { params });
+}
+
+function cancelBuildTask(task_id) {
+  return instance.post(`/routes/plugin/build/cancel/${task_id}`);
+}
+
+function getBuildLogs(plugin_name) {
+  return instance.get(`/routes/plugin/build/logs/${plugin_name}`);
+}
+
 function createTaskEventSource(taskId, callbacks = {}) {
   const eventSource = new EventSource(`${process.env.VUE_APP_BASE_URL}/routes/task/info/${taskId}`);
   
@@ -442,4 +460,8 @@ export {
   buildPlugin,
   buildPluginDocker,
   checkPluginImage,
+  getBuildStatus,
+  getBuildTasks,
+  cancelBuildTask,
+  getBuildLogs,
 };

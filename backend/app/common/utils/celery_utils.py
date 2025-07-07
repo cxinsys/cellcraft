@@ -30,10 +30,12 @@ def check_system_usage():
             print(f"⚠️ 리소스 초과! (CPU: {cpu_usage}%, Memory: {memory_usage}%, GPU: {gpu_usage}%) → 큐 대기 중...")
             # celery_app.control.pause_consumer("workflow_task")  # 특정 Task Queue 중지
             celery_app.control.cancel_consumer("workflow_task")  # 특정 Task Queue 중지
+            celery_app.control.cancel_consumer("plugin_task")  # 플러그인 Task Queue 중지
         else:
             print(f"✅ 정상 상태 (CPU: {cpu_usage}%, Memory: {memory_usage}%, GPU: {gpu_usage}%) → 큐 실행 중...")
             # celery_app.control.resume_consumer("workflow_task")  # 특정 Task Queue 다시 실행
             celery_app.control.add_consumer("workflow_task")  # 특정 Task Queue 다시 실행
+            celery_app.control.add_consumer("plugin_task")  # 플러그인 Task Queue 다시 실행
 
         time.sleep(5)  # 5초마다 상태 체크
 
@@ -73,8 +75,8 @@ def create_celery():
     )
     celery_app.conf.broker_transport_options = {'confirm_publish': True, 'confirm_timeout': 10.0}
 
-    # 라우팅 설정 제거 (기본 큐 사용)
-    celery_app.conf.task_routes = None
+    # 라우팅 설정 활성화 (큐별 라우팅을 위해 필요)
+    # celery_app.conf.task_routes = None  # 기본 설정으로 돌아감
 
     # 작업자(worker) 동시성 제한 설정 수정
     celery_app.conf.update(

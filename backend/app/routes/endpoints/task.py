@@ -42,6 +42,7 @@ async def get_task_monitoring(
     ) -> List[Dict[str, Any]]:
     """
     Return the status of the all User Task with workflow information
+    플러그인 빌드 태스크는 제외하고 워크플로우 관련 태스크만 반환
     """
     user_tasks = crud_task.get_user_task(db, current_user.id)
     if not user_tasks:
@@ -50,9 +51,12 @@ async def get_task_monitoring(
             detail="this user not exists task",
         )
     
+    # 플러그인 빌드 태스크는 제외하고 워크플로우 관련 태스크만 필터링
+    workflow_tasks = [task for task in user_tasks if task.task_type != "plugin_build"]
+    
     # 각 task에 workflow 정보 및 task_title 추가
     tasks_with_workflow = []
-    for task in user_tasks:
+    for task in workflow_tasks:
         workflow = crud_workflow.get_workflow_by_id(db, task.workflow_id)
         
         # task_title 생성 로직
