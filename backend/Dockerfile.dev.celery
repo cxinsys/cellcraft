@@ -40,4 +40,4 @@ WORKDIR /app
 COPY . .
 
 # Celery 실행
-CMD ["/opt/micromamba/envs/snakemake/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "-n", "worker@%h", "--loglevel=info", "-E", "-Q", "workflow_task"]
+CMD ["/opt/micromamba/envs/snakemake/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "-n", "worker@%h", "--loglevel=info", "-E", "-Q", "workflow_task,plugin_task"]

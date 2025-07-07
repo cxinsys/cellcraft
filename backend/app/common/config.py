@@ -50,6 +50,8 @@ class Settings(BaseSettings):
         Queue("celery"),
         # custom queue
         Queue("workflow_task"),
+        # plugin task queue
+        Queue("plugin_task"),
     )
 
     CELERY_TASK_ROUTES = (route_task,)
