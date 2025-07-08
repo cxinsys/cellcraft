@@ -8,7 +8,7 @@
       <div class="options__item">
         <p class="options__title">X - axis</p>
         <select class="options__item--select" :value="selectedX" @change="setSelectX($event)">
-          <option v-for="(item, index) in numList" :key="index" :value="item.value">
+          <option v-for="(item, index) in numList" :key="index" :value="item.value" :disabled="item.value === null">
             {{ item.name }}
           </option>
         </select>
@@ -16,7 +16,7 @@
       <div class="options__item">
         <p class="options__title">Y - axis</p>
         <select class="options__item--select" :value="selectedY" @change="setSelectY($event)">
-          <option v-for="(item, index) in numList" :key="index" :value="item.value">
+          <option v-for="(item, index) in numList" :key="index" :value="item.value" :disabled="item.value === null">
             {{ item.name }}
           </option>
         </select>
@@ -24,7 +24,7 @@
       <div class="options__item">
         <p class="options__title">Group</p>
         <select class="options__item--select" :value="selectedCluster" @change="setSelectCluster($event)">
-          <option v-for="(item, index) in clusterList" :key="index" :value="item.value">
+          <option v-for="(item, index) in clusterList" :key="index" :value="item.value" :disabled="item.value === null">
             {{ item.name }}
           </option>
         </select>
@@ -218,12 +218,24 @@ export default {
           }
         }
 
+        // Auto-select X and Y columns if they exist
         if (this.keys.indexOf("X") != -1) {
           this.selectedX = this.keys.indexOf("X");
+        } else if (this.numList.length > 1) {
+          // If no "X" column, select the first numeric column
+          this.selectedX = this.numList[1].value;
         }
+        
         if (this.keys.indexOf("Y") != -1) {
           this.selectedY = this.keys.indexOf("Y");
+        } else if (this.numList.length > 2) {
+          // If no "Y" column, select the second numeric column
+          this.selectedY = this.numList[2].value;
+        } else if (this.numList.length > 1) {
+          // If only one numeric column exists, use it for Y as well
+          this.selectedY = this.numList[1].value;
         }
+        
         // if (this.keys.indexOf("leiden") != -1) {
         //   this.selectedCluster = this.keys.indexOf("leiden");
         // }
@@ -589,19 +601,67 @@ export default {
       }
     },
     processScatterResult(scatterResult) {
-      // Extract keys from the first object
-      this.keys = Object.keys(scatterResult[0]);
-      this.keys.push("INDEX");
+      // Check if the data is a string (CSV) or an array (JSON)
+      if (typeof scatterResult === 'string') {
+        // Parse CSV data
+        this.parseCSVData(scatterResult);
+      } else if (Array.isArray(scatterResult)) {
+        // Process JSON data as before
+        // Extract keys from the first object
+        this.keys = Object.keys(scatterResult[0]);
+        this.keys.push("INDEX");
 
-      // Map the scatterResult to an array of values and add the index
-      this.lines = scatterResult.map((item, index) => {
-        const values = Object.values(item);
-        values.push(index);
-        return values;
-      });
+        // Map the scatterResult to an array of values and add the index
+        this.lines = scatterResult.map((item, index) => {
+          const values = Object.values(item);
+          values.push(index);
+          return values;
+        });
 
+        // Determine which columns are numeric
+        this.areNum = this.lines[0].map((x) => !isNaN(x));
+      } else {
+        console.error("Unsupported data format");
+      }
+    },
+    
+    parseCSVData(csvString) {
+      // Split CSV string into lines
+      const lines = csvString.trim().split('\n');
+      
+      // Extract headers (first line)
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      // Remove empty header if exists (for index column)
+      if (headers[0] === '') {
+        headers[0] = 'Row_Index';
+      }
+      
+      this.keys = [...headers, "INDEX"];
+      
+      // Parse data rows
+      this.lines = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => {
+          const trimmed = v.trim();
+          // Try to convert to number if possible
+          const num = parseFloat(trimmed);
+          return isNaN(num) ? trimmed : num;
+        });
+        
+        // Skip the first value if it's a row index
+        if (headers[0] === 'Row_Index') {
+          values.shift();
+        }
+        
+        values.push(i - 1); // Add INDEX
+        this.lines.push(values);
+      }
+      
       // Determine which columns are numeric
-      this.areNum = this.lines[0].map((x) => !isNaN(x));
+      if (this.lines.length > 0) {
+        this.areNum = this.lines[0].map((x) => !isNaN(x) && typeof x === 'number');
+      }
     }
   },
 };
@@ -669,6 +729,12 @@ export default {
   border-radius: 8px;
   border-color: #e7eaff;
   color: #545454;
+}
+
+.options__item--select option:disabled {
+  color: #ccc;
+  background-color: #f5f5f5;
+  cursor: not-allowed;
 }
 
 .options__buttons {
