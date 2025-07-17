@@ -5,7 +5,7 @@
         <div class="header__text">
           Plugins
           <div class="header__desc">
-            Plugin for Data Analysis Algorithm Extensions
+            Plugin for data analysis algorithm extensions
           </div>
         </div>
       </div>
@@ -30,7 +30,7 @@
     <PluginExtention v-if="showPluginExtension" @close="closePluginExtension" :editName="selectedPlugin.name"
       :editDescription="selectedPlugin.description" :editDependencies="selectedPlugin.dependencies"
       :editDrawflow="selectedPlugin.drawflow" :editRules="selectedPlugin.rules" />
-    <BuildMonitor v-if="showBuildMonitor" :show_monitor="showBuildMonitor" :buildTaskList="buildTaskList" 
+    <BuildMonitor v-if="showBuildMonitor" :show_monitor="showBuildMonitor" :buildTaskList="buildTaskList"
       @cancel-task="cancelBuildTask" @show-logs="showBuildTaskLogs" @close="toggleBuildMonitor" />
     <table>
       <tbody>
@@ -51,8 +51,7 @@
               <div class="setting" @click="editPluginExtension(plugin)">
                 <img class="setting__button--icon" src="@/assets/settings.png" />
               </div>
-              <button class="build-button" @click="handleBuildPlugin(plugin)"
-                :disabled="plugin.imageExists"
+              <button class="build-button" @click="handleBuildPlugin(plugin)" :disabled="plugin.imageExists"
                 :class="{ 'building': plugin.building, 'image-exists': plugin.imageExists }">
                 <div v-if="plugin.building" class="building-content">
                   <div class="loading-spinner"></div>
@@ -192,11 +191,11 @@ export default {
   methods: {
     async closePluginExtension(buildInfo) {
       this.showPluginExtension = false;
-      
+
       // extension 완료했으니, 다시 plugin list를 불러옵니다.
       try {
         await this.getUserAssociatePlugins();
-        
+
         // 빌드가 시작된 새 플러그인이 있으면 상태 업데이트 (API 데이터 로드 후에 덮어쓰기)
         if (buildInfo && buildInfo.buildStarted) {
           // 잠시 기다린 후 상태 업데이트 (API 응답 처리 완료 후)
@@ -208,9 +207,9 @@ export default {
               plugin.buildTaskId = buildInfo.taskId;
               plugin.buildStatus = 'RUNNING';
               plugin.imageExists = false;
-              
+
               console.log(`Plugin ${buildInfo.pluginName} build status forced to building`);
-              
+
               // 빌드 모니터링 시작
               this.startBuildMonitoring(plugin);
             }
@@ -269,7 +268,7 @@ export default {
 
         // 각 플러그인의 이미지 존재 여부 확인
         await this.checkAllPluginImages();
-        
+
         // 빌드 중인 플러그인들의 모니터링 시작
         this.plugins.forEach(plugin => {
           if (plugin.building && plugin.buildTaskId) {
@@ -358,9 +357,9 @@ export default {
         try {
           const result = await getBuildStatus(plugin.buildTaskId);
           const status = result.data.state; // 'state' not 'status'
-          
+
           console.log(`Build status for ${plugin.name}: ${status}`);
-          
+
           // 상태에 따라 플러그인 속성 업데이트
           plugin.buildStatus = status;
 
@@ -370,7 +369,7 @@ export default {
             plugin.buildStatus = 'SUCCESS';
             clearInterval(checkInterval);
             console.log(`Plugin ${plugin.name} built successfully!`);
-            
+
             // 성공 알림 (선택사항)
             this.showBuildNotification(plugin.name, 'success');
           } else if (status === 'FAILURE' || status === 'REVOKED') {
@@ -379,7 +378,7 @@ export default {
             plugin.imageExists = false; // 실패 시 이미지 존재하지 않음
             clearInterval(checkInterval);
             console.error(`Plugin ${plugin.name} build failed with status: ${status}`);
-            
+
             // 실패 알림 (선택사항)
             this.showBuildNotification(plugin.name, 'failure');
           } else if (status === 'RUNNING' || status === 'PENDING') {
@@ -420,7 +419,7 @@ export default {
           timestamp: new Date().toLocaleString(),
           logs: result.data.log_content || 'No logs available'
         };
-        
+
         console.log('Build logs loaded for plugin:', plugin.name);
       } catch (error) {
         console.error(`Error fetching build logs for plugin ${plugin.name}:`, error);
@@ -449,16 +448,16 @@ export default {
     },
     formatFileSize(bytes) {
       if (!bytes || bytes === 0) return '0 Bytes';
-      
+
       const k = 1024;
       const sizes = ['Bytes', 'KB', 'MB', 'GB'];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
-      
+
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     },
     async toggleBuildMonitor() {
       this.showBuildMonitor = !this.showBuildMonitor;
-      
+
       if (this.showBuildMonitor) {
         // 빌드 모니터가 열릴 때 태스크 목록 갱신
         await this.fetchBuildTasks();
@@ -473,7 +472,7 @@ export default {
       try {
         const response = await getBuildTasks();
         const tasks = response.data.tasks || [];
-        
+
         // 태스크 데이터를 PopupJobTable 형식에 맞게 변환
         this.buildTaskList = tasks.map(task => {
           return {
@@ -487,7 +486,7 @@ export default {
             info: task.info
           };
         });
-        
+
         console.log('Build tasks fetched:', this.buildTaskList);
       } catch (error) {
         console.error('Failed to fetch build tasks:', error);
@@ -496,9 +495,9 @@ export default {
     calculateDuration(task) {
       const startTime = task.start_time ? new Date(task.start_time) : null;
       const endTime = task.end_time ? new Date(task.end_time) : null;
-      
+
       if (!startTime) return '-';
-      
+
       let targetTime;
       if (task.state === 'RUNNING' || task.state === 'PENDING') {
         // 실행 중인 태스크는 현재 시간을 기준으로 계산
@@ -509,15 +508,15 @@ export default {
       } else {
         return '-';
       }
-      
+
       const diff = targetTime - startTime;
       if (diff < 0) return '-';
-      
+
       const totalSeconds = Math.floor(diff / 1000);
       const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
       const seconds = totalSeconds % 60;
-      
+
       if (hours > 0) {
         return `${hours}h ${minutes}m ${seconds}s`;
       } else if (minutes > 0) {
@@ -533,7 +532,7 @@ export default {
           this.fetchBuildTasks();
         }
       }, 5000);
-      
+
       // 1초마다 실행 중인 태스크의 duration 업데이트
       this.durationUpdateInterval = setInterval(() => {
         if (this.showBuildMonitor) {
@@ -563,7 +562,7 @@ export default {
       if (!confirm('정말로 이 빌드 작업을 취소하시겠습니까?')) {
         return;
       }
-      
+
       try {
         await cancelBuildTask(taskId);
         alert('빌드 작업이 취소되었습니다.');
@@ -962,8 +961,13 @@ button:disabled {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .switch {

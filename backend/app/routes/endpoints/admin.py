@@ -291,12 +291,23 @@ def get_system_stats():
             container_name = container.name
             print(container_name)
             
-            # 컨테이너 필터링 로직
-            if "cellcraft-rabbitmq" in container_name:
-                continue  # rabbitmq 컨테이너는 건너뛰기
+            # 컨테이너 필터링 로직 - cellcraft 서비스와 plugin 컨테이너만 포함
+            should_monitor = False
             
-            if "cellcraft" in container_name and "celery" not in container_name:
-                continue  # cellcraft가 포함되어 있지만 celery가 아닌 컨테이너는 건너뛰기
+            # 1. cellcraft 서비스 컨테이너 (docker-compose로 생성된 컨테이너)
+            # docker-compose는 서비스명-숫자 형태로 컨테이너를 명명함
+            cellcraft_services = ["cellcraft-frontend", "cellcraft-backend", "cellcraft-celery", "cellcraft-db"]
+            if any(container_name.startswith(service) for service in cellcraft_services):
+                should_monitor = True
+            
+            # 2. plugin 실행 컨테이너 (plugin-으로 시작하는 컨테이너)
+            # 예: plugin-tenet-task-12345678-1234567890
+            elif container_name.startswith("plugin-"):
+                should_monitor = True
+            
+            # 모니터링 대상이 아니면 건너뛰기
+            if not should_monitor:
+                continue
             
             try:
                 # 컨테이너 상세 정보 가져오기
