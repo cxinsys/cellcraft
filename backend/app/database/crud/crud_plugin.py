@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from app.database import models
@@ -27,13 +27,14 @@ def get_plugin_by_id(db: Session, plugin_id: int):
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-def get_plugin_by_name(db: Session, name: str):
+def get_plugin_by_name(db: Session, name: str, source: Optional[str] = None):
     """
-    Get a plugin by its name.
+    Get a plugin by its name and optionally by source.
     
     Args:
         db (Session): Database session
         name (str): Plugin name
+        source (str, optional): Plugin source ("official" or "local")
     
     Returns:
         Plugin: Plugin object if found
@@ -42,10 +43,36 @@ def get_plugin_by_name(db: Session, name: str):
         HTTPException: If plugin not found
     """
     try:
-        plugin = db.query(models.Plugin).filter(models.Plugin.name == name).first()
+        query = db.query(models.Plugin).filter(models.Plugin.name == name)
+        if source is not None:
+            query = query.filter(models.Plugin.source == source)
+        plugin = query.first()
         if not plugin:
-            raise HTTPException(status_code=404, detail=f"Plugin with name {name} not found")
+            if source:
+                raise HTTPException(status_code=404, detail=f"Plugin with name {name} and source {source} not found")
+            else:
+                raise HTTPException(status_code=404, detail=f"Plugin with name {name} not found")
         return plugin
+    except SQLAlchemyError as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+def get_plugins_by_name(db: Session, name: str) -> List[models.Plugin]:
+    """
+    Get all plugins with a given name (both official and local).
+    
+    Args:
+        db (Session): Database session
+        name (str): Plugin name
+    
+    Returns:
+        List[Plugin]: List of plugins with the given name
+    
+    Raises:
+        HTTPException: If database error occurs
+    """
+    try:
+        plugins = db.query(models.Plugin).filter(models.Plugin.name == name).all()
+        return plugins
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -84,14 +111,28 @@ def create_plugin(db: Session, plugin: PluginCreate):
         HTTPException: If plugin creation fails
     """
     try:
-        # Check if plugin with same name already exists
-        existing_plugin = db.query(models.Plugin).filter(models.Plugin.name == plugin.name).first()
+        # Check if plugin with same name AND source already exists
+        query = db.query(models.Plugin).filter(models.Plugin.name == plugin.name)
+        
+        # Get source from plugin data, default to "local" if not specified
+        plugin_source = plugin.source if hasattr(plugin, 'source') else "local"
+        query = query.filter(models.Plugin.source == plugin_source)
+        
+        existing_plugin = query.first()
         if existing_plugin:
-            raise HTTPException(status_code=400, detail=f"Plugin with name {plugin.name} already exists")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Plugin with name {plugin.name} and source {plugin_source} already exists"
+            )
 
         plugin_data = plugin.dict()
         # reference_folders는 데이터베이스에 저장하지 않음 (파일 시스템에만 저장)
         plugin_data.pop('reference_folders', None)
+        
+        # Ensure source is set
+        if 'source' not in plugin_data:
+            plugin_data['source'] = "local"
+            
         db_plugin = models.Plugin(**plugin_data)
         db.add(db_plugin)
         db.commit()
@@ -124,11 +165,19 @@ def update_plugin(db: Session, plugin: Union[PluginCreate, PluginUpdate], plugin
         if not db_plugin:
             raise HTTPException(status_code=404, detail=f"Plugin with id {plugin_id} not found")
 
-        # Check if name is being changed and if new name already exists
+        # Check if name is being changed and if new name already exists with same source
         if plugin.name and plugin.name != db_plugin.name:
-            existing_plugin = db.query(models.Plugin).filter(models.Plugin.name == plugin.name).first()
+            # Query for plugins with same name and same source
+            query = db.query(models.Plugin).filter(
+                models.Plugin.name == plugin.name,
+                models.Plugin.source == db_plugin.source  # Check within same source
+            )
+            existing_plugin = query.first()
             if existing_plugin:
-                raise HTTPException(status_code=400, detail=f"Plugin with name {plugin.name} already exists")
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Plugin with name {plugin.name} and source {db_plugin.source} already exists"
+                )
 
         # PluginCreate인 경우 모든 필드 사용, PluginUpdate인 경우 설정된 필드만 사용
         if isinstance(plugin, PluginCreate):

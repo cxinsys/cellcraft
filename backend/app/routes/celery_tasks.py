@@ -1,18 +1,12 @@
 from celery import shared_task, Task
 from datetime import datetime
-from celery.signals import worker_process_init
-from celery.exceptions import Ignore
 from celery.worker.request import Request
 import os
 from pathlib import Path
 import time
 from typing import List
 from billiard import Pool, cpu_count
-import amqp
-from functools import partial
-import threading
 import logging
-from celery.exceptions import MaxRetriesExceededError
 
 from app.common.utils.snakemake_utils import snakemakeProcess
 from app.common.utils.docker_utils import container_manager
@@ -208,8 +202,24 @@ def build_plugin_task(self, plugin_name: str = None, user_id: int = None, workfl
 
         self.update_state(state="RUNNING", meta={"message": f"Building Docker image for plugin {plugin_name}..."})
 
-        # 플러그인 폴더 경로 설정
-        plugin_folder = f"./plugin/{plugin_name}/"
+        # Use new plugin path resolution
+        from app.common.utils.plugin_utils import get_plugin_path, is_plugin_editable
+        
+        # Check if plugin is editable (only local plugins can be built)
+        if not is_plugin_editable(plugin_name):
+            error_message = f"Cannot build official plugin '{plugin_name}'. Only local plugins can be built."
+            print(error_message)
+            self.update_state(state="FAILURE", meta={"error": error_message})
+            raise RuntimeError(error_message)
+        
+        # Get the plugin path (should be local)
+        try:
+            plugin_folder, source = get_plugin_path(plugin_name, "local")
+        except Exception as e:
+            error_message = f"Plugin '{plugin_name}' not found: {str(e)}"
+            print(error_message)
+            self.update_state(state="FAILURE", meta={"error": error_message})
+            raise RuntimeError(error_message)
         
         # 플러그인 폴더가 존재하는지 확인
         if not os.path.exists(plugin_folder):

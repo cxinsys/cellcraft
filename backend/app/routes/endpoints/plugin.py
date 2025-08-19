@@ -17,6 +17,7 @@ from app.database.schemas.plugin import PluginData, PluginCreate, PluginUpdate, 
 from app.database.crud import crud_plugin
 from app.database import models
 from app.common.utils import plugin_utils
+from app.common.utils.plugin_utils import get_plugin_path, is_plugin_editable, ensure_local_plugins_dir
 from app.routes.celery_tasks import build_plugin_task
 from celery.result import AsyncResult
 from celery import current_app as celery_app
@@ -98,17 +99,20 @@ def validate_plugin(
                 detail="At least one script file is required"
             )
 
-        # Convert PluginData to PluginCreate
+        # Convert PluginData to PluginCreate - always create as local plugin
         plugin_upload_data = PluginCreate(
             name=plugin_data.plugin.name,
             description=plugin_data.plugin.description,
             author=current_user.username,
-            plugin_path=f"./plugin/{plugin_data.plugin.name}/",
+            plugin_path=f"./plugin/local/{plugin_data.plugin.name}/",
+            plugin_type=plugin_data.plugin.pluginType if hasattr(plugin_data.plugin, 'pluginType') else None,
             dependencies=dependencies_dict if dependencies_dict else None,
             reference_folders=reference_folders if reference_folders else None,
             drawflow=plugin_data.drawflow,
             rules=rules_dict,
             use_gpu=plugin_data.plugin.useGpu if hasattr(plugin_data.plugin, 'useGpu') else False,
+            source="local",
+            is_editable=True
         )
 
         return {
@@ -132,13 +136,41 @@ async def upload_plugin(
     backup_folder = None
     build_result = None
     try:
-        # 1. 플러그인 폴더 생성
-        plugin_folder = f"./plugin/{plugin_data.name}/"
+        # 1. Ensure local plugins directory exists and create plugin folder
+        ensure_local_plugins_dir()
+        
+        # Check if plugin already exists and is editable
+        try:
+            existing_path, existing_source = get_plugin_path(plugin_data.name)
+            if existing_source == "official":
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Cannot modify official plugin '{plugin_data.name}'. Official plugins are read-only."
+                )
+        except HTTPException:
+            # Plugin doesn't exist yet, which is fine for upload
+            pass
+        
+        plugin_folder = f"./plugin/local/{plugin_data.name}/"
         dependency_folder = os.path.join(plugin_folder, "dependency")
         script_folder = os.path.join(plugin_folder, "scripts")
 
-        # 2. 기존 플러그인 확인 및 백업
-        db_existing_plugin = db.query(models.Plugin).filter(models.Plugin.name == plugin_data.name).first()
+        # 2. 기존 플러그인 확인 및 백업 (source를 고려하여 검색)
+        db_existing_plugin = db.query(models.Plugin).filter(
+            models.Plugin.name == plugin_data.name,
+            models.Plugin.source == "local"  # 로컬 플러그인만 업데이트 가능
+        ).first()
+        
+        # Official 플러그인과 이름이 같은지 확인
+        official_plugin = db.query(models.Plugin).filter(
+            models.Plugin.name == plugin_data.name,
+            models.Plugin.source == "official"
+        ).first()
+        
+        if official_plugin:
+            # Official 플러그인과 같은 이름의 로컬 플러그인은 허용하지만 경고
+            print(f"Warning: Creating local plugin with same name as official plugin: {plugin_data.name}")
+        
         if db_existing_plugin and os.path.exists(plugin_folder):
             # 상위 디렉토리에 백업 폴더 생성
             backup_base = "./plugin/backups"
@@ -254,7 +286,17 @@ async def upload_scripts(
     current_user: models.User = Depends(dep.get_current_active_user),
 ):
     logger = logging.getLogger(__name__)
-    plugin_path = pathlib.Path(f"./plugin/{plugin_name}")
+    
+    # Check if plugin is editable
+    if not is_plugin_editable(plugin_name):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Cannot modify plugin '{plugin_name}'. Official plugins are read-only."
+        )
+    
+    # Get the actual plugin path (should be local)
+    plugin_path_str, source = get_plugin_path(plugin_name, "local")
+    plugin_path = pathlib.Path(plugin_path_str)
 
     # 디렉토리 이름 정의
     final_scripts_dirname = "scripts"  # 최종 스크립트가 위치할 디렉토리 이름
@@ -410,8 +452,17 @@ async def upload_package(
     current_user: models.User = Depends(dep.get_current_active_user),
     ):
     try:
-        dependency_folder = f"./plugin/{plugin_name}/dependency/"
-        temp_folder = f"./plugin/{plugin_name}/dependency_temp/"
+        # Check if plugin is editable
+        if not is_plugin_editable(plugin_name):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Cannot modify plugin '{plugin_name}'. Official plugins are read-only."
+            )
+        
+        # Get the actual plugin path (should be local)
+        plugin_path_str, source = get_plugin_path(plugin_name, "local")
+        dependency_folder = os.path.join(plugin_path_str, "dependency")
+        temp_folder = os.path.join(plugin_path_str, "dependency_temp")
         backup_folder = None
         
         # 1. dependency 폴더가 존재하지 않으면 생성
@@ -523,8 +574,15 @@ async def build_plugin_docker(
     스크립트와 패키지 파일들이 모두 업로드된 후에 실행되어야 함
     """
     try:
-        # 플러그인 폴더 경로 설정
-        plugin_folder = f"./plugin/{plugin_name}/"
+        # Check if plugin is editable for build operations
+        if not is_plugin_editable(plugin_name):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Cannot build official plugin '{plugin_name}'. Only local plugins can be built."
+            )
+        
+        # Get the actual plugin path (should be local)
+        plugin_folder, source = get_plugin_path(plugin_name, "local")
         script_folder = os.path.join(plugin_folder, "scripts")
         
         # 플러그인 폴더가 존재하는지 확인
@@ -592,8 +650,9 @@ def get_reference_folders(
     current_user: models.User = Depends(dep.get_current_active_user),
 ):
     try:
-        # 폴더 경로 설정
-        folder_path = f"./plugin/{plugin_name}/scripts"
+        # Get plugin path (can be either official or local for reading)
+        plugin_path, source = get_plugin_path(plugin_name)
+        folder_path = os.path.join(plugin_path, "scripts")
 
         # 하위 폴더 리스트 가져오기
         folder_names = plugin_utils.get_reference_folders_list(folder_path)
@@ -616,8 +675,9 @@ def get_package_files(
     current_user: models.User = Depends(dep.get_current_active_user),
 ):
     try:
-        # 폴더 경로 설정
-        folder_path = f"./plugin/{plugin_name}/dependency"
+        # Get plugin path (can be either official or local for reading)
+        plugin_path, source = get_plugin_path(plugin_name)
+        folder_path = os.path.join(plugin_path, "dependency")
 
         # 파일 리스트 중에서 .whl, .tar.gz 파일만 가져와서 반환
         package_files = [file for file in os.listdir(folder_path) if file.endswith((".whl", ".tar.gz"))]
@@ -632,8 +692,8 @@ def get_plugin_file(
     current_user: models.User = Depends(dep.get_current_active_user),
 ):
     try:
-        # 폴더 경로
-        base_folder_path = f"./plugin/{plugin_name}"
+        # Get plugin path (can be either official or local for reading)
+        base_folder_path, source = get_plugin_path(plugin_name)
         
         # 폴더 안에 dependency 폴더, scripts 폴더
         dependency_folder_path = os.path.join(base_folder_path, "dependency")
@@ -682,9 +742,12 @@ def list_plugins(
                 rules_array = [rules_dict[str(i)] for i in range(len(rules_dict))]
                 plugin_dict['rules'] = rules_array
             
-            # 빌드 상태 정보 추가
+            # 빌드 상태 정보 추가 (only for local plugins)
             try:
-                plugin_dict['docker_image_exists'] = plugin_utils.check_plugin_docker_image(plugin.name)
+                if plugin.source == "local":
+                    plugin_dict['docker_image_exists'] = plugin_utils.check_plugin_docker_image(plugin.name)
+                else:
+                    plugin_dict['docker_image_exists'] = False  # Official plugins don't have local Docker images
             except Exception as e:
                 print(f"Error checking Docker image for {plugin.name}: {e}")
                 plugin_dict['docker_image_exists'] = False
@@ -812,8 +875,15 @@ async def build_plugin(
     Celery task를 사용하여 백그라운드에서 처리됩니다.
     """
     try:
-        # 플러그인 폴더 경로 설정
-        plugin_folder = f"./plugin/{plugin_name}/"
+        # Check if plugin is editable for build operations
+        if not is_plugin_editable(plugin_name):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Cannot build official plugin '{plugin_name}'. Only local plugins can be built."
+            )
+        
+        # Get the actual plugin path (should be local)
+        plugin_folder, source = get_plugin_path(plugin_name, "local")
         
         # 플러그인 폴더가 존재하는지 확인
         if not os.path.exists(plugin_folder):
@@ -865,8 +935,18 @@ async def check_plugin_image(
     current_user: models.User = Depends(dep.get_current_active_user),
 ):
     try:
-        # 플러그인 폴더 경로 설정
-        plugin_folder = f"./plugin/{plugin_name}/"
+        # Get the actual plugin path (can be either official or local for checking)
+        plugin_folder, source = get_plugin_path(plugin_name)
+        
+        # Official plugins don't have Docker images built locally
+        if source == "official":
+            return {
+                "plugin_name": plugin_name,
+                "image_exists": False,
+                "image_tag": None,
+                "source": source,
+                "message": "Official plugins don't have local Docker images"
+            }
         
         # 플러그인 폴더가 존재하는지 확인
         if not os.path.exists(plugin_folder):
@@ -889,7 +969,8 @@ async def check_plugin_image(
         return {
             "plugin_name": plugin_name,
             "image_exists": image_exists,
-            "image_tag": f"{plugin_name}:latest" if image_exists else None
+            "image_tag": f"plugin-{plugin_name.lower()}" if image_exists else None,
+            "source": source
         }
 
     except HTTPException as he:
@@ -920,8 +1001,15 @@ async def update_plugin_complete(
                 detail=f"Plugin {plugin_name} not found in database"
             )
         
+        # Check if plugin is editable
+        if not is_plugin_editable(plugin_name):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Cannot modify plugin '{plugin_name}'. Official plugins are read-only."
+            )
+        
         # 2. 물리적 파일에서 메타데이터 읽기
-        plugin_folder = f"./plugin/{plugin_name}/"
+        plugin_folder, source = get_plugin_path(plugin_name, "local")
         metadata_file = os.path.join(plugin_folder, "metadata.json")
         
         if not os.path.exists(metadata_file):
@@ -1000,7 +1088,16 @@ async def upload_text_dependencies(
     텍스트 의존성 파일들(requirements.txt, environment.yml, renv.lock)을 업로드하고 DB도 업데이트
     """
     try:
-        dependency_folder = f"./plugin/{plugin_name}/dependency/"
+        # Check if plugin is editable
+        if not is_plugin_editable(plugin_name):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Cannot modify plugin '{plugin_name}'. Official plugins are read-only."
+            )
+        
+        # Get the actual plugin path (should be local)
+        plugin_path_str, source = get_plugin_path(plugin_name, "local")
+        dependency_folder = os.path.join(plugin_path_str, "dependency")
         
         # 1. dependency 폴더가 존재하지 않으면 생성
         if not os.path.exists(dependency_folder):
@@ -1220,9 +1317,15 @@ async def get_build_logs(
     플러그인 빌드 로그를 조회합니다.
     """
     try:
-        # 로그 파일 경로
-        log_dir = os.path.join("plugin", "build_logs")
-        log_file = os.path.join(log_dir, f"{plugin_name.lower()}.log")
+        # Only local plugins have build logs
+        if not is_plugin_editable(plugin_name):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Build logs are only available for local plugins. '{plugin_name}' is an official plugin."
+            )
+        
+        # 로그 파일 경로 - use the BUILD_LOGS_DIR constant
+        log_file = os.path.join(plugin_utils.BUILD_LOGS_DIR, f"{plugin_name.lower()}.log")
         
         if not os.path.exists(log_file):
             return {

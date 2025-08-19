@@ -1,8 +1,8 @@
 from fastapi import FastAPI
-from sqlalchemy import engine
 from starlette.middleware.cors import CORSMiddleware
 import signal
 import sys
+import os
 
 from app.routes.api import api_router
 from app.common.config import settings
@@ -74,4 +74,10 @@ def get_celery_app():
 # 서버 시작 시 CSV 파일로부터 플러그인 데이터를 초기화
 @app.on_event("startup")
 async def startup_event():
-    initialize_plugins_from_csv("./app/database/initial_data/plugin_initialization.csv")
+    # Initialize official plugins first
+    initialize_plugins_from_csv("./plugin/official/plugins.csv")
+    
+    # Initialize local plugins if CSV exists (fallback for backward compatibility)
+    local_csv = "./app/database/initial_data/plugin_initialization.csv"
+    if os.path.exists(local_csv):
+        initialize_plugins_from_csv(local_csv)
