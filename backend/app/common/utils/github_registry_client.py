@@ -1,6 +1,5 @@
 import requests
 import time
-import os
 from typing import List, Optional, Dict, Any
 from functools import wraps
 import logging
@@ -58,22 +57,14 @@ class GitHubRegistryClient:
         self.timeout = timeout
         self.session = requests.Session()
         
-        # Get GitHub token from environment variable
-        self.github_token = os.environ.get('GITHUB_REGISTRY_TOKEN')
-        
+        # Configure headers for public repository access
         headers = {
             'Accept': 'application/vnd.github.v3+json',
             'User-Agent': 'CellCraft-Plugin-Manager/1.0'
         }
         
-        # Add authorization header if token is available
-        if self.github_token:
-            headers['Authorization'] = f'Bearer {self.github_token}'
-            logger.info("GitHub token configured for registry access")
-        else:
-            logger.warning("No GITHUB_REGISTRY_TOKEN found in environment variables. API access will be limited to public repositories only.")
-            
         self.session.headers.update(headers)
+        logger.info("GitHub registry client configured for public repository access")
     
     @cached_with_timeout(timeout_seconds=600)  # 10 minute cache
     def get_available_versions(self, plugin_name: str) -> List[str]:

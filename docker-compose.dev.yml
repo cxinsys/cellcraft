@@ -28,6 +28,10 @@ services:
     volumes:
       - ./backend:/app
       - /var/run/docker.sock:/var/run/docker.sock
+      # Plugin directory mounts
+      - ./backend/plugin/official:/app/plugin/official:ro
+      - ./backend/plugin/local:/app/plugin/local:rw
+      - ./backend/plugin/build_logs:/app/plugin/build_logs:rw
     depends_on:
       - db
     restart: always
@@ -79,6 +83,10 @@ services:
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
         - ./backend:/app
+        # Plugin directory mounts
+        - ./backend/plugin/official:/app/plugin/official:ro
+        - ./backend/plugin/local:/app/plugin/local:rw
+        - ./backend/plugin/build_logs:/app/plugin/build_logs:rw
       depends_on:
         - rabbitmq
         - db
