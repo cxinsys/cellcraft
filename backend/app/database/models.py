@@ -4,7 +4,7 @@ from sqlalchemy.dialects.postgresql import JSONB, JSON, ARRAY
 from sqlalchemy.sql import func
 
 from app.database.conn import Base
-from app.services.plugin_controller import PluginType
+from app.common.enums import PluginType
 
 user_plugin_association = Table(
     'user_plugin_association', Base.metadata,
@@ -66,6 +66,7 @@ class Task(Base):
     algorithm_id = Column(String, nullable=True)  # algorithm_id 필드 추가
     plugin_name = Column(String, nullable=True)  # plugin_name 필드 추가
     task_type = Column(String, nullable=True)  # task_type 필드 추가 (compile, visualization)
+    plugin_image_uri = Column(String, nullable=True)  # Plugin image URI for reproducibility
 
     user = relationship("User", back_populates="tasks")
     workflows = relationship("Workflow", back_populates="tasks")
