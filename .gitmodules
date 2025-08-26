@@ -1,0 +1,4 @@
+[submodule "backend/plugin/official"]
+	path = backend/plugin/official
+	url = https://github.com/cxinsys/cellcraft-plugin.git
+	branch = release/plugins-v1.0
