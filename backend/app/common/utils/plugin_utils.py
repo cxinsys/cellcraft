@@ -6,6 +6,7 @@ import yaml
 import shutil
 import numpy as np
 import time
+import platform
 from fastapi import HTTPException
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
@@ -16,6 +17,156 @@ from datetime import datetime
 OFFICIAL_PLUGINS_DIR = "./plugin/official"
 LOCAL_PLUGINS_DIR = "./plugin/local"
 BUILD_LOGS_DIR = "./plugin/build_logs"
+
+# Platform detection and Docker build utilities
+def detect_target_platform():
+    """
+    시스템 아키텍처를 자동 감지하여 Docker 플랫폼 문자열 반환
+    
+    Returns:
+        str: Docker 플랫폼 문자열 (예: "linux/amd64", "linux/arm64")
+    """
+    machine = platform.machine().lower()
+    system = platform.system().lower()
+    
+    # 아키텍처 매핑 테이블
+    arch_mapping = {
+        'x86_64': 'amd64',
+        'amd64': 'amd64',
+        'aarch64': 'arm64',
+        'arm64': 'arm64',
+        'armv7l': 'arm/v7',
+        'armv6l': 'arm/v6'
+    }
+    
+    # 시스템이 Linux가 아닌 경우 기본값 반환
+    if system != 'linux':
+        system = 'linux'  # Docker 컨테이너는 Linux 기반
+    
+    arch = arch_mapping.get(machine, 'amd64')  # 알 수 없는 아키텍처는 amd64 기본값
+    return f"{system}/{arch}"
+
+def detect_platform_via_docker(client):
+    """
+    Docker 데몬에서 플랫폼 정보 추출
+    
+    Args:
+        client: Docker 클라이언트 객체
+        
+    Returns:
+        str: Docker 플랫폼 문자열, 실패 시 "linux/amd64"
+    """
+    try:
+        info = client.info()
+        architecture = info.get('Architecture', 'x86_64')
+        os_type = info.get('OSType', 'linux').lower()
+        
+        arch_map = {
+            'x86_64': 'amd64',
+            'aarch64': 'arm64',
+            'arm64': 'arm64'
+        }
+        
+        docker_arch = arch_map.get(architecture, 'amd64')
+        return f"{os_type}/{docker_arch}"
+    except Exception:
+        return "linux/amd64"  # fallback
+
+def get_target_platform(client=None):
+    """
+    우선순위에 따른 플랫폼 감지
+    
+    우선순위:
+    1. 환경변수 DOCKER_DEFAULT_PLATFORM
+    2. Docker 데몬 정보 
+    3. Python 시스템 정보
+    
+    Args:
+        client: Docker 클라이언트 객체 (선택사항)
+        
+    Returns:
+        str: 감지된 Docker 플랫폼 문자열
+    """
+    # 1순위: 환경변수 직접 지정
+    if env_platform := os.environ.get('DOCKER_DEFAULT_PLATFORM'):
+        return env_platform
+    
+    # 2순위: Docker 데몬 정보
+    if client:
+        docker_platform = detect_platform_via_docker(client)
+        if docker_platform != "linux/amd64":  # 기본값이 아닌 경우 우선 사용
+            return docker_platform
+    
+    # 3순위: Python 시스템 정보
+    return detect_target_platform()
+
+def check_gpu_requirement(plugin_path: str) -> bool:
+    """
+    플러그인의 GPU 요구사항 확인
+    
+    Args:
+        plugin_path (str): 플러그인 폴더 경로
+        
+    Returns:
+        bool: GPU 필요 여부
+    """
+    try:
+        metadata_path = os.path.join(plugin_path, "metadata.json")
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+                return metadata.get('requiresGPU', False)
+    except Exception:
+        pass
+    
+    # metadata에서 확인 불가능한 경우, 기본값 False (CPU 전용)
+    return False
+
+def get_optimal_platform(plugin_path: str, client=None):
+    """
+    GPU 사용 여부에 따른 최적 플랫폼 선택
+    
+    Args:
+        plugin_path (str): 플러그인 폴더 경로
+        client: Docker 클라이언트 객체 (선택사항)
+        
+    Returns:
+        str: 최적화된 Docker 플랫폼 문자열
+    """
+    use_gpu = check_gpu_requirement(plugin_path)
+    
+    if use_gpu:
+        # GPU는 현재 linux/amd64만 지원 (NVIDIA CUDA)
+        return "linux/amd64"
+    
+    # CPU 전용은 자동 감지
+    return get_target_platform(client)
+
+def sanitize_plugin_name(plugin_name: str) -> str:
+    """
+    Sanitize plugin name to prevent path traversal attacks.
+    
+    Args:
+        plugin_name (str): Raw plugin name from user input
+        
+    Returns:
+        str: Sanitized plugin name
+        
+    Raises:
+        HTTPException: If plugin name contains invalid characters
+    """
+    if not plugin_name or not isinstance(plugin_name, str):
+        raise HTTPException(status_code=400, detail="Plugin name must be a non-empty string")
+    
+    # Check for path traversal attempts
+    if ".." in plugin_name or "/" in plugin_name or "\\" in plugin_name:
+        raise HTTPException(status_code=400, detail="Plugin name contains invalid path characters")
+    
+    # Only allow alphanumeric, underscore, hyphen, and dots
+    if not re.match(r"^[a-zA-Z0-9._-]+$", plugin_name):
+        raise HTTPException(status_code=400, detail="Plugin name contains invalid characters")
+    
+    return plugin_name
 
 def get_plugin_path(plugin_name: str, source: Optional[str] = None) -> Tuple[str, str]:
     """
@@ -29,31 +180,48 @@ def get_plugin_path(plugin_name: str, source: Optional[str] = None) -> Tuple[str
         Tuple[str, str]: (plugin_path, actual_source)
         
     Raises:
-        HTTPException: If plugin is not found
+        HTTPException: If plugin is not found or name is invalid
     """
+    # Sanitize plugin name to prevent path traversal
+    safe_plugin_name = sanitize_plugin_name(plugin_name)
+    
     if source == "official":
-        official_path = os.path.join(OFFICIAL_PLUGINS_DIR, plugin_name)
+        official_path = os.path.join(OFFICIAL_PLUGINS_DIR, safe_plugin_name)
+        # Verify the resolved path is within the expected directory
+        official_abs = os.path.abspath(official_path)
+        official_base = os.path.abspath(OFFICIAL_PLUGINS_DIR)
+        if not official_abs.startswith(official_base):
+            raise HTTPException(status_code=400, detail="Invalid plugin path")
         if os.path.exists(official_path):
             return official_path, "official"
-        raise HTTPException(status_code=404, detail=f"Official plugin '{plugin_name}' not found")
+        raise HTTPException(status_code=404, detail=f"Official plugin '{safe_plugin_name}' not found")
     
     elif source == "local":
-        local_path = os.path.join(LOCAL_PLUGINS_DIR, plugin_name)
+        local_path = os.path.join(LOCAL_PLUGINS_DIR, safe_plugin_name)
+        # Verify the resolved path is within the expected directory
+        local_abs = os.path.abspath(local_path)
+        local_base = os.path.abspath(LOCAL_PLUGINS_DIR)
+        if not local_abs.startswith(local_base):
+            raise HTTPException(status_code=400, detail="Invalid plugin path")
         if os.path.exists(local_path):
             return local_path, "local"
-        raise HTTPException(status_code=404, detail=f"Local plugin '{plugin_name}' not found")
+        raise HTTPException(status_code=404, detail=f"Local plugin '{safe_plugin_name}' not found")
     
     else:
         # No source specified - prioritize local over official
-        local_path = os.path.join(LOCAL_PLUGINS_DIR, plugin_name)
-        if os.path.exists(local_path):
+        local_path = os.path.join(LOCAL_PLUGINS_DIR, safe_plugin_name)
+        local_abs = os.path.abspath(local_path)
+        local_base = os.path.abspath(LOCAL_PLUGINS_DIR)
+        if local_abs.startswith(local_base) and os.path.exists(local_path):
             return local_path, "local"
         
-        official_path = os.path.join(OFFICIAL_PLUGINS_DIR, plugin_name)
-        if os.path.exists(official_path):
+        official_path = os.path.join(OFFICIAL_PLUGINS_DIR, safe_plugin_name)
+        official_abs = os.path.abspath(official_path)
+        official_base = os.path.abspath(OFFICIAL_PLUGINS_DIR)
+        if official_abs.startswith(official_base) and os.path.exists(official_path):
             return official_path, "official"
         
-        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_name}' not found in either local or official directories")
+        raise HTTPException(status_code=404, detail=f"Plugin '{safe_plugin_name}' not found in either local or official directories")
 
 def list_available_plugins() -> Dict[str, List[str]]:
     """
@@ -660,13 +828,11 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
                 if rule['script'].endswith('.py'):
                     shell_command = f"/opt/micromamba/envs/plugin_env/bin/python {script_path}"
                 elif rule['script'].endswith('.R'):
-                    # R 스크립트를 위한 환경 설정과 함께 실행 - /opt/r_env 사용
-                    shell_command = f"if [ -d \"/opt/r_env\" ] && [ -f \"/opt/r_env/renv/activate.R\" ]; then " \
-                                  f"export R_LIBS_USER=/opt/r_env/renv/library && export RENV_PROJECT=/opt/r_env; " \
-                                  f"else " \
-                                  f"export R_LIBS_USER=/opt/r_env/library && export RENV_PROJECT=/opt/r_env; " \
-                                  f"fi; " \
-                                  f"Rscript {script_path}"
+                    # R 스크립트를 위한 환경 설정과 함께 실행 - Micromamba와 renv 라이브러리 사용
+                    shell_command = f"export R_LIBS_USER=/workspace/dependency/renv/library/linux-debian-bullseye/R-4.4/x86_64-conda-linux-gnu:/opt/micromamba/envs/plugin_env/lib/R/library && " \
+                                  f"export R_HOME=/opt/micromamba/envs/plugin_env/lib/R && " \
+                                  f"export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE && " \
+                                  f"/opt/micromamba/envs/plugin_env/bin/Rscript {script_path}"
                 else:
                     shell_command = script_path
 
@@ -1328,11 +1494,20 @@ def build_plugin_docker_image(plugin_path: str, plugin_name: str) -> dict:
     log_file = os.path.join(BUILD_LOGS_DIR, f"{plugin_name.lower()}.log")
     image_tag = f"plugin-{plugin_name.lower()}"
 
+    # 플랫폼 자동 감지
+    target_platform = get_optimal_platform(plugin_path, client)
+    build_platform = get_target_platform(client)
+    use_gpu = check_gpu_requirement(plugin_path)
+
     try:
         with open(log_file, "w", encoding="utf-8") as f:
             f.write(f"Building Docker image for plugin: {plugin_name}\n")
             f.write(f"Start time: {datetime.now().isoformat()}\n")
-            f.write(f"Docker version: {client.version().get('Version', 'unknown')}\n\n")
+            f.write(f"Docker version: {client.version().get('Version', 'unknown')}\n")
+            f.write(f"Host platform: {platform.machine()} ({platform.system()})\n")
+            f.write(f"Target platform: {target_platform}\n")
+            f.write(f"Build platform: {build_platform}\n")
+            f.write(f"GPU mode: {use_gpu}\n\n")
             f.flush()
 
         # 기존 이미지 제거 (있다면)
@@ -1367,28 +1542,64 @@ def build_plugin_docker_image(plugin_path: str, plugin_name: str) -> dict:
         image = None
         build_output = []
 
-        # 이미지 빌드 (더 자세한 옵션 추가)
-        for chunk in client.api.build(
-            path=plugin_path,
-            tag=image_tag,
-            rm=True,
-            forcerm=True,
-            decode=True,
-            buildargs={
-                'BUILDKIT_PROGRESS': 'plain',  # 더 자세한 출력
-                'DOCKER_BUILDKIT': '0'  # BuildKit 비활성화 (디버깅용)
-            }
-        ):
+        # 이미지 빌드
+        try:
+            # client.images.build()는 BuildKit을 올바르게 지원
+            image, build_logs = client.images.build(
+                path=plugin_path,
+                tag=image_tag,
+                rm=True,
+                forcerm=True,
+                buildargs={
+                    'BUILDKIT_PROGRESS': 'plain',
+                    'DOCKER_BUILDKIT': '1',  # BuildKit 명시적 활성화
+                    'TARGETPLATFORM': target_platform,  # 자동 감지된 타겟 플랫폼
+                    'BUILDPLATFORM': build_platform     # 자동 감지된 빌드 플랫폼
+                },
+                platform=None,  # 자동 플랫폼 감지
+                pull=False,
+                nocache=False
+            )
+            
+            # 빌드 로그 처리
+            for log_line in build_logs:
+                with open(log_file, "a", encoding="utf-8") as f:
+                    if 'stream' in log_line:
+                        f.write(log_line['stream'])
+                        build_output.append(log_line['stream'])
+                    elif 'error' in log_line:
+                        f.write(f"Build error: {log_line['error']}\n")
+                        raise Exception(log_line['error'])
+                    f.flush()
+            
+        except Exception as e:
+            # Fallback: legacy API 사용 (BuildKit 없이)
             with open(log_file, "a", encoding="utf-8") as f:
-                if 'stream' in chunk:
-                    f.write(chunk['stream'])
-                    build_output.append(chunk['stream'])
-                elif 'error' in chunk:
-                    f.write(f"Build error: {chunk['error']}\n")
-                    raise Exception(chunk['error'])
-                elif 'aux' in chunk and 'ID' in chunk['aux']:
-                    image = client.images.get(chunk['aux']['ID'])
-                f.flush()
+                f.write(f"Modern API failed, trying legacy API: {str(e)}\n")
+            
+            for chunk in client.api.build(
+                path=plugin_path,
+                tag=image_tag,
+                rm=True,
+                forcerm=True,
+                decode=True,
+                buildargs={
+                    'BUILDKIT_PROGRESS': 'plain',
+                    'DOCKER_BUILDKIT': '0',  # Legacy API에서는 BuildKit 비활성화
+                    'TARGETPLATFORM': target_platform,  # 자동 감지된 타겟 플랫폼
+                    'BUILDPLATFORM': build_platform     # 자동 감지된 빌드 플랫폼
+                }
+            ):
+                with open(log_file, "a", encoding="utf-8") as f:
+                    if 'stream' in chunk:
+                        f.write(chunk['stream'])
+                        build_output.append(chunk['stream'])
+                    elif 'error' in chunk:
+                        f.write(f"Build error: {chunk['error']}\n")
+                        raise Exception(chunk['error'])
+                    elif 'aux' in chunk and 'ID' in chunk['aux']:
+                        image = client.images.get(chunk['aux']['ID'])
+                    f.flush()
 
         if not image:
             image = client.images.get(image_tag)
@@ -1424,20 +1635,20 @@ def build_plugin_docker_image(plugin_path: str, plugin_name: str) -> dict:
         }
 
 def generate_base_image_section(use_gpu=True):
-    """Base 이미지 섹션 생성 - 멀티 플랫폼 지원"""
+    """Base 이미지 섹션 생성"""
     lines = []
     if use_gpu:
-        # GPU는 linux/amd64만 지원
+        # GPU는 linux/amd64만 지원 - ARG 불필요
         lines.append("# GPU 버전 - linux/amd64만 지원")
         lines.append("FROM --platform=linux/amd64 nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04")
     else:
-        # CPU는 모든 플랫폼 지원
+        # CPU는 멀티 플랫폼 지원 - ARG를 FROM 앞에 선언
         lines.append("# 멀티 플랫폼 지원")
-        lines.append("FROM --platform=$TARGETPLATFORM debian:bullseye-slim")
+        lines.append("# BuildKit 자동 감지 ARG (fallback 기본값)")
+        lines.append("ARG TARGETPLATFORM=linux/amd64")
+        lines.append("ARG BUILDPLATFORM=linux/amd64")
         lines.append("")
-        lines.append("# 빌드 인자 선언")
-        lines.append("ARG TARGETPLATFORM")
-        lines.append("ARG BUILDPLATFORM")
+        lines.append("FROM --platform=$TARGETPLATFORM debian:bullseye-slim")
     return lines
 
 
@@ -1513,15 +1724,16 @@ def generate_micromamba_install_section(use_gpu=False):
             "    /usr/local/bin/micromamba --version"
         ]
     else:
-        # CPU 버전은 플랫폼별 동적 설치
+        # CPU 버전은 플랫폼별 동적 설치 (기본값 포함)
         return [
             "",
-            "# Micromamba 설치 (멀티 플랫폼)",
-            "RUN case ${TARGETPLATFORM} in \\",
+            "# Micromamba 설치 (멀티 플랫폼, 기본값: linux/amd64)",
+            "RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \\",
+            "    case $PLATFORM in \\",
             "        \"linux/amd64\")  MICROMAMBA_ARCH=linux-64  ;; \\",
             "        \"linux/arm64\")  MICROMAMBA_ARCH=linux-aarch64  ;; \\",
             "        \"linux/arm/v7\") MICROMAMBA_ARCH=linux-armv7l  ;; \\",
-            "        *) echo \"Unsupported platform: ${TARGETPLATFORM}\" && exit 1 ;; \\",
+            "        *) echo \"Unsupported platform: $PLATFORM, defaulting to linux-64\" && MICROMAMBA_ARCH=linux-64 ;; \\",
             "    esac && \\",
             "    mkdir -p /usr/local/bin && \\",
             "    curl -Ls \"https://micro.mamba.pm/api/micromamba/${MICROMAMBA_ARCH}/latest\" | tar -xvj -C /tmp && \\",
@@ -1667,19 +1879,13 @@ def generate_copy_files_section(plugin_path):
     lines = [
         "",
         "# Snakefile 복사",
-        "COPY Snakefile /workspace/Snakefile"
-    ]
-    
-    if os.path.exists(os.path.join(plugin_path, "visualization_Snakefile")):
-        lines.append("COPY visualization_Snakefile /workspace/visualization_Snakefile")
-    
-    lines.extend([
+        "COPY Snakefile /workspace/Snakefile",
         "",
         "# scripts 폴더 복사",
         "COPY scripts/ /scripts/",
         "",
         "WORKDIR /workspace"
-    ])
+    ]
     
     return lines
 
@@ -1869,3 +2075,24 @@ def check_plugin_docker_image(plugin_name: str) -> bool:
     except Exception as e:
         print(f"Failed to connect to Docker daemon: {str(e)}")
         return False
+
+def generate_plugin_image_uri(plugin_name: str, source: str, version: Optional[str] = None) -> str:
+    """
+    Generate plugin image URI based on plugin type.
+    
+    Args:
+        plugin_name: Name of the plugin
+        source: Plugin source ("official" or "local")  
+        version: Version for official plugins (optional)
+        
+    Returns:
+        Plugin image URI string
+    """
+    if source == "official":
+        # For official plugins, use GitHub Container Registry
+        version = version or "latest"
+        return f"ghcr.io/cxinsys/cellcraft-{plugin_name.lower()}:{version}"
+    else:
+        # For local plugins, use timestamp-based identifier
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        return f"local-build:{plugin_name.lower()}-{timestamp}"
