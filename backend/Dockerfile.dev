@@ -39,5 +39,11 @@ ENV CONDA_DEFAULT_ENV=snakemake
 WORKDIR /app
 COPY . .
 
+# Initialize git submodules on container startup
+RUN if [ -f .gitmodules ]; then \
+    git config --global --add safe.directory /app && \
+    git submodule update --init --recursive plugin/official || true; \
+    fi
+
 # FastAPI 서버 실행 (Micromamba env 내 python 사용)
 CMD ["/opt/micromamba/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

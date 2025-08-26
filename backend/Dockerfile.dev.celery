@@ -39,5 +39,11 @@ ENV CONDA_DEFAULT_ENV=snakemake
 WORKDIR /app
 COPY . .
 
+# Initialize git submodules on container startup
+RUN if [ -f .gitmodules ]; then \
+    git config --global --add safe.directory /app && \
+    git submodule update --init --recursive plugin/official || true; \
+    fi
+
 # Celery 실행
 CMD ["/opt/micromamba/envs/snakemake/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "-n", "worker@%h", "--loglevel=info", "-E", "-Q", "workflow_task,plugin_task"]

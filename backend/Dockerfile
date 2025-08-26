@@ -37,5 +37,11 @@ WORKDIR /app
 # 애플리케이션 소스 코드 복사
 COPY . .
 
+# Initialize git submodules on container startup
+RUN if [ -f .gitmodules ]; then \
+    git config --global --add safe.directory /app && \
+    git submodule update --init --recursive plugin/official || true; \
+    fi
+
 # Conda 환경 활성화 및 FastAPI 애플리케이션 실행
 CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
