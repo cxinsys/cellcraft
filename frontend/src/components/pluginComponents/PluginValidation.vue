@@ -352,6 +352,7 @@ export default {
                     const plugin = {
                         name: this.plugin.name,
                         description: this.plugin.description,
+                        pluginType: this.plugin.pluginType || 'analysis', // pluginType 추가
                         dependencyFiles: this.plugin.dependencyFiles,
                         referenceFolders: this.plugin.referenceFolders,
                         useGpu: this.useGpu

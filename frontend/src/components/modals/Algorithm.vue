@@ -16,7 +16,7 @@
     <div class="center-layout">
       <div class="algorithm-layout">
         <div class="algorithm-select">
-          <div class="algorithm-logo">{{ selectedPlugin.name }}</div>
+          <div class="algorithm-logo">{{ selectedPlugin ? selectedPlugin.name : 'Select a Plugin' }}</div>
         </div>
         <div class="algorithm-parts">
           <div v-for="rule in selectedPluginRules" :key="rule.name">
@@ -136,13 +136,17 @@ export default {
       this.checkCurrentNodeConnection();
 
       const plugins = await getPlugins();
-      this.plugins = plugins.data.plugins;
+      // Filter to only show analysis algorithms (plugin_type = 'ANALYSIS')
+      this.plugins = plugins.data.plugins.filter(plugin => {
+        return plugin.plugin_type === 'ANALYSIS' || plugin.plugin_type === 'analysis' || 
+               (!plugin.plugin_type && this.isAnalysisPlugin(plugin));
+      });
 
       const nodeInfo = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
 
-      if (nodeInfo.data["selectedPlugin"]) {
-        this.selectedPlugin = nodeInfo.data.selectedPlugin;
-      } else {
+      if (nodeInfo && nodeInfo.data && nodeInfo.data["selectedPlugin"]) {
+        this.selectedPlugin = this.plugins.find(plugin => plugin.name === nodeInfo.data.selectedPlugin.name);
+      } else if (this.nodeInfo && this.nodeInfo.data && this.nodeInfo.data.title) {
         this.plugins.forEach((plugin) => {
           if (plugin.name === this.nodeInfo.data.title) {
             this.selectedPlugin = plugin;
@@ -150,58 +154,67 @@ export default {
         });
       }
 
-      const selectedPlugin = this.plugins.find((plugin) => plugin.name === this.selectedPlugin.name);
-      const result = this.filterRules(selectedPlugin.rules);
-
-      if (nodeInfo.data["selectedPluginRules"]) {
-        this.selectedPluginRules = nodeInfo.data.selectedPluginRules;
-      } else {
-        this.selectedPluginRules = result.filteredRules;
+      // Ensure we have a selected plugin before proceeding
+      if (!this.selectedPlugin && this.plugins.length > 0) {
+        this.selectedPlugin = this.plugins[0]; // Default to first analysis plugin
       }
 
-      this.selectedPluginInputOutput = this.activatePlugin(result.filteredInputOutput, this.currentNodeConnection);
+      if (this.selectedPlugin) {
+        const selectedPlugin = this.plugins.find((plugin) => plugin.name === this.selectedPlugin.name);
+        if (selectedPlugin && selectedPlugin.rules) {
+          const result = this.filterRules(selectedPlugin.rules);
 
-      if (this.selectedPluginInputOutput.some((item) => item.type === "inputFile" && item.fileExtension === ".h5ad")) {
-        await this.loadColumns();
+          if (nodeInfo && nodeInfo.data && nodeInfo.data["selectedPluginRules"]) {
+            this.selectedPluginRules = nodeInfo.data.selectedPluginRules;
+          } else {
+            this.selectedPluginRules = result.filteredRules;
+          }
 
-        // cell group 파라미터를 찾아서 defaultValue가 있으면 clusters를 할당
-        const cellGroupParam = this.selectedPluginRules.find(rule =>
-          rule.parameters.some(param => param.name === 'cell group' && param.defaultValue)
-        )?.parameters.find(param => param.name === 'cell group');
+          this.selectedPluginInputOutput = this.activatePlugin(result.filteredInputOutput, this.currentNodeConnection);
 
-        if (cellGroupParam?.defaultValue) {
-          const clusters = await this.getCurrnetClusters(cellGroupParam.defaultValue);
-          this.clusters = clusters;
+          if (this.selectedPluginInputOutput.some((item) => item.type === "inputFile" && item.fileExtension === ".h5ad")) {
+            await this.loadColumns();
+
+            // cell group 파라미터를 찾아서 defaultValue가 있으면 clusters를 할당
+            const cellGroupParam = this.selectedPluginRules.find(rule =>
+              rule.parameters.some(param => param.name === 'cell group' && param.defaultValue)
+            )?.parameters.find(param => param.name === 'cell group');
+
+            if (cellGroupParam?.defaultValue) {
+              const clusters = await this.getCurrnetClusters(cellGroupParam.defaultValue);
+              this.clusters = clusters;
+            }
+          }
         }
+      }
+      // Update store with selected plugin information
+      if (this.selectedPlugin) {
+        const dataObject = {
+          "selectedPlugin": {
+            name: this.selectedPlugin.name,
+          },
+        };
+        const nodeId = this.nodeId;
+        this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });
+      }
+
+      if (this.selectedPluginRules) {
+        const dataObject = {
+          "selectedPluginRules": this.selectedPluginRules,
+        };
+        const nodeId = this.nodeId;
+        this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });
+      }
+
+      if (this.selectedPluginInputOutput) {
+        const dataObject = {
+          "selectedPluginInputOutput": this.selectedPluginInputOutput,
+        };
+        const nodeId = this.nodeId;
+        this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });
       }
     } catch (error) {
       console.error(error);
-    }
-
-    if (this.selectedPlugin) {
-      const dataObject = {
-        "selectedPlugin": {
-          name: this.selectedPlugin.name,
-        },
-      };
-      const nodeId = this.nodeId;
-      this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });
-    }
-
-    if (this.selectedPluginRules) {
-      const dataObject = {
-        "selectedPluginRules": this.selectedPluginRules,
-      };
-      const nodeId = this.nodeId;
-      this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });
-    }
-
-    if (this.selectedPluginInputOutput) {
-      const dataObject = {
-        "selectedPluginInputOutput": this.selectedPluginInputOutput,
-      };
-      const nodeId = this.nodeId;
-      this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });
     }
   },
   watch: {
@@ -280,6 +293,13 @@ export default {
     }
   },
   methods: {
+    isAnalysisPlugin(plugin) {
+      // Helper method to determine if a plugin is an analysis algorithm
+      // Fallback logic for plugins without explicit plugin_type
+      const name = plugin.name.toLowerCase();
+      const visualizationKeywords = ['plot', 'chart', 'graph', 'visual', 'heatmap', 'scatter'];
+      return !visualizationKeywords.some(keyword => name.includes(keyword));
+    },
     activateClusters() {
       if (this.clusters.length === 0) {
         alert("There is no cluster column. Please select the cellgroup first.");
