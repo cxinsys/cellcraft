@@ -18,6 +18,7 @@ from app.database.crud import crud_plugin
 from app.database import models
 from app.common.utils import plugin_utils
 from app.common.utils.plugin_utils import get_plugin_path, is_plugin_editable, ensure_local_plugins_dir
+from app.common.utils.github_registry_client import GitHubRegistryClient
 from app.routes.celery_tasks import build_plugin_task
 from celery.result import AsyncResult
 from celery import current_app as celery_app
@@ -778,6 +779,18 @@ def list_plugins(
                 print(f"Error getting build tasks for {plugin.name}: {e}")
                 plugin_dict['latest_build'] = None
             
+            # Official 플러그인의 경우 데이터베이스 version 컬럼 직접 사용
+            if plugin.source == "official":
+                # GitHub Registry API 호출을 제거하고 데이터베이스 version 직접 사용
+                plugin_dict['current_version'] = plugin.version or "1.0"
+                plugin_dict['available_versions'] = []  # 빈 배열로 설정
+                
+                logger.info(f"Plugin {plugin.name} - Using database version: {plugin_dict['current_version']}")
+            else:
+                # Local 플러그인의 경우 기존 로직 유지
+                plugin_dict['current_version'] = plugin.version or "local"
+                plugin_dict['available_versions'] = []
+            
             plugin_list.append(plugin_dict)
         
         return {"plugins": plugin_list}
@@ -1358,4 +1371,200 @@ async def get_build_logs(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get build logs: {str(e)}"
+        )
+
+# Version management endpoints for official plugins
+@router.get("/versions/{plugin_name}")
+async def get_plugin_versions(
+    *,
+    plugin_name: str,
+    current_user: models.User = Depends(dep.get_current_active_user),
+    db: Session = Depends(dep.get_db),
+):
+    """
+    Get available versions for an official plugin from GitHub Container Registry.
+    """
+    try:
+        # Check if plugin exists and is official
+        plugin = crud_plugin.get_plugin_by_name(db, plugin_name)
+        if not plugin:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Plugin '{plugin_name}' not found"
+            )
+        
+        if plugin.source != "official":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Version management is only available for official plugins. '{plugin_name}' is a local plugin."
+            )
+        
+        # Get versions from GitHub Registry
+        from app.common.utils.github_registry_client import GitHubRegistryClient
+        registry = GitHubRegistryClient()
+        
+        try:
+            available_versions = registry.get_available_versions(plugin_name)
+            current_version = plugin.version or "latest"
+            
+            return {
+                "plugin_name": plugin_name,
+                "current_version": current_version,
+                "available_versions": available_versions,
+                "total_versions": len(available_versions)
+            }
+        except Exception as e:
+            logger.error(f"Failed to fetch versions for {plugin_name}: {e}")
+            raise HTTPException(
+                status_code=502,
+                detail=f"Failed to fetch versions from GitHub Registry: {str(e)}"
+            )
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get plugin versions: {str(e)}"
+        )
+
+@router.post("/versions/{plugin_name}/update")
+async def update_plugin_version(
+    *,
+    plugin_name: str,
+    version: str = Form(...),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    db: Session = Depends(dep.get_db),
+):
+    """
+    Update the version of an official plugin.
+    """
+    try:
+        # Check if plugin exists and is official
+        plugin = crud_plugin.get_plugin_by_name(db, plugin_name)
+        if not plugin:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Plugin '{plugin_name}' not found"
+            )
+        
+        if plugin.source != "official":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Version updates are only available for official plugins. '{plugin_name}' is a local plugin."
+            )
+        
+        # Verify version exists in registry
+        from app.common.utils.github_registry_client import GitHubRegistryClient
+        registry = GitHubRegistryClient()
+        
+        try:
+            available_versions = registry.get_available_versions(plugin_name)
+            if version not in available_versions:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Version '{version}' not found for plugin '{plugin_name}'. Available versions: {', '.join(available_versions)}"
+                )
+        except Exception as e:
+            logger.error(f"Failed to verify version {version} for {plugin_name}: {e}")
+            raise HTTPException(
+                status_code=502,
+                detail=f"Failed to verify version in GitHub Registry: {str(e)}"
+            )
+        
+        # Update plugin version in database
+        old_version = plugin.version
+        plugin.version = version
+        
+        try:
+            db.commit()
+            db.refresh(plugin)
+            
+            # Check if image exists locally and pull if needed
+            import docker
+            try:
+                client = docker.from_env()
+                image_uri = registry.get_image_uri(plugin_name, version)
+                
+                try:
+                    client.images.get(image_uri)
+                    logger.info(f"Image {image_uri} already exists locally")
+                except docker.errors.ImageNotFound:
+                    # Pull the new version
+                    logger.info(f"Pulling new version {image_uri}...")
+                    try:
+                        client.images.pull(image_uri)
+                        logger.info(f"Successfully pulled {image_uri}")
+                    except docker.errors.APIError as e:
+                        if "not found" in str(e).lower():
+                            logger.warning(f"Image {image_uri} not found in registry, will fallback to local build if needed")
+                        else:
+                            logger.error(f"Failed to pull {image_uri}: {e}")
+            
+            except docker.errors.DockerException as e:
+                logger.warning(f"Docker not available for image pull: {e}")
+            
+            return {
+                "message": f"Plugin '{plugin_name}' version updated successfully",
+                "plugin_name": plugin_name,
+                "old_version": old_version,
+                "new_version": version,
+                "image_uri": registry.get_image_uri(plugin_name, version)
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to update plugin version in database: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to update plugin version in database: {str(e)}"
+            )
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update plugin version: {str(e)}"
+        )
+
+@router.get("/version/{plugin_name}")
+async def get_plugin_current_version(
+    *,
+    plugin_name: str,
+    current_user: models.User = Depends(dep.get_current_active_user),
+    db: Session = Depends(dep.get_db),
+):
+    """
+    Get current version information for a plugin.
+    """
+    try:
+        plugin = crud_plugin.get_plugin_by_name(db, plugin_name)
+        if not plugin:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Plugin '{plugin_name}' not found"
+            )
+        
+        result = {
+            "plugin_name": plugin_name,
+            "current_version": plugin.version,
+            "source": plugin.source,
+            "is_editable": plugin.is_editable
+        }
+        
+        # For official plugins, also provide image URI
+        if plugin.source == "official":
+            from app.common.utils.github_registry_client import GitHubRegistryClient
+            registry = GitHubRegistryClient()
+            result["image_uri"] = registry.get_image_uri(plugin_name, plugin.version or "latest")
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get plugin version: {str(e)}"
         )

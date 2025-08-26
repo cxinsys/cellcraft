@@ -11,7 +11,7 @@ import logging
 from app.common.utils.snakemake_utils import snakemakeProcess
 from app.common.utils.docker_utils import container_manager
 from app.common.utils import plugin_utils
-from app.database.crud.crud_task import start_task, end_task
+from app.database.crud.crud_task import start_task, end_task, record_plugin_image_uri
 
 logger = logging.getLogger('celery.custom')
 
@@ -43,7 +43,30 @@ class MyTask(Task):
         algorithm_id = kwargs.get('algorithm_id')
         plugin_name = kwargs.get('plugin_name')
         task_type = kwargs.get('task_type')
-        start_task(user_id, task_id, workflow_id, start_time, algorithm_id, plugin_name, task_type)
+        
+        # Generate plugin_image_uri if plugin_name is provided
+        plugin_image_uri = None
+        if plugin_name:
+            try:
+                from app.common.utils.plugin_utils import generate_plugin_image_uri
+                from app.database.conn import get_new_engine_and_session
+                from app.database import models
+                
+                # Get plugin source from database
+                db = get_new_engine_and_session()
+                try:
+                    plugin = db.query(models.Plugin).filter_by(name=plugin_name).first()
+                    source = plugin.source if plugin else "local"  # Default to local if not found
+                    version = plugin.version if plugin else None
+                finally:
+                    db.close()
+                
+                plugin_image_uri = generate_plugin_image_uri(plugin_name, source, version)
+                print(f'Generated plugin_image_uri: {plugin_image_uri}')
+            except Exception as e:
+                logger.warning(f'Failed to generate plugin_image_uri for {plugin_name}: {e}')
+        
+        start_task(user_id, task_id, workflow_id, start_time, algorithm_id, plugin_name, task_type, plugin_image_uri)
 
     def on_success(self, retval, task_id: str, args, kwargs):
         end_time = datetime.now()
@@ -255,6 +278,15 @@ def build_plugin_task(self, plugin_name: str = None, user_id: int = None, workfl
             })
             raise RuntimeError(error_message)
 
+        # Record plugin_image_uri for local build
+        try:
+            from app.common.utils.plugin_utils import generate_plugin_image_uri
+            plugin_image_uri = generate_plugin_image_uri(plugin_name, "local")
+            record_plugin_image_uri(task_id, plugin_image_uri, user_id)
+            print(f'Recorded plugin_image_uri: {plugin_image_uri}')
+        except Exception as e:
+            logger.warning(f'Failed to record plugin_image_uri for {plugin_name}: {e}')
+        
         print(f'Plugin Docker image build complete for {plugin_name}')
         return {
             "status": "Success", 
