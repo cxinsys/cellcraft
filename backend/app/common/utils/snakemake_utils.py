@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 
 from app.common.utils.docker_utils import container_manager
+from app.database import models
 
 def get_log_path(snakefile_path: str) -> Path:
     """일관된 로그 파일 경로 반환"""
@@ -113,15 +114,51 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
     try:
         client = docker.from_env()
         
-        # 도커 이미지 존재 여부 확인
-        image_name = f'plugin-{plugin_name.lower()}'
+        # 플러그인 타입에 따라 이미지 이름 결정
+        from app.database.conn import get_new_engine_and_session
+        from app.common.utils.github_registry_client import GitHubRegistryClient
+        
+        db = get_new_engine_and_session()
+        try:
+            plugin = db.query(models.Plugin).filter_by(name=plugin_name).first()
+            
+            if plugin and plugin.source == "official":
+                # Official 플러그인: GitHub Container Registry 이미지 사용
+                registry = GitHubRegistryClient()
+                image_name = registry.get_image_uri(plugin_name.lower(), plugin.version)
+                print(f"Using official plugin image: {image_name}")
+                
+                # 이미지가 로컬에 없으면 Pull 시도
+                try:
+                    client.images.get(image_name)
+                    print(f"Image {image_name} found locally")
+                except docker.errors.ImageNotFound:
+                    print(f"Pulling image {image_name}...")
+                    try:
+                        client.images.pull(image_name)
+                        print(f"Successfully pulled {image_name}")
+                    except docker.errors.APIError as e:
+                        if "not found" in str(e).lower():
+                            # GitHub Registry에서 이미지를 찾을 수 없으면 로컬 빌드로 fallback
+                            print(f"Image not found in registry, falling back to local build")
+                            image_name = f'plugin-{plugin_name.lower()}'
+                        else:
+                            raise e
+            else:
+                # Local 플러그인: 기존 로컬 빌드 이미지 사용
+                image_name = f'plugin-{plugin_name.lower()}'
+                print(f"Using local plugin image: {image_name}")
+        finally:
+            db.close()
+        
+        # 최종 이미지 존재 여부 확인
         try:
             client.images.get(image_name)
         except docker.errors.ImageNotFound:
             return {
                 "returncode": 1,
                 "stdout": "",
-                "stderr": f"Plugin image '{image_name}' not found. Please build the plugin first."
+                "stderr": f"Plugin image '{image_name}' not found. Please build the plugin first or check if the official image is available."
             }
         
         # 작업 디렉토리 설정

@@ -3,8 +3,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import MultipleResultsFound
 from app.database import models
 from app.database.conn import get_new_engine_and_session
+import logging
 
-def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetime, algorithm_id: str = None, plugin_name: str = None, task_type: str = None):
+logger = logging.getLogger(__name__)
+
+def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetime, algorithm_id: str = None, plugin_name: str = None, task_type: str = None, plugin_image_uri: str = None):
     db = get_new_engine_and_session()
     try:
         db_task = models.Task(
@@ -15,7 +18,8 @@ def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetim
             start_time=start_time,
             status='RUNNING',
             plugin_name=plugin_name,
-            task_type=task_type
+            task_type=task_type,
+            plugin_image_uri=plugin_image_uri
         )
         db.add(db_task)
         db.commit()
@@ -56,3 +60,34 @@ def delete_user_task(db: Session, user_id: int, task_id: str):
     db.delete(target_task)
     db.commit()
     return target_task
+
+def record_plugin_image_uri(task_id: str, plugin_image_uri: str, user_id: int = None):
+    """
+    Record plugin image URI for an existing task.
+    
+    Args:
+        task_id: Task ID to update
+        plugin_image_uri: The plugin image URI used for execution
+        user_id: Optional user ID for additional filtering
+    """
+    db = get_new_engine_and_session()
+    try:
+        # Build query filters
+        filters = [models.Task.task_id == task_id]
+        if user_id:
+            filters.append(models.Task.user_id == user_id)
+        
+        task = db.query(models.Task).filter(*filters).first()
+        if task:
+            task.plugin_image_uri = plugin_image_uri
+            db.commit()
+            db.refresh(task)
+            logger.info(f"Updated plugin_image_uri for task {task_id}: {plugin_image_uri}")
+        else:
+            logger.warning(f"Task not found for plugin_image_uri update: {task_id}")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to record plugin_image_uri for task {task_id}: {e}")
+        raise e
+    finally:
+        db.close()

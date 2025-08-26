@@ -2,22 +2,30 @@
   <div class="modal-overlay">
     <div class="modal-container">
       <div class="modal-header">
-        <h2>Plugin Settings</h2>
+        <h2>
+          Plugin Settings
+          <span v-if="readOnly || pluginSource === 'official'" class="read-only-badge">Read-only</span>
+        </h2>
         <button @click="$emit('close')" class="close-button">✕</button>
       </div>
+      <!-- Official 플러그인 알림 메시지 -->
+      <div v-if="pluginSource === 'official'" class="official-notice">
+        <p>This is an official plugin (read-only). You can view the plugin details but cannot modify them.</p>
+      </div>
       <div class="modal-info" v-if="currentStep === 1">
-        <PluginInformation ref="pluginInfoComponent" :newPlugin="plugin" @update-plugin="updatePlugin" />
+        <PluginInformation ref="pluginInfoComponent" :newPlugin="plugin" :readOnly="readOnly || pluginSource === 'official'" @update-plugin="updatePlugin" />
       </div>
       <div class="modal-flow" v-if="currentStep === 2">
-        <PluginFlowchart ref="pluginFlowchartComponent" :newRules="rules" :newDrawflow="drawflow"
+        <PluginFlowchart ref="pluginFlowchartComponent" :newRules="rules" :newDrawflow="drawflow" :pluginType="plugin.pluginType || 'analysis'" :readOnly="readOnly || pluginSource === 'official'"
           @update-rules="updateRules" @update-drawflow="updateDrawflow" />
       </div>
       <div class="modal-val" v-if="currentStep === 3">
-        <PluginValidation @close="close" :plugin="plugin" :rules="rules" :drawflow="drawflow" />
+        <PluginValidation @close="close" :plugin="plugin" :rules="rules" :drawflow="drawflow" :readOnly="readOnly || pluginSource === 'official'" />
       </div>
       <div class="modal-actions">
         <button @click="prevStep" :disabled="currentStep === 1">Prev</button>
         <button @click="nextStep" :disabled="currentStep === 3">Next</button>
+        <button v-if="readOnly || pluginSource === 'official'" @click="$emit('close')" class="close-only-button">Close</button>
       </div>
     </div>
   </div>
@@ -51,6 +59,18 @@ export default {
     editRules: {
       type: Array,
       required: true
+    },
+    readOnly: {
+      type: Boolean,
+      default: false
+    },
+    pluginSource: {
+      type: String,
+      default: 'local'
+    },
+    editPluginType: {
+      type: String,
+      default: 'analysis'
     }
   },
   data() {
@@ -66,6 +86,7 @@ export default {
       plugin: {
         name: this.editName,
         description: this.editDescription,
+        pluginType: this.editPluginType,
         dependencyFiles: this.editDependencies,
         referenceFolders: [],
         packageFiles: []
@@ -283,7 +304,7 @@ export default {
 }
 
 .modal-info {
-  width: 25rem;
+  width: 50rem;
 }
 
 .modal-flow {
@@ -318,5 +339,43 @@ export default {
 
 .modal-actions button:hover:not(:disabled) {
   background-color: #0056b3;
+}
+
+/* 읽기 전용 배지 스타일 */
+.read-only-badge {
+  background: #ff9800;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Official 플러그인 알림 스타일 */
+.official-notice {
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  color: #1565c0;
+}
+
+.official-notice p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* 닫기 전용 버튼 */
+.close-only-button {
+  background-color: #6c757d !important;
+}
+
+.close-only-button:hover {
+  background-color: #5a6268 !important;
 }
 </style>

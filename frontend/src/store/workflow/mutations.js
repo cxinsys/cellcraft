@@ -19,8 +19,6 @@ export default {
   },
   setWorkflowFile(state, file_info) {
     if (state.workflow_info.drawflow.Home.data[file_info.id]) {
-      console.log("setWorkflowFile this node data : " + state.workflow_info.drawflow.Home.data[file_info.id].data);
-      console.log("file : " + file_info.file_name);
       state.workflow_info.drawflow.Home.data[file_info.id].data.file = file_info.file_name;
     } else {
       console.error(`No object found with id: ${file_info.id}`);
@@ -28,7 +26,6 @@ export default {
   },
   shareWorkflowFile(state, id) {
     const node = state.workflow_info.drawflow.Home.data[id];
-    console.log("implement shareWorkflowFile this node : " + node);
 
     if (!node) {
         console.error(`No node found with id: ${id}`);
@@ -42,7 +39,6 @@ export default {
     }
 
     if (!Object.keys(node.outputs).some(outputKey => node.outputs[outputKey].connections.length > 0)) {
-        console.log(`No connections found for node with id: ${id}`);
         return;
     }
 
@@ -59,7 +55,6 @@ export default {
   
           // Check if the current node is of type "Algorithm"
           if (currentNode.name === 'Algorithm') {
-              console.log(`Node with id: ${currentNodeId} is of type 'Algorithm'. Stopping.`);
               return;
           }
   
@@ -70,7 +65,6 @@ export default {
   
                   if (targetNode) {
                       if (targetNode.name === 'Algorithm') {
-                          console.log(`Node with id: ${targetNode.id} is of type 'Algorithm'. Stopping.`);
                           if (!targetNode.data.files) {
                               targetNode.data.files = {};
                           }
@@ -103,7 +97,6 @@ export default {
     }
 
     if (!Object.keys(node.outputs).some(outputKey => node.outputs[outputKey].connections.length > 0)) {
-        console.log(`No connections found for node with id: ${id}`);
         return;
     }
 

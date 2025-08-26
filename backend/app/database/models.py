@@ -1,8 +1,10 @@
-from sqlalchemy import Table, Boolean, Column, ForeignKey, Integer, String, Text, DateTime, UniqueConstraint
+from sqlalchemy import Table, Boolean, Column, ForeignKey, Integer, String, Text, DateTime, UniqueConstraint, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB, JSON, ARRAY
+from sqlalchemy.sql import func
 
 from app.database.conn import Base
+from app.common.enums import PluginType
 
 user_plugin_association = Table(
     'user_plugin_association', Base.metadata,
@@ -64,6 +66,7 @@ class Task(Base):
     algorithm_id = Column(String, nullable=True)  # algorithm_id 필드 추가
     plugin_name = Column(String, nullable=True)  # plugin_name 필드 추가
     task_type = Column(String, nullable=True)  # task_type 필드 추가 (compile, visualization)
+    plugin_image_uri = Column(String, nullable=True)  # Plugin image URI for reproducibility
 
     user = relationship("User", back_populates="tasks")
     workflows = relationship("Workflow", back_populates="tasks")
@@ -76,9 +79,16 @@ class Plugin(Base):
     description = Column(String, nullable=False)
     author = Column(String, nullable=False)
     plugin_path = Column(String, nullable=False)
+    plugin_type = Column(Enum(PluginType), nullable=True)  # "analysis" or "visualization"
     dependencies = Column(JSONB, nullable=True)
     drawflow = Column(JSONB, nullable=False)
     rules = Column(JSONB, nullable=False)
     use_gpu = Column(Boolean, default=False)
+    source = Column(String, default="local", nullable=False)  # "official" or "local"
+    is_editable = Column(Boolean, default=True, nullable=False)  # False for official plugins
+    version = Column(String, nullable=True)  # Plugin version string
+    submodule_path = Column(String, nullable=True)  # Path within submodule for official plugins
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     users = relationship("User", secondary=user_plugin_association, back_populates="plugins")

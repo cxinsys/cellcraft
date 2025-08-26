@@ -3,17 +3,42 @@
     <!-- 플러그인 이름 입력 필드 -->
     <div class="input-group">
       <label class="input-group__label" for="pluginName">Plugin Name</label>
-      <input type="text" id="pluginName" v-model="plugin.name" />
+      <input type="text" id="pluginName" v-model="plugin.name" :readonly="readOnly" />
     </div>
 
     <!-- 플러그인 설명 입력 필드 -->
     <div class="input-group">
       <label class="input-group__label" for="pluginDescription">Plugin Description</label>
-      <textarea id="pluginDescription" v-model="plugin.description" rows="4"></textarea>
+      <textarea id="pluginDescription" v-model="plugin.description" rows="4" :readonly="readOnly"></textarea>
+    </div>
+
+    <!-- 플러그인 타입 선택 -->
+    <div class="input-group" v-if="!readOnly">
+      <label class="input-group__label">Plugin Type</label>
+      <div class="plugin-type-selection">
+        <label class="radio-option">
+          <input type="radio" v-model="plugin.pluginType" value="analysis" />
+          <span class="radio-label">
+            <i class="fas fa-calculator"></i>
+            Analysis Plugin
+          </span>
+          <p class="type-description">For data processing and computational analysis</p>
+          <p class="type-constraints">• Multiple outputs allowed</p>
+        </label>
+        <label class="radio-option">
+          <input type="radio" v-model="plugin.pluginType" value="visualization" />
+          <span class="radio-label">
+            <i class="fas fa-chart-bar"></i>
+            Visualization Plugin
+          </span>
+          <p class="type-description">For data visualization using Plotly</p>
+          <p class="type-constraints">• Must have exactly 1 JSON output per node</p>
+        </label>
+      </div>
     </div>
 
     <!-- 참조 스크립트 폴더 업로드 -->
-    <div class="input-group">
+    <div class="input-group" v-if="!readOnly">
       <label class="input-group__label">Custom Script Folder</label>
       <div class="file-upload">
         <input type="file" id="scriptFolder" webkitdirectory directory @change="handleScriptFolderUpload"
@@ -55,7 +80,8 @@
               {{ file.name }}
             </a>
           </div>
-          <button class="tree-nav__item-remove" type="button" @click="removeReferenceFolder(folder.folderName)">
+          <button v-if="!readOnly" class="tree-nav__item-remove" type="button"
+            @click="removeReferenceFolder(folder.folderName)">
             Remove
           </button>
         </details>
@@ -63,7 +89,7 @@
     </div>
 
     <!-- 로컬 의존성 패키지 파일 업로드 -->
-    <div class="input-group">
+    <div class="input-group" v-if="!readOnly">
       <h3 class="input-group__label">Local Dependency Files</h3>
       <div v-for="(file, index) in plugin.packageFiles" :key="index" class="input-group">
         <div class="file-upload">
@@ -79,7 +105,7 @@
     </div>
 
     <!-- 의존성 파일 타입 선택 드롭다운 -->
-    <div class="input-group">
+    <div class="input-group" v-if="!readOnly">
       <label class="input-group__label" for="dependencyType">Standard Dependency Files</label>
       <select id="dependencyType" v-model="selectedDependencyType" @change="addDependencyType">
         <option value="" disabled>Select a file type</option>
@@ -96,7 +122,7 @@
           <input type="file" :id="file.type" @change="handleFileUpload($event, file.type)" class="file-input" />
           {{ file.fileName || 'Click to upload a file' }}
         </label>
-        <button type="button" @click="removeDependencyFile(file.type)">Remove</button>
+        <button v-if="!readOnly" type="button" @click="removeDependencyFile(file.type)">Remove</button>
       </div>
     </div>
   </div>
@@ -108,6 +134,10 @@ export default {
     newPlugin: {
       type: Object,
       required: true
+    },
+    readOnly: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -115,6 +145,7 @@ export default {
       plugin: {
         name: '',
         description: '',
+        pluginType: 'analysis', // 기본값을 analysis로 설정
         referenceFolders: [],
         dependencyFiles: [],
         packageFiles: [],
@@ -134,6 +165,12 @@ export default {
     'newPlugin.description': {
       handler(newValue) {
         this.plugin.description = newValue;
+      },
+      immediate: true
+    },
+    'newPlugin.pluginType': {
+      handler(newValue) {
+        this.plugin.pluginType = newValue || 'analysis';
       },
       immediate: true
     },
@@ -416,5 +453,135 @@ button {
 
 button:hover {
   background-color: #b10101;
+}
+
+/* 읽기 전용 스타일 */
+input[readonly],
+textarea[readonly] {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* 플러그인 타입 선택 스타일 */
+.plugin-type-selection {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.radio-option {
+  flex: 1;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: block;
+  position: relative;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.radio-option:hover {
+  border-color: #007BFF;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.radio-option input[type="radio"] {
+  display: none;
+}
+
+.radio-option input[type="radio"]:checked+.radio-label {
+  color: #007BFF;
+}
+
+.radio-option input[type="radio"]:checked~.type-description,
+.radio-option input[type="radio"]:checked~.type-constraints {
+  color: #495057;
+}
+
+.radio-option:has(input[type="radio"]:checked) {
+  border-color: #007BFF;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Analysis 플러그인 타입에 특별한 색상 */
+.radio-option:has(input[value="analysis"]:checked) {
+  border-color: #28a745;
+  background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+}
+
+.radio-option:has(input[value="analysis"]:checked) .radio-label {
+  color: #28a745;
+}
+
+.radio-option:has(input[value="analysis"]) .radio-label i {
+  color: #28a745;
+}
+
+/* Visualization 플러그인 타입에 특별한 색상 */
+.radio-option:has(input[value="visualization"]:checked) {
+  border-color: #6f42c1;
+  background: linear-gradient(135deg, #f3e5f5 0%, #e8d4f8 100%);
+  box-shadow: 0 4px 12px rgba(111, 66, 193, 0.2);
+}
+
+.radio-option:has(input[value="visualization"]:checked) .radio-label {
+  color: #6f42c1;
+}
+
+.radio-option:has(input[value="visualization"]) .radio-label i {
+  color: #6f42c1;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+  color: #333;
+}
+
+.radio-label i {
+  font-size: 1.2rem;
+}
+
+.type-description {
+  font-size: 0.95rem;
+  color: #555;
+  margin: 0.5rem 0;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.type-constraints {
+  font-size: 0.85rem;
+  color: #777;
+  margin: 0.5rem 0 0 0;
+  font-style: normal;
+  background-color: rgba(0, 0, 0, 0.03);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border-left: 3px solid #dee2e6;
+}
+
+/* Analysis 플러그인의 제약사항 스타일 */
+.radio-option:has(input[value="analysis"]) .type-constraints {
+  border-left-color: #28a745;
+  background-color: rgba(40, 167, 69, 0.05);
+}
+
+/* Visualization 플러그인의 제약사항 스타일 */
+.radio-option:has(input[value="visualization"]) .type-constraints {
+  border-left-color: #6f42c1;
+  background-color: rgba(111, 66, 193, 0.05);
 }
 </style>

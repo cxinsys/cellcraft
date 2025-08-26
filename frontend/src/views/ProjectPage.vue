@@ -44,8 +44,7 @@
           </div>
         </li>
       </ul>
-      <ul class="toggle__menu" v-bind:class="{ open: R_Mouse_isActive }"
-        :style="{ left: xPosition, top: yPosition }">
+      <ul class="toggle__menu" v-bind:class="{ open: R_Mouse_isActive }" :style="{ left: xPosition, top: yPosition }">
         <li @click="openWorkflow">Open</li>
         <li @click="confirmDelete">Delete</li>
       </ul>
@@ -73,11 +72,36 @@
     </div>
     <div v-if="isSelectModalVisible" class="plugin-select-modal">
       <div class="plugin-select-modal__content">
-        <!-- <span class="close" @click="closeSelectModal">&times;</span> -->
-        <h2>Select a Plugin Template</h2>
+        <div class="modal-header">
+          <h2>Select a Plugin Template</h2>
+          <div class="close-button" @click="closeSelectModal">
+            <img src="@/assets/close.png" alt="Close" />
+          </div>
+        </div>
         <ul>
-          <li class="plugin-item" v-for="plugin in filteredPlugins" :key="plugin.id" @click="selectPlugin(plugin)">
-            {{ plugin.name }}
+          <li class="plugin-item default-option" @click="selectDefault()">
+            <div class="plugin-content">
+              <!-- <img class="plugin-icon" src="@/assets/workflow-template2.png" alt="Default" /> -->
+              <div class="plugin-info">
+                <span class="plugin-name">Default Workflow</span>
+                <span class="plugin-desc">Start with a blank workflow</span>
+              </div>
+            </div>
+            <span class="arrow">→</span>
+          </li>
+          <li class="plugin-item" v-for="plugin in filteredPlugins" :key="plugin.id" @click="selectPlugin(plugin)" :class="plugin.source === 'official' ? 'official-plugin' : 'local-plugin'">
+            <div class="plugin-content">
+              <!-- <img class="plugin-icon" :src="plugin.source === 'official' ? require('@/assets/view_gray.png') : require('@/assets/settings.png')" :alt="plugin.source" /> -->
+              <div class="plugin-info">
+                <div class="plugin-name-row">
+                  <span class="plugin-name">{{ plugin.name }}</span>
+                  <span class="plugin-badge" :class="plugin.source === 'official' ? 'badge-official' : 'badge-local'">
+                    {{ plugin.source === 'official' ? 'OFFICIAL' : 'LOCAL' }}
+                  </span>
+                </div>
+                <span class="plugin-desc">{{ plugin.description || 'Plugin template workflow' }}</span>
+              </div>
+            </div>
             <span class="arrow">→</span>
           </li>
         </ul>
@@ -165,6 +189,12 @@ export default {
       this.$router.push({
         path: "/workflow",
         query: { plugin_id: plugin_id },
+      });
+    },
+    selectDefault() {
+      this.closeSelectModal();
+      this.$router.push({
+        path: "/workflow",
       });
     },
     selectPlugins(plugins) {
@@ -712,46 +742,174 @@ export default {
 
 .plugin-select-modal__content {
   background-color: white;
-  border-radius: 10px;
-  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  padding: 0;
   position: relative;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
-.plugin-select-modal__content h2 {
-  width: 15rem;
-  margin-bottom: 1rem;
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem 1rem 2rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.close-button {
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-button:hover {
+  background-color: #f5f5f5;
+}
+
+.close-button img {
+  width: 1rem;
+  height: 1rem;
+  opacity: 0.7;
 }
 
 .plugin-select-modal__content ul {
   list-style: none;
-  padding: 0;
-}
-
-.plugin-select-modal__content li {
-  padding: 10px;
-  cursor: pointer;
-}
-
-.plugin-select-modal__content li:hover {
-  background-color: #f5f5f5;
+  padding: 1rem 0;
+  margin: 0;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .plugin-item {
   position: relative;
-  padding-right: 1rem;
+  padding: 1rem 2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background-color 0.3s ease;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.plugin-item:last-child {
+  border-bottom: none;
+}
+
+.plugin-item:hover {
+  background-color: #f8f9fa;
+}
+
+.plugin-item.default-option {
+  background-color: #f0f7ff;
+  border-left: 4px solid #2196f3;
+}
+
+.plugin-item.default-option:hover {
+  background-color: #e3f2fd;
+}
+
+.plugin-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.plugin-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-right: 1rem;
+  border-radius: 6px;
+  object-fit: contain;
+  background-color: #f5f5f5;
+  padding: 0.5rem;
+}
+
+.plugin-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.plugin-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.plugin-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.plugin-desc {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.3;
+}
+
+.plugin-badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.badge-official {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #bbdefb;
+}
+
+.badge-local {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.plugin-item.official-plugin {
+  border-left: 3px solid #2196f3;
+}
+
+.plugin-item.local-plugin {
+  border-left: 3px solid #4caf50;
+}
+
+.plugin-item.official-plugin:hover {
+  background-color: #f0f7ff;
+}
+
+.plugin-item.local-plugin:hover {
+  background-color: #f1f8e9;
 }
 
 .plugin-item .arrow {
-  font-size: 1.1rem;
-  position: absolute;
-  right: 10px;
+  font-size: 1.2rem;
+  color: #2196f3;
   opacity: 0;
-  transition: all 0.5s;
+  transition: all 0.3s ease;
+  transform: translateX(-10px);
 }
 
 .plugin-item:hover .arrow {
   opacity: 1;
-  right: 5px;
+  transform: translateX(0);
 }
 
 /* .close {

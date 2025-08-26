@@ -341,6 +341,16 @@ function getBuildLogs(plugin_name) {
   return instance.get(`/routes/plugin/build/logs/${plugin_name}`);
 }
 
+function getPluginVersions(plugin_name) {
+  return instance.get(`/routes/plugin/versions/${plugin_name}`);
+}
+
+function updatePluginVersion(plugin_name, version) {
+  const formData = new FormData();
+  formData.append('version', version);
+  return instance.post(`/routes/plugin/versions/${plugin_name}/update`, formData);
+}
+
 function createTaskEventSource(taskId, callbacks = {}) {
   const eventSource = new EventSource(`${process.env.VUE_APP_BASE_URL}/routes/task/info/${taskId}`);
   
@@ -464,4 +474,6 @@ export {
   getBuildTasks,
   cancelBuildTask,
   getBuildLogs,
+  getPluginVersions,
+  updatePluginVersion,
 };

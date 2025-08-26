@@ -3,11 +3,16 @@ from typing import List,Optional,Any
 from sqlalchemy.orm import Session
 import docker
 from sqlalchemy import asc, desc, or_
+import logging
 
 from app.routes import dep
 from app.database.schemas.admin import Conditions
 from app.database.crud import crud_admin
 from app.database import models
+from app.common.utils.plugin_sync_manager import PluginSyncManager
+from app.common.utils.plugin_version_validator import PluginVersionValidator
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -508,3 +513,153 @@ def install_plugin_dependencies(
     if not success:
         raise HTTPException(status_code=404, detail="Plugin not found")
     return {"message": "Plugin dependencies installed successfully"}
+
+
+# =============================================================================
+# Plugin Synchronization Management API Endpoints
+# =============================================================================
+
+@router.get("/plugins/sync/status")
+def get_plugin_sync_status(
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """Get current plugin synchronization status"""
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    try:
+        sync_manager = PluginSyncManager()
+        status = sync_manager.get_sync_status()
+        return status
+    except Exception as e:
+        logger.error(f"Failed to get sync status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get sync status: {str(e)}")
+
+@router.post("/plugins/sync")
+def sync_plugins_from_repository(
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """Manually trigger plugin synchronization from repository to database"""
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    try:
+        sync_manager = PluginSyncManager()
+        result = sync_manager.sync_plugins_to_database()
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Synchronization failed"))
+            
+    except Exception as e:
+        logger.error(f"Plugin sync failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Synchronization failed: {str(e)}")
+
+@router.get("/plugins/consistency")
+def get_plugin_consistency_report(
+    current_user: models.User = Depends(dep.get_current_active_user),
+    format: str = Query("json", description="Report format: json or text")
+):
+    """Get plugin version consistency report"""
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    try:
+        validator = PluginVersionValidator()
+        
+        if format.lower() == "text":
+            # Return plain text report
+            report = validator.generate_consistency_report()
+            return {"report": report}
+        else:
+            # Return JSON format
+            result = validator.validate_consistency()
+            return result
+            
+    except Exception as e:
+        logger.error(f"Failed to generate consistency report: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
+
+@router.get("/plugins/branches")
+def get_available_plugin_branches(
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """Get list of available plugin repository branches"""
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    try:
+        sync_manager = PluginSyncManager()
+        branches = sync_manager.get_available_branches()
+        current_branch = sync_manager.get_current_branch()
+        
+        return {
+            "current_branch": current_branch,
+            "available_branches": branches,
+            "total_branches": len(branches)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get available branches: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get branches: {str(e)}")
+
+@router.post("/plugins/branch/{branch}")
+def switch_plugin_branch(
+    branch: str,
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """Switch plugin repository branch and synchronize database"""
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    try:
+        sync_manager = PluginSyncManager()
+        
+        # Switch branch
+        success = sync_manager.switch_branch(branch)
+        if not success:
+            raise HTTPException(status_code=400, detail=f"Failed to switch to branch: {branch}")
+        
+        # Synchronize database
+        sync_result = sync_manager.sync_plugins_to_database()
+        
+        if sync_result["success"]:
+            return {
+                "message": f"Successfully switched to branch {branch} and synchronized database",
+                "branch": branch,
+                "version": sync_result.get("version"),
+                "sync_result": sync_result
+            }
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Branch switched but sync failed: {sync_result.get('error')}"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to switch branch and sync: {e}")
+        raise HTTPException(status_code=500, detail=f"Operation failed: {str(e)}")
+
+@router.get("/plugins/consistency/quick")
+def quick_consistency_check(
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """Quick consistency check (returns boolean only)"""
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+    
+    try:
+        validator = PluginVersionValidator()
+        consistent = validator.quick_check()
+        
+        return {
+            "consistent": consistent,
+            "message": "All components are in sync" if consistent else "Inconsistencies detected"
+        }
+        
+    except Exception as e:
+        logger.error(f"Quick consistency check failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Check failed: {str(e)}")

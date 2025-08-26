@@ -4,72 +4,122 @@
       <div class="first-line__left">
         <div class="header__text">
           Plugins
-          <div class="header__desc">
+          <!-- <div class="header__desc">
             Plugin for data analysis algorithm extensions
-          </div>
+          </div> -->
         </div>
       </div>
       <div class="first-line__right">
-        <div class="add__button" @click="addPluginExtension">
-          <img class="add__button--icon" src="@/assets/add_circle.png" />
-          <h1>Add Plugin</h1>
-        </div>
-        <div class="monitor__button" @click="toggleBuildMonitor">
-          <img class="monitor__button--icon" src="@/assets/control_jobs.png" />
-          <h1>Build Monitor</h1>
-        </div>
+        <button type="button" class="add__button" @click="addPluginExtension">
+          <img class="add__button--icon" src="@/assets/add_circle.png" alt="Add Plugin" />
+          <span>Add Plugin</span>
+        </button>
+        <button type="button" class="monitor__button" @click="toggleBuildMonitor">
+          <img class="monitor__button--icon" src="@/assets/control_jobs.png" alt="Build Monitor" />
+          <span>Build Monitor</span>
+        </button>
         <!-- <div class="build-all__button" @click="buildAllPlugins">
           <img class="build-all__button--icon" src="@/assets/add_circle.png" />
           <h1>Build All</h1>
         </div> -->
         <div class="search">
-          <input type="text" v-model="searchTerm" placeholder="Search titles..." />
+          <label for="plugin-search" class="visually-hidden">Search plugins</label>
+          <input type="text" id="plugin-search" v-model="searchTerm" placeholder="Search plugins..." />
         </div>
       </div>
     </div>
     <PluginExtention v-if="showPluginExtension" @close="closePluginExtension" :editName="selectedPlugin.name"
       :editDescription="selectedPlugin.description" :editDependencies="selectedPlugin.dependencies"
-      :editDrawflow="selectedPlugin.drawflow" :editRules="selectedPlugin.rules" />
+      :editDrawflow="selectedPlugin.drawflow" :editRules="selectedPlugin.rules" :readOnly="selectedPlugin.readOnly"
+      :pluginSource="selectedPlugin.source" />
     <BuildMonitor v-if="showBuildMonitor" :show_monitor="showBuildMonitor" :buildTaskList="buildTaskList"
       @cancel-task="cancelBuildTask" @show-logs="showBuildTaskLogs" @close="toggleBuildMonitor" />
+    <!-- Enhanced Plugin Category Tabs -->
+    <PluginCategoryTabs :plugins="plugins" @filters-changed="handleFiltersChanged" />
+
     <table>
       <tbody>
-        <tr v-for="plugin in filteredPlugins" :key="plugin.id">
+        <tr v-for="plugin in filteredAndTypedPlugins" :key="plugin.id">
           <td>
             <div class="plugin-container">
               <div class="title-container">
-                {{ plugin.name }}
+                {{ getDisplayName(plugin) }}
+                <!-- Official/Local 배지 추가 -->
+                <span class="plugin-badge" :class="plugin.source === 'official' ? 'badge-official' : 'badge-local'"
+                  :title="getPluginSourceTooltip(plugin)">
+                  {{ plugin.source === 'official' ? 'OFFICIAL' : 'LOCAL' }}
+                </span>
+                <!-- Version badge (only for official plugins) -->
+                <span v-if="plugin.source === 'official'" class="version-badge version-official"
+                  :title="getVersionTooltip(plugin)">
+                  {{ getVersionDisplay(plugin) }}
+                </span>
+                <!-- Duplicate plugin indicator -->
+                <span v-if="hasDuplicateName(plugin)" class="duplicate-indicator"
+                  :title="`Multiple versions of '${plugin.name}' are available`">
+                  <img src="@/assets/view_gray.png" alt="Multiple versions" class="duplicate-icon" />
+                </span>
+                <!-- GPU indicator -->
+                <span v-if="plugin.use_gpu" class="gpu-indicator"
+                  :title="'This plugin requires GPU acceleration'">
+                  <span class="gpu-text">GPU</span>
+                </span>
               </div>
               <div class="description-container">
                 {{ plugin.description }}
               </div>
+              
+              <!-- Removed version selector - moved to admin page -->
+              
               <div class="lastUpdated-container">
                 Last Updated: {{ plugin.updated_at.split('T')[0] }}
               </div>
             </div>
             <div class="option-container">
-              <div class="setting" @click="editPluginExtension(plugin)">
-                <img class="setting__button--icon" src="@/assets/settings.png" />
+              <!-- 첫 번째 Row: 설정 버튼과 스위치 -->
+              <div class="controls-row">
+                <!-- Official 플러그인은 설정 버튼 숨김 -->
+                <button v-if="plugin.source !== 'official'" type="button" class="setting"
+                  @click="editPluginExtension(plugin)" :aria-label="`Edit ${plugin.name} plugin settings`">
+                  <img class="setting__button--icon" src="@/assets/settings.png" alt="Settings" />
+                </button>
+                <!-- Official 플러그인은 읽기 전용 버튼 표시 -->
+                <button v-else type="button" class="setting readonly" @click="viewPluginDetails(plugin)"
+                  :aria-label="`View ${plugin.name} plugin details (read-only)`">
+                  <img class="setting__button--icon" src="@/assets/view_gray.png" alt="View Details" />
+                </button>
+                <label class="switch">
+                  <input v-model="plugin.checked" type="checkbox" @change="handlePluginAssociate(plugin)"
+                    :disabled="isCheckboxDisabled" :aria-label="`Enable or disable ${getDisplayName(plugin)} plugin`" />
+                  <span class="slider round"></span>
+                </label>
               </div>
-              <button class="build-button" @click="handleBuildPlugin(plugin)" :disabled="plugin.imageExists"
-                :class="{ 'building': plugin.building, 'image-exists': plugin.imageExists }">
-                <div v-if="plugin.building" class="building-content">
-                  <div class="loading-spinner"></div>
-                  <span>View Logs</span>
+
+              <!-- 두 번째 Row: 빌드 버튼 -->
+              <div class="build-row">
+                <!-- Official 플러그인은 빌드 버튼 숨김 -->
+                <button v-if="plugin.source !== 'official'" class="build-button" @click="handleBuildPlugin(plugin)"
+                  :disabled="plugin.imageExists"
+                  :class="{ 'building': plugin.building, 'image-exists': plugin.imageExists }">
+                  <div v-if="plugin.building" class="building-content">
+                    <div class="loading-spinner"></div>
+                    <span>View Logs</span>
+                  </div>
+                  <span v-else-if="plugin.imageExists">Built</span>
+                  <span v-else>Build</span>
+                </button>
+                <!-- Official 플러그인은 Pre-built 표시 -->
+                <div v-else class="official-status">
+                  <span class="pre-built">Pre-built</span>
                 </div>
-                <span v-else-if="plugin.imageExists">Built</span>
-                <span v-else>Build</span>
-              </button>
-              <label class="switch">
-                <input v-model="plugin.checked" type="checkbox" @change="handlePluginAssociate(plugin)"
-                  :disabled="isCheckboxDisabled" />
-                <span class="slider round"></span>
-              </label>
+              </div>
             </div>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Removed version update modal - moved to admin page -->
 
     <!-- 빌드 로그 모달 -->
     <div v-if="showLogsModal" class="logs-modal-overlay" @click.self="closeLogsModal">
@@ -124,11 +174,13 @@
 import { getUser, getPlugins, associatePlugin, dissociatePlugin, buildPluginDocker, checkPluginImage, getBuildStatus, getBuildTasks, cancelBuildTask, getBuildLogs } from "@/api/index";
 import PluginExtention from "@/components/PluginExtention.vue";
 import BuildMonitor from "@/components/pluginComponents/BuildMonitor.vue";
+import PluginCategoryTabs from "@/components/pluginComponents/PluginCategoryTabs.vue";
 
 export default {
   components: {
     PluginExtention,
     BuildMonitor,
+    PluginCategoryTabs,
   },
   data() {
     return {
@@ -137,6 +189,13 @@ export default {
       buildTaskList: [],
       isCheckboxDisabled: false,
       searchTerm: "",
+      filterType: "all", // Legacy filter type for backward compatibility
+      // Enhanced filtering
+      pluginFilters: {
+        mainCategory: 'all',
+        source: 'all',
+        resource: 'all'
+      },
       plugins: [
         // {
         //   id: 1,
@@ -168,17 +227,34 @@ export default {
       selectedBuildLogs: null,
       selectedPluginName: "",
       logsLoading: false,
+      // Error and loading states
+      isLoadingPlugins: false,
+      pluginError: null,
+      // Network status tracking
+      isOffline: false,
+      retryAttempts: 0,
+      maxRetryAttempts: 3
     };
   },
   async mounted() {
+    // Check network status
+    this.isOffline = !navigator.onLine;
+    window.addEventListener('online', this.handleOnline);
+    window.addEventListener('offline', this.handleOffline);
+    
+    // Load plugins data
     try {
       await this.getUserAssociatePlugins();
     } catch (error) {
-      console.error(error);
+      console.error('Failed to load plugins on mount:', error);
+      this.handleLoadingError(error);
     }
   },
   beforeDestroy() {
-    // 컴포넌트가 파괴될 때 모니터링 중지
+    // Clean up event listeners
+    window.removeEventListener('online', this.handleOnline);
+    window.removeEventListener('offline', this.handleOffline);
+    // Stop build task monitoring
     this.stopBuildTaskMonitoring();
   },
   computed: {
@@ -187,8 +263,202 @@ export default {
         plugin.name.toLowerCase().includes(this.searchTerm.toLowerCase())
       );
     },
+    filteredAndTypedPlugins() {
+      let filtered = this.filteredPlugins;
+
+      // Apply enhanced filtering from PluginCategoryTabs
+      if (this.pluginFilters.mainCategory !== 'all') {
+        filtered = filtered.filter(plugin => {
+          const category = this.getPluginCategory(plugin);
+          return category === this.pluginFilters.mainCategory;
+        });
+      }
+
+      // Apply source filtering
+      if (this.pluginFilters.source !== 'all') {
+        filtered = filtered.filter(plugin => {
+          const source = plugin.source || 'local';
+          return source === this.pluginFilters.source;
+        });
+      }
+
+      // Apply resource filtering
+      if (this.pluginFilters.resource !== 'all') {
+        filtered = filtered.filter(plugin => {
+          const useGpu = plugin.use_gpu || false;
+          if (this.pluginFilters.resource === 'gpu') return useGpu;
+          if (this.pluginFilters.resource === 'cpu') return !useGpu;
+          return true;
+        });
+      }
+
+      // Legacy filter type support for backward compatibility
+      if (this.filterType !== 'all') {
+        if (this.filterType === 'official') {
+          filtered = filtered.filter(plugin => plugin.source === 'official');
+        } else if (this.filterType === 'local') {
+          filtered = filtered.filter(plugin => plugin.source === 'local' || !plugin.source);
+        }
+      }
+
+      // Sort plugins to show official versions first when there are duplicates
+      return filtered.sort((a, b) => {
+        // If same name, prioritize official over local
+        if (a.name === b.name) {
+          if (a.source === 'official' && b.source !== 'official') return -1;
+          if (b.source === 'official' && a.source !== 'official') return 1;
+        }
+        // Otherwise maintain alphabetical order by name
+        return a.name.localeCompare(b.name);
+      });
+    },
+
+    // Plugin statistics for better understanding
+    pluginStatistics() {
+      const stats = {
+        total: this.plugins.length,
+        official: this.plugins.filter(p => p.source === 'official').length,
+        local: this.plugins.filter(p => p.source === 'local' || !p.source).length,
+        duplicates: 0,
+        duplicateNames: []
+      };
+
+      const nameGroups = this.plugins.reduce((acc, plugin) => {
+        acc[plugin.name] = (acc[plugin.name] || 0) + 1;
+        return acc;
+      }, {});
+
+      stats.duplicateNames = Object.keys(nameGroups).filter(name => nameGroups[name] > 1);
+      stats.duplicates = stats.duplicateNames.length;
+
+      return stats;
+    },
+  },
+  watch: {
+    plugins: {
+      handler(newPlugins) {
+        if (newPlugins.length > 0) {
+          const stats = this.pluginStatistics;
+          console.log('Plugin Statistics:', stats);
+
+          if (stats.duplicates > 0) {
+            console.log(`Found ${stats.duplicates} plugin names with multiple versions:`, stats.duplicateNames);
+
+            stats.duplicateNames.forEach(name => {
+              const duplicates = newPlugins.filter(p => p.name === name);
+              console.log(`- "${name}":`, duplicates.map(d => `${d.source} (ID: ${d.id})`).join(', '));
+            });
+          }
+          
+        }
+      },
+      immediate: true
+    }
   },
   methods: {
+    // Enhanced filtering methods
+    handleFiltersChanged(filters) {
+      this.pluginFilters = { ...filters };
+    },
+
+
+    // Plugin display name and duplicate handling methods
+    getDisplayName(plugin) {
+      // const hasDuplicates = this.hasDuplicateName(plugin);
+      // if (hasDuplicates) {
+      //   return `${plugin.name} (${plugin.source === 'official' ? 'Official' : 'Local'})`;
+      // }
+      return plugin.name;
+    },
+
+    hasDuplicateName(plugin) {
+      const pluginsWithSameName = this.plugins.filter(p => p.name === plugin.name);
+      return pluginsWithSameName.length > 1;
+    },
+
+    getPluginSourceTooltip(plugin) {
+      const hasDuplicates = this.hasDuplicateName(plugin);
+      if (hasDuplicates) {
+        const otherSources = this.plugins
+          .filter(p => p.name === plugin.name && p.id !== plugin.id)
+          .map(p => p.source === 'official' ? 'Official' : 'Local')
+          .join(', ');
+        return `This is the ${plugin.source === 'official' ? 'Official' : 'Local'} version. Also available: ${otherSources}`;
+      }
+      return plugin.source === 'official' ? 'Official CellCraft plugin' : 'User-created local plugin';
+    },
+
+    getVersionDisplay(plugin) {
+      // This method is now only called for official plugins
+      const currentVersion = plugin.current_version || plugin.version;
+      
+      if (currentVersion && currentVersion !== 'latest') {
+        // If it looks like a semantic version (starts with digit), add 'v' prefix
+        if (/^\d/.test(currentVersion)) {
+          return `v${currentVersion}`;
+        }
+        // For other tag formats, show as-is
+        return currentVersion;
+      }
+      
+      // Fallback to 'latest' if no specific version is available
+      return 'latest';
+    },
+
+    getVersionTooltip(plugin) {
+      // This method is now only called for official plugins
+      const currentVersion = plugin.current_version || plugin.version;
+      const availableVersions = plugin.available_versions || [];
+      
+      if (currentVersion && currentVersion !== 'latest') {
+        let tooltip = `Current version: ${currentVersion}`;
+        if (availableVersions.length > 1) {
+          const otherVersions = availableVersions.filter(v => v !== currentVersion).slice(0, 3);
+          if (otherVersions.length > 0) {
+            tooltip += `\nOther versions available: ${otherVersions.join(', ')}`;
+            if (availableVersions.length > 4) {
+              tooltip += ` and ${availableVersions.length - 4} more...`;
+            }
+          }
+        }
+        return tooltip;
+      }
+      
+      if (availableVersions.length > 0) {
+        return `Using latest version. Available versions: ${availableVersions.slice(0, 5).join(', ')}${availableVersions.length > 5 ? '...' : ''}`;
+      }
+      
+      return 'Using the latest available version';
+    },
+
+    getPluginCategory(plugin) {
+      // First check plugin_type field from backend (ANALYSIS/VISUALIZATION)
+      if (plugin.plugin_type) {
+        const type = plugin.plugin_type.toLowerCase();
+        if (type === 'analysis' || type === 'algorithm') {
+          return 'algorithm';
+        } else if (type === 'visualization') {
+          return 'visualization';
+        }
+      }
+
+      // Legacy support: check category field
+      if (plugin.category) {
+        return plugin.category;
+      }
+
+      // Fallback: analyze plugin name/description for categorization
+      const name = plugin.name.toLowerCase();
+      const desc = (plugin.description || '').toLowerCase();
+
+      const visualizationKeywords = ['plot', 'chart', 'graph', 'visual', 'heatmap', 'scatter'];
+      const isVisualization = visualizationKeywords.some(keyword =>
+        name.includes(keyword) || desc.includes(keyword)
+      );
+
+      return isVisualization ? 'visualization' : 'algorithm';
+    },
+
     async closePluginExtension(buildInfo) {
       this.showPluginExtension = false;
 
@@ -242,13 +512,20 @@ export default {
       this.selectedPlugin = plugin;
       this.showPluginExtension = true;
     },
+    viewPluginDetails(plugin) {
+      // Official 플러그인은 읽기 전용 모드로 표시
+      this.selectedPlugin = {
+        ...plugin,
+        readOnly: true // 읽기 전용 플래그 추가
+      };
+      this.showPluginExtension = true;
+    },
     async getUserAssociatePlugins() {
       try {
         const profile = await getUser();
         this.profile = profile.data;
 
         const plugins = await getPlugins();
-        console.log(plugins.data.plugins);
         const currentUser = this.profile.username;
 
         this.plugins = plugins.data.plugins.map(plugin => {
@@ -263,6 +540,8 @@ export default {
             imageExists: false,
             buildTaskId: buildInfo.task_id || null,
             buildStatus: buildInfo.status || null,
+            // Add version information for official plugins
+            current_version: plugin.version || plugin.current_version || 'latest',
           };
         });
 
@@ -335,7 +614,7 @@ export default {
         this.startBuildMonitoring(plugin);
 
         console.log('Build started:', result.data);
-        alert(`Plugin ${plugin.name} build started!`);
+        this.showSuccessNotification(`Plugin ${plugin.name} build started!`, 'Build Started');
       } catch (error) {
         console.error(`Error starting build for plugin ${plugin.name}:`, error);
         plugin.building = false;
@@ -349,7 +628,7 @@ export default {
             errorMessage += `: ${error.response.data.detail.message}`;
           }
         }
-        alert(errorMessage);
+        this.showErrorNotification(errorMessage, 'Build Failed');
       }
     },
     async startBuildMonitoring(plugin) {
@@ -559,17 +838,20 @@ export default {
       }
     },
     async cancelBuildTask(taskId) {
-      if (!confirm('정말로 이 빌드 작업을 취소하시겠습니까?')) {
+      if (!confirm('Are you sure you want to cancel this build task?')) {
         return;
       }
 
       try {
         await cancelBuildTask(taskId);
-        alert('빌드 작업이 취소되었습니다.');
+        this.showSuccessNotification('Build task has been cancelled.', 'Task Cancelled');
         await this.fetchBuildTasks();
       } catch (error) {
         console.error('Failed to cancel build task:', error);
-        alert('빌드 작업 취소에 실패했습니다.');
+        this.showErrorNotification(
+          `Failed to cancel build task: ${this.getErrorMessage(error)}`,
+          'Cancellation Failed'
+        );
       }
     },
     async showBuildTaskLogs(taskId) {
@@ -585,11 +867,11 @@ export default {
         const pluginsToBuild = this.plugins.filter(plugin => !plugin.building && !plugin.imageExists);
 
         if (pluginsToBuild.length === 0) {
-          alert('빌드할 플러그인이 없습니다. 모든 플러그인이 이미 빌드되었거나 빌드 중입니다.');
+          this.showWarningNotification('No plugins need to be built. All plugins are already built or currently building.', 'Build Status');
           return;
         }
 
-        if (!confirm(`${pluginsToBuild.length}개의 플러그인을 빌드하시겠습니까?`)) {
+        if (!confirm(`Build ${pluginsToBuild.length} plugin(s)?`)) {
           return;
         }
 
@@ -621,14 +903,110 @@ export default {
         const failed = results.filter(r => !r.success).length;
 
         if (failed === 0) {
-          alert(`모든 플러그인(${successful}개)이 성공적으로 빌드되었습니다!`);
+          this.showSuccessNotification(`All ${successful} plugin(s) were built successfully!`, 'Build Complete');
         } else {
-          alert(`${successful}개 플러그인은 성공, ${failed}개 플러그인은 실패했습니다.`);
+          this.showWarningNotification(`${successful} plugin(s) built successfully, ${failed} plugin(s) failed.`, 'Build Results');
         }
       } catch (error) {
         console.error('Error building all plugins:', error);
-        alert('플러그인 빌드 중 오류가 발생했습니다.');
+        this.showErrorNotification('An error occurred while building plugins.', 'Build Error');
       }
+    },
+
+
+    // Error handling methods
+    handleLoadingError(error) {
+      this.pluginError = {
+        message: this.getErrorMessage(error),
+        canRetry: this.canRetryError(error),
+        timestamp: new Date()
+      };
+    },
+
+    getErrorMessage(error) {
+      if (error.response) {
+        // API error response
+        if (error.response.data?.detail) {
+          return typeof error.response.data.detail === 'string' 
+            ? error.response.data.detail 
+            : error.response.data.detail.message || 'Unknown API error';
+        }
+        if (error.response.status === 404) {
+          return 'Service not found. Please check if the server is running.';
+        }
+        if (error.response.status === 503) {
+          return 'Service temporarily unavailable. Please try again later.';
+        }
+        if (error.response.status >= 500) {
+          return 'Server error occurred. Please try again later.';
+        }
+        return `Request failed with status ${error.response.status}`;
+      }
+      
+      if (error.request) {
+        // Network error
+        return 'Network error. Please check your internet connection.';
+      }
+      
+      return error.message || 'An unexpected error occurred';
+    },
+
+    canRetryError(error) {
+      if (error.response) {
+        const status = error.response.status;
+        // Don't retry client errors (4xx) except 408, 429
+        if (status >= 400 && status < 500) {
+          return status === 408 || status === 429;
+        }
+        // Retry server errors (5xx) and timeout
+        return status >= 500 || status === 408;
+      }
+      
+      // Retry network errors
+      return !!error.request;
+    },
+
+
+    // Network status handlers
+    handleOnline() {
+      this.isOffline = false;
+      console.log('Connection restored');
+      
+      // Optionally reload plugins when connection is restored
+      if (this.pluginError) {
+        this.getUserAssociatePlugins().catch(error => {
+          console.error('Failed to reload plugins after connection restored:', error);
+        });
+      }
+    },
+
+    handleOffline() {
+      this.isOffline = true;
+      console.log('Connection lost');
+      
+      this.showErrorNotification(
+        'Internet connection lost. Some features may not work properly.',
+        'Network Status'
+      );
+    },
+
+    // User notification methods
+    showSuccessNotification(message, title = 'Success') {
+      // For now using browser alert - can be replaced with a toast library
+      console.log(`SUCCESS - ${title}: ${message}`);
+      alert(`${title}: ${message}`);
+    },
+
+    showErrorNotification(message, title = 'Error') {
+      // For now using browser alert - can be replaced with a toast library
+      console.error(`ERROR - ${title}: ${message}`);
+      alert(`${title}: ${message}`);
+    },
+
+    showWarningNotification(message, title = 'Warning') {
+      // For now using browser alert - can be replaced with a toast library
+      console.warn(`WARNING - ${title}: ${message}`);
+      alert(`${title}: ${message}`);
     },
   },
 };
@@ -804,24 +1182,35 @@ button:disabled {
 }
 
 .setting {
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background-color: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.setting:hover {
+  background-color: #e8e8e8;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
 }
 
 .setting__button--icon {
-  width: 2rem;
-  height: 2rem;
+  width: 1.5rem;
+  height: 1.5rem;
   object-fit: contain;
-  opacity: 1;
+  opacity: 0.8;
+  transition: all 0.3s ease;
 }
 
-.setting__button--icon:hover {
-  /* 톱니바퀴 이미지 마우스 올렸을 때, 1.1배 커지고 rotate 애니메이션 */
-  transition: 0.5s;
+.setting:hover .setting__button--icon {
+  opacity: 1;
   transform: scale(1.1) rotate(90deg);
 }
 
@@ -868,7 +1257,7 @@ button:disabled {
 }
 
 .plugin-container {
-  width: calc(100% - 8rem);
+  width: calc(100% - 10rem);
 }
 
 .title-container {
@@ -876,8 +1265,10 @@ button:disabled {
   font-size: 1.4rem;
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   font-weight: 600;
   margin-top: 5px;
+  gap: 0.5rem;
 }
 
 .description-container {
@@ -898,31 +1289,51 @@ button:disabled {
 }
 
 .option-container {
-  width: 8rem;
+  width: 10rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 0.5rem;
+}
+
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 8rem;
+}
+
+.build-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 8rem;
 }
 
 .build-button {
-  padding: 8px 16px;
-  margin: 8px 0;
+  padding: 0.75rem 1rem;
+  margin: 0;
   border: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 500;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   background-color: #2196f3;
   color: white;
-  min-width: 80px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
 }
 
 .build-button:hover:not(:disabled) {
   background-color: #1976d2;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
 }
 
 .build-button:disabled {
@@ -933,15 +1344,19 @@ button:disabled {
 .build-button.building {
   background-color: #ff9800;
   cursor: pointer;
+  box-shadow: 0 2px 4px rgba(255, 152, 0, 0.2);
 }
 
 .build-button.building:hover {
   background-color: #f57c00;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
 }
 
 .build-button.image-exists {
   background-color: #4caf50;
   cursor: not-allowed;
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.2);
 }
 
 .building-content {
@@ -973,9 +1388,9 @@ button:disabled {
 .switch {
   position: relative;
   display: inline-block;
-  width: 60px;
-  height: 34px;
-  margin-top: 1rem;
+  width: 3.5rem;
+  height: 2rem;
+  margin-top: 0;
 }
 
 .switch input {
@@ -991,21 +1406,26 @@ button:disabled {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #ccc;
+  background-color: #e0e0e0;
   -webkit-transition: 0.4s;
   transition: 0.4s;
+  border: 1px solid #d0d0d0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .slider:before {
   position: absolute;
   content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
+  height: 1.4rem;
+  width: 1.4rem;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
   background-color: white;
   -webkit-transition: 0.4s;
   transition: 0.4s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 input:checked+.slider.w-color {
@@ -1026,17 +1446,19 @@ input:checked+.slider.icon {
 
 input:checked+.slider {
   background-color: #2196f3;
+  border-color: #1976d2;
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
 }
 
 input:checked+.slider:before {
-  -webkit-transform: translateX(26px);
-  -ms-transform: translateX(26px);
-  transform: translateX(26px);
+  -webkit-transform: translateX(1.4rem) translateY(-50%);
+  -ms-transform: translateX(1.4rem) translateY(-50%);
+  transform: translateX(1.4rem) translateY(-50%);
 }
 
 /* Rounded sliders */
 .slider.round {
-  border-radius: 34px;
+  border-radius: 1rem;
 }
 
 .slider.round:before {
@@ -1316,5 +1738,220 @@ input:checked+.slider:before {
 
 .log-file-content::-webkit-scrollbar-thumb:hover {
   background: #5a6c7d;
+}
+
+/* Plugin category tabs are now handled by PluginCategoryTabs component */
+
+/* 플러그인 배지 스타일 */
+.plugin-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  cursor: help;
+  white-space: nowrap;
+}
+
+.badge-official {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #bbdefb;
+  box-shadow: 0 1px 3px rgba(21, 101, 192, 0.1);
+}
+
+.badge-official:hover {
+  background: #d0e8fc;
+  box-shadow: 0 2px 6px rgba(21, 101, 192, 0.2);
+  transform: translateY(-1px);
+}
+
+.badge-local {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+  box-shadow: 0 1px 3px rgba(46, 125, 50, 0.1);
+}
+
+.badge-local:hover {
+  background: #dcedc8;
+  box-shadow: 0 2px 6px rgba(46, 125, 50, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Version badge styles */
+.version-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+  cursor: help;
+  white-space: nowrap;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.version-official {
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 1px 2px rgba(102, 102, 102, 0.1);
+}
+
+.version-official:hover {
+  background: #eeeeee;
+  color: #555;
+  box-shadow: 0 2px 4px rgba(102, 102, 102, 0.15);
+  transform: translateY(-1px);
+}
+
+
+/* Duplicate plugin indicator styles */
+.duplicate-indicator {
+  margin-left: 0.5rem;
+  padding: 0.25rem;
+  border-radius: 50%;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  cursor: help;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.duplicate-indicator:hover {
+  background: #ffeb3b;
+  border-color: #fdd835;
+  transform: scale(1.1);
+}
+
+.duplicate-icon {
+  width: 12px;
+  height: 12px;
+  opacity: 0.7;
+  filter: sepia(100%) saturate(200%) hue-rotate(30deg);
+}
+
+.duplicate-indicator:hover .duplicate-icon {
+  opacity: 1;
+}
+
+/* GPU indicator styles */
+.gpu-indicator {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff9800 0%, #ff6f00 100%);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: help;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.gpu-indicator::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, 
+    transparent 30%, 
+    rgba(255, 255, 255, 0.3) 50%, 
+    transparent 70%);
+  transform: rotate(45deg);
+  transition: all 0.6s;
+  opacity: 0;
+}
+
+.gpu-indicator:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(255, 152, 0, 0.4);
+}
+
+.gpu-indicator:hover::before {
+  animation: shimmer 0.6s ease;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+.gpu-text {
+  position: relative;
+  z-index: 1;
+}
+
+/* 읽기 전용 설정 버튼 스타일 */
+.setting.readonly {
+  background-color: #e8f4fd;
+  border-color: #bbdefb;
+}
+
+.setting.readonly:hover {
+  background-color: #d6ebfa;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(21, 101, 192, 0.15);
+}
+
+.setting.readonly:hover .setting__button--icon {
+  transform: scale(1.1);
+  transition: 0.3s;
+}
+
+/* Official 플러그인 상태 스타일 */
+.official-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+
+.pre-built {
+  padding: 0.75rem 1rem;
+  background: #f0f7ff;
+  color: #1565c0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid #bbdefb;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(21, 101, 192, 0.1);
+}
+
+
+/* Accessibility helpers */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 </style>

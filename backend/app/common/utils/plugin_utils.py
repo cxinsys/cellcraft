@@ -6,11 +6,316 @@ import yaml
 import shutil
 import numpy as np
 import time
+import platform
 from fastapi import HTTPException
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import docker
 from datetime import datetime
+
+# Plugin directory structure constants
+OFFICIAL_PLUGINS_DIR = "./plugin/official"
+LOCAL_PLUGINS_DIR = "./plugin/local"
+BUILD_LOGS_DIR = "./plugin/build_logs"
+
+# Platform detection and Docker build utilities
+def detect_target_platform():
+    """
+    시스템 아키텍처를 자동 감지하여 Docker 플랫폼 문자열 반환
+    
+    Returns:
+        str: Docker 플랫폼 문자열 (예: "linux/amd64", "linux/arm64")
+    """
+    machine = platform.machine().lower()
+    system = platform.system().lower()
+    
+    # 아키텍처 매핑 테이블
+    arch_mapping = {
+        'x86_64': 'amd64',
+        'amd64': 'amd64',
+        'aarch64': 'arm64',
+        'arm64': 'arm64',
+        'armv7l': 'arm/v7',
+        'armv6l': 'arm/v6'
+    }
+    
+    # 시스템이 Linux가 아닌 경우 기본값 반환
+    if system != 'linux':
+        system = 'linux'  # Docker 컨테이너는 Linux 기반
+    
+    arch = arch_mapping.get(machine, 'amd64')  # 알 수 없는 아키텍처는 amd64 기본값
+    return f"{system}/{arch}"
+
+def detect_platform_via_docker(client):
+    """
+    Docker 데몬에서 플랫폼 정보 추출
+    
+    Args:
+        client: Docker 클라이언트 객체
+        
+    Returns:
+        str: Docker 플랫폼 문자열, 실패 시 "linux/amd64"
+    """
+    try:
+        info = client.info()
+        architecture = info.get('Architecture', 'x86_64')
+        os_type = info.get('OSType', 'linux').lower()
+        
+        arch_map = {
+            'x86_64': 'amd64',
+            'aarch64': 'arm64',
+            'arm64': 'arm64'
+        }
+        
+        docker_arch = arch_map.get(architecture, 'amd64')
+        return f"{os_type}/{docker_arch}"
+    except Exception:
+        return "linux/amd64"  # fallback
+
+def get_target_platform(client=None):
+    """
+    우선순위에 따른 플랫폼 감지
+    
+    우선순위:
+    1. 환경변수 DOCKER_DEFAULT_PLATFORM
+    2. Docker 데몬 정보 
+    3. Python 시스템 정보
+    
+    Args:
+        client: Docker 클라이언트 객체 (선택사항)
+        
+    Returns:
+        str: 감지된 Docker 플랫폼 문자열
+    """
+    # 1순위: 환경변수 직접 지정
+    if env_platform := os.environ.get('DOCKER_DEFAULT_PLATFORM'):
+        return env_platform
+    
+    # 2순위: Docker 데몬 정보
+    if client:
+        docker_platform = detect_platform_via_docker(client)
+        if docker_platform != "linux/amd64":  # 기본값이 아닌 경우 우선 사용
+            return docker_platform
+    
+    # 3순위: Python 시스템 정보
+    return detect_target_platform()
+
+def check_gpu_requirement(plugin_path: str) -> bool:
+    """
+    플러그인의 GPU 요구사항 확인
+    
+    Args:
+        plugin_path (str): 플러그인 폴더 경로
+        
+    Returns:
+        bool: GPU 필요 여부
+    """
+    try:
+        metadata_path = os.path.join(plugin_path, "metadata.json")
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+                return metadata.get('requiresGPU', False)
+    except Exception:
+        pass
+    
+    # metadata에서 확인 불가능한 경우, 기본값 False (CPU 전용)
+    return False
+
+def get_optimal_platform(plugin_path: str, client=None):
+    """
+    GPU 사용 여부에 따른 최적 플랫폼 선택
+    
+    Args:
+        plugin_path (str): 플러그인 폴더 경로
+        client: Docker 클라이언트 객체 (선택사항)
+        
+    Returns:
+        str: 최적화된 Docker 플랫폼 문자열
+    """
+    use_gpu = check_gpu_requirement(plugin_path)
+    
+    if use_gpu:
+        # GPU는 현재 linux/amd64만 지원 (NVIDIA CUDA)
+        return "linux/amd64"
+    
+    # CPU 전용은 자동 감지
+    return get_target_platform(client)
+
+def sanitize_plugin_name(plugin_name: str) -> str:
+    """
+    Sanitize plugin name to prevent path traversal attacks.
+    
+    Args:
+        plugin_name (str): Raw plugin name from user input
+        
+    Returns:
+        str: Sanitized plugin name
+        
+    Raises:
+        HTTPException: If plugin name contains invalid characters
+    """
+    if not plugin_name or not isinstance(plugin_name, str):
+        raise HTTPException(status_code=400, detail="Plugin name must be a non-empty string")
+    
+    # Check for path traversal attempts
+    if ".." in plugin_name or "/" in plugin_name or "\\" in plugin_name:
+        raise HTTPException(status_code=400, detail="Plugin name contains invalid path characters")
+    
+    # Only allow alphanumeric, underscore, hyphen, and dots
+    if not re.match(r"^[a-zA-Z0-9._-]+$", plugin_name):
+        raise HTTPException(status_code=400, detail="Plugin name contains invalid characters")
+    
+    return plugin_name
+
+def get_plugin_path(plugin_name: str, source: Optional[str] = None) -> Tuple[str, str]:
+    """
+    Get the full path to a plugin directory and determine its source.
+    
+    Args:
+        plugin_name (str): Name of the plugin
+        source (Optional[str]): If specified, look only in this source ("official" or "local")
+    
+    Returns:
+        Tuple[str, str]: (plugin_path, actual_source)
+        
+    Raises:
+        HTTPException: If plugin is not found or name is invalid
+    """
+    # Sanitize plugin name to prevent path traversal
+    safe_plugin_name = sanitize_plugin_name(plugin_name)
+    
+    if source == "official":
+        official_path = os.path.join(OFFICIAL_PLUGINS_DIR, safe_plugin_name)
+        # Verify the resolved path is within the expected directory
+        official_abs = os.path.abspath(official_path)
+        official_base = os.path.abspath(OFFICIAL_PLUGINS_DIR)
+        if not official_abs.startswith(official_base):
+            raise HTTPException(status_code=400, detail="Invalid plugin path")
+        if os.path.exists(official_path):
+            return official_path, "official"
+        raise HTTPException(status_code=404, detail=f"Official plugin '{safe_plugin_name}' not found")
+    
+    elif source == "local":
+        local_path = os.path.join(LOCAL_PLUGINS_DIR, safe_plugin_name)
+        # Verify the resolved path is within the expected directory
+        local_abs = os.path.abspath(local_path)
+        local_base = os.path.abspath(LOCAL_PLUGINS_DIR)
+        if not local_abs.startswith(local_base):
+            raise HTTPException(status_code=400, detail="Invalid plugin path")
+        if os.path.exists(local_path):
+            return local_path, "local"
+        raise HTTPException(status_code=404, detail=f"Local plugin '{safe_plugin_name}' not found")
+    
+    else:
+        # No source specified - prioritize local over official
+        local_path = os.path.join(LOCAL_PLUGINS_DIR, safe_plugin_name)
+        local_abs = os.path.abspath(local_path)
+        local_base = os.path.abspath(LOCAL_PLUGINS_DIR)
+        if local_abs.startswith(local_base) and os.path.exists(local_path):
+            return local_path, "local"
+        
+        official_path = os.path.join(OFFICIAL_PLUGINS_DIR, safe_plugin_name)
+        official_abs = os.path.abspath(official_path)
+        official_base = os.path.abspath(OFFICIAL_PLUGINS_DIR)
+        if official_abs.startswith(official_base) and os.path.exists(official_path):
+            return official_path, "official"
+        
+        raise HTTPException(status_code=404, detail=f"Plugin '{safe_plugin_name}' not found in either local or official directories")
+
+def list_available_plugins() -> Dict[str, List[str]]:
+    """
+    List all available plugins from both official and local directories.
+    
+    Returns:
+        Dict[str, List[str]]: {"official": [...], "local": [...]}
+    """
+    result = {"official": [], "local": []}
+    
+    # List official plugins
+    if os.path.exists(OFFICIAL_PLUGINS_DIR):
+        try:
+            official_plugins = [
+                item for item in os.listdir(OFFICIAL_PLUGINS_DIR)
+                if os.path.isdir(os.path.join(OFFICIAL_PLUGINS_DIR, item))
+                and not item.startswith('.')
+            ]
+            result["official"] = sorted(official_plugins)
+        except Exception as e:
+            print(f"Warning: Could not list official plugins: {e}")
+    
+    # List local plugins
+    if os.path.exists(LOCAL_PLUGINS_DIR):
+        try:
+            local_plugins = [
+                item for item in os.listdir(LOCAL_PLUGINS_DIR)
+                if os.path.isdir(os.path.join(LOCAL_PLUGINS_DIR, item))
+                and not item.startswith('.')
+            ]
+            result["local"] = sorted(local_plugins)
+        except Exception as e:
+            print(f"Warning: Could not list local plugins: {e}")
+    
+    return result
+
+def resolve_plugin_file_path(plugin_name: str, relative_path: str, source: Optional[str] = None) -> str:
+    """
+    Resolve a file path within a plugin directory.
+    
+    Args:
+        plugin_name (str): Name of the plugin
+        relative_path (str): Relative path within the plugin directory
+        source (Optional[str]): Plugin source ("official" or "local")
+    
+    Returns:
+        str: Full path to the file
+        
+    Raises:
+        HTTPException: If plugin or file is not found
+    """
+    plugin_path, _ = get_plugin_path(plugin_name, source)
+    full_path = os.path.join(plugin_path, relative_path)
+    
+    if not os.path.exists(full_path):
+        raise HTTPException(
+            status_code=404, 
+            detail=f"File '{relative_path}' not found in plugin '{plugin_name}'"
+        )
+    
+    return full_path
+
+def is_plugin_editable(plugin_name: str, source: Optional[str] = None) -> bool:
+    """
+    Check if a plugin is editable (i.e., it's a local plugin).
+    
+    Args:
+        plugin_name (str): Name of the plugin
+        source (Optional[str]): Plugin source ("official" or "local")
+    
+    Returns:
+        bool: True if plugin is editable, False otherwise
+    """
+    try:
+        _, actual_source = get_plugin_path(plugin_name, source)
+        return actual_source == "local"
+    except HTTPException:
+        return False
+
+def ensure_local_plugins_dir():
+    """
+    Ensure the local plugins directory exists.
+    """
+    if not os.path.exists(LOCAL_PLUGINS_DIR):
+        os.makedirs(LOCAL_PLUGINS_DIR, exist_ok=True)
+        print(f"Created local plugins directory: {LOCAL_PLUGINS_DIR}")
+
+def ensure_build_logs_dir():
+    """
+    Ensure the build logs directory exists.
+    """
+    if not os.path.exists(BUILD_LOGS_DIR):
+        os.makedirs(BUILD_LOGS_DIR, exist_ok=True)
+        print(f"Created build logs directory: {BUILD_LOGS_DIR}")
 
 def generate_merged_plugin_drawflow( drawflow_data_list: List[Dict[str, Any]], plugin_name: str):
     merged_drawflow = {"drawflow": {"Home": {"data": {}}}}
@@ -523,13 +828,11 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
                 if rule['script'].endswith('.py'):
                     shell_command = f"/opt/micromamba/envs/plugin_env/bin/python {script_path}"
                 elif rule['script'].endswith('.R'):
-                    # R 스크립트를 위한 환경 설정과 함께 실행 - /opt/r_env 사용
-                    shell_command = f"if [ -d \"/opt/r_env\" ] && [ -f \"/opt/r_env/renv/activate.R\" ]; then " \
-                                  f"export R_LIBS_USER=/opt/r_env/renv/library && export RENV_PROJECT=/opt/r_env; " \
-                                  f"else " \
-                                  f"export R_LIBS_USER=/opt/r_env/library && export RENV_PROJECT=/opt/r_env; " \
-                                  f"fi; " \
-                                  f"Rscript {script_path}"
+                    # R 스크립트를 위한 환경 설정과 함께 실행 - Micromamba와 renv 라이브러리 사용
+                    shell_command = f"export R_LIBS_USER=/workspace/dependency/renv/library/linux-debian-bullseye/R-4.4/x86_64-conda-linux-gnu:/opt/micromamba/envs/plugin_env/lib/R/library && " \
+                                  f"export R_HOME=/opt/micromamba/envs/plugin_env/lib/R && " \
+                                  f"export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE && " \
+                                  f"/opt/micromamba/envs/plugin_env/bin/Rscript {script_path}"
                 else:
                     shell_command = script_path
 
@@ -818,6 +1121,7 @@ def create_plugin_folder(plugin_folder: str):
     """
     Create the plugin folder if it doesn't exist.
     Preserves existing dependency folder and its contents.
+    Only works for local plugins (official plugins are read-only).
     
     Parameters:
         plugin_folder (str): Path to the plugin folder.
@@ -828,6 +1132,16 @@ def create_plugin_folder(plugin_folder: str):
     import tempfile
     
     try:
+        # Ensure this is in the local plugins directory
+        ensure_local_plugins_dir()
+        
+        # Validate that we're not trying to modify official plugins
+        if plugin_folder.startswith(OFFICIAL_PLUGINS_DIR):
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot modify official plugins. Official plugins are read-only."
+            )
+        
         dependency_folder = os.path.join(plugin_folder, "dependency")
         
         if os.path.exists(plugin_folder):
@@ -1176,16 +1490,24 @@ def build_plugin_docker_image(plugin_path: str, plugin_name: str) -> dict:
         }
 
     # 로그 디렉토리 및 파일 설정
-    log_dir = os.path.join("plugin", "build_logs")
-    os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, f"{plugin_name.lower()}.log")
+    ensure_build_logs_dir()
+    log_file = os.path.join(BUILD_LOGS_DIR, f"{plugin_name.lower()}.log")
     image_tag = f"plugin-{plugin_name.lower()}"
+
+    # 플랫폼 자동 감지
+    target_platform = get_optimal_platform(plugin_path, client)
+    build_platform = get_target_platform(client)
+    use_gpu = check_gpu_requirement(plugin_path)
 
     try:
         with open(log_file, "w", encoding="utf-8") as f:
             f.write(f"Building Docker image for plugin: {plugin_name}\n")
             f.write(f"Start time: {datetime.now().isoformat()}\n")
-            f.write(f"Docker version: {client.version().get('Version', 'unknown')}\n\n")
+            f.write(f"Docker version: {client.version().get('Version', 'unknown')}\n")
+            f.write(f"Host platform: {platform.machine()} ({platform.system()})\n")
+            f.write(f"Target platform: {target_platform}\n")
+            f.write(f"Build platform: {build_platform}\n")
+            f.write(f"GPU mode: {use_gpu}\n\n")
             f.flush()
 
         # 기존 이미지 제거 (있다면)
@@ -1220,28 +1542,64 @@ def build_plugin_docker_image(plugin_path: str, plugin_name: str) -> dict:
         image = None
         build_output = []
 
-        # 이미지 빌드 (더 자세한 옵션 추가)
-        for chunk in client.api.build(
-            path=plugin_path,
-            tag=image_tag,
-            rm=True,
-            forcerm=True,
-            decode=True,
-            buildargs={
-                'BUILDKIT_PROGRESS': 'plain',  # 더 자세한 출력
-                'DOCKER_BUILDKIT': '0'  # BuildKit 비활성화 (디버깅용)
-            }
-        ):
+        # 이미지 빌드
+        try:
+            # client.images.build()는 BuildKit을 올바르게 지원
+            image, build_logs = client.images.build(
+                path=plugin_path,
+                tag=image_tag,
+                rm=True,
+                forcerm=True,
+                buildargs={
+                    'BUILDKIT_PROGRESS': 'plain',
+                    'DOCKER_BUILDKIT': '1',  # BuildKit 명시적 활성화
+                    'TARGETPLATFORM': target_platform,  # 자동 감지된 타겟 플랫폼
+                    'BUILDPLATFORM': build_platform     # 자동 감지된 빌드 플랫폼
+                },
+                platform=None,  # 자동 플랫폼 감지
+                pull=False,
+                nocache=False
+            )
+            
+            # 빌드 로그 처리
+            for log_line in build_logs:
+                with open(log_file, "a", encoding="utf-8") as f:
+                    if 'stream' in log_line:
+                        f.write(log_line['stream'])
+                        build_output.append(log_line['stream'])
+                    elif 'error' in log_line:
+                        f.write(f"Build error: {log_line['error']}\n")
+                        raise Exception(log_line['error'])
+                    f.flush()
+            
+        except Exception as e:
+            # Fallback: legacy API 사용 (BuildKit 없이)
             with open(log_file, "a", encoding="utf-8") as f:
-                if 'stream' in chunk:
-                    f.write(chunk['stream'])
-                    build_output.append(chunk['stream'])
-                elif 'error' in chunk:
-                    f.write(f"Build error: {chunk['error']}\n")
-                    raise Exception(chunk['error'])
-                elif 'aux' in chunk and 'ID' in chunk['aux']:
-                    image = client.images.get(chunk['aux']['ID'])
-                f.flush()
+                f.write(f"Modern API failed, trying legacy API: {str(e)}\n")
+            
+            for chunk in client.api.build(
+                path=plugin_path,
+                tag=image_tag,
+                rm=True,
+                forcerm=True,
+                decode=True,
+                buildargs={
+                    'BUILDKIT_PROGRESS': 'plain',
+                    'DOCKER_BUILDKIT': '0',  # Legacy API에서는 BuildKit 비활성화
+                    'TARGETPLATFORM': target_platform,  # 자동 감지된 타겟 플랫폼
+                    'BUILDPLATFORM': build_platform     # 자동 감지된 빌드 플랫폼
+                }
+            ):
+                with open(log_file, "a", encoding="utf-8") as f:
+                    if 'stream' in chunk:
+                        f.write(chunk['stream'])
+                        build_output.append(chunk['stream'])
+                    elif 'error' in chunk:
+                        f.write(f"Build error: {chunk['error']}\n")
+                        raise Exception(chunk['error'])
+                    elif 'aux' in chunk and 'ID' in chunk['aux']:
+                        image = client.images.get(chunk['aux']['ID'])
+                    f.flush()
 
         if not image:
             image = client.images.get(image_tag)
@@ -1276,9 +1634,315 @@ def build_plugin_docker_image(plugin_path: str, plugin_name: str) -> dict:
             'image_tag': image_tag
         }
 
+def generate_base_image_section(use_gpu=True):
+    """Base 이미지 섹션 생성"""
+    lines = []
+    if use_gpu:
+        # GPU는 linux/amd64만 지원 - ARG 불필요
+        lines.append("# GPU 버전 - linux/amd64만 지원")
+        lines.append("FROM --platform=linux/amd64 nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04")
+    else:
+        # CPU는 멀티 플랫폼 지원 - ARG를 FROM 앞에 선언
+        lines.append("# 멀티 플랫폼 지원")
+        lines.append("# BuildKit 자동 감지 ARG (fallback 기본값)")
+        lines.append("ARG TARGETPLATFORM=linux/amd64")
+        lines.append("ARG BUILDPLATFORM=linux/amd64")
+        lines.append("")
+        lines.append("FROM --platform=$TARGETPLATFORM debian:bullseye-slim")
+    return lines
+
+
+def generate_env_setup_section():
+    """환경 변수 설정 섹션"""
+    return [
+        "",
+        "# 비대화형 설치 설정",
+        "ENV DEBIAN_FRONTEND=noninteractive",
+        "ENV TZ=Asia/Seoul"
+    ]
+
+
+def generate_system_packages_section(use_gpu=True, has_r=False):
+    """시스템 패키지 설치 섹션"""
+    lines = [
+        "",
+        "# 기본 패키지 설치" + (" (V8, jsonvalidate 지원 패키지 포함)" if has_r else ""),
+        "RUN apt-get update && apt-get install -y \\"
+    ]
+    
+    # 공통 패키지
+    common_packages = [
+        "    build-essential gcc g++ gfortran make \\",
+        "    libssl-dev libcurl4-openssl-dev libxml2-dev \\",
+        "    libjpeg-dev libpng-dev libfreetype6-dev libtiff-dev \\",
+        "    libx11-dev libxt-dev \\",
+        "    libglu1-mesa-dev \\",
+        "    libharfbuzz-dev libfribidi-dev \\",
+        "    libglpk-dev \\",
+        "    curl wget unzip git \\",
+        "    python3 python3-pip python3-venv \\",
+        "    software-properties-common \\",
+        "    gnupg ca-certificates \\",
+        "    zlib1g-dev \\"
+    ]
+    
+    lines.extend(common_packages)
+    
+    # R 관련 추가 패키지
+    if has_r:
+        lines.extend([
+            "    libv8-dev libnode-dev \\",
+            "    libudunits2-dev libgdal-dev \\"
+        ])
+    
+    lines.append("    && apt-get clean && rm -rf /var/lib/apt/lists/*")
+    return lines
+
+
+def generate_dependency_copy_section():
+    """dependency 폴더 복사 섹션"""
+    return [
+        "",
+        "# dependency 폴더 복사",
+        "COPY dependency/ /workspace/dependency/"
+    ]
+
+
+def generate_micromamba_install_section(use_gpu=False):
+    """Micromamba 설치 섹션 - 플랫폼별 동적 설치"""
+    if use_gpu:
+        # GPU 버전은 linux/amd64 고정
+        return [
+            "",
+            "# Micromamba 설치 (linux/amd64)",
+            "RUN mkdir -p /usr/local/bin && \\",
+            "    cd /tmp && \\",
+            "    curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj && \\",
+            "    cp bin/micromamba /usr/local/bin/micromamba && \\",
+            "    chmod +x /usr/local/bin/micromamba && \\",
+            "    rm -rf /tmp/bin /tmp/info && \\",
+            "    /usr/local/bin/micromamba --version"
+        ]
+    else:
+        # CPU 버전은 플랫폼별 동적 설치 (기본값 포함)
+        return [
+            "",
+            "# Micromamba 설치 (멀티 플랫폼, 기본값: linux/amd64)",
+            "RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \\",
+            "    case $PLATFORM in \\",
+            "        \"linux/amd64\")  MICROMAMBA_ARCH=linux-64  ;; \\",
+            "        \"linux/arm64\")  MICROMAMBA_ARCH=linux-aarch64  ;; \\",
+            "        \"linux/arm/v7\") MICROMAMBA_ARCH=linux-armv7l  ;; \\",
+            "        *) echo \"Unsupported platform: $PLATFORM, defaulting to linux-64\" && MICROMAMBA_ARCH=linux-64 ;; \\",
+            "    esac && \\",
+            "    mkdir -p /usr/local/bin && \\",
+            "    curl -Ls \"https://micro.mamba.pm/api/micromamba/${MICROMAMBA_ARCH}/latest\" | tar -xvj -C /tmp && \\",
+            "    cp /tmp/bin/micromamba /usr/local/bin/micromamba && \\",
+            "    chmod +x /usr/local/bin/micromamba && \\",
+            "    rm -rf /tmp/bin /tmp/info && \\",
+            "    /usr/local/bin/micromamba --version"
+        ]
+
+
+def generate_env_variables_section(has_r=False):
+    """환경 변수 설정 섹션"""
+    lines = [
+        "",
+        "# 환경 변수 설정 (Micromamba 기반으로 통일)",
+        "ENV MAMBA_ROOT_PREFIX=/opt/micromamba",
+        "ENV MAMBA_EXE=/usr/local/bin/micromamba",
+        "ENV PATH=/usr/local/bin:$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$MAMBA_ROOT_PREFIX/bin:$PATH"
+    ]
+    
+    if has_r:
+        lines.append("ENV R_HOME=/opt/micromamba/envs/plugin_env/lib/R")
+    
+    return lines
+
+
+def generate_micromamba_setup_section():
+    """Micromamba 환경 디렉토리 생성 섹션"""
+    return [
+        "",
+        "# Micromamba 환경 디렉토리 생성",
+        "RUN mkdir -p $MAMBA_ROOT_PREFIX && \\",
+        "    mkdir -p $MAMBA_ROOT_PREFIX/envs && \\",
+        "    mkdir -p $MAMBA_ROOT_PREFIX/pkgs && \\",
+        "    mkdir -p $MAMBA_ROOT_PREFIX/etc/profile.d"
+    ]
+
+
+def generate_python_env_section(python_version="3.10"):
+    """Python 환경 생성 섹션"""
+    return [
+        "",
+        "# Python 환경 생성",
+        f"RUN /usr/local/bin/micromamba create -y -n plugin_env python={python_version} -c conda-forge --root-prefix $MAMBA_ROOT_PREFIX"
+    ]
+
+
+def generate_snakemake_install_section():
+    """Snakemake 및 필수 패키지 설치 섹션"""
+    return [
+        "",
+        "# Snakemake 및 필수 패키지 설치",
+        "RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\",
+        "    pip install --no-cache-dir \\",
+        "    'snakemake==7.14.0' \\",
+        "    'pulp==2.7.0' \\",
+        "    'tabulate==0.8.10'"
+    ]
+
+
+def generate_python_packages_section(has_requirements=False):
+    """Python 패키지 설치 섹션"""
+    if not has_requirements:
+        return []
+    
+    return [
+        "",
+        "# Python 패키지 설치",
+        "RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\",
+        "    pip install --no-cache-dir -r /workspace/dependency/requirements.txt || true"
+    ]
+
+
+def generate_r_installation_section(r_version="4.4.2", has_renv=False, use_gpu=False):
+    """R 설치 및 패키지 설치 섹션 - 플랫폼 고려"""
+    lines = []
+    
+    # R 설치 명령 (플랫폼별 최적화)
+    lines.extend([
+        "",
+        f"# R {r_version} 및 필수 개발 라이브러리 설치 (Micromamba 사용)",
+        "RUN /usr/local/bin/micromamba install -y -n plugin_env \\",
+        f"    r-base={r_version} \\",
+        "    r-essentials \\",
+        "    r-renv \\",
+        "    r-jsonlite \\",
+        "    -c conda-forge \\",
+        "    -r $MAMBA_ROOT_PREFIX && \\",
+        "    ln -sf $MAMBA_ROOT_PREFIX/envs/plugin_env/bin/R /usr/local/bin/R && \\",
+        "    ln -sf $MAMBA_ROOT_PREFIX/envs/plugin_env/bin/Rscript /usr/local/bin/Rscript"
+    ])
+    
+    # R 설정
+    lines.extend([
+        "",
+        "# R 설정 및 초기 패키지 설치",
+        "RUN echo 'options(repos = c(CRAN = \"https://cloud.r-project.org\"), download.file.method = \"libcurl\")' > /root/.Rprofile && \\",
+        "    /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\",
+        "    Rscript -e \"install.packages(c('renv', 'BiocManager'), dependencies = TRUE)\""
+    ])
+    
+    # renv를 사용한 패키지 설치 (플랫폼 독립적)
+    if has_renv:
+        lines.extend([
+            "",
+            "# renv를 사용한 패키지 설치",
+            "RUN if [ -f \"/workspace/dependency/renv.lock\" ]; then \\",
+            "    cd /workspace/dependency && \\",
+            "    /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\",
+            "    Rscript -e \"\\",
+            "        library(renv); \\",
+            "        options(renv.config.cache.enabled = FALSE); \\",
+            "        renv::init(bare = TRUE, restart = FALSE); \\",
+            "        renv::restore(lockfile = '/workspace/dependency/renv.lock', confirm = FALSE);\" && \\",
+            "    cp -r renv/library/*/R-*/* /opt/micromamba/envs/plugin_env/lib/R/library/ 2>/dev/null || true && \\",
+            "    echo 'R package installation completed'; \\",
+            "    fi"
+        ])
+    
+    lines.extend([
+        "",
+        "# 추가 R 패키지 설치",
+        "RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\",
+        "    Rscript -e \"if (!requireNamespace('optparse', quietly = TRUE)) install.packages('optparse', dependencies = TRUE)\"",
+        "",
+        "ENV RENV_CONFIG_AUTOLOADER_ENABLED=FALSE"
+    ])
+    
+    return lines
+
+def generate_workspace_setup_section():
+    """작업 디렉토리 설정 섹션"""
+    return [
+        "",
+        "# 작업 디렉토리 생성 및 설정",
+        "RUN mkdir -p /workspace/logs && \\",
+        "    chmod 777 /workspace"
+    ]
+
+
+def generate_copy_files_section(plugin_path):
+    """Snakefile 및 scripts 복사 섹션"""
+    lines = [
+        "",
+        "# Snakefile 복사",
+        "COPY Snakefile /workspace/Snakefile",
+        "",
+        "# scripts 폴더 복사",
+        "COPY scripts/ /scripts/",
+        "",
+        "WORKDIR /workspace"
+    ]
+    
+    return lines
+
+
+def generate_entrypoint_section(has_r=False):
+    """Entrypoint 스크립트 생성 섹션"""
+    lines = [
+        "",
+        "# Entrypoint 스크립트 생성 (올바른 R 경로로 수정)",
+        "RUN echo '#!/bin/bash' > /entrypoint.sh && \\",
+        "    echo 'export MAMBA_ROOT_PREFIX=/opt/micromamba' >> /entrypoint.sh && \\",
+        "    echo 'export MAMBA_EXE=/usr/local/bin/micromamba' >> /entrypoint.sh && \\",
+        "    echo 'export PATH=$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$PATH' >> /entrypoint.sh && \\"
+    ]
+    
+    if has_r:
+        lines.extend([
+            "    echo '# Set R environment (Micromamba 기반)' >> /entrypoint.sh && \\",
+            "    echo 'export R_HOME=/opt/micromamba/envs/plugin_env/lib/R' >> /entrypoint.sh && \\",
+            "    echo 'export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE' >> /entrypoint.sh && \\"
+        ])
+    
+    lines.extend([
+        "    echo '# Activate micromamba environment' >> /entrypoint.sh && \\",
+        "    echo 'eval \"$($MAMBA_EXE shell activate -s bash -p $MAMBA_ROOT_PREFIX plugin_env)\" 2>/dev/null || true' >> /entrypoint.sh && \\",
+        "    echo 'cd /workspace' >> /entrypoint.sh && \\",
+        "    echo 'exec \"$@\"' >> /entrypoint.sh && \\",
+        "    chmod +x /entrypoint.sh",
+        "",
+        "ENTRYPOINT [\"/entrypoint.sh\"]"
+    ])
+    
+    return lines
+
+
+def generate_healthcheck_section():
+    """헬스체크 섹션"""
+    return [
+        "",
+        "# 헬스체크 설정",
+        "HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\",
+        "    CMD test -f /opt/micromamba/envs/plugin_env/bin/python || exit 1"
+    ]
+
+
+def generate_cmd_section():
+    """기본 명령어 섹션"""
+    return [
+        "",
+        "# 기본 명령어 설정",
+        'CMD ["/bin/bash"]'
+    ]
+
+
 def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool = True):
     """
-    플러그인 폴더를 분석해서 Dockerfile을 생성합니다.
+    플러그인 폴더를 분석해서 멀티 플랫폼 지원 Dockerfile을 생성합니다.
     
     Parameters:
         plugin_path (str): 플러그인 폴더 경로
@@ -1287,43 +1951,14 @@ def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool
     """
     dependency_path = os.path.join(plugin_path, "dependency")
     
-    # 디버깅: dependency 폴더 파일 목록 출력
-    print(f"[DEBUG] Checking dependency folder: {dependency_path}")
-    if os.path.exists(dependency_path):
-        dependency_files = os.listdir(dependency_path)
-        print(f"[DEBUG] Files in dependency folder: {dependency_files}")
-        # 각 파일의 크기도 함께 출력
-        for file in dependency_files:
-            file_path = os.path.join(dependency_path, file)
-            if os.path.isfile(file_path):
-                file_size = os.path.getsize(file_path)
-                print(f"[DEBUG]   - {file} ({file_size} bytes)")
-            else:
-                print(f"[DEBUG]   - {file} (directory)")
-    else:
-        print(f"[DEBUG] Dependency folder does not exist: {dependency_path}")
-    
+    # 의존성 파일 체크
     has_requirements = os.path.isfile(os.path.join(dependency_path, "requirements.txt"))
     has_environment = os.path.isfile(os.path.join(dependency_path, "environment.yml"))
     has_renv = os.path.isfile(os.path.join(dependency_path, "renv.lock"))
+    
+    # Python, R 스크립트 체크
     has_python = False
     has_r = False
-
-    # Python, R 버전 추출
-    python_version = None
-    r_version = None
-    if has_environment:
-        python_version = extract_python_version_from_environment_yml(os.path.join(dependency_path, "environment.yml"))
-    if has_renv:
-        r_version = extract_r_version_from_renv_lock(os.path.join(dependency_path, "renv.lock"))
-
-    # 기본값 설정
-    if not python_version:
-        python_version = "3.10"
-    if not r_version:
-        r_version = "4.5.0"
-
-    # 스크립트 파일 확인
     scripts_path = os.path.join(plugin_path, "scripts")
     if os.path.exists(scripts_path):
         for file in os.listdir(scripts_path):
@@ -1331,293 +1966,87 @@ def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool
                 has_python = True
             if file.endswith(".R"):
                 has_r = True
-
-    # Dockerfile 내용 작성
+    
+    # 버전 추출
+    python_version = "3.10"  # 기본값
+    r_version = "4.4.2"  # 기본값
+    
+    if has_environment:
+        python_version = extract_python_version_from_environment_yml(
+            os.path.join(dependency_path, "environment.yml")
+        )
+    
+    if has_renv:
+        r_version = extract_r_version_from_renv_lock(
+            os.path.join(dependency_path, "renv.lock")
+        )
+    
+    # Dockerfile 생성
     dockerfile_lines = []
-
-    # 1. 베이스 이미지
-    if use_gpu:
-        dockerfile_lines.append("FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04")
-    else:
-        dockerfile_lines.append("FROM ubuntu:20.04")
-
-    dockerfile_lines.append("")
-    # 비대화형 설치를 위한 환경 변수 설정
-    dockerfile_lines.append("# 비대화형 설치 설정")
-    dockerfile_lines.append("ENV DEBIAN_FRONTEND=noninteractive")
-    dockerfile_lines.append("ENV TZ=Asia/Seoul")
-    dockerfile_lines.append("")
     
-    dockerfile_lines.append("# 기본 패키지 설치")
-    dockerfile_lines.append("RUN apt-get update && apt-get install -y \\")
-    dockerfile_lines.append("    build-essential gcc g++ gfortran make \\")
-    dockerfile_lines.append("    libssl-dev libcurl4-openssl-dev libxml2-dev \\")
-    dockerfile_lines.append("    libjpeg-dev libpng-dev libfreetype6-dev libtiff-dev \\")
-    dockerfile_lines.append("    libx11-dev xorg-dev libxt-dev libglu1-mesa-dev \\")
-    dockerfile_lines.append("    libharfbuzz-dev libfribidi-dev \\")
-    dockerfile_lines.append("    libglpk-dev \\")
-    dockerfile_lines.append("    curl wget unzip git \\")
-    dockerfile_lines.append(f"    python{python_version} python3-pip python3-venv \\")
-    dockerfile_lines.append("    software-properties-common \\")
-    dockerfile_lines.append("    gnupg ca-certificates \\")
-    dockerfile_lines.append("    default-jdk \\")  # ← Java 추가
-    dockerfile_lines.append("    && apt-get clean && rm -rf /var/lib/apt/lists/*")
-    dockerfile_lines.append("")
+    # 1. Base 이미지 (멀티 플랫폼 지원)
+    dockerfile_lines.extend(generate_base_image_section(use_gpu))
     
-    # Java 환경변수 설정 추가
-    dockerfile_lines.append("# Java 환경변수 설정")
-    dockerfile_lines.append("ENV JAVA_HOME=/usr/lib/jvm/default-java")
-    dockerfile_lines.append("ENV PATH=$JAVA_HOME/bin:$PATH")
-    dockerfile_lines.append("")
-
-    # Java 설치 확인
-    dockerfile_lines.append("# Java 버전 확인")
-    dockerfile_lines.append("RUN java -version && javac -version")
-    dockerfile_lines.append("")
+    # 2. 환경 변수 설정
+    dockerfile_lines.extend(generate_env_setup_section())
     
-    # R 설치 (특정 버전)
+    # 3. 시스템 패키지 설치
+    dockerfile_lines.extend(generate_system_packages_section(use_gpu, has_r or has_renv))
+    
+    # 4. dependency 폴더 복사
+    dockerfile_lines.extend(generate_dependency_copy_section())
+    
+    # 5. Micromamba 설치 (플랫폼별)
+    dockerfile_lines.extend(generate_micromamba_install_section(use_gpu))
+    
+    # 6. 환경 변수 설정
+    dockerfile_lines.extend(generate_env_variables_section(has_r or has_renv))
+    
+    # 7. Micromamba 환경 디렉토리 생성
+    dockerfile_lines.extend(generate_micromamba_setup_section())
+    
+    # 8. Python 환경 생성
+    dockerfile_lines.extend(generate_python_env_section(python_version))
+    
+    # 9. Snakemake 및 필수 패키지 설치
+    dockerfile_lines.extend(generate_snakemake_install_section())
+    
+    # 10. Python 패키지 설치
+    if has_requirements:
+        dockerfile_lines.extend(generate_python_packages_section(has_requirements))
+    
+    # 11. R 설치 및 패키지 설치 (플랫폼 고려)
     if has_r or has_renv:
-        dockerfile_lines.append("# R 설치 (특정 버전)")
-        dockerfile_lines.append("RUN apt-get update && \\")
-        dockerfile_lines.append("    apt-get install -y dirmngr gpg-agent && \\")
-        dockerfile_lines.append("    wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc && \\")
-        dockerfile_lines.append("    add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/' && \\")
-        dockerfile_lines.append("    apt-get update")
-        dockerfile_lines.append("")
-        
-        # R 버전에 따른 설치 전략
-        if r_version and r_version != "4.5.0":
-            # 특정 버전 설치 시도 후 실패하면 기본 버전 설치
-            dockerfile_lines.append(f"# R {r_version} 설치 시도")
-            major_minor = ".".join(r_version.split(".")[:2])  # 4.3.2 -> 4.3
-            dockerfile_lines.append(f"RUN (apt-get install -y r-base-core={major_minor}* r-recommended={major_minor}* r-base-dev={major_minor}* 2>/dev/null) || \\")
-            dockerfile_lines.append(f"    (echo 'Specific R version {r_version} not available, installing latest' && \\")
-            dockerfile_lines.append("     apt-get install -y r-base r-base-dev r-recommended) && \\")
-            dockerfile_lines.append("    apt-get clean && rm -rf /var/lib/apt/lists/*")
-        else:
-            dockerfile_lines.append("# R 최신 버전 설치")
-            dockerfile_lines.append("RUN apt-get install -y r-base r-base-dev r-recommended && \\")
-            dockerfile_lines.append("    apt-get clean && rm -rf /var/lib/apt/lists/*")
-        
-        dockerfile_lines.append("")
-        
-        # R 버전 확인
-        dockerfile_lines.append("# R 버전 확인")
-        dockerfile_lines.append("RUN R --version | head -1")
-        dockerfile_lines.append("")
-
-    # dependency 폴더가 있는 경우 복사
-    if has_python or has_requirements or has_environment or has_r or has_renv:
-        dockerfile_lines.append("# dependency 폴더 복사")
-        dockerfile_lines.append("COPY dependency/ /workspace/dependency/")
-        dockerfile_lines.append("")
-        
-        # 디버깅: 복사된 dependency 폴더 내용 확인
-        dockerfile_lines.append("# 디버깅: dependency 폴더 내용 확인")
-        dockerfile_lines.append("RUN echo '[DEBUG] Contents of /workspace/dependency folder:' && \\")
-        dockerfile_lines.append("    ls -la /workspace/dependency/ && \\")
-        dockerfile_lines.append("    echo '[DEBUG] Detailed file information:' && \\")
-        dockerfile_lines.append("    find /workspace/dependency -type f -exec ls -lh {} \\; && \\")
-        dockerfile_lines.append("    echo '[DEBUG] File contents preview:' && \\")
-        dockerfile_lines.append("    for file in /workspace/dependency/*.txt /workspace/dependency/*.yml /workspace/dependency/*.yaml /workspace/dependency/*.lock; do \\")
-        dockerfile_lines.append("        if [ -f \"$file\" ]; then \\")
-        dockerfile_lines.append("            echo \"=== Contents of $(basename $file) ===\"; \\")
-        dockerfile_lines.append("            head -20 \"$file\" || echo \"Could not read $file\"; \\")
-        dockerfile_lines.append("            echo \"\"; \\")
-        dockerfile_lines.append("        fi; \\")
-        dockerfile_lines.append("    done")
-        dockerfile_lines.append("")
-
-    if has_python or has_requirements or has_environment:
-        # Micromamba 설치 - 더 안정적인 방법
-        dockerfile_lines.append("# Micromamba 설치")
-        dockerfile_lines.append("RUN mkdir -p /usr/local/bin && \\")
-        dockerfile_lines.append("    cd /tmp && \\")
-        dockerfile_lines.append("    curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj && \\")
-        dockerfile_lines.append("    cp bin/micromamba /usr/local/bin/micromamba && \\")
-        dockerfile_lines.append("    chmod +x /usr/local/bin/micromamba && \\")
-        dockerfile_lines.append("    rm -rf /tmp/bin /tmp/info && \\")
-        dockerfile_lines.append("    # 설치 확인")
-        dockerfile_lines.append("    /usr/local/bin/micromamba --version")
-        dockerfile_lines.append("")
-        
-        # 환경 변수 설정
-        dockerfile_lines.append("# 환경 변수 설정")
-        dockerfile_lines.append("ENV MAMBA_ROOT_PREFIX=/opt/micromamba")
-        dockerfile_lines.append("ENV MAMBA_EXE=/usr/local/bin/micromamba")
-        dockerfile_lines.append("ENV PATH=/usr/local/bin:$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$MAMBA_ROOT_PREFIX/bin:$PATH")
-        dockerfile_lines.append("")
-        
-        # Micromamba 디렉토리 생성 (shell init 대신)
-        dockerfile_lines.append("# Micromamba 환경 디렉토리 생성")
-        dockerfile_lines.append("RUN mkdir -p $MAMBA_ROOT_PREFIX && \\")
-        dockerfile_lines.append("    mkdir -p $MAMBA_ROOT_PREFIX/envs && \\")
-        dockerfile_lines.append("    mkdir -p $MAMBA_ROOT_PREFIX/pkgs && \\")
-        dockerfile_lines.append("    mkdir -p $MAMBA_ROOT_PREFIX/etc/profile.d")
-        dockerfile_lines.append("")
-        
-        # Python 환경 생성
-        dockerfile_lines.append("# Python 환경 생성")
-        dockerfile_lines.append(f"RUN /usr/local/bin/micromamba create -y -n plugin_env python={python_version} -c conda-forge --root-prefix $MAMBA_ROOT_PREFIX")
-        dockerfile_lines.append("")
-        
-        # Snakemake 및 필수 패키지 설치
-        dockerfile_lines.append("# Snakemake 및 필수 패키지 설치")
-        dockerfile_lines.append("RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\")
-        dockerfile_lines.append("    pip install --no-cache-dir \\")
-        dockerfile_lines.append("    'snakemake==7.14.0' \\")
-        dockerfile_lines.append("    'pulp==2.7.0' \\")
-        dockerfile_lines.append("    'tabulate==0.8.10'")
-        dockerfile_lines.append("")
-
-        if has_requirements:
-            dockerfile_lines.append("# Python 패키지 설치")
-            dockerfile_lines.append("RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\")
-            dockerfile_lines.append("    pip install --no-cache-dir -r /workspace/dependency/requirements.txt || true")
-            dockerfile_lines.append("")
-            
-        if has_environment:
-            dockerfile_lines.append("# Conda 환경 업데이트")
-            dockerfile_lines.append("RUN /usr/local/bin/micromamba env update -n plugin_env -f /workspace/dependency/environment.yml -r $MAMBA_ROOT_PREFIX || true")
-            dockerfile_lines.append("")
-
-    if has_r or has_renv:
-        dockerfile_lines.append("# R 패키지 설치 - 시스템 라이브러리에 직접 설치")
-        dockerfile_lines.append("RUN Rscript -e \"options(repos = c(CRAN = 'https://cloud.r-project.org'), download.file.method = 'libcurl')\"")
-        dockerfile_lines.append("")
-        
-        # renv 설치 (renv.lock 사용을 위해)
-        dockerfile_lines.append("# renv 설치")
-        dockerfile_lines.append("RUN Rscript -e \"install.packages('renv')\"")
-        dockerfile_lines.append("")
-        
-        if has_renv:
-            dockerfile_lines.append("# renv.lock을 사용해서 시스템 라이브러리에 직접 패키지 설치")
-            dockerfile_lines.append("RUN if [ -f \"/workspace/dependency/renv.lock\" ]; then \\")
-            dockerfile_lines.append("    echo 'Installing packages from renv.lock...' && \\")
-            dockerfile_lines.append("    # dependency 폴더로 이동 (로컬 패키지 파일들이 있는 곳) \\")
-            dockerfile_lines.append("    cd /workspace/dependency && \\")
-            dockerfile_lines.append("    # 로컬 패키지 파일 확인 \\")
-            dockerfile_lines.append("    ls -la *.tar.gz 2>/dev/null || echo 'No local package files found' && \\")
-            dockerfile_lines.append("    # renv restore 실행 \\")
-            dockerfile_lines.append("    Rscript -e \"Sys.setenv(RENV_PATHS_LIBRARY = .libPaths()[1])\" && \\")
-            dockerfile_lines.append("    Rscript -e \"renv::restore(lockfile = 'renv.lock', library = .libPaths()[1], prompt = FALSE)\" && \\")
-            dockerfile_lines.append("    Rscript -e \"cat('\\\\nInstalled packages:\\\\n'); print(installed.packages()[, c('Package', 'Version')])\"; \\")
-            dockerfile_lines.append("    fi")
-            dockerfile_lines.append("")
-        
-        # 추가 필수 패키지 확인 및 설치
-        dockerfile_lines.append("# 추가 필수 패키지 확인 및 설치")
-        dockerfile_lines.append("RUN Rscript -e \" \\")
-        dockerfile_lines.append("    required_pkgs <- c('optparse', 'jsonlite', 'readr', 'dplyr', 'ggplot2', 'pheatmap', 'plotly'); \\")
-        dockerfile_lines.append("    missing_pkgs <- required_pkgs[!required_pkgs %in% installed.packages()[,'Package']]; \\")
-        dockerfile_lines.append("    if (length(missing_pkgs) > 0) { \\")
-        dockerfile_lines.append("        cat('Installing missing packages:', paste(missing_pkgs, collapse=', '), '\\\\n'); \\")
-        dockerfile_lines.append("        # BiocManager가 필요한 경우를 위해 먼저 설치 \\")
-        dockerfile_lines.append("        if (!requireNamespace('BiocManager', quietly = TRUE)) { \\")
-        dockerfile_lines.append("            install.packages('BiocManager') \\")
-        dockerfile_lines.append("        }; \\")
-        dockerfile_lines.append("        # 일반 CRAN 패키지 설치 시도 \\")
-        dockerfile_lines.append("        cran_pkgs <- missing_pkgs[missing_pkgs %in% c('optparse', 'jsonlite', 'readr', 'dplyr', 'ggplot2', 'plotly')]; \\")
-        dockerfile_lines.append("        if (length(cran_pkgs) > 0) { \\")
-        dockerfile_lines.append("            install.packages(cran_pkgs, dependencies = TRUE) \\")
-        dockerfile_lines.append("        }; \\")
-        dockerfile_lines.append("        # pheatmap은 의존성이 많으므로 별도 처리 \\")
-        dockerfile_lines.append("        if ('pheatmap' %in% missing_pkgs) { \\")
-        dockerfile_lines.append("            install.packages('pheatmap', dependencies = TRUE) \\")
-        dockerfile_lines.append("        } \\")
-        dockerfile_lines.append("    }; \\")
-        dockerfile_lines.append("    # 설치 확인 \\")
-        dockerfile_lines.append("    cat('\\\\nChecking installed packages:\\\\n'); \\")
-        dockerfile_lines.append("    for (pkg in required_pkgs) { \\")
-        dockerfile_lines.append("        if (pkg %in% installed.packages()[,'Package']) { \\")
-        dockerfile_lines.append("            cat(paste(pkg, 'is installed\\\\n')) \\")
-        dockerfile_lines.append("        } else { \\")
-        dockerfile_lines.append("            cat(paste('WARNING:', pkg, 'is NOT installed\\\\n')) \\")
-        dockerfile_lines.append("        } \\")
-        dockerfile_lines.append("    } \\")
-        dockerfile_lines.append("    \"")
-        dockerfile_lines.append("")
-        
-        # renv 자동 활성화 비활성화를 위한 환경 변수
-        dockerfile_lines.append("# renv 자동 활성화 비활성화를 위한 환경 변수")
-        dockerfile_lines.append("ENV RENV_CONFIG_AUTOLOADER_ENABLED=FALSE")
-        dockerfile_lines.append("")
-        
-        # R 환경 변수 설정 (renv 프로젝트 경로 없음)
-        dockerfile_lines.append("# R 환경 변수 설정")
-        dockerfile_lines.append("ENV R_HOME=/usr/lib/R")
-        dockerfile_lines.append("")
-
-    # 작업 디렉토리 생성 및 설정
-    dockerfile_lines.append("# 작업 디렉토리 생성 및 설정")
-    dockerfile_lines.append("RUN mkdir -p /workspace/logs && \\")
-    dockerfile_lines.append("    chmod 777 /workspace")
-    dockerfile_lines.append("")
-
-    # Snakefile 복사
-    dockerfile_lines.append("# Snakefile 복사")
-    dockerfile_lines.append("COPY Snakefile /workspace/Snakefile")
-    if os.path.exists(os.path.join(plugin_path, "visualization_Snakefile")):
-        dockerfile_lines.append("COPY visualization_Snakefile /workspace/visualization_Snakefile")
-    dockerfile_lines.append("")
-
-    dockerfile_lines.append("# scripts 폴더 복사")
-    dockerfile_lines.append("COPY scripts/ /scripts/")
-    dockerfile_lines.append("")
-
-    dockerfile_lines.append("WORKDIR /workspace")
-    dockerfile_lines.append("")
-
-    # Entrypoint 스크립트 수정 (Python과 R 환경 모두 지원)
-    dockerfile_lines.append("# Entrypoint 스크립트 생성")
-    dockerfile_lines.append("RUN echo '#!/bin/bash' > /entrypoint.sh")
+        dockerfile_lines.extend(generate_r_installation_section(r_version, has_renv, use_gpu))
     
-    if has_python or has_requirements or has_environment:
-        dockerfile_lines.append("RUN echo 'export MAMBA_ROOT_PREFIX=/opt/micromamba' >> /entrypoint.sh")
-        dockerfile_lines.append("RUN echo 'export MAMBA_EXE=/usr/local/bin/micromamba' >> /entrypoint.sh")
-        dockerfile_lines.append("RUN echo 'export PATH=$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$PATH' >> /entrypoint.sh")
+    # 12. 작업 디렉토리 설정
+    dockerfile_lines.extend(generate_workspace_setup_section())
     
-    if has_r or has_renv:
-        dockerfile_lines.append("RUN echo '# Set R environment' >> /entrypoint.sh")
-        dockerfile_lines.append("RUN echo 'export R_HOME=/usr/lib/R' >> /entrypoint.sh")
-        dockerfile_lines.append("RUN echo 'export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE' >> /entrypoint.sh")
+    # 13. Snakefile 및 scripts 복사
+    dockerfile_lines.extend(generate_copy_files_section(plugin_path))
     
-    if has_python or has_requirements or has_environment:
-        dockerfile_lines.append("RUN echo '# Activate micromamba environment' >> /entrypoint.sh")
-        dockerfile_lines.append("RUN echo 'eval \"$($MAMBA_EXE shell activate -s bash -p $MAMBA_ROOT_PREFIX plugin_env)\" 2>/dev/null || true' >> /entrypoint.sh")
-    dockerfile_lines.append("RUN echo 'cd /workspace' >> /entrypoint.sh")
-    dockerfile_lines.append("RUN echo 'exec \"$@\"' >> /entrypoint.sh")
-    dockerfile_lines.append("RUN chmod +x /entrypoint.sh")
-    dockerfile_lines.append("")
-    dockerfile_lines.append("ENTRYPOINT [\"/entrypoint.sh\"]")
-    dockerfile_lines.append("")
+    # 14. Entrypoint 설정
+    dockerfile_lines.extend(generate_entrypoint_section(has_r or has_renv))
     
-    # 헬스체크 수정
-    dockerfile_lines.append("# 헬스체크 설정")
-    dockerfile_lines.append('HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\')
-    dockerfile_lines.append('    CMD test -f /opt/micromamba/envs/plugin_env/bin/python || exit 1')
-    dockerfile_lines.append("")
-
-    # 기본 명령어 설정
-    dockerfile_lines.append("# 기본 명령어 설정")
-    dockerfile_lines.append('CMD ["/bin/bash"]')
-
+    # 15. 헬스체크 설정
+    dockerfile_lines.extend(generate_healthcheck_section())
+    
+    # 16. 기본 명령어 설정
+    dockerfile_lines.extend(generate_cmd_section())
+    
     # Dockerfile 저장
     with open(output_path, "w") as f:
         f.write("\n".join(dockerfile_lines))
-
-    # 버전 정보 로그 출력
-    version_info = f"Python {python_version}"
-    if has_r or has_renv:
-        version_info += f", R {r_version}"
-    print(f"[✓] Dockerfile generated for {plugin_path} ({version_info})")
     
-    # 디버깅용 추가 정보
-    print(f"    - has_python: {has_python}, has_r: {has_r}")
-    print(f"    - has_requirements: {has_requirements}, has_environment: {has_environment}, has_renv: {has_renv}")
-    if has_renv:
-        print(f"    - R version from renv.lock: {r_version}")
+    # 결과 로그 출력
+    print(f"[✓] Multi-platform Dockerfile generated for {plugin_path}")
+    print(f"    - GPU: {use_gpu}")
+    print(f"    - Platform support: {'linux/amd64' if use_gpu else 'linux/amd64, linux/arm64, linux/arm/v7'}")
+    print(f"    - Python version: {python_version}")
+    if has_r or has_renv:
+        print(f"    - R version: {r_version}")
+    print(f"    - has_requirements: {has_requirements}")
+    print(f"    - has_renv: {has_renv}")
 
 def check_plugin_docker_image(plugin_name: str) -> bool:
     """
@@ -1646,3 +2075,24 @@ def check_plugin_docker_image(plugin_name: str) -> bool:
     except Exception as e:
         print(f"Failed to connect to Docker daemon: {str(e)}")
         return False
+
+def generate_plugin_image_uri(plugin_name: str, source: str, version: Optional[str] = None) -> str:
+    """
+    Generate plugin image URI based on plugin type.
+    
+    Args:
+        plugin_name: Name of the plugin
+        source: Plugin source ("official" or "local")  
+        version: Version for official plugins (optional)
+        
+    Returns:
+        Plugin image URI string
+    """
+    if source == "official":
+        # For official plugins, use GitHub Container Registry
+        version = version or "latest"
+        return f"ghcr.io/cxinsys/cellcraft-{plugin_name.lower()}:{version}"
+    else:
+        # For local plugins, use timestamp-based identifier
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        return f"local-build:{plugin_name.lower()}-{timestamp}"

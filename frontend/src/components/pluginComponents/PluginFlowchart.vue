@@ -43,9 +43,6 @@
                                 <div class="rule-meta">
                                     <span class="rule-node-id">Node ID: {{ rule.nodeId }}</span>
                                     <div v-if="rule.script" class="script-info">{{ getScriptName(rule.script) }}</div>
-                                    <span v-if="rule.isVisualization" class="visualization-badge">
-                                        <i class="fas fa-chart-bar"></i> Visualization
-                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -280,15 +277,18 @@
 
                 <div class="script-code-container">
                     <pre>{{ completeRule }}</pre>
-                    <div class="checkbox-group" v-if="this.scriptFile && this.ruleTitle != ''">
-                        <input type="checkbox" id="isVisualization" v-model="isVisualization"
-                            @change="showAlertAndAddFile" />
-                        <label for="isVisualization">Visualization Node</label>
-                    </div>
                     <draggable class="script-drag-component" v-model="parameters" @start="drag = true"
                         @end="drag = false">
-                        <div class="script-drag-parameter" v-for="(param, paramIndex) in parameters" :key="paramIndex">
-                            {{ param.name }} ({{ param.type }})
+                        <div class="script-drag-parameter" v-for="(param, paramIndex) in parameters" :key="param.id || paramIndex">
+                            <div class="param-modal-content">
+                                <span class="param-name">{{ param.name }}</span>
+                                <span class="param-type" :class="'type-' + param.type">{{ param.type }}</span>
+                                <button class="action-btn delete-btn modal-param-delete" 
+                                    @click="confirmRemoveParameterFromModal(paramIndex)" 
+                                    title="Delete Parameter">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
                     </draggable>
                 </div>
@@ -384,6 +384,10 @@ export default {
         newDrawflow: {
             type: Object,
             required: true
+        },
+        pluginType: {
+            type: String,
+            default: 'analysis' // 'analysis' or 'visualization'
         }
     },
     data() {
@@ -415,29 +419,40 @@ export default {
             })),
             drawflow: { ...this.newDrawflow },
             allowRuleEdit: false,
-            isVisualization: false,
             alertContent: {
                 isShowAlertModal: false,
                 title: "",
                 messages: [],
             },
-            drawflowInstance: null,
             isSelectedH5ad: false,
             showParameterDetails: {},
         };
     },
     mounted() {
-        this.initDrawflow();
         const id = document.getElementById("rule-drawflow");
         Vue.prototype.$df = new Drawflow(id, Vue, this);
-        //this.$df == editor
+        
+        // Configure Drawflow with native settings for smooth dragging and connections
+        this.$df.editor_mode = 'edit';
+        this.$df.zoom_max = 2;
+        this.$df.zoom_min = 0.5;
+        this.$df.reroute = true;                    // Enable connection rerouting during drag
+        this.$df.reroute_fix_curvature = true;     // Fix curvature for rerouted connections  
+        this.$df.curvature = 0.5;                  // Connection curve amount
+        this.$df.reroute_curvature = 0.5;          // Curvature for intermediate connection points
+        this.$df.reroute_curvature_start_end = 0.5; // Curvature for start/end connection points
+        this.$df.force_first_input = false;        // Allow flexible connection behavior
+        
+        //this.$df == editor  
         this.$df.start();
+        
         this.$df.registerNode('ruleNode', ruleNode, {}, {});
         this.$df.on('nodeCreated', (id) => this.onNodeCreated(id));
         this.$df.on('nodeRemoved', (id) => this.onNodeRemoved(id));
         this.$df.on('connectionCreated', (connection) => this.onConnectionCreated(connection));
         this.$df.on('connectionRemoved', (connection) => this.onConnectionRemoved(connection));
         this.$df.on('nodeDataChanged', (id) => this.onNodeDataChanged(id, data));
+        
         this.importDrawflowData();
     },
     watch: {
@@ -464,53 +479,10 @@ export default {
         },
     },
     methods: {
-        initDrawflow() {
-            this.$nextTick(() => {
-                const drawflowContainer = this.$refs.drawflow;
-                if (drawflowContainer) {
-                    this.drawflowInstance = new Drawflow(drawflowContainer);
-                    this.drawflowInstance.start();
-                    if (this.newDrawflow) {
-                        this.importDrawflowData();
-                    }
-                } else {
-                    console.error("Drawflow container not found.");
-                }
-            });
-        },
         showCreateModal() {
             this.isShowCreateModal = true;
             // nodecreate 데이터 초기화
             this.resetNewParameter();
-        },
-        showAlertAndAddFile() {
-            if (this.isVisualization) {
-                const title = "※ Please read the instructions for the visualization node"
-                const messages = [
-                    'Visualization nodes must always be configured to output a single .json file that can be uploaded to Plotly.',
-                    'Visualization nodes can later select the input file from multiple files, so consider the current input file setting as a default value.'
-                ]
-                this.showAlertandFillContent(title, messages);
-
-                // 기존 output 파라미터 제거
-                this.parameters = this.parameters.filter(param => param.type !== 'outputFile');
-
-                // 새로운 파라미터 추가
-                const outputParameter = {
-                    name: `${this.ruleTitle}`,
-                    type: 'outputFile',
-                    defaultValue: `${this.ruleTitle}.json`,
-                    fileExtension: '.json',
-                };
-                // const inputParameter = {
-                //     name: 'target',
-                //     type: 'inputFile', 
-                //     defaultValue: 'target.sif',
-                //     fileExtension: '.sif'
-                // };
-                this.parameters.push(outputParameter);
-                // this.parameters.push(inputParameter);
-            }
         },
         showAlertandFillContent(title, messages) {
             this.alertContent.title = title;
@@ -620,6 +592,8 @@ export default {
                 return;
             }
             const newParam = { ...this.newParameter }; // 객체 복사
+            // Add unique ID to parameter
+            newParam.id = 'param_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
             // newParam.name, newParam.defaultValue 둘 중에 하나라도 비어있으면 추가하지 않음
             if (newParam.type === 'inputFile' || newParam.type === 'outputFile' || newParam.type === 'optionalInputFile') {
                 newParam.defaultValue = newParam.name + newParam.fileExtension;
@@ -680,6 +654,33 @@ export default {
                 this.showAlertandFillContent(title, messages);
                 return;
             }
+            
+            // Validation for visualization plugins
+            if (this.pluginType === 'visualization') {
+                if (outputFiles.length !== 1) {
+                    const title = "📊 Visualization Plugin Requirements"
+                    const messages = [
+                        '🔍 Visualization plugins require exactly one output file per node.',
+                        `📁 Current outputs: ${outputFiles.length}. Please adjust to have exactly 1 output.`,
+                        '💡 This ensures proper Plotly visualization rendering in the workflow editor.'
+                    ]
+                    this.showAlertandFillContent(title, messages);
+                    return;
+                }
+                
+                const outputFile = outputFiles[0];
+                if (!outputFile.toLowerCase().endsWith('.json')) {
+                    const title = "📊 Visualization Plugin Requirements"
+                    const messages = [
+                        '🔍 Visualization plugins must output JSON files for Plotly rendering.',
+                        `📄 Current output: "${outputFile}"`,
+                        '✏️ Please change the file extension to .json to proceed.',
+                        '💡 The JSON file should contain a valid Plotly object for visualization.'
+                    ]
+                    this.showAlertandFillContent(title, messages);
+                    return;
+                }
+            }
 
             const nodeData = {
                 title: this.ruleTitle,
@@ -687,7 +688,6 @@ export default {
                 outputs: outputFiles,
                 script: this.scriptFile,
                 parameters: this.parameters,
-                isVisualization: this.isVisualization,
             };
 
             this.nodeData = nodeData;
@@ -696,13 +696,8 @@ export default {
             let nodeX = Math.floor((Math.random() * 500) + 10)
             let nodeY = Math.floor((Math.random() * 500) + 10)
 
-            if (this.isVisualization) {
-                const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'visualizationNode', nodeData, 'ruleNode', 'vue');
-                console.log(nodeId, nodeData);
-            } else {
-                const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'ruleNode', nodeData, 'ruleNode', 'vue');
-                console.log(nodeId, nodeData);
-            }
+            const nodeId = this.$df.addNode('ruleNode', inputFiles.length, outputFiles.length, nodeX, nodeY, 'ruleNode', nodeData, 'ruleNode', 'vue');
+            console.log(nodeId, nodeData);
             this.isSelectedH5ad = false;
             this.closeCreateModal();
         },
@@ -715,7 +710,6 @@ export default {
                 // script: nodeData.script ? nodeData.script.name : '',
                 script: nodeData.script,
                 parameters: nodeData.parameters,
-                isVisualization: nodeData.isVisualization,
             };
             this.rules.push(rule);
 
@@ -724,7 +718,6 @@ export default {
         },
         closeCreateModal() {
             this.isShowCreateModal = false;
-            this.isVisualization = false;
             this.ruleTitle = "";
             this.scriptFile = null;
             this.parameters = [];
@@ -732,14 +725,6 @@ export default {
             this.shellCommand = "";
         },
         generateShellCommand(rule) {
-            const paramStr = rule.parameters.map(p => {
-                if (p.type === 'inputFile' || p.type === 'outputFile' || p.type === 'optionalInputFile') {
-                    return `${p.defaultValue}(${p.type})`;
-                } else {
-                    return `${p.name}(${p.type}:${p.defaultValue})`;
-                }
-            }).join(' ');
-
             const scriptName = rule.script.name || rule.script;
             let command = '';
             console.log("scriptName", scriptName);
@@ -751,7 +736,6 @@ export default {
                 command = `/${scriptName}`;
             }
 
-            // return `${command} ${paramStr}`;
             return `${command}`;
         },
         checkAndConnectNodes() {
@@ -909,6 +893,208 @@ export default {
                 }
             }
         },
+        // Enhanced drag handling with 5x sensitivity and boundary detection
+        initializeEnhancedDragHandling() {
+            this.$nextTick(() => {
+                const container = document.getElementById('rule-drawflow');
+                if (!container) return;
+                
+                // Store container bounds for boundary detection
+                this.updateContainerBounds();
+                
+                // Add event listeners for enhanced drag handling (mouse events)
+                container.addEventListener('mousedown', this.handlePointerDown);
+                document.addEventListener('mousemove', this.handlePointerMove);
+                document.addEventListener('mouseup', this.handlePointerUp);
+                document.addEventListener('mouseleave', this.handleDocumentMouseLeave);
+                
+                // Add touch event listeners for mobile compatibility
+                container.addEventListener('touchstart', this.handlePointerDown, { passive: false });
+                document.addEventListener('touchmove', this.handlePointerMove, { passive: false });
+                document.addEventListener('touchend', this.handlePointerUp);
+                document.addEventListener('touchcancel', this.handlePointerUp);
+                
+                // Update container bounds on window resize
+                window.addEventListener('resize', this.updateContainerBounds);
+            });
+        },
+        updateContainerBounds() {
+            const container = document.getElementById('rule-drawflow');
+            if (container) {
+                this.containerBounds = container.getBoundingClientRect();
+            }
+        },
+        // Unified pointer event handler for both mouse and touch events
+        handlePointerDown(event) {
+            // Check if the clicked element is a ruleNode
+            const nodeElement = event.target.closest('.drawflow-node.ruleNode');
+            if (!nodeElement) return;
+            
+            // Prevent default Drawflow drag behavior
+            const isInputOutput = event.target.closest('.input, .output');
+            if (isInputOutput) return; // Allow normal behavior for input/output connections
+            
+            this.isDragging = true;
+            this.draggedNode = nodeElement;
+            
+            // Get pointer coordinates (works for both mouse and touch)
+            const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+            const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+            
+            // Store initial positions
+            this.dragStartPos = { x: clientX, y: clientY };
+            
+            // Get current node position
+            const transform = nodeElement.style.transform;
+            const matches = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+            if (matches) {
+                this.nodeStartPos = {
+                    x: parseFloat(matches[1]),
+                    y: parseFloat(matches[2])
+                };
+            } else {
+                this.nodeStartPos = { x: 0, y: 0 };
+            }
+            
+            // Add visual feedback
+            nodeElement.style.cursor = 'grabbing';
+            nodeElement.style.zIndex = '1000';
+            
+            // Prevent text selection during drag
+            event.preventDefault();
+        },
+        handlePointerMove(event) {
+            if (!this.isDragging || !this.draggedNode) return;
+            
+            // Get pointer coordinates (works for both mouse and touch)
+            const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+            const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+            
+            // Check if pointer is still within container bounds
+            if (!this.isPointerInContainer(clientX, clientY)) {
+                this.cancelDrag();
+                return;
+            }
+            
+            // Use requestAnimationFrame for smoother performance
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+            }
+            
+            this.animationFrameId = requestAnimationFrame(() => {
+                if (!this.isDragging || !this.draggedNode) return;
+                
+                // Use native 1:1 movement
+                const deltaX = (clientX - this.dragStartPos.x);
+                const deltaY = (clientY - this.dragStartPos.y);
+                
+                // Apply new position
+                const newX = this.nodeStartPos.x + deltaX;
+                const newY = this.nodeStartPos.y + deltaY;
+                
+                // Update node position
+                this.draggedNode.style.transform = `translate(${newX}px, ${newY}px)`;
+            });
+            
+            // Prevent default to avoid text selection and scrolling on touch
+            event.preventDefault();
+        },
+        handlePointerUp() {
+            if (!this.isDragging || !this.draggedNode) return;
+            
+            // Cancel any pending animation frame
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
+            }
+            
+            this.finalizeDrag();
+        },
+        handleDocumentMouseLeave(event) {
+            // Cancel drag if mouse leaves the document entirely
+            if (this.isDragging && event.relatedTarget === null) {
+                this.cancelDrag();
+            }
+        },
+        isPointerInContainer(clientX, clientY) {
+            if (!this.containerBounds) return false;
+            
+            return (
+                clientX >= this.containerBounds.left &&
+                clientX <= this.containerBounds.right &&
+                clientY >= this.containerBounds.top &&
+                clientY <= this.containerBounds.bottom
+            );
+        },
+        cancelDrag() {
+            if (!this.isDragging || !this.draggedNode) return;
+            
+            // Restore original position
+            const originalX = this.nodeStartPos.x;
+            const originalY = this.nodeStartPos.y;
+            this.draggedNode.style.transform = `translate(${originalX}px, ${originalY}px)`;
+            
+            this.cleanupDrag();
+        },
+        finalizeDrag() {
+            if (!this.isDragging || !this.draggedNode) return;
+            
+            // Get final position
+            const transform = this.draggedNode.style.transform;
+            const matches = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+            if (matches) {
+                const finalX_visual = parseFloat(matches[1]);
+                const finalY_visual = parseFloat(matches[2]);
+                
+                // Reverse the sensitivity multiplier to get the correct logical position
+                // 1. Calculate the visual delta from the start position
+                const visualDeltaX = finalX_visual - this.nodeStartPos.x;
+                const visualDeltaY = finalY_visual - this.nodeStartPos.y;
+                
+                // No scaling needed with 1:1 movement
+                const logicalDeltaX = visualDeltaX;
+                const logicalDeltaY = visualDeltaY;
+                
+                // 3. Calculate the final logical position to be stored in the model
+                const finalLogicalX = this.nodeStartPos.x + logicalDeltaX;
+                const finalLogicalY = this.nodeStartPos.y + logicalDeltaY;
+                
+                // Update the Drawflow internal state with the corrected logical position
+                const nodeId = this.draggedNode.getAttribute('id');
+                if (nodeId && this.$df && this.$df.drawflow && this.$df.drawflow.drawflow) {
+                    const nodeIdNum = nodeId.replace('node-', '');
+                    const moduleData = this.$df.drawflow.drawflow[this.$df.module];
+                    if (moduleData && moduleData.data && moduleData.data[nodeIdNum]) {
+                        moduleData.data[nodeIdNum].pos_x = finalLogicalX;
+                        moduleData.data[nodeIdNum].pos_y = finalLogicalY;
+                    }
+                }
+            }
+            
+            this.cleanupDrag();
+            
+            // Emit changes to parent component
+            this.emitFlowchartData();
+        },
+        cleanupDrag() {
+            if (this.draggedNode) {
+                // Reset visual feedback
+                this.draggedNode.style.cursor = '';
+                this.draggedNode.style.zIndex = '';
+            }
+            
+            // Cancel any pending animation frame
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
+            }
+            
+            // Reset drag state
+            this.isDragging = false;
+            this.draggedNode = null;
+            this.dragStartPos = { x: 0, y: 0 };
+            this.nodeStartPos = { x: 0, y: 0 };
+        },
         toggleEditRule(index) {
             this.$set(this.rules, index, {
                 ...this.rules[index],
@@ -1010,6 +1196,7 @@ export default {
         },
         addParameterToRule(rule, ruleIndex) {
             const newParam = {
+                id: 'param_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11),
                 name: 'new_parameter',
                 type: 'string',
                 defaultValue: '',
@@ -1031,6 +1218,7 @@ export default {
             const originalParam = rule.parameters[paramIndex];
             const duplicatedParam = {
                 ...originalParam,
+                id: 'param_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11),
                 name: originalParam.name + '_copy',
                 isEditing: false,
                 _backup: undefined
@@ -1101,6 +1289,35 @@ export default {
                 param.type === 'inputFile' && param.fileExtension === '.h5ad'
             );
         },
+        confirmRemoveParameterFromModal(paramIndex) {
+            const confirmed = confirm('Are you sure you want to delete this parameter?');
+            if (confirmed) {
+                this.removeParameterFromModal(paramIndex);
+            }
+        },
+        removeParameterFromModal(paramIndex) {
+            const removedParam = this.parameters[paramIndex];
+            this.parameters.splice(paramIndex, 1);
+            
+            // Update h5ad state if necessary
+            if (removedParam && removedParam.type === 'inputFile' && removedParam.fileExtension === '.h5ad') {
+                this.updateH5adState();
+            }
+            
+            this.updateShellCommand();
+        },
+        updateH5adState() {
+            // Check if any remaining parameters are h5ad input files
+            this.isSelectedH5ad = this.parameters.some(param => 
+                param.type === 'inputFile' && param.fileExtension === '.h5ad'
+            );
+        },
+    },
+    beforeDestroy() {
+        // Clean up Drawflow instance
+        if (this.$df) {
+            this.$df.clear();
+        }
     },
 };
 </script>
@@ -1199,9 +1416,6 @@ export default {
     color: #333;
 }
 
-.visualizationNode {
-    background-color: #4fc3f7 !important;
-}
 
 .rule-item {
     padding: 1rem;
@@ -1369,6 +1583,9 @@ img {
     cursor: grab;
     /* 드래그 가능함을 나타내는 커서 */
     transition: background-color 0.2s ease;
+    /* 추가: 축소 방지 및 텍스트 줄바꿈 방지 */
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .script-drag-parameter:hover {
@@ -1478,6 +1695,51 @@ img {
     background-size: var(--dfBackgroundSize) var(--dfBackgroundSize);
     background-image: var(--dfBackgroundImage);
     z-index: 9997;
+    cursor: grab;
+}
+
+#rule-drawflow:active {
+    cursor: grabbing;
+}
+
+/* Improve drag responsiveness */
+#rule-drawflow .drawflow {
+    touch-action: none;
+}
+
+#rule-drawflow .drawflow svg {
+    pointer-events: none;
+}
+
+/* Enhanced drag handling styles */
+#rule-drawflow .drawflow-node.ruleNode {
+    cursor: grab;
+    user-select: none;
+    transition: box-shadow 0.2s ease;
+}
+
+#rule-drawflow .drawflow-node.ruleNode:hover {
+    cursor: grab;
+}
+
+#rule-drawflow .drawflow-node.ruleNode:active,
+#rule-drawflow .drawflow-node.ruleNode[style*="grabbing"] {
+    cursor: grabbing !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25) !important;
+    transform-origin: center;
+}
+
+/* Prevent text selection during drag */
+#rule-drawflow .drawflow-node.ruleNode * {
+    user-select: none;
+    pointer-events: none;
+}
+
+/* Allow input/output connections to still be interactive */
+#rule-drawflow .drawflow-node.ruleNode .input,
+#rule-drawflow .drawflow-node.ruleNode .output {
+    pointer-events: auto;
+    cursor: crosshair;
 }
 
 #rule-drawflow .drawflow .drawflow-node {
@@ -1486,15 +1748,20 @@ img {
     color: #2c3e50;
     border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 1rem;
-    min-height: 40px;
+    min-height: 50px;
     width: auto;
-    min-width: 160px;
-    padding-top: 15px;
-    padding-bottom: 15px;
+    min-width: 180px;
+    max-width: 300px;
+    padding: 15px 20px;
     backdrop-filter: blur(10px);
     -webkit-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: move;
+    user-select: none;
+    align-items: center;
+    justify-content: center;
+    will-change: transform;
 }
 
 #rule-drawflow .drawflow .drawflow-node:hover {
@@ -2136,17 +2403,6 @@ img {
     font-weight: 500;
 }
 
-.visualization-badge {
-    background: #ff6b6b;
-    color: white;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
 
 .rule-actions {
     display: flex;
@@ -2360,6 +2616,11 @@ img {
     border-radius: 8px;
     padding: 0.75rem;
     border: 1px solid #dee2e6;
+    /* 추가: 수평 스크롤 개선 */
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    max-width: 100%;
 }
 
 /* 반응형 디자인 */
@@ -2429,6 +2690,8 @@ img {
 /* 파라미터 컨테이너 - 컴팩트 디자인 스타일 */
 .parameters-container {
     margin-top: 0.5rem;
+    width: 100%;
+    overflow: hidden; /* 부모 컨테이너 오버플로우 방지 */
 }
 
 .parameters-header-inline {
@@ -2466,6 +2729,10 @@ img {
     overflow-y: hidden;
     padding: 0.25rem 0;
     min-height: 2.5rem;
+    /* 추가: 수평 스크롤 향상 */
+    flex-wrap: nowrap;
+    max-width: 100%;
+    scrollbar-width: thin; /* Firefox용 */
 }
 
 .script-drag-parameter {
@@ -2480,6 +2747,8 @@ img {
     transition: all 0.2s ease;
     white-space: nowrap;
     position: relative;
+    /* 추가: 축소 방지 */
+    flex-shrink: 0;
 }
 
 .script-drag-parameter:hover {
@@ -2703,21 +2972,33 @@ img {
 
 /* 스크롤바 개선 */
 .script-drag-component::-webkit-scrollbar {
-    height: 6px;
+    height: 8px;
 }
 
 .script-drag-component::-webkit-scrollbar-track {
     background: #f1f1f1;
-    border-radius: 3px;
+    border-radius: 4px;
+    margin: 0 4px;
 }
 
 .script-drag-component::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 3px;
+    background: #007BFF;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
 }
 
 .script-drag-component::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: #0056b3;
+}
+
+/* 컨테이너가 호버되었을 때 스크롤바를 더 명확하게 표시 */
+.script-drag-component:hover::-webkit-scrollbar-thumb {
+    background: #007BFF;
+}
+
+/* Firefox용 스크롤바 스타일 */
+.script-drag-component {
+    scrollbar-color: #007BFF #f1f1f1;
 }
 
 /* 드래그 상태 스타일 */
@@ -2728,5 +3009,39 @@ img {
 
 .sortable-chosen {
     transform: scale(1.02);
+}
+
+/* Modal parameter delete button styling */
+.param-modal-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.param-modal-content .param-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.param-modal-content .param-type {
+    font-size: 0.7rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 8px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.modal-param-delete {
+    margin-left: auto;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+}
+
+.script-drag-parameter:hover .modal-param-delete {
+    opacity: 1;
 }
 </style>
