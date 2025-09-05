@@ -16,7 +16,7 @@
                     <img class="control-bar__icon" src="@/assets/control_run.png" />
                 </button>
             </li>
-            <li class="control-bar__button">
+            <li class="control-bar__button job-status-button" :class="{ 'active': show_jobs }">
                 <div class="loader" @click="toggleTask" v-if="on_progress == true"></div>
                 <div class="loader_done" @click="toggleTask" v-else></div>
             </li>
@@ -40,6 +40,10 @@ export default {
         isTabView: {
             type: Boolean,
             required: true
+        },
+        show_jobs: {
+            type: Boolean,
+            default: false
         }
     },
     methods: {
@@ -128,6 +132,7 @@ export default {
     width: 24px;
     height: 24px;
     opacity: 0.5;
+    transition: all 0.3s ease;
 }
 
 .loader {
@@ -137,7 +142,42 @@ export default {
 
 .loader_done:hover {
     opacity: 0.7;
-    /* You can adjust this value to your liking */
     transform: scale(1.1);
+}
+
+/* Job Status Button Styling */
+.job-status-button {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+/* Inactive state - matches other buttons */
+.job-status-button .loader_done {
+    border-color: #f3f3f3bf;
+    opacity: 0.5;
+}
+
+/* Active state - highlighted with blue theme */
+.job-status-button.active {
+    background: rgba(65, 179, 255, 0.15);
+    border-radius: 8px;
+    box-shadow: 0 0 12px rgba(65, 179, 255, 0.3);
+}
+
+.job-status-button.active .loader_done {
+    border-color: #41b3ff;
+    opacity: 0.9;
+    box-shadow: 0 0 8px rgba(65, 179, 255, 0.4);
+}
+
+/* Running state with loader */
+.job-status-button .loader {
+    opacity: 0.9;
+}
+
+/* Add smooth animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 </style>

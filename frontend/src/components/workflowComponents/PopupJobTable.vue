@@ -1,12 +1,15 @@
 <template>
   <div class="control-popup__jobs" v-if="show_jobs">
+    <button class="close-button" @click="closePopup" aria-label="Close">
+    </button>
     <div class="job-table-container">
       <table class="job-table">
         <thead>
           <tr>
             <th>No.</th>
             <th>Name</th>
-            <th>Task</th>
+            <th>Plugin</th>
+            <th>Type</th>
             <th>Start</th>
             <th>End</th>
             <th>Time</th>
@@ -18,7 +21,8 @@
           <tr v-for="(task, index) in taskList" :key="index" @click.right.prevent="RMouseClick($event, task)">
             <td>{{ index + 1 }}</td>
             <td>{{ task.workflow_title | titleNone }}</td>
-            <td>{{ task.task_title | titleNone }}</td>
+            <td>{{ formatPluginInfo(task) }}</td>
+            <td>{{ formatPluginType(task) }}</td>
             <td>{{ task.start_time | formatDateTime }}</td>
             <td>{{ task.end_time | formatDateTime }}</td>
             <td>{{ task.running_time }}</td>
@@ -90,18 +94,123 @@ export default {
       this.$emit('show-logs', this.currentTaskId);
       this.R_Mouse_isActive = false;
     },
+    closePopup() {
+      this.$emit('close-popup');
+    },
     getStatusClass(status) {
       if (status === "SUCCESS") return "status-success";
       if (status === "FAILURE" || status === "REVOKED" || status === "RETRY") return "status-failure";
       if (status === "RUNNING" || status === "PENDING" || status === "INSTALLING") return "status-running";
     },
     RMouseClick(event, task) {
+      // 기존 메뉴를 먼저 숨김
       this.R_Mouse_isActive = false;
-      this.xPosition = Math.min(event.clientX, window.innerWidth - 210) + 'px';
-      this.yPosition = Math.min(event.clientY, window.innerHeight - 60) + 'px';
-      this.R_Mouse_isActive = true;
-      this.currentTaskId = task.task_id;
-      this.isCompleted = ["SUCCESS", "FAILURE", "REVOKED", "RETRY"].includes(task.status);
+
+      // Vue의 다음 틱에서 실행하여 DOM 업데이트 후 위치 계산
+      this.$nextTick(() => {
+        // 부모 컨테이너(.control-popup__jobs)의 위치 정보 가져오기
+        const popupContainer = this.$el;
+        const containerRect = popupContainer.getBoundingClientRect();
+
+        // 마우스 클릭 위치를 부모 컨테이너 기준으로 변환
+        const relativeX = event.clientX - containerRect.left;
+        const relativeY = event.clientY - containerRect.top;
+
+        // 메뉴 크기 계산을 위해 임시로 메뉴를 표시
+        this.currentTaskId = task.task_id;
+        this.isCompleted = ["SUCCESS", "FAILURE", "REVOKED", "RETRY"].includes(task.status);
+        this.R_Mouse_isActive = true;
+
+        // 다음 틱에서 실제 메뉴 크기 측정
+        this.$nextTick(() => {
+          const menuElement = this.$el.querySelector('.toggle__menu');
+          let menuWidth = 200; // 기본값
+          let menuHeight = 80; // 기본값
+
+          // 메뉴가 렌더링된 경우 실제 크기 측정
+          if (menuElement) {
+            const menuRect = menuElement.getBoundingClientRect();
+            menuWidth = menuRect.width;
+            menuHeight = menuRect.height;
+          }
+
+          let x = relativeX;
+          let y = relativeY;
+
+          // 컨테이너 경계를 고려한 위치 조정
+          const containerWidth = containerRect.width;
+          const containerHeight = containerRect.height;
+          const margin = 10; // 안전 여백
+
+          // 오른쪽 경계 체크 - 메뉴가 컨테이너 밖으로 나가면 왼쪽으로 이동
+          if (x + menuWidth > containerWidth - margin) {
+            x = Math.max(margin, containerWidth - menuWidth - margin);
+          }
+
+          // 하단 경계 체크 - 메뉴가 컨테이너 밖으로 나가면 위쪽으로 이동
+          if (y + menuHeight > containerHeight - margin) {
+            y = Math.max(margin, containerHeight - menuHeight - margin);
+          }
+
+          // 왼쪽 경계 체크 - 최소 여백 보장
+          if (x < margin) {
+            x = margin;
+          }
+
+          // 상단 경계 체크 - 최소 여백 보장
+          if (y < margin) {
+            y = margin;
+          }
+
+          // 최종 안전장치 - 메뉴가 너무 클 경우 컨테이너 내부에 강제 배치
+          if (menuWidth > containerWidth - (margin * 2)) {
+            x = margin;
+          }
+
+          if (menuHeight > containerHeight - (margin * 2)) {
+            y = margin;
+          }
+
+          // 정수값으로 변환하여 픽셀 완전성 보장
+          this.xPosition = Math.round(x) + 'px';
+          this.yPosition = Math.round(y) + 'px';
+        });
+      });
+    },
+    formatPluginInfo(task) {
+      if (!task.plugin_name) {
+        return "N/A";
+      }
+
+      // Check if enhanced plugin data is available
+      if (task.plugin && task.plugin.source && task.plugin.version) {
+        const { source, version } = task.plugin;
+        return `${source}/${task.plugin_name} : v${version}`;
+      }
+
+      // Legacy fallback for tasks without plugin relationship
+      return task.plugin_name;
+    },
+    formatPluginType(task) {
+      // Check if enhanced plugin data is available
+      if (task.plugin && task.plugin.plugin_type) {
+        const pluginType = task.plugin.plugin_type;
+        if (pluginType === 'compile') {
+          return 'Analysis';
+        } else if (pluginType === 'visualization') {
+          return 'Visualization';
+        }
+        return pluginType;
+      }
+
+      // Legacy fallback for tasks without plugin relationship
+      let taskType = task.task_type;
+      if (taskType === 'compile') {
+        return 'Analysis';
+      } else if (taskType === 'visualization') {
+        return 'Visualization';
+      }
+      return taskType || 'unknown';
     },
   },
   filters: {
@@ -119,17 +228,18 @@ export default {
 </script>
 
 <style scoped>
-/* 기존 포지션 유지 */
+/* ControlBar 위에 4px 공백을 두고 위치 */
 .control-popup__jobs {
-  /* width: 720px;
-  max-width: 720px; */
   height: 540px;
   max-height: 540px;
-  left: calc(50%);
+  /* width: 720px; */
+  left: 50%;
+  bottom: 92px;
+  /* ControlBar(24px + 64px) + 4px 공백 */
+  transform: translateX(-50%);
   overflow-y: auto;
   border-radius: 16px;
   position: absolute;
-  bottom: 98px;
   z-index: 9998;
   opacity: 1;
   display: flex;
@@ -195,7 +305,14 @@ export default {
 }
 
 .job-table td {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+/* 내부 요소들도 중앙 정렬 */
+.job-table td * {
+  text-align: center;
 }
 
 .job-table tbody tr {
@@ -209,22 +326,26 @@ export default {
 
 .toggle__menu {
   display: none;
-  position: fixed;
+  position: absolute;
   width: 200px;
   margin: 0;
   padding: 0;
   background: #ffffff;
-  border-radius: 5px;
+  border-radius: 8px;
   list-style: none;
-  box-shadow: 0 15px 35px rgba(50, 50, 90, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 3px 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   z-index: 999999;
   text-transform: capitalize;
+  pointer-events: none;
+  /* 부모 컨테이너와 동일한 좌표계 사용 */
+  transform: none;
 }
 
 .toggle__menu.open {
   display: block;
   opacity: 1;
+  pointer-events: auto;
 }
 
 .toggle__menu>li {
@@ -268,5 +389,36 @@ export default {
   width: 16px;
   height: 16px;
   cursor: pointer;
+}
+
+/* 닫기 버튼 스타일 */
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: rgba(231, 76, 60, 0.3);
+  /* 30% 투명도 */
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 10;
+  box-shadow: none;
+}
+
+.close-button:hover {
+  background-color: rgba(231, 76, 60, 1);
+  /* 호버 시 불투명 */
+  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.close-button:active {
+  transform: scale(0.95);
 }
 </style>
