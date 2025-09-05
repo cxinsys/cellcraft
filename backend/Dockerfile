@@ -37,7 +37,7 @@ WORKDIR /app
 # 애플리케이션 소스 코드 복사
 COPY . .
 
-# Initialize git submodules on container startup
+# Initialize git submodules
 RUN if [ -f .gitmodules ]; then \
     git config --global --add safe.directory /app && \
     git submodule update --init --recursive plugin/official || true; \
