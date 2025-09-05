@@ -123,27 +123,10 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
             plugin = db.query(models.Plugin).filter_by(name=plugin_name).first()
             
             if plugin and plugin.source == "official":
-                # Official 플러그인: GitHub Container Registry 이미지 사용
+                # Official 플러그인: 서버 시작 시 pull된 GitHub Container Registry 이미지 사용
                 registry = GitHubRegistryClient()
                 image_name = registry.get_image_uri(plugin_name.lower(), plugin.version)
-                print(f"Using official plugin image: {image_name}")
-                
-                # 이미지가 로컬에 없으면 Pull 시도
-                try:
-                    client.images.get(image_name)
-                    print(f"Image {image_name} found locally")
-                except docker.errors.ImageNotFound:
-                    print(f"Pulling image {image_name}...")
-                    try:
-                        client.images.pull(image_name)
-                        print(f"Successfully pulled {image_name}")
-                    except docker.errors.APIError as e:
-                        if "not found" in str(e).lower():
-                            # GitHub Registry에서 이미지를 찾을 수 없으면 로컬 빌드로 fallback
-                            print(f"Image not found in registry, falling back to local build")
-                            image_name = f'plugin-{plugin_name.lower()}'
-                        else:
-                            raise e
+                print(f"Using pre-pulled official plugin image: {image_name}")
             else:
                 # Local 플러그인: 기존 로컬 빌드 이미지 사용
                 image_name = f'plugin-{plugin_name.lower()}'
@@ -155,10 +138,18 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         try:
             client.images.get(image_name)
         except docker.errors.ImageNotFound:
+            # 플러그인 타입에 따라 다른 에러 메시지 제공
+            if plugin and plugin.source == "official":
+                error_msg = (f"Official plugin image '{image_name}' not found. "
+                           f"Please restart the server to pull official plugin images from GitHub Container Registry.")
+            else:
+                error_msg = (f"Local plugin image '{image_name}' not found. "
+                           f"Please build the plugin first using the build functionality.")
+            
             return {
                 "returncode": 1,
                 "stdout": "",
-                "stderr": f"Plugin image '{image_name}' not found. Please build the plugin first or check if the official image is available."
+                "stderr": error_msg
             }
         
         # 작업 디렉토리 설정
