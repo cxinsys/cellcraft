@@ -7,7 +7,8 @@ from datetime import datetime
 
 from app.common.utils.celery_utils import get_task_info
 from app.common.utils.docker_utils import container_manager
-from app.database.crud import crud_task, crud_workflow
+from app.database.crud import crud_task, crud_workflow, crud_plugin
+from app.database.schemas.task import TaskMonitoringResponse, TaskMonitoringItem, PluginInfo
 from app.routes import dep
 from app.database import models
 import os
@@ -34,32 +35,31 @@ async def get_task_status(task_id: str) -> dict:
                 break
     return EventSourceResponse(event_generator())
 
-@router.get("/monitoring")
+@router.get("/monitoring", response_model=List[TaskMonitoringItem])
 async def get_task_monitoring(
     *,
     db: Session = Depends(dep.get_db),
     current_user: models.User = Depends(dep.get_current_active_user)
-    ) -> List[Dict[str, Any]]:
+    ) -> List[TaskMonitoringItem]:
     """
-    Return the status of the all User Task with workflow information
-    플러그인 빌드 태스크는 제외하고 워크플로우 관련 태스크만 반환
+    Return the status of all User Tasks with workflow information.
+    Excludes plugin build tasks and returns only workflow-related tasks.
+    Uses optimized queries to prevent N+1 query problems.
     """
-    user_tasks = crud_task.get_user_task(db, current_user.id)
-    if not user_tasks:
-        raise HTTPException(
-            status_code=400,
-            detail="this user not exists task",
-        )
+    # Get user tasks with eager-loaded plugin and workflow data (single query)
+    user_tasks = crud_task.get_user_task_with_plugin(db, current_user.id)
     
-    # 플러그인 빌드 태스크는 제외하고 워크플로우 관련 태스크만 필터링
+    # Return empty list with 200 OK if no tasks (RESTful response)
+    if not user_tasks:
+        return []
+    
+    # Filter out plugin build tasks, keep only workflow-related tasks
     workflow_tasks = [task for task in user_tasks if task.task_type != "plugin_build"]
     
-    # 각 task에 workflow 정보 및 task_title 추가
+    # Build response using eager-loaded data (no additional queries needed)
     tasks_with_workflow = []
     for task in workflow_tasks:
-        workflow = crud_workflow.get_workflow_by_id(db, task.workflow_id)
-        
-        # task_title 생성 로직
+        # task_title generation logic
         task_title = None
         if task.plugin_name:
             if task.task_type == 'compile':
@@ -67,20 +67,35 @@ async def get_task_monitoring(
             elif task.task_type == 'visualization':
                 task_title = f"{task.plugin_name}-visualization"
             else:
-                task_title = task.plugin_name  # 기본값
+                task_title = task.plugin_name  # default value
         
-        task_dict = {
-            "id": task.id,
-            "task_id": task.task_id,  # 실제 Celery task ID 추가
-            "workflow_id": task.workflow_id,
-            "user_id": task.user_id,
-            "status": task.status,
-            "start_time": task.start_time,
-            "end_time": task.end_time,
-            "workflow_title": workflow.title if workflow else None,
-            "task_title": task_title
-        }
-        tasks_with_workflow.append(task_dict)
+        # Plugin information - use eager-loaded data
+        plugin_info = None
+        if task.plugin:
+            plugin_info = PluginInfo(
+                version=task.plugin.version,
+                source=task.plugin.source,
+                plugin_type=task.plugin.plugin_type.value if task.plugin.plugin_type else None
+            )
+        
+        # Use eager-loaded workflow data (no additional query)
+        workflow_title = task.workflows.title if task.workflows else None
+        
+        task_item = TaskMonitoringItem(
+            id=task.id,
+            task_id=task.task_id,
+            workflow_id=task.workflow_id,
+            user_id=task.user_id,
+            status=task.status,
+            start_time=task.start_time,
+            end_time=task.end_time,
+            workflow_title=workflow_title,
+            task_title=task_title,
+            plugin_name=task.plugin_name,
+            task_type=task.task_type,
+            plugin=plugin_info
+        )
+        tasks_with_workflow.append(task_item)
     
     return tasks_with_workflow
 
