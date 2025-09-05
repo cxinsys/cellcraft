@@ -48,6 +48,10 @@ export default new Router({
           component: () => import("@/components/modals/ResultFile.vue"),
         },
         {
+          path: "ResultFiles",
+          component: () => import("@/components/modals/ResultFiles.vue"),
+        },
+        {
           path: "Visualization",
           component: () => import("@/components/modals/Visualization.vue"),
         }
