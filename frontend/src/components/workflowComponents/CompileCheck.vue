@@ -1,6 +1,12 @@
 <template>
     <div class="modal-content">
-        <div class="modal-container">
+        <div class="modal-container" :class="{ 'loading-active': isLoadingResources }">
+            <!-- Full modal loading overlay -->
+            <div v-if="isLoadingResources" class="full-loading-overlay">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Loading resource information...</p>
+            </div>
+            
             <h2 class="modal-title">Confirm Task Execution</h2>
 
             <div class="task-info">
@@ -151,17 +157,22 @@ export default {
                 total_memory_usage_percent: 0,
                 containers: []
             },
-            intervalId: null,
+            isLoadingResources: true,
+            isPolling: false,
+            resourceTimeoutId: null,
         };
     },
     async mounted() {
-        const response = await getSystemResources();
-        this.serverResources = response.data;
-        this.intervalId = setInterval(async () => {
+        try {
             const response = await getSystemResources();
             this.serverResources = response.data;
-            console.log(this.serverResources);
-        }, 1000);
+            this.isLoadingResources = false;
+        } catch (error) {
+            console.error('Failed to load initial resources:', error);
+            this.isLoadingResources = false;
+        }
+        
+        this.startPolling();
 
         // workflow 정보를 통해 Algorithm 노드들의 정보 가져오기
         try {
@@ -187,11 +198,35 @@ export default {
         }
     },
     beforeDestroy() {
-        if (this.intervalId) {
-            clearInterval(this.intervalId);
-        }
+        this.stopPolling();
     },
     methods: {
+        startPolling() {
+            this.isPolling = true;
+            this.pollResources();
+        },
+        stopPolling() {
+            this.isPolling = false;
+            if (this.resourceTimeoutId) {
+                clearTimeout(this.resourceTimeoutId);
+                this.resourceTimeoutId = null;
+            }
+        },
+        async pollResources() {
+            if (!this.isPolling) return;
+
+            try {
+                const response = await getSystemResources();
+                this.serverResources = response.data;
+                console.log(this.serverResources);
+            } catch (error) {
+                console.error('Failed to refresh resources:', error);
+            } finally {
+                if (this.isPolling) {
+                    this.resourceTimeoutId = setTimeout(this.pollResources, 10000);
+                }
+            }
+        },
         formatBytes(bytes, decimals = 2) {
             if (bytes === 0) return '0 Bytes';
             const k = 1024;
@@ -202,16 +237,11 @@ export default {
         },
         confirmTask() {
             alert("Task is being executed...");
-            if (this.intervalId) {
-                clearInterval(this.intervalId);
-            }
             this.closeModal();
             this.$emit('run-workflow');
         },
         closeModal() {
-            if (this.intervalId) {
-                clearInterval(this.intervalId);
-            }
+            this.stopPolling();
             this.$emit('deactivate-compile-check');
         },
         formatCPUUsage(usage) {
@@ -255,6 +285,7 @@ export default {
     display: flex;
     justify-content: center;
     align-items: center;
+    z-index: 10000; /* 높은 z-index 설정 */
 }
 
 .modal-container {
@@ -265,6 +296,14 @@ export default {
     width: 480px;
     max-width: 90%;
     text-align: center;
+    position: relative;
+    z-index: 10001; /* modal-content보다 높은 z-index */
+}
+
+.modal-container.loading-active > *:not(.full-loading-overlay) {
+    filter: blur(2px);
+    opacity: 0.6;
+    pointer-events: none;
 }
 
 .modal-title {
@@ -494,5 +533,42 @@ export default {
 .container-info h4 {
     margin-bottom: 10px;
     color: #ecf0f1;
+}
+
+/* Full modal loading overlay */
+.full-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10002; /* 가장 높은 z-index로 설정 */
+    background-color: rgba(44, 62, 80, 0.3);
+    border-radius: 1rem;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #34495e;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+.loading-text {
+    color: #ecf0f1;
+    font-size: 1rem;
+    margin: 0;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 </style>

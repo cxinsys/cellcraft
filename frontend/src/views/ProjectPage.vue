@@ -273,7 +273,7 @@ export default {
   },
   computed: {
     filteredPlugins() {
-      return this.plugins.filter((plugin) => plugin.checked === true);
+      return this.plugins.filter((plugin) => plugin.checked === true && plugin.plugin_type === "analysis");
     },
     filteredMessageContent() {
       return this.messageContent.split(".").filter(Boolean);

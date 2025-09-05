@@ -701,14 +701,17 @@ def normalize_string(text: str) -> str:
     # 알파벳, 숫자, 공백, 점(.), 언더스코어(_), 하이픈(-) 만 허용
     return re.sub(r'[^a-zA-Z0-9\s._-]', '', text)
 
-def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
+def generate_snakemake_code(rules_data, output_folder_path, plugin_type=None, workflow_id=None, algo_id=None, viz_id=None):
     """
-    Generate Snakemake code for the plugin.
+    Generate unified Snakemake code for both analysis and visualization plugins.
     
     Parameters:
         rules_data (dict): Rules data
         output_folder_path (str): Output folder path
-        plugin_name (str): Plugin name
+        plugin_type (str): Plugin type ('ANALYSIS' or 'VISUALIZATION')
+        workflow_id (str): Workflow ID for visualization plugins
+        algo_id (str): Algorithm ID for input file resolution
+        viz_id (str): Visualization node ID for output path
     
     Raises:
         HTTPException: If there's an error generating the Snakemake code
@@ -718,13 +721,36 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
             raise ValueError("No rules data provided")
 
         snakemake_path = os.path.join(output_folder_path, "Snakefile")
-        visualization_snakemake_path = os.path.join(output_folder_path, "visualization_Snakefile")
-
         snakemake_code = "import os\n\n"  # Add import statement at the top
-        visualization_snakemake_code = "import os\n\n"
-        input_output_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results"
-        logs_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs"
-        unique_input_path = "user/{user_name}/data"
+        
+        # Configure paths based on plugin type
+        # When workflow_id, algo_id, viz_id are provided, use them; otherwise use placeholders
+        if plugin_type == 'VISUALIZATION':
+            # For visualization plugins: input from algorithm results, output to visualization directory
+            if workflow_id and algo_id and viz_id:
+                # Specific values provided - for runtime execution
+                input_path = f"user/{{user_name}}/workflow_{workflow_id}/algorithm_{algo_id}/results"
+                output_path = f"user/{{user_name}}/workflow_{workflow_id}/visualization_{viz_id}/results"
+                logs_path = f"user/{{user_name}}/workflow_{workflow_id}/visualization_{viz_id}/logs"
+            else:
+                # No specific values - generate template with placeholders
+                input_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results"
+                output_path = "user/{user_name}/workflow_{workflow_id}/visualization_{visualization_id}/results"
+                logs_path = "user/{user_name}/workflow_{workflow_id}/visualization_{visualization_id}/logs"
+            unique_input_path = input_path  # Visualization plugins don't use unique inputs from data folder
+        else:
+            # For analysis plugins: input from data, output to algorithm results
+            if workflow_id and algo_id:
+                # Specific values provided - for runtime execution
+                input_path = f"user/{{user_name}}/workflow_{workflow_id}/algorithm_{algo_id}/results"
+                output_path = f"user/{{user_name}}/workflow_{workflow_id}/algorithm_{algo_id}/results"
+                logs_path = f"user/{{user_name}}/workflow_{workflow_id}/algorithm_{algo_id}/logs"
+            else:
+                # No specific values - generate template with placeholders
+                input_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results"
+                output_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results"
+                logs_path = "user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs"
+            unique_input_path = "user/{user_name}/data"
 
         # Find all outputs across all rules to determine unique inputs not present in outputs
         all_outputs = {out for rule in rules_data.values() for out in rule['output']}
@@ -734,16 +760,11 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
 
         # Iterate through each rule in the dictionary
         for rule_id, rule in rules_data.items():
-            # Determine which code block to append to: snakemake_code or visualization_snakemake_code
-            if rule.get('isVisualization', False):
-                target_code = visualization_snakemake_code
-                print(f"Adding to visualization_snakemake_code: {rule['name']}")
-            else:
-                target_code = snakemake_code
-                print(f"Adding to snakemake_code: {rule['name']}")
+            # All rules go into the same unified Snakefile
+            print(f"Adding rule to Snakefile: {rule['name']} (plugin_type: {plugin_type})")
             
             # Start rule block with rule name
-            target_code += f"rule {normalize_param_name(rule['name'])}:\n"
+            snakemake_code += f"rule {normalize_param_name(rule['name'])}:\n"
 
             # Input section with optional input handling
             if 'input' in rule and rule['input']:
@@ -754,17 +775,17 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
                     return normalize_param_name(os.path.splitext(os.path.basename(inp))[0])
 
                 input_files = ",\n        ".join([
-                    f"{get_input_param_name(inp, rule.get('parameters', []))}=\"{input_output_path}/{{{inp}}}\"" 
+                    f"{get_input_param_name(inp, rule.get('parameters', []))}=\"{input_path}/{{{inp}}}\"" 
                     if 'target' in get_input_param_name(inp, rule.get('parameters', [])) else
                     f"{get_input_param_name(inp, rule.get('parameters', []))}=\"{unique_input_path}/{{{inp}}}\"" 
                     if inp in unique_inputs else
-                    f"{get_input_param_name(inp, rule.get('parameters', []))}=\"{input_output_path}/{inp}\""
+                    f"{get_input_param_name(inp, rule.get('parameters', []))}=\"{input_path}/{inp}\""
                     for inp in rule['input']
                     if not any(param['type'] == 'optionalInputFile' and param.get('defaultValue') == inp 
                               for param in rule.get('parameters', []))
                 ])
                 if input_files:  # Only add input section if there are non-optional input files
-                    target_code += f"    input:\n        {input_files}\n"
+                    snakemake_code += f"    input:\n        {input_files}\n"
 
             # Output section
             if 'output' in rule and rule['output']:
@@ -774,18 +795,12 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
                             return normalize_param_name(param['name'])
                     return normalize_param_name(os.path.splitext(os.path.basename(out))[0])
 
-                if rule.get('isVisualization', False):
-                    additional_path = "{visualization_result_path}"
-                    output_files = ",\n        ".join([
-                        f"{get_output_param_name(out, rule.get('parameters', []))}=\"{input_output_path}/{additional_path}{out}\""
-                        for out in rule['output']
-                    ])
-                else:
-                    output_files = ",\n        ".join([
-                        f"{get_output_param_name(out, rule.get('parameters', []))}=\"{input_output_path}/{out}\""
-                        for out in rule['output']
-                    ])
-                target_code += f"    output:\n        {output_files}\n"
+                # Use appropriate output path based on plugin type
+                output_files = ",\n        ".join([
+                    f"{get_output_param_name(out, rule.get('parameters', []))}=\"{output_path}/{out}\""
+                    for out in rule['output']
+                ])
+                snakemake_code += f"    output:\n        {output_files}\n"
 
             # Params section
             if 'parameters' in rule and rule['parameters']:
@@ -812,25 +827,24 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
 
                 if param_list:
                     param_list_str = ",\n        ".join(param_list)
-                    target_code += f"    params:\n        {param_list_str}\n"
+                    snakemake_code += f"    params:\n        {param_list_str}\n"
 
             # Log section
-            target_code += f"    log:\n"
-            target_code += f"        stdout=\"{logs_path}/{normalize_param_name(rule['name'])}.stdout\",\n"
-            target_code += f"        stderr=\"{logs_path}/{normalize_param_name(rule['name'])}.stderr\"\n"
+            snakemake_code += f"    log:\n"
+            snakemake_code += f"        stdout=\"{logs_path}/{normalize_param_name(rule['name'])}.stdout\",\n"
+            snakemake_code += f"        stderr=\"{logs_path}/{normalize_param_name(rule['name'])}.stderr\"\n"
 
             # Shell section based on script type
             if 'script' in rule and rule['script']:
                 # Script path 설정 (Docker 내부 경로)
-                script_path = f"plugin/{plugin_name}/scripts/{normalize_string(rule['script'])}"
+                script_path = f"/scripts/{normalize_string(rule['script'])}"
 
                 # Shell command 설정 (Python/R 분기)
                 if rule['script'].endswith('.py'):
                     shell_command = f"/opt/micromamba/envs/plugin_env/bin/python {script_path}"
                 elif rule['script'].endswith('.R'):
-                    # R 스크립트를 위한 환경 설정과 함께 실행 - Micromamba와 renv 라이브러리 사용
-                    shell_command = f"export R_LIBS_USER=/workspace/dependency/renv/library/linux-debian-bullseye/R-4.4/x86_64-conda-linux-gnu:/opt/micromamba/envs/plugin_env/lib/R/library && " \
-                                  f"export R_HOME=/opt/micromamba/envs/plugin_env/lib/R && " \
+                    # Simplified R script execution using micromamba environment
+                    shell_command = f"export R_HOME=/opt/micromamba/envs/plugin_env/lib/R && " \
                                   f"export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE && " \
                                   f"/opt/micromamba/envs/plugin_env/bin/Rscript {script_path}"
                 else:
@@ -855,22 +869,15 @@ def generate_snakemake_code(rules_data, output_folder_path, plugin_name):
                     param_list_str = " ".join(param_list)
                     shell_command = f"{shell_command} {param_list_str}"
 
-                target_code += f"    shell:\n        \"{shell_command} {scripts_log_word}\"\n"
+                snakemake_code += f"    shell:\n        \"{shell_command} {scripts_log_word}\"\n"
 
-            target_code += "\n"  # Add a newline for separation between rules
+            snakemake_code += "\n"  # Add a newline for separation between rules
 
-            # Assign modified code back to the correct variable
-            if rule.get('isVisualization', False):
-                visualization_snakemake_code = target_code
-            else:
-                snakemake_code = target_code
-
-        # Write the generated Snakemake code to files
+        # Write the unified Snakefile
         with open(snakemake_path, 'w') as file:
             file.write(snakemake_code)
-
-        with open(visualization_snakemake_path, 'w') as file:
-            file.write(visualization_snakemake_code)
+            
+        print(f"Generated unified Snakefile at: {snakemake_path} (plugin_type: {plugin_type})")
 
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -1414,15 +1421,18 @@ def setup_plugin_environments_via_docker(plugin_name: str):
         run(f"mkdir -p {env_path} {r_env}", "Failed to create environment directories")
         run(f"chmod 777 {env_path} {r_env}", "Failed to set permissions")
 
-        if os.path.exists(f"./plugin/{plugin_name}/dependency/environment.yml"):
+        plugin_path, _ = get_plugin_path(plugin_name)
+        plugin_dep_path = os.path.join(plugin_path, "dependency")
+        
+        if os.path.exists(os.path.join(plugin_dep_path, "environment.yml")):
             run(f"micromamba create -y -p {py_env} -f {dep_path}/environment.yml", "Failed to create Python env")
-        elif os.path.exists(f"./plugin/{plugin_name}/dependency/requirements.txt"):
+        elif os.path.exists(os.path.join(plugin_dep_path, "requirements.txt")):
             run(f"micromamba create -y -p {py_env} python=3.10", "Failed to create base Python env")
             run(f"micromamba run -p {py_env} pip install -r {dep_path}/requirements.txt", "Failed to install pip packages")
 
-        if os.path.exists(f"./plugin/{plugin_name}/dependency/renv.lock"):
-            run(f"cp {dep_path}/renv.lock {r_env}/", "Failed to copy renv.lock")
-            run(f"cp {dep_path}/*.tar.gz {r_env}/ || true", "Failed to copy tar.gz files")
+        if os.path.exists(os.path.join(plugin_dep_path, "renv.lock")):
+            run(f"cp {plugin_dep_path}/renv.lock {r_env}/", "Failed to copy renv.lock")
+            run(f"cp {plugin_dep_path}/*.tar.gz {r_env}/ || true", "Failed to copy tar.gz files")
 
             r_commands = [
                 "R -e 'if (!requireNamespace(\"renv\", quietly=TRUE)) install.packages(\"renv\", repos=\"https://cloud.r-project.org\")'",
@@ -1635,16 +1645,11 @@ def build_plugin_docker_image(plugin_path: str, plugin_name: str) -> dict:
         }
 
 def generate_base_image_section(use_gpu=True):
-    """Base 이미지 섹션 생성"""
+    """Base image section generation"""
     lines = []
     if use_gpu:
-        # GPU는 linux/amd64만 지원 - ARG 불필요
-        lines.append("# GPU 버전 - linux/amd64만 지원")
         lines.append("FROM --platform=linux/amd64 nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04")
     else:
-        # CPU는 멀티 플랫폼 지원 - ARG를 FROM 앞에 선언
-        lines.append("# 멀티 플랫폼 지원")
-        lines.append("# BuildKit 자동 감지 ARG (fallback 기본값)")
         lines.append("ARG TARGETPLATFORM=linux/amd64")
         lines.append("ARG BUILDPLATFORM=linux/amd64")
         lines.append("")
@@ -1653,29 +1658,27 @@ def generate_base_image_section(use_gpu=True):
 
 
 def generate_env_setup_section():
-    """환경 변수 설정 섹션"""
+    """Environment variables setup section"""
     return [
         "",
-        "# 비대화형 설치 설정",
         "ENV DEBIAN_FRONTEND=noninteractive",
         "ENV TZ=Asia/Seoul"
     ]
 
 
 def generate_system_packages_section(use_gpu=True, has_r=False):
-    """시스템 패키지 설치 섹션"""
+    """Enhanced system packages installation section based on Scribe requirements"""
     lines = [
         "",
-        "# 기본 패키지 설치" + (" (V8, jsonvalidate 지원 패키지 포함)" if has_r else ""),
         "RUN apt-get update && apt-get install -y \\"
     ]
     
-    # 공통 패키지
+    # Common packages
     common_packages = [
         "    build-essential gcc g++ gfortran make \\",
-        "    libssl-dev libcurl4-openssl-dev libxml2-dev \\",
-        "    libjpeg-dev libpng-dev libfreetype6-dev libtiff-dev \\",
-        "    libx11-dev libxt-dev \\",
+        "    libssl-dev libcurl4-openssl-dev libxml2-dev libxslt1-dev \\",
+        "    libjpeg-dev libpng-dev libfreetype6-dev libtiff5-dev \\",
+        "    libx11-dev libxt-dev" + (" xorg-dev \\" if has_r else " \\"),
         "    libglu1-mesa-dev \\",
         "    libharfbuzz-dev libfribidi-dev \\",
         "    libglpk-dev \\",
@@ -1683,38 +1686,49 @@ def generate_system_packages_section(use_gpu=True, has_r=False):
         "    python3 python3-pip python3-venv \\",
         "    software-properties-common \\",
         "    gnupg ca-certificates \\",
-        "    zlib1g-dev \\"
+        "    zlib1g-dev" + (" liblzma-dev \\" if has_r else "")
     ]
     
     lines.extend(common_packages)
     
-    # R 관련 추가 패키지
+    # Comprehensive R ecosystem packages (optimized for Scribe)
     if has_r:
-        lines.extend([
+        r_packages = [
+            "    rsync \\",
             "    libv8-dev libnode-dev \\",
-            "    libudunits2-dev libgdal-dev \\"
-        ])
+            "    libudunits2-dev libgdal-dev \\",
+            "    libcairo2-dev \\",
+            "    libfontconfig1-dev \\", 
+            "    libgeos-dev \\",
+            "    libproj-dev \\",
+            "    libmagick++-dev \\",
+            "    libpoppler-cpp-dev \\",
+            "    librsvg2-dev \\"
+        ]
+        lines.extend(r_packages)
+    
+    # 마지막 패키지 라인이 백슬래시로 끝나지 않으면 백슬래시 추가
+    if not lines[-1].endswith(" \\"):
+        lines[-1] = lines[-1] + " \\"
     
     lines.append("    && apt-get clean && rm -rf /var/lib/apt/lists/*")
     return lines
 
 
 def generate_dependency_copy_section():
-    """dependency 폴더 복사 섹션"""
+    """Dependency folder copy section"""
     return [
         "",
-        "# dependency 폴더 복사",
         "COPY dependency/ /workspace/dependency/"
     ]
 
 
 def generate_micromamba_install_section(use_gpu=False):
-    """Micromamba 설치 섹션 - 플랫폼별 동적 설치"""
+    """Micromamba installation section - dynamic platform-specific installation"""
     if use_gpu:
         # GPU 버전은 linux/amd64 고정
         return [
             "",
-            "# Micromamba 설치 (linux/amd64)",
             "RUN mkdir -p /usr/local/bin && \\",
             "    cd /tmp && \\",
             "    curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj && \\",
@@ -1727,7 +1741,6 @@ def generate_micromamba_install_section(use_gpu=False):
         # CPU 버전은 플랫폼별 동적 설치 (기본값 포함)
         return [
             "",
-            "# Micromamba 설치 (멀티 플랫폼, 기본값: linux/amd64)",
             "RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \\",
             "    case $PLATFORM in \\",
             "        \"linux/amd64\")  MICROMAMBA_ARCH=linux-64  ;; \\",
@@ -1745,10 +1758,9 @@ def generate_micromamba_install_section(use_gpu=False):
 
 
 def generate_env_variables_section(has_r=False):
-    """환경 변수 설정 섹션"""
+    """Environment variables configuration section"""
     lines = [
         "",
-        "# 환경 변수 설정 (Micromamba 기반으로 통일)",
         "ENV MAMBA_ROOT_PREFIX=/opt/micromamba",
         "ENV MAMBA_EXE=/usr/local/bin/micromamba",
         "ENV PATH=/usr/local/bin:$MAMBA_ROOT_PREFIX/envs/plugin_env/bin:$MAMBA_ROOT_PREFIX/bin:$PATH"
@@ -1761,10 +1773,9 @@ def generate_env_variables_section(has_r=False):
 
 
 def generate_micromamba_setup_section():
-    """Micromamba 환경 디렉토리 생성 섹션"""
+    """Micromamba environment directory creation section"""
     return [
         "",
-        "# Micromamba 환경 디렉토리 생성",
         "RUN mkdir -p $MAMBA_ROOT_PREFIX && \\",
         "    mkdir -p $MAMBA_ROOT_PREFIX/envs && \\",
         "    mkdir -p $MAMBA_ROOT_PREFIX/pkgs && \\",
@@ -1773,19 +1784,17 @@ def generate_micromamba_setup_section():
 
 
 def generate_python_env_section(python_version="3.10"):
-    """Python 환경 생성 섹션"""
+    """Python environment creation section"""
     return [
         "",
-        "# Python 환경 생성",
         f"RUN /usr/local/bin/micromamba create -y -n plugin_env python={python_version} -c conda-forge --root-prefix $MAMBA_ROOT_PREFIX"
     ]
 
 
 def generate_snakemake_install_section():
-    """Snakemake 및 필수 패키지 설치 섹션"""
+    """Snakemake and essential packages installation section"""
     return [
         "",
-        "# Snakemake 및 필수 패키지 설치",
         "RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\",
         "    pip install --no-cache-dir \\",
         "    'snakemake==7.14.0' \\",
@@ -1795,67 +1804,145 @@ def generate_snakemake_install_section():
 
 
 def generate_python_packages_section(has_requirements=False):
-    """Python 패키지 설치 섹션"""
+    """Python packages installation section"""
     if not has_requirements:
         return []
     
     return [
         "",
-        "# Python 패키지 설치",
         "RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\",
         "    pip install --no-cache-dir -r /workspace/dependency/requirements.txt || true"
     ]
 
 
 def generate_r_installation_section(r_version="4.4.2", has_renv=False, use_gpu=False):
-    """R 설치 및 패키지 설치 섹션 - 플랫폼 고려"""
+    """Enhanced R installation section - efficient package management with rsync"""
     lines = []
     
-    # R 설치 명령 (플랫폼별 최적화)
+    # Comprehensive Micromamba R packages installation
     lines.extend([
         "",
-        f"# R {r_version} 및 필수 개발 라이브러리 설치 (Micromamba 사용)",
-        "RUN /usr/local/bin/micromamba install -y -n plugin_env \\",
+        f"RUN /usr/local/bin/micromamba install -y -n plugin_env \\",
         f"    r-base={r_version} \\",
         "    r-essentials \\",
         "    r-renv \\",
         "    r-jsonlite \\",
+        "    zlib \\",
+        "    xz \\",
+        "    libpng \\",
+        "    libjpeg-turbo \\",
+        "    libcurl \\",
+        "    libxml2 \\",
+        "    libxslt \\",
+        "    cairo \\",
+        "    pango \\",
+        "    harfbuzz \\",
+        "    fribidi \\",
+        "    freetype \\",
+        "    fontconfig \\",
+        "    libtiff \\",
+        "    pkg-config \\",
         "    -c conda-forge \\",
         "    -r $MAMBA_ROOT_PREFIX && \\",
         "    ln -sf $MAMBA_ROOT_PREFIX/envs/plugin_env/bin/R /usr/local/bin/R && \\",
         "    ln -sf $MAMBA_ROOT_PREFIX/envs/plugin_env/bin/Rscript /usr/local/bin/Rscript"
     ])
     
-    # R 설정
+    # R configuration
     lines.extend([
         "",
-        "# R 설정 및 초기 패키지 설치",
         "RUN echo 'options(repos = c(CRAN = \"https://cloud.r-project.org\"), download.file.method = \"libcurl\")' > /root/.Rprofile && \\",
         "    /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\",
         "    Rscript -e \"install.packages(c('renv', 'BiocManager'), dependencies = TRUE)\""
     ])
     
-    # renv를 사용한 패키지 설치 (플랫폼 독립적)
+    # Enhanced renv packages installation
     if has_renv:
         lines.extend([
             "",
-            "# renv를 사용한 패키지 설치",
             "RUN if [ -f \"/workspace/dependency/renv.lock\" ]; then \\",
-            "    cd /workspace/dependency && \\",
+            "    echo 'Installing R packages from renv.lock...' && \\",
             "    /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\",
             "    Rscript -e \"\\",
+            "        # Set micromamba environment as primary library path \\",
+            "        target_lib <- '/opt/micromamba/envs/plugin_env/lib/R/library'; \\",
+            "        .libPaths(c(target_lib, .libPaths())); \\",
+            "        cat('Library paths configured:', paste(.libPaths(), collapse=', '), '\\\\n'); \\",
+            "        \\",
+            "        # Change to dependency directory for renv operations \\",
+            "        setwd('/workspace/dependency'); \\",
+            "        \\",
+            "        # Load renv and configure \\",
             "        library(renv); \\",
             "        options(renv.config.cache.enabled = FALSE); \\",
+            "        options(renv.config.auto.snapshot = FALSE); \\",
+            "        \\",
+            "        # Initialize renv project \\",
+            "        cat('Initializing renv project...\\\\n'); \\",
             "        renv::init(bare = TRUE, restart = FALSE); \\",
-            "        renv::restore(lockfile = '/workspace/dependency/renv.lock', confirm = FALSE);\" && \\",
-            "    cp -r renv/library/*/R-*/* /opt/micromamba/envs/plugin_env/lib/R/library/ 2>/dev/null || true && \\",
-            "    echo 'R package installation completed'; \\",
-            "    fi"
+            "        \\",
+            "        # Restore packages to renv library \\",
+            "        cat('Restoring packages from renv.lock...\\\\n'); \\",
+            "        tryCatch({ \\",
+            "            renv::restore(lockfile = '/workspace/dependency/renv.lock', confirm = FALSE); \\",
+            "            cat('✅ R packages successfully installed to renv library\\\\n'); \\",
+            "        }, error = function(e) { \\",
+            "            cat('⚠️ Some packages may have failed, but continuing...\\\\n'); \\",
+            "            cat('Error details:', conditionMessage(e), '\\\\n'); \\",
+            "        }); \\",
+            "    \" && \\",
+            "    echo 'renv installation phase completed' ; \\",
+            "fi",
+            "",
+            "RUN if [ -d \"/workspace/dependency/renv/library\" ]; then \\",
+            "    echo '=== Stage 1: Starting complete rsync copy ===' && \\",
+            "    RENV_LIB_PATH=\"/workspace/dependency/renv/library/linux-debian-bullseye/R-4.4/x86_64-conda-linux-gnu\" && \\",
+            "    TARGET_LIB_PATH=\"/opt/micromamba/envs/plugin_env/lib/R/library\" && \\",
+            "    if [ -d \"$RENV_LIB_PATH\" ]; then \\",
+            "        echo \"Copy source: $RENV_LIB_PATH\" && \\",
+            "        echo \"Copy target: $TARGET_LIB_PATH\" && \\",
+            "        echo \"Packages to copy:\" && \\",
+            "        ls -1 \"$RENV_LIB_PATH\" | wc -l && echo \" packages\" && \\",
+            "        echo \"Starting rsync copy...\" && \\",
+            "        rsync -av --progress \"$RENV_LIB_PATH/\" \"$TARGET_LIB_PATH/\" && \\",
+            "        echo \"✅ rsync copy completed\" && \\",
+            "        echo \"Post-copy package verification:\" && \\",
+            "        ls -1 \"$TARGET_LIB_PATH\" | wc -l && echo \" packages\" ; \\",
+            "    else \\",
+            "        echo \"⚠️ Cannot find renv library path: $RENV_LIB_PATH\" ; \\",
+            "    fi ; \\",
+            "else \\",
+            "    echo \"⚠️ renv library directory does not exist\" ;"
+            "fi",
+            "",
+            "RUN echo '=== Stage 2: Cleanup temporary files for space optimization ===' && \\",
+            "    echo '=== Stage 2: Starting temporary file cleanup ===' && \\",
+            "    # Remove renv temporary library directory \\",
+            "    if [ -d \"/workspace/dependency/renv/library\" ]; then \\",
+            "        echo 'Removing renv temporary library...' && \\",
+            "        RENV_LIB_SIZE=$(du -sh /workspace/dependency/renv/library 2>/dev/null | cut -f1 || echo \"unknown\") && \\",
+            "        echo \"renv library size to remove: $RENV_LIB_SIZE\" && \\",
+            "        rm -rf /workspace/dependency/renv/library && \\",
+            "        echo '✅ renv temporary library removal completed' ; \\",
+            "    fi && \\",
+            "    # Remove renv cache \\",
+            "    if [ -d \"/root/.cache/R/renv\" ]; then \\",
+            "        echo 'Removing renv cache...' && \\",
+            "        CACHE_SIZE=$(du -sh /root/.cache/R/renv 2>/dev/null | cut -f1 || echo \"unknown\") && \\",
+            "        echo \"Cache size to remove: $CACHE_SIZE\" && \\",
+            "        rm -rf /root/.cache/R/renv && \\",
+            "        echo '✅ renv cache removal completed' ; \\",
+            "    fi && \\",
+            "    # Remove rsync package \\",
+            "    echo 'Removing rsync package...' && \\",
+            "    apt-get remove -y rsync && \\",
+            "    apt-get autoremove -y && \\",
+            "    echo '✅ rsync package removal completed' && \\",
+            "    echo '=== Stage 2: Temporary file cleanup completed ==='"
         ])
     
     lines.extend([
         "",
-        "# 추가 R 패키지 설치",
         "RUN /usr/local/bin/micromamba run -n plugin_env -r $MAMBA_ROOT_PREFIX \\",
         "    Rscript -e \"if (!requireNamespace('optparse', quietly = TRUE)) install.packages('optparse', dependencies = TRUE)\"",
         "",
@@ -1865,23 +1952,20 @@ def generate_r_installation_section(r_version="4.4.2", has_renv=False, use_gpu=F
     return lines
 
 def generate_workspace_setup_section():
-    """작업 디렉토리 설정 섹션"""
+    """Workspace setup section"""
     return [
         "",
-        "# 작업 디렉토리 생성 및 설정",
         "RUN mkdir -p /workspace/logs && \\",
         "    chmod 777 /workspace"
     ]
 
 
 def generate_copy_files_section(plugin_path):
-    """Snakefile 및 scripts 복사 섹션"""
+    """Snakefile and scripts copy section"""
     lines = [
         "",
-        "# Snakefile 복사",
         "COPY Snakefile /workspace/Snakefile",
         "",
-        "# scripts 폴더 복사",
         "COPY scripts/ /scripts/",
         "",
         "WORKDIR /workspace"
@@ -1891,10 +1975,9 @@ def generate_copy_files_section(plugin_path):
 
 
 def generate_entrypoint_section(has_r=False):
-    """Entrypoint 스크립트 생성 섹션"""
+    """Entrypoint script generation section - enhanced version"""
     lines = [
         "",
-        "# Entrypoint 스크립트 생성 (올바른 R 경로로 수정)",
         "RUN echo '#!/bin/bash' > /entrypoint.sh && \\",
         "    echo 'export MAMBA_ROOT_PREFIX=/opt/micromamba' >> /entrypoint.sh && \\",
         "    echo 'export MAMBA_EXE=/usr/local/bin/micromamba' >> /entrypoint.sh && \\",
@@ -1903,13 +1986,12 @@ def generate_entrypoint_section(has_r=False):
     
     if has_r:
         lines.extend([
-            "    echo '# Set R environment (Micromamba 기반)' >> /entrypoint.sh && \\",
             "    echo 'export R_HOME=/opt/micromamba/envs/plugin_env/lib/R' >> /entrypoint.sh && \\",
+            "    echo 'export R_LIBS_USER=/opt/micromamba/envs/plugin_env/lib/R/library' >> /entrypoint.sh && \\",
             "    echo 'export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE' >> /entrypoint.sh && \\"
         ])
     
     lines.extend([
-        "    echo '# Activate micromamba environment' >> /entrypoint.sh && \\",
         "    echo 'eval \"$($MAMBA_EXE shell activate -s bash -p $MAMBA_ROOT_PREFIX plugin_env)\" 2>/dev/null || true' >> /entrypoint.sh && \\",
         "    echo 'cd /workspace' >> /entrypoint.sh && \\",
         "    echo 'exec \"$@\"' >> /entrypoint.sh && \\",
@@ -1922,41 +2004,39 @@ def generate_entrypoint_section(has_r=False):
 
 
 def generate_healthcheck_section():
-    """헬스체크 섹션"""
+    """Health check section"""
     return [
         "",
-        "# 헬스체크 설정",
         "HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\",
         "    CMD test -f /opt/micromamba/envs/plugin_env/bin/python || exit 1"
     ]
 
 
 def generate_cmd_section():
-    """기본 명령어 섹션"""
+    """Default command section"""
     return [
         "",
-        "# 기본 명령어 설정",
-        'CMD ["/bin/bash"]'
+        "CMD [\"/bin/bash\"]"
     ]
 
 
 def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool = True):
     """
-    플러그인 폴더를 분석해서 멀티 플랫폼 지원 Dockerfile을 생성합니다.
+    Analyzes plugin folder and generates multi-platform Dockerfile.
     
     Parameters:
-        plugin_path (str): 플러그인 폴더 경로
-        output_path (str): 생성할 Dockerfile 경로
-        use_gpu (bool): GPU 사용 여부 (기본값: True)
+        plugin_path (str): Plugin folder path
+        output_path (str): Output Dockerfile path
+        use_gpu (bool): GPU usage flag (default: True)
     """
     dependency_path = os.path.join(plugin_path, "dependency")
     
-    # 의존성 파일 체크
+    # Check dependency files
     has_requirements = os.path.isfile(os.path.join(dependency_path, "requirements.txt"))
     has_environment = os.path.isfile(os.path.join(dependency_path, "environment.yml"))
     has_renv = os.path.isfile(os.path.join(dependency_path, "renv.lock"))
     
-    # Python, R 스크립트 체크
+    # Check Python and R scripts
     has_python = False
     has_r = False
     scripts_path = os.path.join(plugin_path, "scripts")
@@ -1967,9 +2047,9 @@ def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool
             if file.endswith(".R"):
                 has_r = True
     
-    # 버전 추출
-    python_version = "3.10"  # 기본값
-    r_version = "4.4.2"  # 기본값
+    # Extract versions
+    python_version = "3.10"  # Default
+    r_version = "4.4.2"  # Default
     
     if has_environment:
         python_version = extract_python_version_from_environment_yml(
@@ -1981,64 +2061,64 @@ def generate_plugin_dockerfile(plugin_path: str, output_path: str, use_gpu: bool
             os.path.join(dependency_path, "renv.lock")
         )
     
-    # Dockerfile 생성
+    # Generate Dockerfile
     dockerfile_lines = []
     
-    # 1. Base 이미지 (멀티 플랫폼 지원)
+    # 1. Base image (multi-platform support)
     dockerfile_lines.extend(generate_base_image_section(use_gpu))
     
-    # 2. 환경 변수 설정
+    # 2. Environment variables setup
     dockerfile_lines.extend(generate_env_setup_section())
     
-    # 3. 시스템 패키지 설치
+    # 3. System packages installation
     dockerfile_lines.extend(generate_system_packages_section(use_gpu, has_r or has_renv))
     
-    # 4. dependency 폴더 복사
+    # 4. Dependency folder copy
     dockerfile_lines.extend(generate_dependency_copy_section())
     
-    # 5. Micromamba 설치 (플랫폼별)
+    # 5. Micromamba installation (platform-specific)
     dockerfile_lines.extend(generate_micromamba_install_section(use_gpu))
     
-    # 6. 환경 변수 설정
+    # 6. Environment variables configuration
     dockerfile_lines.extend(generate_env_variables_section(has_r or has_renv))
     
-    # 7. Micromamba 환경 디렉토리 생성
+    # 7. Micromamba environment directory creation
     dockerfile_lines.extend(generate_micromamba_setup_section())
     
-    # 8. Python 환경 생성
+    # 8. Python environment creation
     dockerfile_lines.extend(generate_python_env_section(python_version))
     
-    # 9. Snakemake 및 필수 패키지 설치
+    # 9. Snakemake and essential packages installation
     dockerfile_lines.extend(generate_snakemake_install_section())
     
-    # 10. Python 패키지 설치
+    # 10. Python packages installation
     if has_requirements:
         dockerfile_lines.extend(generate_python_packages_section(has_requirements))
     
-    # 11. R 설치 및 패키지 설치 (플랫폼 고려)
+    # 11. R installation and packages (platform consideration)
     if has_r or has_renv:
         dockerfile_lines.extend(generate_r_installation_section(r_version, has_renv, use_gpu))
     
-    # 12. 작업 디렉토리 설정
+    # 12. Workspace setup
     dockerfile_lines.extend(generate_workspace_setup_section())
     
-    # 13. Snakefile 및 scripts 복사
+    # 13. Snakefile and scripts copy
     dockerfile_lines.extend(generate_copy_files_section(plugin_path))
     
-    # 14. Entrypoint 설정
+    # 14. Entrypoint configuration
     dockerfile_lines.extend(generate_entrypoint_section(has_r or has_renv))
     
-    # 15. 헬스체크 설정
+    # 15. Health check configuration
     dockerfile_lines.extend(generate_healthcheck_section())
     
-    # 16. 기본 명령어 설정
+    # 16. Default command configuration
     dockerfile_lines.extend(generate_cmd_section())
     
-    # Dockerfile 저장
+    # Save Dockerfile
     with open(output_path, "w") as f:
         f.write("\n".join(dockerfile_lines))
     
-    # 결과 로그 출력
+    # Output result logs
     print(f"[✓] Multi-platform Dockerfile generated for {plugin_path}")
     print(f"    - GPU: {use_gpu}")
     print(f"    - Platform support: {'linux/amd64' if use_gpu else 'linux/amd64, linux/arm64, linux/arm/v7'}")

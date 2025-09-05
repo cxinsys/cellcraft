@@ -1,15 +1,34 @@
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import MultipleResultsFound
 from app.database import models
 from app.database.conn import get_new_engine_and_session
+from app.database.crud import crud_plugin
 import logging
 
 logger = logging.getLogger(__name__)
 
-def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetime, algorithm_id: str = None, plugin_name: str = None, task_type: str = None, plugin_image_uri: str = None):
+def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetime, algorithm_id: str = None, plugin_name: str = None, task_type: str = None, plugin_image_uri: str = None, plugin_id: int = None):
+    """
+    Start a new task with optional plugin_id for enhanced plugin tracking.
+    
+    Args:
+        user_id: User ID
+        task_id: Celery task ID
+        workflow_id: Workflow ID
+        start_time: Task start time
+        algorithm_id: Algorithm ID (optional)
+        plugin_name: Plugin name (kept for backward compatibility)
+        task_type: Task type (compile, visualization, etc.)
+        plugin_image_uri: Plugin image URI
+        plugin_id: Plugin ID for foreign key relationship (optional)
+    """
     db = get_new_engine_and_session()
     try:
+        # If plugin_id is not provided but plugin_name is, try to find the plugin_id
+        if plugin_id is None and plugin_name:
+            plugin_id = find_plugin_id_by_name(db, plugin_name)
+        
         db_task = models.Task(
             user_id=user_id,
             task_id=task_id,
@@ -19,11 +38,18 @@ def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetim
             status='RUNNING',
             plugin_name=plugin_name,
             task_type=task_type,
-            plugin_image_uri=plugin_image_uri
+            plugin_image_uri=plugin_image_uri,
+            plugin_id=plugin_id
         )
         db.add(db_task)
         db.commit()
         db.refresh(db_task)
+        
+        if plugin_id:
+            logger.info(f"Task {task_id} started with plugin_id {plugin_id}")
+        else:
+            logger.info(f"Task {task_id} started without plugin_id (legacy mode)")
+            
     except Exception as e:
         db.rollback()
         raise e
@@ -51,6 +77,25 @@ def end_task(user_id: int, task_id: str, end_time: datetime, status: str):
 
 def get_user_task(db: Session, id: int):
     return db.query(models.Task).filter(models.Task.user_id == id).all()
+
+def get_user_task_with_plugin(db: Session, user_id: int):
+    """
+    Get user tasks with joined plugin information and workflow data for enhanced API responses.
+    Uses eager loading to prevent N+1 query problems.
+    
+    Args:
+        db: Database session
+        user_id: User ID
+        
+    Returns:
+        List of Task objects with joined Plugin and Workflow data
+    """
+    return db.query(models.Task).filter(
+        models.Task.user_id == user_id
+    ).options(
+        joinedload(models.Task.plugin),
+        joinedload(models.Task.workflows)
+    ).all()
 
 def get_task_by_task_id(db: Session, task_id: str):
     return db.query(models.Task).filter(models.Task.task_id == task_id).first()
@@ -91,3 +136,41 @@ def record_plugin_image_uri(task_id: str, plugin_image_uri: str, user_id: int = 
         raise e
     finally:
         db.close()
+
+def find_plugin_id_by_name(db: Session, plugin_name: str) -> int:
+    """
+    Helper function to find plugin_id by plugin name for backward compatibility.
+    Prioritizes official plugins over local ones.
+    
+    Args:
+        db: Database session
+        plugin_name: Plugin name to search for
+        
+    Returns:
+        Plugin ID if found, None otherwise
+    """
+    try:
+        # Try to find official plugin first (prioritize official over local)
+        plugin = db.query(models.Plugin).filter(
+            models.Plugin.name == plugin_name,
+            models.Plugin.source == "official"
+        ).first()
+        
+        # If no official plugin found, try local plugins
+        if not plugin:
+            plugin = db.query(models.Plugin).filter(
+                models.Plugin.name == plugin_name,
+                models.Plugin.source == "local"
+            ).first()
+            
+        # If still no plugin found, try any plugin with that name
+        if not plugin:
+            plugin = db.query(models.Plugin).filter(
+                models.Plugin.name == plugin_name
+            ).first()
+            
+        return plugin.id if plugin else None
+        
+    except Exception as e:
+        logger.warning(f"Failed to find plugin_id for plugin_name {plugin_name}: {e}")
+        return None

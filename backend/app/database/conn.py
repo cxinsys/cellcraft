@@ -81,44 +81,146 @@ def initialize_plugins_from_csv(csv_file_path: str = None):
                 source=source
             ).first()
             
+            # JSON 필드 파싱 (공통 로직)
+            dependencies = {}
+            if pd.notna(row['dependencies']) and str(row['dependencies']).strip():
+                try:
+                    dependencies = json.loads(str(row['dependencies']))
+                except json.JSONDecodeError:
+                    print(f"Warning: Invalid JSON in dependencies for plugin {row['name']}, using empty dict")
+                    dependencies = {}
+            
+            drawflow = {}
+            if pd.notna(row['drawflow']) and str(row['drawflow']).strip():
+                try:
+                    drawflow = json.loads(str(row['drawflow']))
+                except json.JSONDecodeError:
+                    print(f"Warning: Invalid JSON in drawflow for plugin {row['name']}, using empty dict")
+                    drawflow = {}
+            
+            rules = {}
+            if pd.notna(row['rules']) and str(row['rules']).strip():
+                try:
+                    rules = json.loads(str(row['rules']))
+                except json.JSONDecodeError:
+                    print(f"Warning: Invalid JSON in rules for plugin {row['name']}, using empty dict")
+                    rules = {}
+            
+            # 추가 필드 파싱 (공통 로직)
+            plugin_type = None
+            if 'plugin_type' in row and pd.notna(row['plugin_type']) and str(row['plugin_type']).strip():
+                plugin_type = str(row['plugin_type']).strip()
+            
+            use_gpu = False
+            if 'use_gpu' in row and pd.notna(row['use_gpu']):
+                if isinstance(row['use_gpu'], str):
+                    use_gpu = row['use_gpu'].lower().strip() in ('true', '1', 'yes')
+                else:
+                    use_gpu = bool(row['use_gpu'])
+            
             if not existing_plugin:
                 try:
-                    dependencies = json.loads(df.loc[df['name'] == row['name'], 'dependencies'].values[0]) if pd.notna(row['dependencies']) else {}
-                    drawflow = json.loads(df.loc[df['name'] == row['name'], 'drawflow'].values[0]) if pd.notna(row['drawflow']) else {}
-                    rules = json.loads(df.loc[df['name'] == row['name'], 'rules'].values[0]) if pd.notna(row['rules']) else {}
-                except json.JSONDecodeError as e:
-                    print(f"JSONDecodeError for plugin {row['name']}: {e}")
+
+                    # Determine plugin path and attributes based on source
+                    if source == "official":
+                        plugin_path = f"./plugin/official/{row['name']}"
+                        is_editable = False
+                        # Extract version and submodule path if available
+                        version = row.get('version', None) if 'version' in row else None
+                        submodule_path = row.get('submodule_path', None) if 'submodule_path' in row else None
+                    else:
+                        plugin_path = f"./plugin/local/{row['name']}"
+                        is_editable = True
+                        version = None
+                        submodule_path = None
+                    
+                    # Handle plugin_path from CSV if provided
+                    if 'plugin_path' in row and pd.notna(row['plugin_path']) and str(row['plugin_path']).strip():
+                        plugin_path = str(row['plugin_path']).strip()
+                    
+                    # Handle is_editable from CSV if provided (for consistency)
+                    if 'is_editable' in row and pd.notna(row['is_editable']):
+                        if isinstance(row['is_editable'], str):
+                            is_editable = row['is_editable'].lower().strip() in ('true', '1', 'yes')
+                        else:
+                            is_editable = bool(row['is_editable'])
+                    
+                    # Handle author field properly
+                    author = str(row['author']) if pd.notna(row['author']) else 'Unknown'
+
+                    plugin = models.Plugin(
+                        name=str(row['name']),
+                        description=str(row['description']) if pd.notna(row['description']) else '',
+                        author=author,
+                        plugin_path=plugin_path,
+                        plugin_type=plugin_type,
+                        dependencies=dependencies,
+                        drawflow=drawflow,
+                        rules=rules,
+                        use_gpu=use_gpu,
+                        source=source,
+                        is_editable=is_editable,
+                        version=version,
+                        submodule_path=submodule_path
+                    )
+                    session.add(plugin)
+                    plugins_added += 1
+                    print(f"Added {source} plugin: {row['name']} (type: {plugin_type}, GPU: {use_gpu})")
+                except Exception as e:
+                    print(f"Error creating plugin {row['name']}: {e}")
                     continue
-
-                # Determine plugin path and attributes based on source
-                if source == "official":
-                    plugin_path = f"./plugin/official/{row['name']}"
-                    is_editable = False
-                    # Extract version and submodule path if available
-                    version = row.get('version', None) if 'version' in row else None
-                    submodule_path = row.get('submodule_path', None) if 'submodule_path' in row else None
-                else:
-                    plugin_path = f"./plugin/local/{row['name']}"
-                    is_editable = True
-                    version = None
-                    submodule_path = None
-
-                plugin = models.Plugin(
-                    name=row['name'],
-                    description=row['description'],
-                    author=row['author'],
-                    plugin_path=plugin_path,
-                    dependencies=dependencies,
-                    drawflow=drawflow,
-                    rules=rules,
-                    source=source,
-                    is_editable=is_editable,
-                    version=version,
-                    submodule_path=submodule_path
-                )
-                session.add(plugin)
-                plugins_added += 1
-                print(f"Added {source} plugin: {row['name']}")
+            else:
+                # Update existing plugin with CSV data
+                try:
+                    updated = False
+                    
+                    # Update fields that might have changed
+                    if existing_plugin.description != str(row['description']):
+                        existing_plugin.description = str(row['description']) if pd.notna(row['description']) else ''
+                        updated = True
+                    
+                    if existing_plugin.plugin_type != plugin_type:
+                        existing_plugin.plugin_type = plugin_type
+                        updated = True
+                    
+                    if existing_plugin.use_gpu != use_gpu:
+                        existing_plugin.use_gpu = use_gpu
+                        updated = True
+                    
+                    # Update JSON fields if they differ
+                    if existing_plugin.dependencies != dependencies:
+                        existing_plugin.dependencies = dependencies
+                        updated = True
+                    
+                    if existing_plugin.drawflow != drawflow:
+                        existing_plugin.drawflow = drawflow
+                        updated = True
+                    
+                    if existing_plugin.rules != rules:
+                        existing_plugin.rules = rules
+                        updated = True
+                    
+                    # Update version info for official plugins
+                    if source == "official":
+                        version = row.get('version', None) if 'version' in row else None
+                        submodule_path = row.get('submodule_path', None) if 'submodule_path' in row else None
+                        
+                        if existing_plugin.version != version:
+                            existing_plugin.version = version
+                            updated = True
+                        
+                        if existing_plugin.submodule_path != submodule_path:
+                            existing_plugin.submodule_path = submodule_path
+                            updated = True
+                    
+                    if updated:
+                        print(f"Updated {source} plugin: {row['name']} (type: {plugin_type}, GPU: {use_gpu})")
+                    else:
+                        print(f"Plugin {row['name']} from {source} is up to date")
+                        
+                except Exception as e:
+                    print(f"Error updating plugin {row['name']}: {e}")
+                    continue
 
         # 커밋하여 변경 사항 저장
         session.commit()

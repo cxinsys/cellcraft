@@ -64,12 +64,14 @@ class Task(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     workflow_id = Column(Integer, ForeignKey("workflows.id"))
     algorithm_id = Column(String, nullable=True)  # algorithm_id 필드 추가
-    plugin_name = Column(String, nullable=True)  # plugin_name 필드 추가
+    plugin_name = Column(String, nullable=True)  # plugin_name 필드 추가 (kept for backward compatibility)
+    plugin_id = Column(Integer, ForeignKey("plugins.id"), nullable=True)  # New FK to plugins table
     task_type = Column(String, nullable=True)  # task_type 필드 추가 (compile, visualization)
     plugin_image_uri = Column(String, nullable=True)  # Plugin image URI for reproducibility
 
     user = relationship("User", back_populates="tasks")
     workflows = relationship("Workflow", back_populates="tasks")
+    plugin = relationship("Plugin", back_populates="tasks")
 
 class Plugin(Base):
     __tablename__ = "plugins"
@@ -92,3 +94,4 @@ class Plugin(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     users = relationship("User", secondary=user_plugin_association, back_populates="plugins")
+    tasks = relationship("Task", back_populates="plugin")

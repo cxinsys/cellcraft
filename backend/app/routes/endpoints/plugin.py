@@ -233,7 +233,13 @@ async def upload_plugin(
             plugin_utils.create_metadata_file(plugin_folder, metadata)
 
             # 5. Snakefile 생성
-            plugin_utils.generate_snakemake_code(plugin_data.rules, plugin_folder, plugin_data.name)
+            # For plugin creation, we don't have specific workflow/visualization IDs,
+            # so we generate a generic Snakefile that will be customized during execution
+            plugin_utils.generate_snakemake_code(
+                plugin_data.rules, 
+                plugin_folder,
+                plugin_type=plugin_data.plugin_type
+            )
 
             # 6. 데이터베이스 업데이트
             if db_existing_plugin:
