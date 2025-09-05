@@ -33,6 +33,18 @@ class Workflow(WorkflowBase):
     class Config:
         orm_mode = True
 
+class WorkflowVisualizationRequest(BaseModel):
+    id: int  # workflow_id
+    current_node_id: str  # visualization node id
+    algorithm_id: Optional[str] = None  # for file path resolution
+    selectedVisualizationPlugin: dict  # plugin information
+    selectedScript: dict  # selected visualization script
+    selectedVisualizationParams: List[dict]  # parameters with file mappings
+    availableFiles: Optional[List[dict]] = None  # files from ResultFiles node
+    title: Optional[str] = None
+    thumbnail: Optional[str] = None
+    workflow_info: Optional[Dict] = None
+
 class WorkflowResult(BaseModel):
     id: Optional[int] = None
     algorithm_id: Optional[int] = None
