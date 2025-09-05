@@ -12,6 +12,7 @@ from app.common.utils.snakemake_utils import snakemakeProcess
 from app.common.utils.docker_utils import container_manager
 from app.common.utils import plugin_utils
 from app.database.crud.crud_task import start_task, end_task, record_plugin_image_uri
+from app.common.utils.cache_utils import save_result_to_cache
 
 logger = logging.getLogger('celery.custom')
 
@@ -44,20 +45,28 @@ class MyTask(Task):
         plugin_name = kwargs.get('plugin_name')
         task_type = kwargs.get('task_type')
         
-        # Generate plugin_image_uri if plugin_name is provided
+        # Generate plugin_image_uri and get plugin_id if plugin_name is provided
         plugin_image_uri = None
+        plugin_id = None
         if plugin_name:
             try:
                 from app.common.utils.plugin_utils import generate_plugin_image_uri
                 from app.database.conn import get_new_engine_and_session
                 from app.database import models
                 
-                # Get plugin source from database
+                # Get plugin information from database
                 db = get_new_engine_and_session()
                 try:
                     plugin = db.query(models.Plugin).filter_by(name=plugin_name).first()
-                    source = plugin.source if plugin else "local"  # Default to local if not found
-                    version = plugin.version if plugin else None
+                    if plugin:
+                        source = plugin.source
+                        version = plugin.version
+                        plugin_id = plugin.id
+                        print(f'Found plugin in database: {plugin_name} (id: {plugin_id}, source: {source})')
+                    else:
+                        source = "local"  # Default to local if not found
+                        version = None
+                        print(f'Plugin {plugin_name} not found in database, using defaults')
                 finally:
                     db.close()
                 
@@ -66,13 +75,38 @@ class MyTask(Task):
             except Exception as e:
                 logger.warning(f'Failed to generate plugin_image_uri for {plugin_name}: {e}')
         
-        start_task(user_id, task_id, workflow_id, start_time, algorithm_id, plugin_name, task_type, plugin_image_uri)
+        start_task(user_id, task_id, workflow_id, start_time, algorithm_id, plugin_name, task_type, plugin_image_uri, plugin_id)
 
     def on_success(self, retval, task_id: str, args, kwargs):
         end_time = datetime.now()
         print(f'Task {task_id} completed at {end_time}, return value: {retval}')
         user_id = kwargs.get('user_id')
         end_task(user_id, task_id, end_time, status='SUCCESS')
+        
+        # Handle visualization result caching
+        task_type = kwargs.get('task_type')
+        if task_type == 'visualization':
+            cache_key = kwargs.get('cache_key')
+            cache_info = kwargs.get('cache_info')
+            
+            if cache_key and cache_info:
+                try:
+                    success = save_result_to_cache(
+                        result_file_path=cache_info['result_file_path'],
+                        user_path=cache_info['user_path'],
+                        cache_key=cache_key,
+                        plugin_name=cache_info['plugin_name'],
+                        script_name=cache_info['script_name'],
+                        linked_location=cache_info['linked_location']
+                    )
+                    if success:
+                        logger.info(f"Successfully cached visualization result for task {task_id}, cache_key: {cache_key}")
+                    else:
+                        logger.warning(f"Failed to cache visualization result for task {task_id}")
+                except Exception as e:
+                    logger.error(f"Error caching visualization result for task {task_id}: {e}")
+            else:
+                logger.debug(f"No cache information provided for visualization task {task_id}")
         
         # 작업 완료 시 컨테이너 매니저에서 등록 해제
         container_manager.unregister_container(task_id)
@@ -145,7 +179,7 @@ class MyTask(Task):
 
 @shared_task(bind=True, base=MyTask, name="workflow_task:process_data_task")
 def process_data_task(self, username: str, snakefile_path: str, selected_plugin: str, 
-                      targets: list, user_id: int, workflow_id: int, algorithm_id: int, plugin_name: str, task_type: str):
+                      targets: list, user_id: int, workflow_id: int, algorithm_id: int, plugin_name: str, task_type: str, **kwargs):
     try:
         task_id = self.request.id
         print(f'Processing data for user {username}...')
