@@ -8,7 +8,7 @@
         </li>
       </ul>
       <ul class="node-bar__nodelist" draggable="false">
-        <li class="node-bar__drag-drawflow" v-for="(node, idx) in listNodes.slice(4, 6)" :key="idx" draggable="true"
+        <li class="node-bar__drag-drawflow" v-for="(node, idx) in listNodes.slice(4, 7)" :key="idx" draggable="true"
           :data-node="node.name" :nodeId="node.id" @dragstart="drag($event)">
           <img class="node-bar__img" :src="node.img" draggable="false" />
         </li>
@@ -17,9 +17,9 @@
     <div id="drawflow" @drop="drop($event)" @dragover="allowDrop($event)"></div>
     <CompileCheck v-if="compile_check" @deactivate-compile-check="deactivateCompileCheck" @run-workflow="runWorkflow" />
     <!-- <FileTable :show_files="show_files" :files_list="files_list" /> -->
-    <JobTable :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" @confirm-delete="confirmDelete"
-      @show-logs="showLogs" />
-    <ControlBar :on_progress="on_progress" :isTabView="isTabView" @toggle-file="toggleFile"
+    <JobTable class="margin__top-12" :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" @confirm-delete="confirmDelete"
+      @show-logs="showLogs" @close-popup="closeJobTable" />
+    <ControlBar :on_progress="on_progress" :isTabView="isTabView" :show_jobs="show_jobs" @toggle-file="toggleFile"
       @save-workflow-project="saveWorkflowProject" @activate-compile-check="activateCompileCheck"
       @toggle-task="toggleTask" @toggle-tab-view="toggleTabView" @zoom-in="zoomIn" @zoom-out="zoomOut" />
     <TabComponent ref="tabComponent" :initialTabList="initialTabList" :isTabView="isTabView"
@@ -100,6 +100,7 @@ import DataTable from "@/components/nodes/DataTableNode.vue";
 import ScatterPlot from "@/components/nodes/ScatterPlotNode.vue";
 import Algorithm from "@/components/nodes/AlgorithmNode.vue";
 import ResultFile from "@/components/nodes/ResultFileNode.vue";
+import ResultFiles from "@/components/nodes/ResultFilesNode.vue";
 import Visualization from "@/components/nodes/VisualizationNode.vue";
 
 import {
@@ -114,6 +115,7 @@ import {
   getPluginTemplate,
   createTaskEventSource,
 } from "@/api/index";
+import { connectionRules } from "@/utils/connectionRules.js";
 
 export default {
   components: {
@@ -166,6 +168,12 @@ export default {
           output: 1,
         },
         {
+          name: "ResultFiles",
+          img: require("@/assets/ResultFiles_logo.png"),
+          input: 1,
+          output: 1,
+        },
+        {
           name: "Visualization",
           img: require("@/assets/Visualization_logo.png"),
           input: 1,
@@ -206,6 +214,7 @@ export default {
     this.$df.registerNode("ScatterPlot", ScatterPlot, {}, {});
     this.$df.registerNode("Algorithm", Algorithm, {}, {});
     this.$df.registerNode("ResultFile", ResultFile, {}, {});
+    this.$df.registerNode("ResultFiles", ResultFiles, {}, {});
     this.$df.registerNode("Visualization", Visualization, {}, {});
 
     // 노드 수직 연결선
@@ -231,45 +240,15 @@ export default {
       const output_node = this.$df.getNodeFromId(ev.output_id);
       console.log(input_node, output_node);
 
-      // InputFile 노드 : DataTable, ScatterPlot, Algorithm 제외하고 연결 불가능
-      if (output_node.name === "InputFile") {
-        if (input_node.name !== "DataTable" && input_node.name !== "ScatterPlot" && input_node.name !== "Algorithm") {
-          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
-          this.setMessage("error", "InputFile node must be connected to DataTable, ScatterPlot, Algorithm node");
-          return;
-        }
-      }
-      // DataTable 노드 - ScatterPlot, Algorithm 제외하고 연결 불가능
-      if (output_node.name === "DataTable") {
-        if (input_node.name !== "ScatterPlot" && input_node.name !== "Algorithm") {
-          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
-          this.setMessage("error", "DataTable node must be connected to ScatterPlot, Algorithm node");
-          return;
-        }
-      }
-      // ScatterPlot 노드 - DataTable, Algorithm 제외하고 연결 불가능
-      if (output_node.name === "ScatterPlot") {
-        if (input_node.name !== "DataTable" && input_node.name !== "Algorithm") {
-          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
-          this.setMessage("error", "ScatterPlot node must be connected to DataTable, Algorithm node");
-          return;
-        }
-      }
-      // Algorithm 노드 - ResultFile, Visualization 제외하고 연결 불가능
-      if (output_node.name === "Algorithm") {
-        if (input_node.name !== "ResultFile" && input_node.name !== "Visualization") {
-          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
-          this.setMessage("error", "Algorithm node must be connected to ResultFile, Visualization node");
-          return;
-        }
-      }
-      // ResultFile 노드 - Visualization 제외하고 연결 불가능
-      if (output_node.name === "ResultFile") {
-        if (input_node.name !== "Visualization") {
-          this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
-          this.setMessage("error", "ResultFile node must be connected to Visualization node");
-          return;
-        }
+      const allowedConnections = connectionRules[output_node.name];
+
+      if (allowedConnections && !allowedConnections.includes(input_node.name)) {
+        this.$df.removeSingleConnection(ev.output_id, ev.input_id, ev.output_class, ev.input_class);
+        this.setMessage(
+          "error",
+          `${output_node.name} can only connect to ${allowedConnections.join(", ")}.`
+        );
+        return;
       }
       // // input_node의 name이 Algorithm, Visualization 아닌 경우, 다중 연결 검토
       // if (input_node.name !== "Algorithm" && input_node.name !== "Visualization") {
@@ -638,6 +617,10 @@ export default {
       this.showLogsModal = false;
       this.selectedTaskLogs = null;
       this.logsLoading = false;
+    },
+    closeJobTable() {
+      this.show_jobs = false;
+      clearInterval(this.timeInterval);
     },
     formatFileSize(bytes) {
       if (bytes === 0) return '0 Bytes';
@@ -1209,8 +1192,8 @@ export default {
   object-fit: contain;
 }
 
-.margin__top-4 {
-  margin-top: 4px;
+.margin__top-12 {
+  margin-top: 12px;
 }
 
 /* 로그 모달 스타일 */
