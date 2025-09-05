@@ -342,3 +342,20 @@ def dissociate_user_plugin(db: Session, user_id: int, plugin_id: int):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+def get_available_plugin_names(db: Session) -> List[str]:
+    """
+    Get list of available plugin names for error reporting.
+    
+    Args:
+        db (Session): Database session
+        
+    Returns:
+        List[str]: List of available plugin names
+    """
+    try:
+        plugins = db.query(models.Plugin.name).all()
+        return [plugin.name for plugin in plugins]
+    except SQLAlchemyError as e:
+        # Don't raise error for this helper function, just return empty list
+        return []
