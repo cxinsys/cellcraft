@@ -91,44 +91,68 @@ async def startup_event():
         sync_manager = PluginSyncManager()
         validator = PluginVersionValidator()
         
-        # Get current branch information
-        current_branch = sync_manager.get_current_branch()
-        current_version = sync_manager.extract_version_from_branch(current_branch)
-        print(f"   Current plugin branch: {current_branch}")
-        print(f"   Current version: {current_version}")
+        # Get version information from file (no git required)
+        print("   Reading plugin version information...")
+        version_status = sync_manager.get_sync_status()
+        
+        if "error" in version_status:
+            print(f"   ⚠️  Warning: Could not read version info: {version_status['error']}")
+            print("   Using default version settings")
+        else:
+            version_info = version_status.get("version_info", {})
+            print(f"   Plugin version: {version_status.get('repository_version', 'unknown')}")
+            if version_info:
+                print(f"   Build time: {version_info.get('build_time', 'unknown')}")
+                print(f"   Commit: {version_info.get('commit', 'unknown')}")
         
         # Perform consistency check
         print("\n2. Version Consistency Check...")
-        consistency_result = validator.validate_consistency()
-        
-        if consistency_result.get("consistent", False):
-            print("   ✅ All components are in sync")
-        else:
-            print("   ❌ Version inconsistencies detected!")
-            issues = consistency_result.get("issues", [])
-            for issue in issues[:5]:  # Show first 5 issues
-                print(f"      - {issue}")
+        try:
+            consistency_result = validator.validate_consistency()
             
-            if len(issues) > 5:
-                print(f"      ... and {len(issues) - 5} more issues")
-            
-            # Attempt automatic synchronization
-            print("\n3. Automatic Synchronization...")
-            sync_result = sync_manager.sync_plugins_to_database()
-            
-            if sync_result.get("success", False):
-                print("   ✅ Database synchronized successfully")
-                print(f"   Updated to version: {sync_result.get('version', 'unknown')}")
+            if consistency_result.get("consistent", False):
+                print("   ✅ All components are in sync")
             else:
-                print("   ❌ Synchronization failed")
-                logger.error(f"Plugin sync failed: {sync_result.get('error')}")
+                print("   ⚠️  Version inconsistencies detected")
+                issues = consistency_result.get("issues", [])
+                for issue in issues[:3]:  # Show first 3 issues
+                    print(f"      - {issue}")
+                
+                if len(issues) > 3:
+                    print(f"      ... and {len(issues) - 3} more issues")
+                
+                # Attempt automatic synchronization
+                print("\n3. Automatic Synchronization...")
+                sync_result = sync_manager.sync_plugins_to_database()
+                
+                if sync_result.get("success", False):
+                    print("   ✅ Database synchronized successfully")
+                    print(f"   Updated to version: {sync_result.get('version', 'unknown')}")
+                else:
+                    print("   ⚠️  Synchronization incomplete: {sync_result.get('error', 'Unknown error')}")
+                    print("   Using existing database entries")
         
+        except Exception as e:
+            print(f"   ⚠️  Consistency check skipped: {e}")
+            logger.warning(f"Version consistency check failed: {e}")
+        
+        # Ensure plugins are initialized
+        if not version_status.get("database_plugin_count", 0):
+            print("   Initializing plugins from CSV...")
+            initialize_plugins_from_csv("./plugin/official/plugins.csv")
+            print("   ✅ Plugins initialized")
+            
     except Exception as e:
-        print(f"   ⚠️  Plugin sync error: {e}")
-        logger.error(f"Plugin synchronization failed during startup: {e}")
-        # Continue startup even if sync fails
-        print("   Falling back to manual plugin initialization...")
-        initialize_plugins_from_csv("./plugin/official/plugins.csv")
+        print(f"   ⚠️  Plugin initialization warning: {e}")
+        logger.warning(f"Plugin system initialization had issues: {e}")
+        # Always try to initialize from CSV as fallback
+        try:
+            print("   Attempting fallback initialization from plugins.csv...")
+            initialize_plugins_from_csv("./plugin/official/plugins.csv")
+            print("   ✅ Fallback initialization successful")
+        except Exception as fallback_error:
+            print(f"   ❌ Critical: Could not initialize plugins: {fallback_error}")
+            logger.error(f"Failed to initialize plugins: {fallback_error}")
     
     # Docker image pulling
     print("\n4. Docker Images Check...")

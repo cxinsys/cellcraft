@@ -4,13 +4,14 @@ Manages synchronization between cellcraft-plugin repository, database, and Docke
 """
 
 import os
-import subprocess
+import json
 import re
 import logging
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 import pandas as pd
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.database import models
 from app.database.conn import SessionLocal, initialize_plugins_from_csv
@@ -28,113 +29,61 @@ class PluginSyncManager:
         
     def get_current_branch(self) -> str:
         """
-        Get current branch of cellcraft-plugin submodule
+        Get current branch from version.json file
         
         Returns:
             str: Current branch name
         """
         try:
-            # Change to submodule directory
-            original_dir = os.getcwd()
-            os.chdir(self.official_plugin_path)
+            version_file = self.official_plugin_path / "version.json"
             
-            # Get current branch
-            result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            
-            branch = result.stdout.strip()
-            logger.info(f"Current plugin branch: {branch}")
-            return branch
-            
-        except subprocess.CalledProcessError as e:
+            if version_file.exists():
+                with open(version_file, 'r') as f:
+                    version_info = json.load(f)
+                    branch = version_info.get("branch", "unknown")
+                    logger.info(f"Current plugin branch from version.json: {branch}")
+                    return branch
+            else:
+                # Default branch if version.json doesn't exist
+                logger.warning("version.json not found, using default branch")
+                return "release/plugins-v1.0"
+                
+        except Exception as e:
             logger.error(f"Failed to get current branch: {e}")
-            raise
-        finally:
-            os.chdir(original_dir)
+            # Return a default value instead of raising
+            return "release/plugins-v1.0"
     
     def get_available_branches(self) -> List[str]:
         """
-        Get list of available release branches from remote
+        Get list of available release branches (fixed list for now)
         
         Returns:
             List[str]: List of branch names matching release/plugins-v* pattern
         """
-        try:
-            original_dir = os.getcwd()
-            os.chdir(self.official_plugin_path)
-            
-            # Fetch latest from remote
-            subprocess.run(["git", "fetch", "origin"], check=True, capture_output=True)
-            
-            # Get remote branches
-            result = subprocess.run(
-                ["git", "branch", "-r"],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            
-            # Filter for release branches
-            branches = []
-            for line in result.stdout.splitlines():
-                line = line.strip()
-                if "origin/release/plugins-v" in line:
-                    # Extract branch name without 'origin/'
-                    branch = line.replace("origin/", "").strip()
-                    branches.append(branch)
-            
-            logger.info(f"Available release branches: {branches}")
-            return sorted(branches)
-            
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to get available branches: {e}")
-            raise
-        finally:
-            os.chdir(original_dir)
+        # Since we can't query git in runtime, return a fixed list
+        # This could be updated via configuration file or environment variables
+        branches = [
+            "release/plugins-v1.0",
+            "release/plugins-v1.1",
+            "release/plugins-v2.0"
+        ]
+        logger.info(f"Available release branches (configured): {branches}")
+        return branches
     
     def switch_branch(self, branch: str) -> bool:
         """
-        Switch cellcraft-plugin submodule to specified branch
+        Branch switching is not supported in runtime.
+        This should be done during Docker image build.
         
         Args:
             branch: Target branch name (e.g., "release/plugins-v1.0")
             
         Returns:
-            bool: True if successful, False otherwise
+            bool: Always returns False as runtime switching is not supported
         """
-        try:
-            original_dir = os.getcwd()
-            os.chdir(self.official_plugin_path)
-            
-            # Fetch latest changes
-            subprocess.run(["git", "fetch", "origin"], check=True, capture_output=True)
-            
-            # Checkout branch
-            subprocess.run(
-                ["git", "checkout", branch],
-                check=True,
-                capture_output=True
-            )
-            
-            # Pull latest changes
-            subprocess.run(
-                ["git", "pull", "origin", branch],
-                check=True,
-                capture_output=True
-            )
-            
-            logger.info(f"Successfully switched to branch: {branch}")
-            return True
-            
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to switch branch: {e}")
-            return False
-        finally:
-            os.chdir(original_dir)
+        logger.warning(f"Branch switching to {branch} is not supported in runtime. " +
+                      "Please rebuild the Docker image with the desired branch.")
+        return False
     
     def extract_version_from_branch(self, branch: str) -> str:
         """
@@ -169,8 +118,14 @@ class PluginSyncManager:
             # Use existing function to initialize plugins
             initialize_plugins_from_csv(str(self.plugins_csv_path))
             
-            # Get current branch and version
-            current_branch = self.get_current_branch()
+            # Get version info from file
+            version_info = {}
+            version_file = self.official_plugin_path / "version.json"
+            if version_file.exists():
+                with open(version_file, 'r') as f:
+                    version_info = json.load(f)
+            
+            current_branch = version_info.get("branch", "release/plugins-v1.0")
             version = self.extract_version_from_branch(current_branch)
             
             # Update version for all official plugins
@@ -180,7 +135,8 @@ class PluginSyncManager:
                 "success": True,
                 "branch": current_branch,
                 "version": version,
-                "message": f"Successfully synced plugins from branch {current_branch}"
+                "version_info": version_info,
+                "message": f"Successfully synced plugins with version {version}"
             }
             
         except Exception as e:
@@ -224,7 +180,14 @@ class PluginSyncManager:
             Dict containing current status information
         """
         try:
-            current_branch = self.get_current_branch()
+            # Get version info from file
+            version_info = {}
+            version_file = self.official_plugin_path / "version.json"
+            if version_file.exists():
+                with open(version_file, 'r') as f:
+                    version_info = json.load(f)
+            
+            current_branch = version_info.get("branch", "unknown")
             version = self.extract_version_from_branch(current_branch)
             
             # Check database plugin versions
@@ -238,6 +201,7 @@ class PluginSyncManager:
             return {
                 "repository_branch": current_branch,
                 "repository_version": version,
+                "version_info": version_info,
                 "database_plugin_count": len(db_versions),
                 "database_versions": db_versions,
                 "plugins_csv_exists": self.plugins_csv_path.exists(),
