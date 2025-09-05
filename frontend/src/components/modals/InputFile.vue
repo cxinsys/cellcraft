@@ -48,7 +48,7 @@
               <p class="form__info--name">{{ selectFile.file_name }}</p>
               <p class="form__info--size">{{
                 selectFile.file_size | formatBytes
-              }}</p>
+                }}</p>
             </li>
           </ul>
           <ul class="form__info" v-else>
@@ -301,6 +301,7 @@ export default {
   font-size: 1rem;
   line-height: 1rem;
   color: black;
+  padding: 0.5rem 0;
 
   overflow: hidden;
   white-space: nowrap;

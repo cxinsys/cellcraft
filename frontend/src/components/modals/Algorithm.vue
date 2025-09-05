@@ -3,12 +3,29 @@
     <div class="side-layout">
       <div class="setup-layout">
         <div class="setup-title">Plugin List</div>
+
+        <!-- Enhanced Plugin Type Tabs -->
+        <div class="plugin-type-tabs">
+          <button class="plugin-type-tab" :class="{ active: activePluginType === 'official' }"
+            @click="setActivePluginType('official')">
+            <span class="tab-text">Official</span>
+          </button>
+          <button class="plugin-type-tab" :class="{ active: activePluginType === 'local' }"
+            @click="setActivePluginType('local')">
+            <span class="tab-text">Local</span>
+          </button>
+        </div>
+
         <ul class="setup-list">
-          <li class="setup-item">
-            <div class="setup-filename">Plugin Name</div>
-          </li>
-          <li class="setup-item" v-for="(plugin, idx) in plugins" :key="idx" @click="selectPlugin(plugin)">
-            <div class="setup-filename">{{ plugin.name }}</div>
+          <li class="setup-item" v-for="(plugin, idx) in filteredPlugins" :key="idx" @click="selectPlugin(plugin)"
+            :class="{ 'selected-plugin': selectedPlugin && selectedPlugin.name === plugin.name }">
+            <div class="setup-filename">
+              {{ plugin.name }}
+              <span class="plugin-source-badge"
+                :class="plugin.source === 'official' ? 'badge-official' : 'badge-local'">
+                {{ plugin.source.toUpperCase() }}
+              </span>
+            </div>
           </li>
         </ul>
       </div>
@@ -19,11 +36,11 @@
           <div class="algorithm-logo">{{ selectedPlugin ? selectedPlugin.name : 'Select a Plugin' }}</div>
         </div>
         <div class="algorithm-parts">
-          <div v-for="rule in selectedPluginRules" :key="rule.name">
+          <div v-for="(rule, ruleIndex) in selectedPluginRules" :key="`rule-${ruleIndex}-${rule.name}`">
             <div class="part-title" v-show="rule.parameters.length != 0">{{ rule.name }}</div>
-            <div v-for="parameter in rule.parameters" :key="parameter.name" v-show="rule.parameters.length != 0">
-              <div class="parameters"
-                v-show="!((parameter.type === 'string' || parameter.type === 'h5adParameter') && (parameter.name === 'ScatterPlot' || parameter.name.includes('UMAP')))">
+            <div v-for="(parameter, paramIndex) in rule.parameters"
+              :key="`param-${ruleIndex}-${paramIndex}-${parameter.name}`" v-show="rule.parameters.length != 0">
+              <div class="parameters">
                 <span class="parameter-id">
                   {{ parameter.name }}
                 </span>
@@ -34,6 +51,12 @@
                   v-model="parameter.defaultValue" :class="{ 'red-text': !parameter.defaultValue }" />
                 <input type="checkbox" v-else-if="parameter.type === 'boolean'" class="parameter__input"
                   v-model="parameter.defaultValue">
+                <input v-else-if="parameter.type === 'h5adParameter' && parameter.name.includes('UMAP')" type="text"
+                  class="parameter__input umap-status-input"
+                  :value="parameter.defaultValue && parameter.defaultValue !== '' ? 'Activated' : 'Not Activated'"
+                  readonly
+                  :class="{ 'umap-activated': parameter.defaultValue && parameter.defaultValue !== '', 'umap-deactivated': !parameter.defaultValue || parameter.defaultValue === '' }" />
+
                 <div v-else-if="parameter.type === 'h5adParameter'" class="parameter__input">
                   <select v-if="parameter.name === 'cell group'" class="parameter__dropdown"
                     v-model="parameter.defaultValue" @change="selectColumns($event)">
@@ -76,31 +99,45 @@
       </div>
     </div>
     <div class="side-layout">
-      <div class="setup-layout__node">
-        <div class="setup-title">Plugin Inputs</div>
-        <ul class="setup-list__node">
-          <li class="setup-item__node" v-for="(item, idx) in selectedPluginInputOutput" :key="idx"
-            v-show="item.type === 'inputFile' || item.type === 'optionalInputFile'" :class="{ checked: item.activate }">
-            <div class="checkbox-wrapper-9">
-              <input class="tgl tgl-flat" v-model="item.activate" :id="'cb4-9-input-' + idx" type="checkbox" disabled />
-              <label :for="'cb4-9-input-' + idx" class="tgl-btn"></label>
+      <div class="setup-layout">
+        <div class="plugin-io-section">
+          <div class="setup-title">Plugin Inputs</div>
+          <div class="plugin-inputs-container">
+            <div class="plugin-input-item" v-for="(item, idx) in selectedPluginInputOutput" :key="idx"
+              v-show="item.type === 'inputFile' || item.type === 'optionalInputFile'">
+              <label class="plugin-input-label">
+                {{ item.name }}
+                <span v-if="item.type === 'optionalInputFile'" class="optional-badge">(Optional)</span>
+              </label>
+              <select class="plugin-input-dropdown" v-model="item.selected_file" @change="updateInputFile(item)">
+                <option value="">{{ item.type === 'optionalInputFile' ? 'Not Selected' : 'Select File' }}</option>
+                <option v-for="file in getAvailableFilesForInput(item)" :key="file.node_id + '_' + file.file_name"
+                  :value="file">
+                  {{ file.display_name }}
+                </option>
+              </select>
             </div>
-            <div class="setup-filename__node">{{ item.name }}</div>
-          </li>
-        </ul>
-      </div>
-      <div class="setup-layout__node">
-        <div class="setup-title">Plugin Outputs</div>
-        <ul class="setup-list__node">
-          <li class="setup-item__node" v-for="(item, idx) in selectedPluginInputOutput" :key="idx"
-            v-show="item.type === 'outputFile'" :class="{ checked: item.activate }">
-            <div class="checkbox-wrapper-9">
-              <input class="tgl tgl-flat" v-model="item.activate" :id="'cb4-9-output-' + idx" type="checkbox" />
-              <label :for="'cb4-9-output-' + idx" class="tgl-btn"></label>
+          </div>
+        </div>
+        <div class="plugin-io-section">
+          <div class="setup-title">Plugin Outputs</div>
+          <div class="plugin-outputs-container">
+            <div class="output-file-item" v-for="(item, idx) in selectedPluginInputOutput" :key="idx"
+              v-show="item.type === 'outputFile'">
+              <div class="output-file-name">{{ item.defaultValue || item.name }}</div>
+              <div class="output-file-bottom">
+                <div class="output-file-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                    <polyline points="13 2 13 9 20 9"></polyline>
+                  </svg>
+                </div>
+                <div class="output-file-type">{{ getFileTypeDescription(item.fileExtension) }}</div>
+              </div>
             </div>
-            <div class="setup-filename__node">{{ item.name }}</div>
-          </li>
-        </ul>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -129,6 +166,7 @@ export default {
       dropdownIsActive: false,
       nodeInfo: {},
       currentCellGroup: '',
+      activePluginType: 'official', // 기본적으로 Official 플러그인 표시
     };
   },
   async mounted() {
@@ -138,8 +176,8 @@ export default {
       const plugins = await getPlugins();
       // Filter to only show analysis algorithms (plugin_type = 'ANALYSIS')
       this.plugins = plugins.data.plugins.filter(plugin => {
-        return plugin.plugin_type === 'ANALYSIS' || plugin.plugin_type === 'analysis' || 
-               (!plugin.plugin_type && this.isAnalysisPlugin(plugin));
+        return plugin.plugin_type === 'ANALYSIS' || plugin.plugin_type === 'analysis' ||
+          (!plugin.plugin_type && this.isAnalysisPlugin(plugin));
       });
 
       const nodeInfo = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
@@ -170,7 +208,23 @@ export default {
             this.selectedPluginRules = result.filteredRules;
           }
 
-          this.selectedPluginInputOutput = this.activatePlugin(result.filteredInputOutput, this.currentNodeConnection);
+          // 저장된 상태가 있으면 복원, 없으면 새로 초기화
+          if (nodeInfo && nodeInfo.data && nodeInfo.data["selectedPluginInputOutput"]) {
+            // 저장된 상태를 복원하면서 현재 연결 상태와 동기화
+            this.selectedPluginInputOutput = nodeInfo.data.selectedPluginInputOutput.map(savedItem => {
+              const updatedItem = this.activatePlugin([savedItem], this.currentNodeConnection)[0];
+              // 저장된 selected_file이 있고 여전히 유효한 경우 유지
+              if (savedItem.selected_file && this.currentNodeConnection.some(conn =>
+                conn.id === savedItem.selected_file.node_id)) {
+                updatedItem.selected_file = savedItem.selected_file;
+                updatedItem.activate = true;
+                updatedItem.file_name = savedItem.selected_file.file_name;
+              }
+              return updatedItem;
+            });
+          } else {
+            this.selectedPluginInputOutput = this.activatePlugin(result.filteredInputOutput, this.currentNodeConnection);
+          }
 
           if (this.selectedPluginInputOutput.some((item) => item.type === "inputFile" && item.fileExtension === ".h5ad")) {
             await this.loadColumns();
@@ -192,6 +246,7 @@ export default {
         const dataObject = {
           "selectedPlugin": {
             name: this.selectedPlugin.name,
+            source: this.selectedPlugin.source,
           },
         };
         const nodeId = this.nodeId;
@@ -224,6 +279,7 @@ export default {
           const dataObject = {
             "selectedPlugin": {
               name: newVal.name,
+              source: newVal.source,
             },
           };
           const nodeId = this.nodeId;
@@ -290,15 +346,116 @@ export default {
     allParametersEmpty() {
       // selectedPluginRules를 순회하면서 모든 parameters가 비어 있는지 확인
       return this.selectedPluginRules.every(rule => rule.parameters.length === 0);
+    },
+    filteredPlugins() {
+      return this.plugins.filter(plugin => {
+        return plugin.source === this.activePluginType;
+      });
+    },
+    availableFilesByExtension() {
+      // 파일 확장자별로 사용 가능한 파일들을 미리 매핑
+      const fileMap = {};
+
+      this.currentNodeConnection.forEach(connection => {
+        if (connection.data && connection.data.file) {
+          // 여러 확장자를 처리할 수 있도록 함
+          const extensions = ['.h5ad', '.csv', '.tsv', '.txt', '.json'];
+
+          extensions.forEach(ext => {
+            if (connection.data.file.includes(ext)) {
+              if (!fileMap[ext]) {
+                fileMap[ext] = [];
+              }
+
+              const fileInfo = {
+                node_id: connection.id,
+                file_name: connection.data.file,
+                display_name: connection.data.title || connection.data.file,
+                node_class: connection.class
+              };
+
+              // 중복 방지
+              if (!fileMap[ext].some(f => f.node_id === connection.id)) {
+                fileMap[ext].push(fileInfo);
+              }
+            }
+          });
+        }
+      });
+
+      return fileMap;
     }
   },
   methods: {
+    getAvailableFilesForInput(inputItem) {
+      // 성능 최적화: computed property에서 미리 계산된 파일 맵을 사용
+      if (!inputItem.fileExtension) {
+        return [];
+      }
+
+      // 해당 확장자에 맞는 파일들을 반환
+      const files = this.availableFilesByExtension[inputItem.fileExtension] || [];
+
+      // InputFile, DataTable, ScatterPlot 노드만 필터링
+      return files.filter(file =>
+        file.node_class === 'InputFile' ||
+        file.node_class === 'DataTable' ||
+        file.node_class === 'ScatterPlot'
+      );
+    },
+    updateInputFile(inputItem) {
+      // 드롭다운에서 파일이 선택되었을 때 호출
+      if (inputItem.selected_file) {
+        inputItem.activate = true;
+        inputItem.file_name = inputItem.selected_file.file_name;
+      } else {
+        // 선택 해제된 경우
+        inputItem.activate = false;
+        inputItem.file_name = null;
+      }
+
+      // Vue의 반응성을 위해 배열 항목을 교체
+      const index = this.selectedPluginInputOutput.findIndex(item =>
+        item.name === inputItem.name && item.type === inputItem.type
+      );
+      if (index !== -1) {
+        this.selectedPluginInputOutput.splice(index, 1, inputItem);
+      }
+    },
+    getFileTypeDescription(extension) {
+      // 파일 확장자에 따른 설명 반환
+      const fileTypes = {
+        '.h5ad': 'H5AD Data File',
+        '.csv': 'CSV Data File',
+        '.tsv': 'TSV Data File',
+        '.txt': 'Text File',
+        '.json': 'JSON File',
+        '.pdf': 'PDF Document',
+        '.png': 'PNG Image',
+        '.jpg': 'JPEG Image',
+        '.svg': 'SVG Image'
+      };
+
+      return fileTypes[extension] || `${extension} File`;
+    },
     isAnalysisPlugin(plugin) {
       // Helper method to determine if a plugin is an analysis algorithm
       // Fallback logic for plugins without explicit plugin_type
       const name = plugin.name.toLowerCase();
       const visualizationKeywords = ['plot', 'chart', 'graph', 'visual', 'heatmap', 'scatter'];
       return !visualizationKeywords.some(keyword => name.includes(keyword));
+    },
+    setActivePluginType(type) {
+      this.activePluginType = type;
+      // 탭이 변경되면 선택된 플러그인 초기화
+      this.selectedPlugin = null;
+      this.selectedPluginRules = [];
+      this.selectedPluginInputOutput = [];
+
+      // 변경된 탭의 첫 번째 플러그인을 자동 선택
+      if (this.filteredPlugins.length > 0) {
+        this.selectPlugin(this.filteredPlugins[0]);
+      }
     },
     activateClusters() {
       if (this.clusters.length === 0) {
@@ -320,18 +477,61 @@ export default {
       }
     },
     async getCurrnetClusters(anno_column) {
-      const h5adFileName = Object.values(this.$store.getters.getWorkflowNodeFilesInfo(this.nodeId)).find((fileName) => {
-        return fileName.includes(".h5ad");
-      });
+      // H5AD 파일을 loadColumns()와 동일한 방식으로 찾기
+      const selectedInputFile = this.selectedPluginInputOutput.find(
+        (item) => item.type === "inputFile" && item.fileExtension === ".h5ad" && (item.activate || item.selected_file)
+      );
+      
+      let h5adFileName;
+      if (selectedInputFile) {
+        // 1. selected_file에서 파일명 가져오기
+        if (selectedInputFile.selected_file && selectedInputFile.selected_file.file_name) {
+          h5adFileName = selectedInputFile.selected_file.file_name;
+        } else if (selectedInputFile.file_name) {
+          h5adFileName = selectedInputFile.file_name;
+        }
+      }
+      
+      // 2. currentNodeConnection에서 h5ad 파일 찾기
+      if (!h5adFileName) {
+        const h5adConnection = this.currentNodeConnection.find(conn => 
+          conn.data && conn.data.file && conn.data.file.includes('.h5ad')
+        );
+        if (h5adConnection) {
+          h5adFileName = h5adConnection.data.file;
+        }
+      }
+      
+      // 3. Algorithm 노드의 파일 정보에서 찾기 (fallback)
+      if (!h5adFileName) {
+        const nodeFilesInfo = this.$store.getters.getWorkflowNodeFilesInfo(this.nodeId);
+        if (nodeFilesInfo) {
+          if (Array.isArray(nodeFilesInfo)) {
+            const h5adFile = nodeFilesInfo.find(file => file.name && file.name.includes('.h5ad'));
+            h5adFileName = h5adFile?.name;
+          } else if (typeof nodeFilesInfo === 'object') {
+            h5adFileName = Object.values(nodeFilesInfo).find(fileName => 
+              fileName && fileName.includes('.h5ad')
+            );
+          }
+        }
+      }
+
+      if (!h5adFileName) {
+        console.warn('No H5AD file found for getCurrnetClusters');
+        return [];
+      }
+
       try {
         const result = await getClusters({
           file_name: h5adFileName,
           anno_column: anno_column,
         });
-        console.log(result.data);
+        console.log('Clusters loaded:', result.data);
         return result.data.clusters;
       } catch (error) {
-        console.error(error);
+        console.error('Error loading clusters:', error);
+        return [];
       }
     },
     activatePlugin(selectedPluginInputOutput, currentNodeConnection) {
@@ -344,20 +544,44 @@ export default {
       return selectedPluginInputOutput.map(item => {
         let activate = false;
         let file_name = null; // file_name 초기값 설정
+        let selected_file = null; // 드롭다운에서 선택된 파일
 
         if (item.type === 'inputFile' || item.type === 'optionalInputFile') {
           // inputFile 타입의 경우
-          const matchingConnection = currentNodeConnection.find(connection =>
-            connection.data &&
-            connection.data.file &&
-            ((connection.class === 'InputFile' && connection.data.title && connection.data.title.includes(item.defaultValue)) ||
-              ((connection.class === 'DataTable' || connection.class === 'ScatterPlot') &&
-                connection.data.file.includes(item.fileExtension)))
-          );
+          const matchingConnection = currentNodeConnection.find(connection => {
+            if (!connection.data || !connection.data.file) return false;
+            
+            // 1. 확장자 기반 매칭 (우선순위)
+            if (item.fileExtension && connection.data.file.includes(item.fileExtension)) {
+              return true;
+            }
+            
+            // 2. InputFile의 title 기반 매칭 (기존 로직)
+            if (connection.class === 'InputFile' && connection.data.title && item.defaultValue) {
+              return connection.data.title.includes(item.defaultValue) || 
+                     item.defaultValue.includes(connection.data.title) ||
+                     connection.data.file.includes(item.defaultValue);
+            }
+            
+            // 3. DataTable, ScatterPlot의 확장자 매칭
+            if ((connection.class === 'DataTable' || connection.class === 'ScatterPlot') && 
+                item.fileExtension && connection.data.file.includes(item.fileExtension)) {
+              return true;
+            }
+            
+            return false;
+          });
 
           if (matchingConnection) {
             activate = true; // 파일이 일치하면 활성화
             file_name = matchingConnection.data.file; // 해당 connection의 data.file을 file_name으로 할당
+            // 드롭다운 선택을 위한 객체 생성
+            selected_file = {
+              node_id: matchingConnection.id,
+              file_name: matchingConnection.data.file,
+              display_name: matchingConnection.data.title || matchingConnection.data.file,
+              node_class: matchingConnection.class
+            };
           }
         } else if (item.type === 'outputFile') {
           // outputFile 타입의 경우
@@ -370,7 +594,8 @@ export default {
         return {
           ...item,
           activate,
-          file_name
+          file_name,
+          selected_file
         };
       });
     },
@@ -405,12 +630,17 @@ export default {
         this.selectedPlugin = plugin;
         const result = this.filterRules(this.selectedPlugin.rules);
 
-        this.$nextTick(() => {
+        this.$nextTick(async () => {
           this.selectedPluginRules = result.filteredRules;
           this.selectedPluginInputOutput = this.activatePlugin(
             result.filteredInputOutput,
             this.currentNodeConnection
           );
+
+          // h5ad 파일이 있으면 columns 로드
+          if (this.selectedPluginInputOutput.some((item) => item.type === "inputFile" && item.fileExtension === ".h5ad")) {
+            await this.loadColumns();
+          }
         });
       }
     },
@@ -462,32 +692,67 @@ export default {
       });
     },
     async loadColumns() {
-      // selectedPluginInputOutput 배열을 순회하며 type이 'inputFile'이고 activate가 true인 항목을 찾으면 해당 함수 실행, 못 찾으면 alert
+      // selectedPluginInputOutput 배열을 순회하며 type이 'inputFile'이고 h5ad 파일을 찾음
       const selectedInputFile = this.selectedPluginInputOutput.find(
-        (item) => item.type === "inputFile" && item.fileExtension === ".h5ad" && item.activate
+        (item) => item.type === "inputFile" && item.fileExtension === ".h5ad" && (item.activate || item.selected_file)
       );
+      
       if (selectedInputFile) {
-        console.log(selectedInputFile);
-        // selectedInputFile.fileExtension이 포함되어 있는 fileName을 찾아서 h5adFileName에 저장
-        // getters로 얻는 데이터는 Object이므로 Object.values로 배열로 변환 후, 배열을 순회하며 fileName을 찾음
-        const h5adFileName = Object.values(this.$store.getters.getWorkflowNodeFilesInfo(this.nodeId)).find((fileName) => {
-          return fileName.includes(selectedInputFile.fileExtension);
-        });
+        console.log('Selected H5AD file:', selectedInputFile);
+        
+        // 1. 먼저 selected_file에서 파일명 가져오기 시도
+        let h5adFileName;
+        if (selectedInputFile.selected_file && selectedInputFile.selected_file.file_name) {
+          h5adFileName = selectedInputFile.selected_file.file_name;
+        } else if (selectedInputFile.file_name) {
+          h5adFileName = selectedInputFile.file_name;
+        } else {
+          // 2. currentNodeConnection에서 h5ad 파일 찾기
+          const h5adConnection = this.currentNodeConnection.find(conn => 
+            conn.data && conn.data.file && conn.data.file.includes('.h5ad')
+          );
+          if (h5adConnection) {
+            h5adFileName = h5adConnection.data.file;
+          }
+        }
+        
+        // 3. 마지막으로 Algorithm 노드의 파일 정보에서 찾기 (fallback)
+        if (!h5adFileName) {
+          const nodeFilesInfo = this.$store.getters.getWorkflowNodeFilesInfo(this.nodeId);
+          if (nodeFilesInfo) {
+            if (Array.isArray(nodeFilesInfo)) {
+              const h5adFile = nodeFilesInfo.find(file => file.name && file.name.includes('.h5ad'));
+              h5adFileName = h5adFile?.name;
+            } else if (typeof nodeFilesInfo === 'object') {
+              h5adFileName = Object.values(nodeFilesInfo).find(fileName => 
+                fileName && fileName.includes('.h5ad')
+              );
+            }
+          }
+        }
 
-        console.log(h5adFileName);
+        console.log('H5AD filename resolved:', h5adFileName);
+
+        if (!h5adFileName) {
+          console.warn('No H5AD file found in any source');
+          alert("No H5AD file found. Please ensure an H5AD file is connected to this algorithm.");
+          return;
+        }
 
         try {
           const result = await getColumns({
             file_name: h5adFileName,
           });
-          console.log(result.data);
+          console.log('Columns loaded:', result.data);
           this.annotations = result.data.anno_columns;
           this.pseudotime = result.data.pseudo_columns;
         } catch (error) {
-          console.error(error);
+          console.error('Error loading columns:', error);
+          alert(`Error loading H5AD file columns: ${error.message || error}`);
         }
       } else {
-        alert("Please select the input h5ad file.");
+        // H5AD 파일이 필요하지 않은 플러그인일 수도 있으므로 경고만 출력
+        console.warn("No H5AD input file found in plugin configuration.");
       }
     },
   },
@@ -504,6 +769,66 @@ export default {
   flex-direction: row;
 }
 
+/* Plugin Type Tabs */
+.plugin-type-tabs {
+  display: flex;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  overflow: hidden;
+  /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); */
+  gap: 10px;
+  padding: 0 10px;
+}
+
+.plugin-type-tab {
+  flex: 1;
+  padding: 10px 20px;
+  border: none;
+  background-color: #34495e;
+  color: #ecf0f1;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.plugin-type-tab:hover {
+  background-color: #3498db;
+  color: white;
+}
+
+.plugin-type-tab.active {
+  background-color: #2980b9;
+  color: white;
+  font-weight: 600;
+}
+
+
+/* Plugin Source Badge */
+.plugin-source-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  margin-left: 8px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.badge-official {
+  background-color: #3498db;
+  color: white;
+}
+
+.badge-local {
+  background-color: #e67e22;
+  color: white;
+}
+
 .setup-layout,
 .setup-layout__node,
 .algorithm-layout {
@@ -518,7 +843,7 @@ export default {
   border-radius: 1rem;
   box-sizing: border-box;
   background-color: rgb(255, 255, 255);
-  overflow-y: auto;
+  /* overflow-y: auto; */
   scrollbar-width: thin;
   scrollbar-color: #888 #f5f5f5;
 }
@@ -526,6 +851,27 @@ export default {
 .setup-layout__node {
   min-height: 49%;
   margin: 0;
+}
+
+/* Plugin I/O Section Styles */
+.plugin-io-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-height: 48%;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  width: 100%;
+}
+
+.plugin-io-section:first-child {
+  border-bottom: 1px solid #e7e7e7;
+}
+
+.plugin-io-section:last-child {
+  margin-bottom: 0;
 }
 
 .output-layout {
@@ -548,7 +894,7 @@ export default {
   font-weight: bold;
   font-size: larger;
   color: #494949;
-  margin: 1.5rem 0;
+  margin: 0.5rem 0;
 }
 
 .input-description,
@@ -664,12 +1010,16 @@ export default {
   position: relative;
 }
 
-.setup-item:first-child {
-  pointer-events: none;
-}
-
 .setup-item:hover {
   background-color: rgb(202, 214, 255);
+}
+
+.setup-item.selected-plugin>.setup-filename {
+  font-weight: bold;
+  font-size: 1rem;
+  opacity: 1;
+  background-color: rgb(224, 224, 224);
+  border-radius: 1rem;
 }
 
 .setup-date,
@@ -682,15 +1032,6 @@ export default {
   font-size: 0.9rem;
   color: #353535;
   padding: 0.5rem;
-}
-
-.setup-item:first-child>.setup-date,
-.setup-item:first-child>.setup-filename {
-  font-weight: bold;
-  font-size: 1rem;
-  opacity: 1;
-  background-color: rgb(224, 224, 224);
-  border-radius: 1rem;
 }
 
 .setup-filename__node {
@@ -1372,5 +1713,217 @@ input[type="radio"] {
 .checked {
   background-color: #a0eac9;
   box-shadow: 0 0 0 2px #a0eac9 inset;
+}
+
+/* Plugin Inputs Dropdown Styles */
+.plugin-inputs-container {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.5rem;
+  padding-right: 0.75rem;
+  /* 스크롤바 공간 확보 */
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.plugin-input-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.plugin-input-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #353535;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.optional-badge {
+  font-size: 0.75rem;
+  color: #888;
+  font-weight: normal;
+}
+
+.plugin-input-dropdown {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 0.25rem;
+  background-color: white;
+  font-size: 0.85rem;
+  color: #353535;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.plugin-input-dropdown:hover {
+  border-color: #3498db;
+}
+
+.plugin-input-dropdown:focus {
+  outline: none;
+  border-color: #2980b9;
+  box-shadow: 0 0 0 2px rgba(41, 128, 185, 0.1);
+}
+
+/* Plugin Outputs File List Styles */
+.plugin-outputs-container {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  padding-right: 0.75rem;
+  /* 스크롤바 공간 확보 */
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.output-file-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.output-file-item:hover {
+  background-color: #e9ecef;
+  border-color: #dee2e6;
+}
+
+.output-file-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #353535;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.output-file-name:hover {
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow: visible;
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 0.25rem;
+  margin: -0.25rem;
+  border-radius: 0.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  max-height: none;
+}
+
+.output-file-bottom {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.output-file-icon {
+  flex-shrink: 0;
+  color: #6c757d;
+  width: 16px;
+  height: 16px;
+}
+
+.output-file-type {
+  font-size: 0.75rem;
+  color: #6c757d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Scrollbar styling for containers */
+.plugin-inputs-container::-webkit-scrollbar,
+.plugin-outputs-container::-webkit-scrollbar {
+  width: 10px;
+  /* 5px에서 10px로 증가 */
+}
+
+.plugin-inputs-container::-webkit-scrollbar-track {
+  background: transparent;
+  /* 투명한 트랙 배경 */
+  border-radius: 1rem;
+}
+
+.plugin-inputs-container::-webkit-scrollbar-thumb,
+.plugin-outputs-container::-webkit-scrollbar-thumb {
+  background-color: rgba(203, 203, 203, 0.6);
+  /* 반투명 처리 */
+  border-radius: 1rem;
+  border: 2px solid transparent;
+  /* 투명한 테두리 추가 */
+  background-clip: content-box;
+  /* 테두리 안쪽만 색상 적용 */
+}
+
+.plugin-inputs-container::-webkit-scrollbar-thumb:hover,
+.plugin-outputs-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(141, 139, 139, 0.8);
+  /* 호버 시 더 진한 색 */
+}
+
+/* Firefox 지원 */
+.plugin-inputs-container,
+.plugin-outputs-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(203, 203, 203, 0.6) transparent;
+}
+
+/* UMAP 파라미터 상태 스타일 */
+.umap-status-input {
+  width: 8.5rem;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  border-radius: 3px;
+  font-size: small;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.umap-activated {
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+  color: #155724;
+  font-weight: 500;
+}
+
+.umap-deactivated {
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  color: #721c24;
+  font-weight: 500;
 }
 </style>
