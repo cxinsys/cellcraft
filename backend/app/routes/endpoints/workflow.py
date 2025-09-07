@@ -618,11 +618,33 @@ def delete_user_workflow(
     ) -> Any:
     user_workflow = crud_workflow.get_user_workflow(db, current_user.id, workflowInfo.id)
     if user_workflow:
-        delete_workflow = crud_workflow.delete_user_workflow(db, current_user.id, workflowInfo.id)
+        # 실제 폴더 경로 구성 (언더스코어 추가)
         user_path = f"./user/{current_user.username}/"
-        workflow_path = f"{user_path}workflow{workflowInfo.id}"
-        if os.path.exists(workflow_path):
-            shutil.rmtree(workflow_path)
+        workflow_path = f"{user_path}workflow_{workflowInfo.id}"
+        
+        # 보안: Path traversal 방지
+        real_user_path = os.path.realpath(user_path)
+        real_workflow_path = os.path.realpath(workflow_path)
+        
+        # 워크플로우 경로가 사용자 폴더 내에 있는지 확인
+        if not real_workflow_path.startswith(real_user_path):
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: Invalid workflow path"
+            )
+        
+        # 폴더 존재 여부 확인 및 삭제
+        if os.path.exists(workflow_path) and os.path.isdir(workflow_path):
+            try:
+                shutil.rmtree(workflow_path)  # 폴더 및 하위 파일 모두 삭제
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to delete workflow folder: {str(e)}"
+                )
+        
+        # 폴더 삭제 성공 후 DB에서 워크플로우 정보 삭제
+        delete_workflow = crud_workflow.delete_user_workflow(db, current_user.id, workflowInfo.id)
         return delete_workflow
     else:
         raise HTTPException(

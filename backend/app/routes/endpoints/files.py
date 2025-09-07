@@ -112,8 +112,33 @@ def delete_user_file(
     ) -> Any:
     user_file = crud_file.get_user_file(db, current_user.id, fileInfo.file_name)
     if user_file:
+        # 실제 파일 경로 구성
+        user_folder = f'./user/{current_user.username}/data'
+        file_path = os.path.join(user_folder, fileInfo.file_name)
+        
+        # 보안: Path traversal 방지
+        real_user_folder = os.path.realpath(user_folder)
+        real_file_path = os.path.realpath(file_path)
+        
+        # 파일 경로가 사용자 폴더 내에 있는지 확인
+        if not real_file_path.startswith(real_user_folder):
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: Invalid file path"
+            )
+        
+        # 파일 존재 여부 확인 및 삭제
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            try:
+                os.remove(file_path)  # 실제 파일 삭제
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to delete file: {str(e)}"
+                )
+        
+        # DB에서 파일 정보 삭제
         delete_file = crud_file.delete_user_file(db, current_user.id, fileInfo.file_name)
-        # print(delete_file)
         return delete_file
     else:
         raise HTTPException(
