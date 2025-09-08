@@ -211,6 +211,18 @@ function getTaskLogs(taskId) {
   return instance.get(`/routes/task/logs/${taskId}`);
 }
 
+function exportTaskLogsJSON(taskId) {
+  return instance.get(`/routes/task/logs/${taskId}/export/json`, {
+    responseType: "blob", // 서버로부터 받은 데이터를 blob 형태로 처리
+  });
+}
+
+function exportTaskLogTXT(taskId, filename) {
+  return instance.get(`/routes/task/logs/${taskId}/export/txt/${filename}`, {
+    responseType: "blob", // 서버로부터 받은 데이터를 blob 형태로 처리
+  });
+}
+
 function getHtml(filename) {
   return instance.get(`/routes/files/html/${filename}`);
 }
@@ -351,6 +363,33 @@ function updatePluginVersion(plugin_name, version) {
   return instance.post(`/routes/plugin/versions/${plugin_name}/update`, formData);
 }
 
+// DAG Visualization APIs
+function getDAGStructure(taskId) {
+  return instance.get(`/routes/task/${taskId}/dag-structure`);
+}
+
+function getRuleStatuses(taskId, taskStatus = null) {
+  const params = taskStatus ? { actual_status: taskStatus } : {};
+  return instance.get(`/routes/task/${taskId}/rule-status`, { params });
+}
+
+function getRuleLogs(taskId, ruleName) {
+  return instance.get(`/routes/task/${taskId}/rule-logs/${ruleName}`);
+}
+
+function getEnhancedProgress(taskId) {
+  return instance.get(`/routes/task/${taskId}/enhanced-progress`);
+}
+
+// Cache Management APIs
+function getDAGCacheStats() {
+  return instance.get(`/routes/task/cache/stats`);
+}
+
+function clearDAGCaches() {
+  return instance.delete(`/routes/task/cache/clear`);
+}
+
 function createTaskEventSource(taskId, callbacks = {}) {
   const eventSource = new EventSource(`${process.env.VUE_APP_BASE_URL}/routes/task/info/${taskId}`);
   
@@ -428,6 +467,8 @@ export {
   revokeTask,
   deleteTask,
   getTaskLogs,
+  exportTaskLogsJSON,
+  exportTaskLogTXT,
   convertFile,
   getColumns,
   getClusters,
@@ -476,4 +517,12 @@ export {
   getBuildLogs,
   getPluginVersions,
   updatePluginVersion,
+  // DAG Visualization APIs
+  getDAGStructure,
+  getRuleStatuses,
+  getRuleLogs,
+  getEnhancedProgress,
+  // Cache Management APIs
+  getDAGCacheStats,
+  clearDAGCaches,
 };
