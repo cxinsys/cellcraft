@@ -14,7 +14,7 @@ class TaskMonitoringItem(BaseModel):
     """Individual task item in task monitoring response."""
     id: int
     task_id: str
-    workflow_id: int
+    workflow_id: Optional[int] = None  # Allow None for tasks without associated workflow
     user_id: int
     status: str
     start_time: datetime
