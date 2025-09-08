@@ -45,6 +45,7 @@
       <li @click="confirmDelete" v-if="isCompleted">Delete</li>
       <li @click="cancelTask" v-else>Cancle</li>
       <li @click="showLogs">View Logs</li>
+      <li @click="viewProgress">View Progress</li>
     </ul>
   </div>
 </template>
@@ -92,6 +93,10 @@ export default {
     },
     showLogs() {
       this.$emit('show-logs', this.currentTaskId);
+      this.R_Mouse_isActive = false;
+    },
+    viewProgress() {
+      this.$emit('view-progress', this.currentTaskId);
       this.R_Mouse_isActive = false;
     },
     closePopup() {

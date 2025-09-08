@@ -18,7 +18,7 @@
     <CompileCheck v-if="compile_check" @deactivate-compile-check="deactivateCompileCheck" @run-workflow="runWorkflow" />
     <!-- <FileTable :show_files="show_files" :files_list="files_list" /> -->
     <JobTable class="margin__top-12" :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" @confirm-delete="confirmDelete"
-      @show-logs="showLogs" @close-popup="closeJobTable" />
+      @show-logs="showLogs" @view-progress="viewProgress" @close-popup="closeJobTable" />
     <ControlBar :on_progress="on_progress" :isTabView="isTabView" :show_jobs="show_jobs" @toggle-file="toggleFile"
       @save-workflow-project="saveWorkflowProject" @activate-compile-check="activateCompileCheck"
       @toggle-task="toggleTask" @toggle-tab-view="toggleTabView" @zoom-in="zoomIn" @zoom-out="zoomOut" />
@@ -43,6 +43,9 @@
         <div class="logs-modal-header">
           <h3>Task Logs</h3>
           <div class="logs-modal-controls">
+            <button @click="exportAllLogsJSON" :disabled="logsLoading || !selectedTaskLogs || selectedTaskLogs.logs.length === 0" class="export-all-btn">
+              Export All (JSON)
+            </button>
             <button @click="refreshLogs" :disabled="logsLoading" class="refresh-btn">
               <img src="@/assets/refresh.png" alt="Refresh" class="refresh-icon" />
             </button>
@@ -71,8 +74,13 @@
           <div v-else class="logs-files">
             <div v-for="(logFile, index) in selectedTaskLogs.logs" :key="index" class="log-file">
               <div class="log-file-header">
-                <h4>{{ logFile.filename }}</h4>
-                <span class="log-file-size">{{ formatFileSize(logFile.size) }}</span>
+                <div class="log-file-info">
+                  <h4>{{ logFile.filename }}</h4>
+                  <span class="log-file-size">{{ formatFileSize(logFile.size) }}</span>
+                </div>
+                <button @click="exportSingleLogTXT(logFile.filename)" class="export-txt-btn">
+                  Export TXT
+                </button>
               </div>
               <pre class="log-file-content">{{ logFile.content }}</pre>
             </div>
@@ -80,6 +88,16 @@
         </div>
       </div>
     </div>
+
+    <!-- DAG Progress 모달 -->
+    <DAGVisualization 
+      v-if="showDAGModal && selectedDAGTaskId"
+      :visible="showDAGModal"
+      :taskId="selectedDAGTaskId"
+      :taskName="selectedDAGTaskName"
+      :taskStatus="selectedDAGTaskStatus"
+      @close="closeDAGModal"
+    />
   </div>
 </template>
 
@@ -93,6 +111,7 @@ import JobTable from "@/components/workflowComponents/PopupJobTable.vue"
 import ControlBar from "@/components/workflowComponents/ControlBar.vue"
 import TabComponent from "@/components/workflowComponents/TabComponent.vue"
 import CompileCheck from "@/components/workflowComponents/CompileCheck.vue"
+import DAGVisualization from "@/components/workflowComponents/DAGVisualization.vue"
 
 //노드 import (3번)
 import InputFile from "@/components/nodes/InputFileNode.vue";
@@ -112,6 +131,8 @@ import {
   revokeTask,
   deleteTask,
   getTaskLogs,
+  exportTaskLogsJSON,
+  exportTaskLogTXT,
   getPluginTemplate,
   createTaskEventSource,
 } from "@/api/index";
@@ -124,6 +145,7 @@ export default {
     ControlBar,
     TabComponent,
     CompileCheck,
+    DAGVisualization,
   },
   data() {
     return {
@@ -192,7 +214,7 @@ export default {
       timeInterval: null,
       files_list: [],
       // workflow로 넘어왔을 때, 쿼리 데이터 관리
-      currentWorkflowId: this.$route.query.workflow_id,
+      currentWorkflowId: this.$route.query.workflow_id ? String(this.$route.query.workflow_id) : null,
       basedPluginId: this.$route.query.plugin_id,
       toggleMessage: false,
       messageContent: "",
@@ -201,6 +223,9 @@ export default {
       showLogsModal: false,
       selectedTaskLogs: null,
       logsLoading: false,
+      showDAGModal: false,
+      selectedDAGTaskId: null,
+      selectedDAGTaskName: null,
     };
   },
   async mounted() {
@@ -348,8 +373,26 @@ export default {
     // workflow 들어오자마자 저장
     const currentWorkflow = await this.setCurrentWorkflow();
     console.log(currentWorkflow);
+
+    // ESC 키 이벤트 리스너 추가
+    document.addEventListener('keydown', this.handleKeyDown);
   },
   methods: {
+    handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        // 1순위: JobTable이 활성화되어 있으면 먼저 비활성화
+        if (this.show_jobs) {
+          this.closeJobTable();
+          return;
+        }
+        
+        // 2순위: JobTable이 비활성화되어 있고 TabComponent가 활성화되어 있으면 비활성화
+        if (this.isTabView) {
+          this.toggleTabView();
+          return;
+        }
+      }
+    },
     createEventSource(task_id) {
       this.on_progress = true;
 
@@ -618,6 +661,93 @@ export default {
       this.selectedTaskLogs = null;
       this.logsLoading = false;
     },
+    viewProgress(task_id) {
+      console.log('viewProgress called with task_id:', task_id, 'type:', typeof task_id);
+      
+      // Find the task from taskList to get the task name and status
+      const task = this.taskList.find(t => t.task_id === task_id);
+      const taskName = task ? (task.workflow_title || task.task_title || 'Unknown Task') : 'Unknown Task';
+      const taskStatus = task ? task.status : 'UNKNOWN';
+      
+      // Ensure taskId is a string for DAGVisualization component
+      this.selectedDAGTaskId = String(task_id);
+      this.selectedDAGTaskName = taskName;
+      this.selectedDAGTaskStatus = taskStatus;
+      this.selectedDAGTask = task; // Pass the entire task object
+      this.showDAGModal = true;
+      
+      console.log('DAG modal opened with taskId:', this.selectedDAGTaskId, 'taskName:', this.selectedDAGTaskName, 'taskStatus:', this.selectedDAGTaskStatus);
+    },
+    closeDAGModal() {
+      this.showDAGModal = false;
+      this.selectedDAGTaskId = null;
+      this.selectedDAGTaskName = null;
+    },
+    /**
+     * Creates a file from data and triggers a browser download.
+     * @param {any} data - The data to be written to the file (e.g., string, Blob).
+     * @param {string} filename - The desired name for the downloaded file.
+     */
+    _downloadFile(data, filename) {
+      const blob = new Blob([data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up by removing the link and revoking the object URL
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    },
+    async exportAllLogsJSON() {
+      if (!this.selectedTaskLogs || !this.selectedTaskLogs.task_info) {
+        this.setMessage("error", "No logs available to export");
+        return;
+      }
+
+      try {
+        const taskId = this.selectedTaskLogs.task_info.task_id;
+        const response = await exportTaskLogsJSON(taskId);
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const taskShortId = taskId.substring(0, 8);
+        const filename = `task_${taskShortId}_logs_${timestamp}.json`;
+        
+        this._downloadFile(response.data, filename);
+        
+        this.setMessage("success", "All logs exported successfully!");
+      } catch (error) {
+        console.error("Error exporting logs:", error);
+        this.setMessage("error", "Failed to export logs: " + (error.response?.data?.detail || error.message));
+      }
+    },
+    async exportSingleLogTXT(logFilename) {
+      if (!this.selectedTaskLogs || !this.selectedTaskLogs.task_info) {
+        this.setMessage("error", "No logs available to export");
+        return;
+      }
+
+      try {
+        const taskId = this.selectedTaskLogs.task_info.task_id;
+        const response = await exportTaskLogTXT(taskId, logFilename);
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const taskShortId = taskId.substring(0, 8);
+        const baseName = logFilename.split('.').slice(0, -1).join('.') || logFilename;
+        const extension = 'txt'; // Force all log downloads to use .txt extension
+        const downloadFilename = `task_${taskShortId}_${baseName}_${timestamp}.${extension}`;
+        
+        this._downloadFile(response.data, downloadFilename);
+        
+        this.setMessage("success", `Log file '${logFilename}' exported successfully!`);
+      } catch (error) {
+        console.error("Error exporting log file:", error);
+        this.setMessage("error", "Failed to export log file: " + (error.response?.data?.detail || error.message));
+      }
+    },
     closeJobTable() {
       this.show_jobs = false;
       clearInterval(this.timeInterval);
@@ -740,7 +870,7 @@ export default {
         };
         console.log("currentWorkflowId : " + workflow.id + "type : " + typeof workflow.id);
         const workflow_data = await saveWorkflow(workflow);
-        this.currentWorkflowId = workflow_data.data.id;
+        this.currentWorkflowId = String(workflow_data.data.id);
         return workflow_data.data;
       } catch (error) {
         console.error(error);
@@ -807,6 +937,9 @@ export default {
     for (let task_id in this.eventSources) {
       this.closeEventSource(task_id);
     }
+    
+    // ESC 키 이벤트 리스너 제거
+    document.removeEventListener('keydown', this.handleKeyDown);
   },
   filters: {
     titleNone(value) {
@@ -1265,6 +1398,35 @@ export default {
   height: 32px;
 }
 
+.export-all-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  white-space: nowrap;
+}
+
+.export-all-btn:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-1px);
+}
+
+.export-all-btn:disabled {
+  background: #576574;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .refresh-btn {
   background: #007bff;
 }
@@ -1417,6 +1579,12 @@ export default {
   font-family: 'Courier New', monospace;
 }
 
+.log-file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .log-file-size {
   font-size: 0.85rem;
   color: #95a5a6;
@@ -1424,6 +1592,25 @@ export default {
   padding: 0.25rem 0.5rem;
   border-radius: 6px;
   font-family: 'Courier New', monospace;
+}
+
+.export-txt-btn {
+  background: #17a2b8;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.export-txt-btn:hover {
+  background: #138496;
+  transform: translateY(-1px);
 }
 
 .log-file-content {

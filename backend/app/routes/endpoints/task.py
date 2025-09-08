@@ -1,12 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Optional
 from sqlalchemy.orm import Session
 import asyncio
 from datetime import datetime
+import json
+import io
 
 from app.common.utils.celery_utils import get_task_info
 from app.common.utils.docker_utils import container_manager
+from app.common.utils.snakefile_dag_parser import SnakemakeDAGParser, SnakemakeRuleStatusTracker
+from app.common.utils.snakemake_native_parser import (
+    parse_snakefile_native, 
+    SnakemakeNativeError
+)
 from app.database.crud import crud_task, crud_workflow, crud_plugin
 from app.database.schemas.task import TaskMonitoringResponse, TaskMonitoringItem, PluginInfo
 from app.routes import dep
@@ -280,8 +288,12 @@ def get_task_logs(
         if task.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        # 로그 폴더 경로 구성
-        logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/logs"
+        # 로그 폴더 경로 구성 - task_type에 따라 다른 경로 사용
+        if task.task_type == 'visualization':
+            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}/logs"
+        else:
+            # algorithm 또는 기타 타입은 기존 경로 사용
+            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/logs"
         
         if not os.path.exists(logs_folder_path):
             return {
@@ -339,3 +351,694 @@ def get_task_logs(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving logs: {str(e)}")
+
+@router.get("/logs/{task_id}/export/json")
+def export_task_logs_json(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    task_id: str
+) -> StreamingResponse:
+    """
+    특정 task의 모든 로그 파일들을 JSON 형식으로 export합니다.
+    JSON 형태: {"filename1.log": "content1", "filename2.log": "content2"}
+    """
+    try:
+        # task_id로 task 정보 조회
+        task = crud_task.get_task_by_task_id(db, task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # 권한 확인 (해당 유저의 task인지 확인)
+        if task.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # 로그 폴더 경로 구성 - task_type에 따라 다른 경로 사용
+        if task.task_type == 'visualization':
+            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}/logs"
+        else:
+            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/logs"
+        
+        if not os.path.exists(logs_folder_path):
+            raise HTTPException(status_code=404, detail="Logs folder not found")
+        
+        # 모든 로그 파일을 JSON 형태로 수집
+        logs_data = {}
+        logs_path = Path(logs_folder_path)
+        
+        for log_file_path in logs_path.glob("*"):
+            if log_file_path.is_file():
+                try:
+                    with open(log_file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    logs_data[log_file_path.name] = content
+                except Exception as e:
+                    # 파일 읽기 실패 시 에러 정보 포함
+                    logs_data[log_file_path.name] = f"Error reading file: {str(e)}"
+        
+        if not logs_data:
+            raise HTTPException(status_code=404, detail="No log files found")
+        
+        # JSON으로 변환
+        json_content = json.dumps(logs_data, indent=2, ensure_ascii=False)
+        
+        # 파일명 생성 (타임스탬프 포함)
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"task_{task_id[:8]}_logs_{timestamp}.json"
+        
+        # StreamingResponse로 다운로드 제공
+        return StreamingResponse(
+            io.StringIO(json_content),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error exporting logs as JSON: {str(e)}")
+
+@router.get("/logs/{task_id}/export/txt/{filename}")
+def export_task_log_txt(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    task_id: str,
+    filename: str
+) -> StreamingResponse:
+    """
+    특정 task의 개별 로그 파일을 TXT 형식으로 export합니다.
+    """
+    try:
+        # task_id로 task 정보 조회
+        task = crud_task.get_task_by_task_id(db, task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # 권한 확인 (해당 유저의 task인지 확인)
+        if task.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # 로그 폴더 경로 구성 - task_type에 따라 다른 경로 사용
+        if task.task_type == 'visualization':
+            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}/logs"
+        else:
+            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/logs"
+        
+        # 요청된 로그 파일 경로
+        log_file_path = Path(logs_folder_path) / filename
+        
+        if not log_file_path.exists():
+            raise HTTPException(status_code=404, detail=f"Log file '{filename}' not found")
+        
+        if not log_file_path.is_file():
+            raise HTTPException(status_code=400, detail=f"'{filename}' is not a valid file")
+        
+        # 파일 읽기
+        try:
+            with open(log_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+        
+        # 다운로드용 파일명 생성 (타임스탬프 포함)
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_name = Path(filename).stem
+        extension = Path(filename).suffix or ".txt"
+        download_filename = f"task_{task_id[:8]}_{base_name}_{timestamp}{extension}"
+        
+        # StreamingResponse로 다운로드 제공
+        return StreamingResponse(
+            io.StringIO(content),
+            media_type="text/plain",
+            headers={"Content-Disposition": f"attachment; filename={download_filename}"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error exporting log file as TXT: {str(e)}")
+
+
+@router.get("/{task_id}/dag-structure")
+async def get_dag_structure(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    task_id: str
+) -> Dict[str, Any]:
+    """
+    특정 Task의 Snakefile을 파싱하여 DAG 구조를 반환합니다.
+    """
+    import logging
+    from app.common.utils.snakefile_dag_parser import DAGParsingError
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # 입력 검증
+        if not task_id or not task_id.strip():
+            raise HTTPException(status_code=400, detail="Invalid task_id")
+        
+        # Task 정보 조회
+        task = crud_task.get_task_by_task_id(db, task_id)
+        if not task:
+            logger.warning(f"Task not found: {task_id}")
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # 권한 확인
+        if task.user_id != current_user.id:
+            logger.warning(f"Access denied for user {current_user.id} to task {task_id}")
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Snakefile 경로 구성
+        try:
+            if task.task_type == 'visualization':
+                snakefile_path = f"user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}/Snakefile"
+            else:
+                snakefile_path = f"user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/Snakefile"
+        except AttributeError as e:
+            logger.error(f"Missing task attributes for DAG structure: {e}")
+            raise HTTPException(status_code=400, detail="Invalid task data")
+        
+        logger.info(f"Parsing DAG structure for task {task_id}, snakefile: {snakefile_path}")
+        
+        # Snakefile 파싱 (네이티브 파서 우선 사용, 실패 시 레거시 파서로 fallback)
+        dag_data = None
+        parsing_method = "unknown"
+        
+        try:
+            # 1단계: Snakemake 네이티브 파서 시도 (실시간 파싱)
+            logger.info(f"Attempting native Snakemake parsing for task {task_id}")
+            dag_data = parse_snakefile_native(snakefile_path, method='auto')
+            parsing_method = f"native_{dag_data.get('method', 'unknown')}"
+            
+            # DAG 데이터 유효성 검증
+            if not isinstance(dag_data, dict) or 'nodes' not in dag_data:
+                raise ValueError("Invalid DAG data structure from native parser")
+            
+            logger.info(f"Successfully parsed {len(dag_data.get('nodes', []))} rules using native parser ({parsing_method}) for task {task_id}")
+            
+        except (SnakemakeNativeError, ValueError, Exception) as native_error:
+            logger.warning(f"Native parser failed for task {task_id}: {native_error}")
+            
+            try:
+                # 2단계: 레거시 파서로 fallback
+                logger.info(f"Falling back to legacy parser for task {task_id}")
+                parser = SnakemakeDAGParser()
+                dag_data = parser.parse_snakefile_with_logs(snakefile_path)
+                parsing_method = "legacy"
+                
+                # DAG 데이터 유효성 검증
+                if not isinstance(dag_data, dict) or 'nodes' not in dag_data:
+                    logger.error(f"Invalid DAG data structure from legacy parser for task {task_id}")
+                    raise HTTPException(status_code=500, detail="Invalid DAG structure")
+                
+                logger.info(f"Successfully parsed {len(dag_data.get('nodes', []))} rules using legacy parser for task {task_id}")
+                
+            except Exception as legacy_error:
+                # 두 파서 모두 실패한 경우
+                logger.error(f"Both native and legacy parsers failed for task {task_id}. Native: {native_error}, Legacy: {legacy_error}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Failed to parse workflow with both native and legacy parsers. Last error: {str(legacy_error)}"
+                )
+        
+        # 파싱 방법 정보 추가
+        if dag_data and isinstance(dag_data, dict):
+            dag_data['parsing_method'] = parsing_method
+        
+        return {
+            "task_info": {
+                "task_id": task.task_id,
+                "workflow_id": task.workflow_id,
+                "algorithm_id": task.algorithm_id,
+                "task_type": task.task_type,
+                "plugin_name": task.plugin_name,
+                "status": task.status
+            },
+            "dag_structure": dag_data,
+            "snakefile_path": snakefile_path
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error getting DAG structure for task {task_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error while processing DAG structure")
+
+
+@router.get("/{task_id}/rule-status")
+async def get_rule_status(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    task_id: str,
+    actual_status: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    특정 Task의 각 Rule별 실행 상태를 로그 파일 기반으로 추적하여 반환합니다.
+    """
+    import logging
+    from app.common.utils.snakefile_dag_parser import DAGParsingError
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # 입력 검증
+        if not task_id or not task_id.strip():
+            raise HTTPException(status_code=400, detail="Invalid task_id")
+        
+        # Task 정보 조회
+        task = crud_task.get_task_by_task_id(db, task_id)
+        if not task:
+            logger.warning(f"Task not found for rule status: {task_id}")
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # 권한 확인
+        if task.user_id != current_user.id:
+            logger.warning(f"Access denied for user {current_user.id} to task rule status {task_id}")
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Snakefile 경로 구성
+        try:
+            if task.task_type == 'visualization':
+                snakefile_path = f"user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}/Snakefile"
+            else:
+                snakefile_path = f"user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/Snakefile"
+        except AttributeError as e:
+            logger.error(f"Missing task attributes for rule status: {e}")
+            raise HTTPException(status_code=400, detail="Invalid task data")
+        
+        logger.info(f"Getting rule status for task {task_id}, snakefile: {snakefile_path}")
+        
+        # Snakefile 파싱 (네이티브 파서 우선 사용)
+        dag_data = None
+        parsing_method = "unknown"
+        
+        try:
+            # 1단계: Snakemake 네이티브 파서 시도 (실시간 파싱)
+            dag_data = parse_snakefile_native(snakefile_path, method='auto')
+            parsing_method = f"native_{dag_data.get('method', 'unknown')}"
+            
+            # DAG 데이터 유효성 검증
+            if not isinstance(dag_data, dict) or 'nodes' not in dag_data:
+                raise ValueError("Invalid DAG data structure from native parser")
+                
+        except (SnakemakeNativeError, ValueError, Exception) as native_error:
+            logger.warning(f"Native parser failed for rule status {task_id}: {native_error}")
+            
+            try:
+                # 2단계: 레거시 파서로 fallback
+                parser = SnakemakeDAGParser()
+                dag_data = parser.parse_snakefile_with_logs(snakefile_path)
+                parsing_method = "legacy"
+                
+                # DAG 데이터 유효성 검증
+                if not isinstance(dag_data, dict) or 'nodes' not in dag_data:
+                    logger.error(f"Invalid DAG data structure for rule status {task_id}")
+                    raise HTTPException(status_code=500, detail="Invalid workflow structure")
+                    
+            except Exception as legacy_error:
+                logger.error(f"Both parsers failed for rule status {task_id}. Native: {native_error}, Legacy: {legacy_error}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Cannot parse workflow: {str(legacy_error)}"
+                )
+        
+        
+        # 상태 추적기 초기화 및 향상된 진행률 계산
+        try:
+            # Use actual_status if provided, otherwise use task.status
+            effective_task_status = actual_status if actual_status else task.status
+            logger.info(f"Using task status for rule tracking: {effective_task_status} (actual_status: {actual_status}, db_status: {task.status})")
+            
+            tracker = SnakemakeRuleStatusTracker(
+                workflow_path=snakefile_path,
+                task_status=effective_task_status
+            )
+            tracker.rules = dag_data['nodes']
+            
+            # 향상된 진행률 정보 가져오기
+            enhanced_progress = tracker.get_enhanced_progress_info()
+            
+            # 기본 진행률 정보 추출
+            basic_progress = enhanced_progress.get('basic_progress', {})
+            rule_statuses = enhanced_progress.get('rule_statuses', {})
+            
+            # 기존 변수들 설정 (하위 호환성)
+            total_rules = basic_progress.get('total_rules', len(dag_data.get('execution_sequence', [])))
+            completed_rules = basic_progress.get('completed_rules', 0)
+            failed_rules = basic_progress.get('failed_rules', 0)
+            running_rules = basic_progress.get('running_rules', 0)
+            pending_rules = basic_progress.get('pending_rules', 0)
+            progress_percentage = basic_progress.get('percentage', 0.0)
+            
+            logger.info(f"Enhanced rule status calculated for task {task_id}: {completed_rules}/{total_rules} completed")
+            logger.info(f"Rule statuses for task {task_id}: {rule_statuses}")
+            logger.info(f"Rule statuses type: {type(rule_statuses)}, keys: {list(rule_statuses.keys()) if isinstance(rule_statuses, dict) else 'Not a dict'}")
+            
+        except Exception as e:
+            logger.error(f"Error tracking rule statuses for task {task_id}: {e}")
+            # 기본 상태로 모든 룰을 pending으로 설정
+            rule_statuses = {rule['id']: 'pending' for rule in dag_data.get('nodes', [])}
+            
+            # 폴백 진행률 계산
+            try:
+                total_rules = len(dag_data.get('execution_sequence', []))
+                completed_rules = failed_rules = running_rules = 0
+                pending_rules = total_rules
+                progress_percentage = 0
+                enhanced_progress = None
+            except Exception:
+                total_rules = len(rule_statuses)
+                completed_rules = failed_rules = running_rules = 0
+                pending_rules = total_rules
+                progress_percentage = 0
+                enhanced_progress = None
+        
+        # 응답 구성
+        response = {
+            "task_info": {
+                "task_id": task.task_id,
+                "workflow_id": task.workflow_id,
+                "algorithm_id": task.algorithm_id,
+                "task_type": task.task_type,
+                "plugin_name": task.plugin_name,
+                "status": task.status
+            },
+            "rule_statuses": rule_statuses,
+            "execution_sequence": dag_data.get('execution_sequence', []),
+            "progress": {
+                "total_rules": total_rules,
+                "completed_rules": completed_rules,
+                "failed_rules": failed_rules,
+                "running_rules": running_rules,
+                "pending_rules": pending_rules,
+                "percentage": round(progress_percentage, 1)
+            },
+            "snakefile_path": snakefile_path
+        }
+        
+        logger.info(f"Final API response rule_statuses for task {task_id}: {response['rule_statuses']}")
+        logger.info(f"Final API response type check - rule_statuses is dict: {isinstance(response['rule_statuses'], dict)}")
+        
+        # 향상된 진행률 정보 추가 (사용 가능한 경우)
+        if 'enhanced_progress' in locals() and enhanced_progress:
+            response["enhanced_progress"] = {
+                "timing_info": enhanced_progress.get('timing_info', {}),
+                "estimated_completion": enhanced_progress.get('estimated_completion', {}),
+                "bottleneck_analysis": enhanced_progress.get('bottleneck_analysis', {}),
+                "completion_percentage": enhanced_progress.get('basic_progress', {}).get('completion_percentage', 0.0),
+                "is_stalled": enhanced_progress.get('basic_progress', {}).get('is_stalled', False)
+            }
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting rule status: {str(e)}")
+
+
+@router.get("/{task_id}/enhanced-progress")
+async def get_enhanced_progress(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    task_id: str
+) -> Dict[str, Any]:
+    """
+    특정 Task의 향상된 진행률 정보를 반환합니다.
+    
+    향상된 기능:
+    - 타이밍 기반 분석
+    - 예상 완료 시간
+    - 병목 현상 감지
+    - 정체 상황 감지
+    - 상세 진행률 계산
+    """
+    import logging
+    import time
+    from app.common.utils.snakefile_dag_parser import DAGParsingError
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # 입력 검증
+        if not task_id or not task_id.strip():
+            raise HTTPException(status_code=400, detail="Invalid task_id")
+        
+        # Task 정보 조회
+        task = crud_task.get_task_by_task_id(db, task_id)
+        if not task:
+            logger.warning(f"Task not found for enhanced progress: {task_id}")
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # 권한 확인
+        if task.user_id != current_user.id:
+            logger.warning(f"Access denied for user {current_user.id} to enhanced progress {task_id}")
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Snakefile 경로 구성
+        try:
+            if task.task_type == 'visualization':
+                snakefile_path = f"user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}/Snakefile"
+            else:
+                snakefile_path = f"user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/Snakefile"
+        except AttributeError as e:
+            logger.error(f"Missing task attributes for enhanced progress: {e}")
+            raise HTTPException(status_code=400, detail="Invalid task data")
+        
+        logger.info(f"Getting enhanced progress for task {task_id}, snakefile: {snakefile_path}")
+        
+        # Snakefile 파싱 및 향상된 진행률 계산 (네이티브 파서 우선 사용)
+        dag_data = None
+        
+        try:
+            # 1단계: Snakemake 네이티브 파서 시도 (실시간 파싱)
+            dag_data = parse_snakefile_native(snakefile_path, method='auto')
+            
+            # DAG 데이터 유효성 검증
+            if not isinstance(dag_data, dict) or 'nodes' not in dag_data:
+                raise ValueError("Invalid DAG data structure from native parser")
+                
+        except (SnakemakeNativeError, ValueError, Exception) as native_error:
+            logger.warning(f"Native parser failed for enhanced progress {task_id}: {native_error}")
+            
+            try:
+                # 2단계: 레거시 파서로 fallback
+                parser = SnakemakeDAGParser()
+                dag_data = parser.parse_snakefile_with_logs(snakefile_path)
+                
+                # DAG 데이터 유효성 검증
+                if not isinstance(dag_data, dict) or 'nodes' not in dag_data:
+                    logger.error(f"Invalid DAG data structure for enhanced progress {task_id}")
+                    raise HTTPException(status_code=500, detail="Invalid workflow structure")
+                    
+            except Exception as legacy_error:
+                logger.error(f"Both parsers failed for enhanced progress {task_id}. Native: {native_error}, Legacy: {legacy_error}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Cannot parse workflow: {str(legacy_error)}"
+                )
+        
+        # 상태 추적기 초기화
+        tracker = SnakemakeRuleStatusTracker(
+            workflow_path=snakefile_path,
+            task_status=task.status
+        )
+        tracker.rules = dag_data['nodes']
+        
+        # 향상된 진행률 정보 계산
+        enhanced_progress = tracker.get_enhanced_progress_info()
+        
+        logger.info(f"Enhanced progress calculated for task {task_id}")
+            
+        
+        return {
+            "task_info": {
+                "task_id": task.task_id,
+                "workflow_id": task.workflow_id,
+                "algorithm_id": task.algorithm_id,
+                "task_type": task.task_type,
+                "plugin_name": task.plugin_name,
+                "status": task.status
+            },
+            "enhanced_progress": enhanced_progress,
+            "snakefile_path": snakefile_path,
+            "timestamp": time.time()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error getting enhanced progress for task {task_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error while processing enhanced progress")
+
+
+@router.get("/{task_id}/rule-logs/{rule_name}")
+async def get_rule_logs(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    task_id: str,
+    rule_name: str
+) -> Dict[str, Any]:
+    """
+    특정 Rule의 로그 파일들(stdout, stderr)을 조회합니다.
+    """
+    try:
+        # Task 정보 조회
+        task = crud_task.get_task_by_task_id(db, task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # 권한 확인
+        if task.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Snakefile 파싱하여 해당 Rule의 로그 경로 찾기
+        if task.task_type == 'visualization':
+            snakefile_path = f"user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}/Snakefile"
+        else:
+            snakefile_path = f"user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/Snakefile"
+        
+        if not os.path.exists(snakefile_path):
+            raise HTTPException(status_code=404, detail="Snakefile not found")
+        
+        # 네이티브 파서 우선 사용
+        try:
+            dag_data = parse_snakefile_native(snakefile_path, method='auto')
+        except (SnakemakeNativeError, Exception) as native_error:
+            logger.warning(f"Native parser failed for rule logs {task_id}: {native_error}")
+            # 레거시 파서로 fallback
+            parser = SnakemakeDAGParser()
+            dag_data = parser.parse_snakefile_with_logs(snakefile_path)
+        
+        # 해당 Rule 찾기
+        target_rule = None
+        for node in dag_data['nodes']:
+            if node['id'] == rule_name:
+                target_rule = node
+                break
+        
+        if not target_rule:
+            raise HTTPException(status_code=404, detail=f"Rule '{rule_name}' not found")
+        
+        # 로그 파일들 읽기
+        rule_logs = {}
+        for log_type, log_path in target_rule['log_paths'].items():
+            if os.path.exists(log_path):
+                try:
+                    with open(log_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # 파일 정보 포함
+                    file_stat = os.stat(log_path)
+                    rule_logs[log_type] = {
+                        "content": content,
+                        "file_path": log_path,
+                        "size": file_stat.st_size,
+                        "modified_time": file_stat.st_mtime,
+                        "exists": True
+                    }
+                except Exception as e:
+                    rule_logs[log_type] = {
+                        "content": f"Error reading file: {str(e)}",
+                        "file_path": log_path,
+                        "size": 0,
+                        "modified_time": 0,
+                        "exists": True,
+                        "error": str(e)
+                    }
+            else:
+                rule_logs[log_type] = {
+                    "content": "",
+                    "file_path": log_path,
+                    "size": 0,
+                    "modified_time": 0,
+                    "exists": False
+                }
+        
+        return {
+            "task_info": {
+                "task_id": task.task_id,
+                "workflow_id": task.workflow_id,
+                "algorithm_id": task.algorithm_id,
+                "task_type": task.task_type
+            },
+            "rule_info": {
+                "rule_name": rule_name,
+                "label": target_rule['label'],
+                "description": target_rule['description'],
+                "inputs": target_rule['inputs'],
+                "outputs": target_rule['outputs'],
+                "params": target_rule['params']
+            },
+            "logs": rule_logs
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting rule logs: {str(e)}")
+
+
+@router.get("/cache/stats")
+def get_dag_cache_stats(
+    current_user: models.User = Depends(dep.get_current_active_user)
+) -> dict:
+    """
+    DAG 파싱 캐시 통계 정보 조회 (관리자 전용)
+    """
+    try:
+        # 레거시 파서의 캐시 통계만 수집 (네이티브 파서는 캐시 제거됨)
+        from app.common.utils.snakefile_dag_parser import get_cache_stats as get_legacy_stats
+        
+        legacy_stats = get_legacy_stats()
+        
+        return {
+            "native_parser_cache": {"message": "Cache removed for simplification"},
+            "legacy_parser_cache": legacy_stats,
+            "timestamp": time.time(),
+            "message": "Cache statistics retrieved successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting cache stats: {e}")
+        return {
+            "error": f"Failed to get cache statistics: {str(e)}",
+            "timestamp": time.time()
+        }
+
+@router.delete("/cache/clear")
+def clear_dag_caches(
+    current_user: models.User = Depends(dep.get_current_active_user)
+) -> dict:
+    """
+    모든 DAG 파싱 캐시 초기화 (관리자 전용)
+    """
+    try:
+        # 레거시 파서의 캐시만 초기화 (네이티브 파서는 캐시 제거됨)
+        from app.common.utils.snakefile_dag_parser import clear_all_caches
+        
+        # 레거시 파서 캐시 초기화
+        clear_all_caches()
+        
+        logger.info(f"Legacy DAG cache cleared by user {current_user.id} (native cache removed)")
+        
+        return {
+            "message": "Legacy DAG parsing cache cleared successfully (native cache removed for simplification)",
+            "timestamp": time.time(),
+            "cleared_by": current_user.username
+        }
+        
+    except Exception as e:
+        logger.error(f"Error clearing caches: {e}")
+        return {
+            "error": f"Failed to clear caches: {str(e)}",
+            "timestamp": time.time()
+        }
