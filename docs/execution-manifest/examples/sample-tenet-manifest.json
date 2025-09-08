@@ -1,0 +1,928 @@
+{
+  "manifest_info": {
+    "format_version": "1.0",
+    "generated_at": "2025-09-08T17:43:51.383934",
+    "generated_by": "testuser",
+    "description": "CellCraft execution manifest for analysis reproducibility"
+  },
+  "task_metadata": {
+    "task_id": "b41c3f1a-6eb8-46aa-8b66-ced6cae0c6c4",
+    "workflow_id": 1,
+    "algorithm_id": "16",
+    "plugin_name": "TENET",
+    "task_type": "compile",
+    "status": "SUCCESS",
+    "start_time": "2025-09-08 17:31:31.439645",
+    "end_time": "2025-09-08 17:31:58.884843",
+    "plugin_image_uri": "ghcr.io/cxinsys/cellcraft-tenet:1.0"
+  },
+  "plugin_metadata": {
+    "name": "TENET",
+    "description": "A tool for reconstructing Transfer Entropy-based causal gene NETwork from pseudo-time ordered single cell transcriptomic data",
+    "author": "admin",
+    "version": "1.0",
+    "plugin_type": "analysis",
+    "source": "official",
+    "use_gpu": true,
+    "dependencies": {
+      "requirements.txt": "fasttenet>=0.1.17\nscanpy==1.9.2\nscipy==1.10.1\npandas==1.5.0\nnumpy==1.23.3\n"
+    },
+    "drawflow": {
+      "drawflow": {
+        "Home": {
+          "data": {
+            "1": {
+              "id": 1,
+              "name": "ruleNode",
+              "data": {
+                "title": "TENET Input",
+                "inputs": [
+                  "input.h5ad",
+                  "geneList.txt"
+                ],
+                "outputs": [
+                  "expression.csv",
+                  "trajectory.txt",
+                  "cellSelect.txt"
+                ],
+                "script": {},
+                "parameters": [
+                  {
+                    "name": "input",
+                    "type": "inputFile",
+                    "defaultValue": "input.h5ad",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".h5ad",
+                    "id": "param_1755068181511_p705otijd"
+                  },
+                  {
+                    "name": "geneList",
+                    "type": "optionalInputFile",
+                    "defaultValue": "geneList.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755068190824_tycj7vd2r"
+                  },
+                  {
+                    "name": "UMAP lasso",
+                    "type": "h5adParameter",
+                    "defaultValue": "seurat_annotation",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": "",
+                    "id": "param_1755068198626_21l2n62jg"
+                  },
+                  {
+                    "name": "expression",
+                    "type": "outputFile",
+                    "defaultValue": "expression.csv",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".csv",
+                    "id": "param_1755068214818_160byz461"
+                  },
+                  {
+                    "name": "trajectory",
+                    "type": "outputFile",
+                    "defaultValue": "trajectory.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755068225966_0jem64n6m"
+                  },
+                  {
+                    "name": "cellSelect",
+                    "type": "outputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755068239371_n0qqbsxiq"
+                  },
+                  {
+                    "name": "cell group",
+                    "type": "h5adParameter",
+                    "defaultValue": "CD4+ T;Memory CD4+ T;B;CD14+ Mono",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": "",
+                    "id": "param_1755068245951_axengv0zq"
+                  },
+                  {
+                    "name": "pseudotime",
+                    "type": "h5adParameter",
+                    "defaultValue": "Pseudotime",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": "",
+                    "id": "param_1755068250036_1hs1r8jhg"
+                  }
+                ]
+              },
+              "class": "ruleNode",
+              "html": "ruleNode",
+              "typenode": "vue",
+              "inputs": {
+                "input_1": {
+                  "connections": []
+                },
+                "input_2": {
+                  "connections": []
+                }
+              },
+              "outputs": {
+                "output_1": {
+                  "connections": [
+                    {
+                      "node": "2",
+                      "output": "input_1"
+                    }
+                  ]
+                },
+                "output_2": {
+                  "connections": [
+                    {
+                      "node": "2",
+                      "output": "input_2"
+                    }
+                  ]
+                },
+                "output_3": {
+                  "connections": [
+                    {
+                      "node": "2",
+                      "output": "input_3"
+                    }
+                  ]
+                }
+              },
+              "pos_x": 186,
+              "pos_y": 185
+            },
+            "2": {
+              "id": 2,
+              "name": "ruleNode",
+              "data": {
+                "title": "Run",
+                "inputs": [
+                  "expression.csv",
+                  "trajectory.txt",
+                  "cellSelect.txt",
+                  "TF.txt"
+                ],
+                "outputs": [
+                  "resultMatrix.txt"
+                ],
+                "script": {},
+                "parameters": [
+                  {
+                    "name": "expression",
+                    "type": "inputFile",
+                    "defaultValue": "expression.csv",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".csv",
+                    "id": "param_1755068419943_hiimokgf2"
+                  },
+                  {
+                    "name": "trajectory",
+                    "type": "inputFile",
+                    "defaultValue": "trajectory.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755068430479_0pe7f1wi3"
+                  },
+                  {
+                    "name": "cellSelect",
+                    "type": "inputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755068450089_wjalwfx8q"
+                  },
+                  {
+                    "name": "TF",
+                    "type": "optionalInputFile",
+                    "defaultValue": "GO_symbol_human_regulation_of_transcription+sequence-specific_DNA_binding_list.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755068502372_1ozy574eh"
+                  },
+                  {
+                    "name": "resultMatrix",
+                    "type": "outputFile",
+                    "defaultValue": "resultMatrix.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755068611391_i1hvf3c4o"
+                  },
+                  {
+                    "name": "number of devices",
+                    "type": "int",
+                    "defaultValue": "4",
+                    "min": 1,
+                    "max": null,
+                    "fileExtension": "",
+                    "id": "param_1755068569008_18ojouva9"
+                  }
+                ]
+              },
+              "class": "ruleNode",
+              "html": "ruleNode",
+              "typenode": "vue",
+              "inputs": {
+                "input_1": {
+                  "connections": [
+                    {
+                      "node": "1",
+                      "input": "output_1"
+                    }
+                  ]
+                },
+                "input_2": {
+                  "connections": [
+                    {
+                      "node": "1",
+                      "input": "output_2"
+                    }
+                  ]
+                },
+                "input_3": {
+                  "connections": [
+                    {
+                      "node": "1",
+                      "input": "output_3"
+                    }
+                  ]
+                },
+                "input_4": {
+                  "connections": []
+                }
+              },
+              "outputs": {
+                "output_1": {
+                  "connections": [
+                    {
+                      "node": "3",
+                      "output": "input_1"
+                    },
+                    {
+                      "node": "4",
+                      "output": "input_1"
+                    }
+                  ]
+                }
+              },
+              "pos_x": 443,
+              "pos_y": 185
+            },
+            "3": {
+              "id": 3,
+              "name": "ruleNode",
+              "data": {
+                "title": "GRN Reconstruction : FDR",
+                "inputs": [
+                  "resultMatrix.txt"
+                ],
+                "outputs": [
+                  "Fdr.sif"
+                ],
+                "script": {},
+                "parameters": [
+                  {
+                    "name": "FDR",
+                    "type": "float",
+                    "defaultValue": "0.01",
+                    "min": 0,
+                    "max": 1,
+                    "fileExtension": "",
+                    "id": "param_1755068715510_80alp4m92"
+                  },
+                  {
+                    "name": "resultMatrix",
+                    "type": "inputFile",
+                    "defaultValue": "resultMatrix.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755068727930_kt9lqysnj"
+                  },
+                  {
+                    "name": "Fdr",
+                    "type": "outputFile",
+                    "defaultValue": "Fdr.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif",
+                    "id": "param_1755068737095_a272m7ecn"
+                  }
+                ]
+              },
+              "class": "ruleNode",
+              "html": "ruleNode",
+              "typenode": "vue",
+              "inputs": {
+                "input_1": {
+                  "connections": [
+                    {
+                      "node": "2",
+                      "input": "output_1"
+                    }
+                  ]
+                }
+              },
+              "outputs": {
+                "output_1": {
+                  "connections": [
+                    {
+                      "node": "5",
+                      "output": "input_1"
+                    }
+                  ]
+                }
+              },
+              "pos_x": 676,
+              "pos_y": 122
+            },
+            "4": {
+              "id": 4,
+              "name": "ruleNode",
+              "data": {
+                "title": "GRN Reconstruction : NumLinks",
+                "inputs": [
+                  "resultMatrix.txt"
+                ],
+                "outputs": [
+                  "Numlinks.sif"
+                ],
+                "script": {},
+                "parameters": [
+                  {
+                    "name": "number of outdegrees",
+                    "type": "int",
+                    "defaultValue": "1000",
+                    "min": 100,
+                    "max": null,
+                    "fileExtension": "",
+                    "id": "param_1755068854983_7c7h1rx9n"
+                  },
+                  {
+                    "name": "resultMatrix",
+                    "type": "inputFile",
+                    "defaultValue": "resultMatrix.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755068868377_4f9ruwh2r"
+                  },
+                  {
+                    "name": "Numlinks",
+                    "type": "outputFile",
+                    "defaultValue": "Numlinks.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif",
+                    "id": "param_1755068882746_m6omsvgu0"
+                  }
+                ]
+              },
+              "class": "ruleNode",
+              "html": "ruleNode",
+              "typenode": "vue",
+              "inputs": {
+                "input_1": {
+                  "connections": [
+                    {
+                      "node": "2",
+                      "input": "output_1"
+                    }
+                  ]
+                }
+              },
+              "outputs": {
+                "output_1": {
+                  "connections": [
+                    {
+                      "node": "5",
+                      "output": "input_2"
+                    }
+                  ]
+                }
+              },
+              "pos_x": 685,
+              "pos_y": 267
+            },
+            "5": {
+              "id": 5,
+              "name": "ruleNode",
+              "data": {
+                "title": "Indirect Edge Trimming",
+                "inputs": [
+                  "Fdr.sif",
+                  "Numlinks.sif"
+                ],
+                "outputs": [
+                  "FdrTrim.sif",
+                  "NumlinksTrim.sif"
+                ],
+                "script": {},
+                "parameters": [
+                  {
+                    "name": "Fdr",
+                    "type": "inputFile",
+                    "defaultValue": "Fdr.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif",
+                    "id": "param_1755069069812_th90oa6tw"
+                  },
+                  {
+                    "name": "Numlinks",
+                    "type": "inputFile",
+                    "defaultValue": "Numlinks.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif",
+                    "id": "param_1755069078244_huy0rf0h7"
+                  },
+                  {
+                    "name": "FdrTrim",
+                    "type": "outputFile",
+                    "defaultValue": "FdrTrim.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif",
+                    "id": "param_1755069117219_634rkt5t3"
+                  },
+                  {
+                    "name": "NumlinksTrim",
+                    "type": "outputFile",
+                    "defaultValue": "NumlinksTrim.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif",
+                    "id": "param_1755069108191_nq9on689b"
+                  },
+                  {
+                    "name": "trimming threshold",
+                    "type": "float",
+                    "defaultValue": "0",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": "",
+                    "id": "param_1755069161257_j958hc79g"
+                  }
+                ]
+              },
+              "class": "ruleNode",
+              "html": "ruleNode",
+              "typenode": "vue",
+              "inputs": {
+                "input_1": {
+                  "connections": [
+                    {
+                      "node": "3",
+                      "input": "output_1"
+                    }
+                  ]
+                },
+                "input_2": {
+                  "connections": [
+                    {
+                      "node": "4",
+                      "input": "output_1"
+                    }
+                  ]
+                }
+              },
+              "outputs": {
+                "output_1": {
+                  "connections": [
+                    {
+                      "node": "6",
+                      "output": "input_3"
+                    }
+                  ]
+                },
+                "output_2": {
+                  "connections": [
+                    {
+                      "node": "6",
+                      "output": "input_4"
+                    }
+                  ]
+                }
+              },
+              "pos_x": 899,
+              "pos_y": 181
+            },
+            "6": {
+              "id": 6,
+              "name": "ruleNode",
+              "data": {
+                "title": "Counting Outdegree",
+                "inputs": [
+                  "Fdr.sif",
+                  "Numlinks.sif",
+                  "FdrTrim.sif",
+                  "NumlinksTrim.sif"
+                ],
+                "outputs": [
+                  "FdrOutdegree.txt",
+                  "NumlinksOutdegree.txt",
+                  "FdrTrimOutdegree.txt",
+                  "NumlinksTrimOutdegree.txt"
+                ],
+                "script": {},
+                "parameters": [
+                  {
+                    "name": "Fdr",
+                    "type": "inputFile",
+                    "defaultValue": "Fdr.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif",
+                    "id": "param_1755069416513_05627t1zy"
+                  },
+                  {
+                    "name": "Numlinks",
+                    "type": "inputFile",
+                    "defaultValue": "Numlinks.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif",
+                    "id": "param_1755069424973_gubq7gmq8"
+                  },
+                  {
+                    "name": "FdrTrim",
+                    "type": "inputFile",
+                    "defaultValue": "FdrTrim.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif",
+                    "id": "param_1755069433851_hlprxh94t"
+                  },
+                  {
+                    "name": "NumlinksTrim",
+                    "type": "inputFile",
+                    "defaultValue": "NumlinksTrim.sif",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".sif",
+                    "id": "param_1755069443565_5wlc6hln2"
+                  },
+                  {
+                    "name": "FdrOutdegree",
+                    "type": "outputFile",
+                    "defaultValue": "FdrOutdegree.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755069460778_ik3gqrehi"
+                  },
+                  {
+                    "name": "NumlinksOutdegree",
+                    "type": "outputFile",
+                    "defaultValue": "NumlinksOutdegree.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755069471069_x4ym1btsk"
+                  },
+                  {
+                    "name": "FdrTrimOutdegree",
+                    "type": "outputFile",
+                    "defaultValue": "FdrTrimOutdegree.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755069482023_tgrrwky2n"
+                  },
+                  {
+                    "name": "NumlinksTrimOutdegree",
+                    "type": "outputFile",
+                    "defaultValue": "NumlinksTrimOutdegree.txt",
+                    "min": null,
+                    "max": null,
+                    "fileExtension": ".txt",
+                    "id": "param_1755069499717_rb5jhx7mz"
+                  }
+                ]
+              },
+              "class": "ruleNode",
+              "html": "ruleNode",
+              "typenode": "vue",
+              "inputs": {
+                "input_1": {
+                  "connections": [
+                    {
+                      "node": "3",
+                      "input": "output_1"
+                    }
+                  ]
+                },
+                "input_2": {
+                  "connections": [
+                    {
+                      "node": "4",
+                      "input": "output_1"
+                    }
+                  ]
+                },
+                "input_3": {
+                  "connections": [
+                    {
+                      "node": "5",
+                      "input": "output_1"
+                    }
+                  ]
+                },
+                "input_4": {
+                  "connections": [
+                    {
+                      "node": "5",
+                      "input": "output_2"
+                    }
+                  ]
+                }
+              },
+              "outputs": {
+                "output_1": {
+                  "connections": []
+                },
+                "output_2": {
+                  "connections": []
+                },
+                "output_3": {
+                  "connections": []
+                },
+                "output_4": {
+                  "connections": []
+                }
+              },
+              "pos_x": 991,
+              "pos_y": 17
+            }
+          }
+        }
+      }
+    },
+    "rules": {
+      "0": {
+        "name": "TENET Input",
+        "input": [
+          "input.h5ad",
+          "geneList.txt"
+        ],
+        "output": [
+          "expression.csv",
+          "trajectory.txt",
+          "cellSelect.txt"
+        ],
+        "script": "tenet_input.py",
+        "parameters": [
+          {
+            "name": "input",
+            "type": "inputFile",
+            "defaultValue": "input.h5ad",
+            "min": null,
+            "max": null,
+            "fileExtension": ".h5ad"
+          },
+          {
+            "name": "geneList",
+            "type": "optionalInputFile",
+            "defaultValue": "geneList.txt",
+            "min": null,
+            "max": null,
+            "fileExtension": ".txt"
+          }
+        ],
+        "nodeId": 1,
+        "isVisualization": false
+      },
+      "1": {
+        "name": "Run",
+        "input": [
+          "expression.csv",
+          "trajectory.txt",
+          "cellSelect.txt",
+          "TF.txt"
+        ],
+        "output": [
+          "resultMatrix.txt"
+        ],
+        "script": "tenet_for_cellcraft.py",
+        "parameters": [
+          {
+            "name": "number of devices",
+            "type": "int",
+            "defaultValue": "4",
+            "min": 1,
+            "max": null,
+            "fileExtension": ""
+          }
+        ],
+        "nodeId": 2,
+        "isVisualization": false
+      },
+      "2": {
+        "name": "GRN Reconstruction : FDR",
+        "input": [
+          "resultMatrix.txt"
+        ],
+        "output": [
+          "Fdr.sif"
+        ],
+        "script": "makeGRN.py",
+        "parameters": [
+          {
+            "name": "FDR",
+            "type": "float",
+            "defaultValue": "0.01",
+            "min": 0,
+            "max": 1,
+            "fileExtension": ""
+          }
+        ],
+        "nodeId": 3,
+        "isVisualization": false
+      },
+      "3": {
+        "name": "GRN Reconstruction : NumLinks",
+        "input": [
+          "resultMatrix.txt"
+        ],
+        "output": [
+          "Numlinks.sif"
+        ],
+        "script": "makeGRNsameNumberOfLinks.py",
+        "parameters": [
+          {
+            "name": "number of outdegrees",
+            "type": "int",
+            "defaultValue": "1000",
+            "min": 100,
+            "max": null,
+            "fileExtension": ""
+          }
+        ],
+        "nodeId": 4,
+        "isVisualization": false
+      },
+      "4": {
+        "name": "Indirect Edge Trimming",
+        "input": [
+          "Fdr.sif",
+          "Numlinks.sif"
+        ],
+        "output": [
+          "FdrTrim.sif",
+          "NumlinksTrim.sif"
+        ],
+        "script": "trim_indirect.py",
+        "parameters": [
+          {
+            "name": "trimming threshold",
+            "type": "float",
+            "defaultValue": "0",
+            "min": null,
+            "max": null,
+            "fileExtension": ""
+          }
+        ],
+        "nodeId": 5,
+        "isVisualization": false
+      },
+      "5": {
+        "name": "Counting Outdegree",
+        "input": [
+          "Fdr.sif",
+          "Numlinks.sif",
+          "FdrTrim.sif",
+          "NumlinksTrim.sif"
+        ],
+        "output": [
+          "FdrOutdegree.txt",
+          "NumlinksOutdegree.txt",
+          "FdrTrimOutdegree.txt",
+          "NumlinksTrimOutdegree.txt"
+        ],
+        "script": "countOutdegree.py",
+        "parameters": [],
+        "nodeId": 6,
+        "isVisualization": false
+      }
+    }
+  },
+  "workflow_metadata": {
+    "id": 1,
+    "title": "TENET Analysis of PBMC Data",
+    "workflow_info": {
+      "created_by": "testuser",
+      "dataset": "pbmc_light_1000.h5ad",
+      "analysis_type": "Gene Regulatory Network Reconstruction",
+      "cell_types": ["CD4+ T", "Memory CD4+ T", "B", "CD14+ Mono"]
+    },
+    "created_at": "2025-09-08T16:25:30.123456",
+    "updated_at": "2025-09-08T17:30:45.987654"
+  },
+  "execution_files": {
+    "logs": {
+      "run.log": {
+        "content": "Building DAG of jobs...\nUsing shell: /bin/bash\nProvided cores: 1 (use --cores to define parallelism)\nRules claiming more threads will be scaled down.\nJob stats:\njob                             count    min threads    max threads\n----------------------------  -------  -------------  -------------\nCounting_Outdegree                  1              1              1\nGRN_Reconstruction__FDR             1              1              1\nGRN_Reconstruction__NumLinks        1              1              1\nIndirect_Edge_Trimming              1              1              1\nRun                                 1              1              1\nTENET_Input                         1              1              1\ntotal                               6              1              1\n\nSelect jobs to execute...\n\n[Thu Sep  8 17:31:32 2025]\nrule TENET_Input:\n    input: user/testuser/data/pbmc_light_1000.h5ad\n    output: user/testuser/workflow_1/algorithm_16/results/expression.csv, user/testuser/workflow_1/algorithm_16/results/trajectory.txt, user/testuser/workflow_1/algorithm_16/results/cellSelect.txt\n    log: user/testuser/workflow_1/algorithm_16/logs/TENET_Input.stdout, user/testuser/workflow_1/algorithm_16/logs/TENET_Input.stderr\n    jobid: 3\n    reason: Missing output files: user/testuser/workflow_1/algorithm_16/results/trajectory.txt, user/testuser/workflow_1/algorithm_16/results/expression.csv, user/testuser/workflow_1/algorithm_16/results/cellSelect.txt\n    resources: tmpdir=/tmp\n\n/opt/micromamba/envs/plugin_env/bin/python /scripts/tenet_input.py user/testuser/data/pbmc_light_1000.h5ad user/testuser/data/unique_genes.txt seurat_annotation user/testuser/workflow_1/algorithm_16/results/expression.csv user/testuser/workflow_1/algorithm_16/results/trajectory.txt user/testuser/workflow_1/algorithm_16/results/cellSelect.txt seurat_annotation Pseudotime 'CD4+ T;Memory CD4+ T;B;CD14+ Mono' > user/testuser/workflow_1/algorithm_16/logs/TENET_Input.stdout 2> user/testuser/workflow_1/algorithm_16/logs/TENET_Input.stderr\n[Thu Sep  8 17:31:35 2025]\nFinished job 3.\n1 of 6 steps (17%) done\n\n[Thu Sep  8 17:31:35 2025]\nrule Run:\n    input: user/testuser/workflow_1/algorithm_16/results/expression.csv, user/testuser/workflow_1/algorithm_16/results/trajectory.txt, user/testuser/workflow_1/algorithm_16/results/cellSelect.txt\n    output: user/testuser/workflow_1/algorithm_16/results/resultMatrix.txt\n    log: user/testuser/workflow_1/algorithm_16/logs/Run.stdout, user/testuser/workflow_1/algorithm_16/logs/Run.stderr\n    jobid: 2\n    reason: Missing output files: user/testuser/workflow_1/algorithm_16/results/resultMatrix.txt\n    resources: tmpdir=/tmp\n\n/opt/micromamba/envs/plugin_env/bin/python /scripts/tenet_for_cellcraft.py user/testuser/workflow_1/algorithm_16/results/expression.csv user/testuser/workflow_1/algorithm_16/results/trajectory.txt user/testuser/workflow_1/algorithm_16/results/cellSelect.txt user/testuser/data/GO_symbol_human_regulation_of_transcription+sequence-specific_DNA_binding_list.txt user/testuser/workflow_1/algorithm_16/results/resultMatrix.txt 4 > user/testuser/workflow_1/algorithm_16/logs/Run.stdout 2> user/testuser/workflow_1/algorithm_16/logs/Run.stderr\n[Thu Sep  8 17:31:56 2025]\nFinished job 2.\n2 of 6 steps (33%) done\n\n[Thu Sep  8 17:31:56 2025]\nrule GRN_Reconstruction__FDR:\n    input: user/testuser/workflow_1/algorithm_16/results/resultMatrix.txt\n    output: user/testuser/workflow_1/algorithm_16/results/Fdr.sif\n    log: user/testuser/workflow_1/algorithm_16/logs/GRN_Reconstruction__FDR.stdout, user/testuser/workflow_1/algorithm_16/logs/GRN_Reconstruction__FDR.stderr\n    jobid: 4\n    reason: Missing output files: user/testuser/workflow_1/algorithm_16/results/Fdr.sif\n    resources: tmpdir=/tmp\n\n/opt/micromamba/envs/plugin_env/bin/python /scripts/makeGRN.py user/testuser/workflow_1/algorithm_16/results/resultMatrix.txt user/testuser/workflow_1/algorithm_16/results/Fdr.sif 0.01 > user/testuser/workflow_1/algorithm_16/logs/GRN_Reconstruction__FDR.stdout 2> user/testuser/workflow_1/algorithm_16/logs/GRN_Reconstruction__FDR.stderr\n[Thu Sep  8 17:31:57 2025]\nFinished job 4.\n3 of 6 steps (50%) done\n\n[Thu Sep  8 17:31:57 2025]\nrule GRN_Reconstruction__NumLinks:\n    input: user/testuser/workflow_1/algorithm_16/results/resultMatrix.txt\n    output: user/testuser/workflow_1/algorithm_16/results/Numlinks.sif\n    log: user/testuser/workflow_1/algorithm_16/logs/GRN_Reconstruction__NumLinks.stdout, user/testuser/workflow_1/algorithm_16/logs/GRN_Reconstruction__NumLinks.stderr\n    jobid: 5\n    reason: Missing output files: user/testuser/workflow_1/algorithm_16/results/Numlinks.sif\n    resources: tmpdir=/tmp\n\n/opt/micromamba/envs/plugin_env/bin/python /scripts/makeGRNsameNumberOfLinks.py user/testuser/workflow_1/algorithm_16/results/resultMatrix.txt user/testuser/workflow_1/algorithm_16/results/Numlinks.sif 1000 > user/testuser/workflow_1/algorithm_16/logs/GRN_Reconstruction__NumLinks.stdout 2> user/testuser/workflow_1/algorithm_16/logs/GRN_Reconstruction__NumLinks.stderr\n[Thu Sep  8 17:31:57 2025]\nFinished job 5.\n4 of 6 steps (67%) done\n\n[Thu Sep  8 17:31:57 2025]\nrule Indirect_Edge_Trimming:\n    input: user/testuser/workflow_1/algorithm_16/results/Fdr.sif, user/testuser/workflow_1/algorithm_16/results/Numlinks.sif\n    output: user/testuser/workflow_1/algorithm_16/results/FdrTrim.sif, user/testuser/workflow_1/algorithm_16/results/NumlinksTrim.sif\n    log: user/testuser/workflow_1/algorithm_16/logs/Indirect_Edge_Trimming.stdout, user/testuser/workflow_1/algorithm_16/logs/Indirect_Edge_Trimming.stderr\n    jobid: 6\n    reason: Missing output files: user/testuser/workflow_1/algorithm_16/results/FdrTrim.sif, user/testuser/workflow_1/algorithm_16/results/NumlinksTrim.sif\n    resources: tmpdir=/tmp\n\n/opt/micromamba/envs/plugin_env/bin/python /scripts/trim_indirect.py user/testuser/workflow_1/algorithm_16/results/Fdr.sif user/testuser/workflow_1/algorithm_16/results/Numlinks.sif user/testuser/workflow_1/algorithm_16/results/FdrTrim.sif user/testuser/workflow_1/algorithm_16/results/NumlinksTrim.sif 0 > user/testuser/workflow_1/algorithm_16/logs/Indirect_Edge_Trimming.stdout 2> user/testuser/workflow_1/algorithm_16/logs/Indirect_Edge_Trimming.stderr\n[Thu Sep  8 17:31:58 2025]\nFinished job 6.\n5 of 6 steps (83%) done\n\n[Thu Sep  8 17:31:58 2025]\nrule Counting_Outdegree:\n    input: user/testuser/workflow_1/algorithm_16/results/Fdr.sif, user/testuser/workflow_1/algorithm_16/results/Numlinks.sif, user/testuser/workflow_1/algorithm_16/results/FdrTrim.sif, user/testuser/workflow_1/algorithm_16/results/NumlinksTrim.sif\n    output: user/testuser/workflow_1/algorithm_16/results/FdrOutdegree.txt, user/testuser/workflow_1/algorithm_16/results/NumlinksOutdegree.txt, user/testuser/workflow_1/algorithm_16/results/FdrTrimOutdegree.txt, user/testuser/workflow_1/algorithm_16/results/NumlinksTrimOutdegree.txt\n    log: user/testuser/workflow_1/algorithm_16/logs/Counting_Outdegree.stdout, user/testuser/workflow_1/algorithm_16/logs/Counting_Outdegree.stderr\n    jobid: 1\n    reason: Missing output files: user/testuser/workflow_1/algorithm_16/results/FdrOutdegree.txt, user/testuser/workflow_1/algorithm_16/results/NumlinksOutdegree.txt, user/testuser/workflow_1/algorithm_16/results/FdrTrimOutdegree.txt, user/testuser/workflow_1/algorithm_16/results/NumlinksTrimOutdegree.txt\n    resources: tmpdir=/tmp\n\n/opt/micromamba/envs/plugin_env/bin/python /scripts/countOutdegree.py user/testuser/workflow_1/algorithm_16/results/Fdr.sif user/testuser/workflow_1/algorithm_16/results/Numlinks.sif user/testuser/workflow_1/algorithm_16/results/FdrTrim.sif user/testuser/workflow_1/algorithm_16/results/NumlinksTrim.sif user/testuser/workflow_1/algorithm_16/results/FdrOutdegree.txt user/testuser/workflow_1/algorithm_16/results/NumlinksOutdegree.txt user/testuser/workflow_1/algorithm_16/results/FdrTrimOutdegree.txt user/testuser/workflow_1/algorithm_16/results/NumlinksTrimOutdegree.txt > user/testuser/workflow_1/algorithm_16/logs/Counting_Outdegree.stdout 2> user/testuser/workflow_1/algorithm_16/logs/Counting_Outdegree.stderr\n[Thu Sep  8 17:31:58 2025]\nFinished job 1.\n6 of 6 steps (100%) done\nComplete log: user/testuser/workflow_1/algorithm_16/logs/run.log",
+        "size": 3720,
+        "modified_time": "1757320318.464426"
+      },
+      "TENET_Input.stdout": {
+        "content": "Processing input data...\nLoaded AnnData object with 1000 cells and 2000 genes\nFiltering cells based on criteria: CD4+ T;Memory CD4+ T;B;CD14+ Mono\nSelected 856 cells for analysis\nExtracting pseudotime values from 'Pseudotime' column\nNormalizing expression data\nSaving expression matrix to expression.csv\nSaving trajectory data to trajectory.txt\nSaving cell selection data to cellSelect.txt\nTENET input preparation complete!",
+        "size": 512,
+        "modified_time": "1757320312.123456"
+      },
+      "TENET_Input.stderr": {
+        "content": "/opt/micromamba/envs/plugin_env/lib/python3.10/site-packages/scanpy/preprocessing/_simple.py:251: ImplicitModificationWarning: Trying to modify attribute .X of view, initializing view as actual.\n  X = data.X\n",
+        "size": 182,
+        "modified_time": "1757320312.234567"
+      },
+      "Run.stdout": {
+        "content": "Starting TENET analysis...\nLoaded expression data: 856 cells, 2000 genes\nLoaded trajectory data: 856 time points\nLoaded cell selection data: 856 cells\nLoaded TF list: 1248 transcription factors\nUsing 4 GPU devices for computation\nInitializing TENET model...\nComputing transfer entropy matrix...\nProgress: [████████████████████████████████████████] 100%\nTransfer entropy computation complete!\nSaving result matrix to resultMatrix.txt\nAnalysis finished successfully!",
+        "size": 487,
+        "modified_time": "1757320316.567890"
+      },
+      "Run.stderr": {
+        "content": "2025-09-08 17:31:45,123 - INFO - Using GPU devices: [0, 1, 2, 3]\n2025-09-08 17:31:48,456 - WARNING - Some genes have zero variance, skipping from analysis\n2025-09-08 17:31:52,789 - INFO - Transfer entropy computation completed for 1248 TF-target pairs\n",
+        "size": 267,
+        "modified_time": "1757320316.678901"
+      },
+      "GRN_Reconstruction__FDR.stdout": {
+        "content": "Loading result matrix...\nApplying FDR correction with threshold: 0.01\nIdentified 2,347 significant gene regulatory interactions\nSaving network to Fdr.sif format\nFDR-based network reconstruction complete!",
+        "size": 187,
+        "modified_time": "1757320317.123456"
+      },
+      "GRN_Reconstruction__FDR.stderr": {
+        "content": "",
+        "size": 0,
+        "modified_time": "1757320317.234567"
+      },
+      "GRN_Reconstruction__NumLinks.stdout": {
+        "content": "Loading result matrix...\nSelecting top 1000 interactions by significance\nGenerating network with fixed number of links\nSaving network to Numlinks.sif format\nFixed-size network reconstruction complete!",
+        "size": 198,
+        "modified_time": "1757320317.345678"
+      },
+      "GRN_Reconstruction__NumLinks.stderr": {
+        "content": "",
+        "size": 0,
+        "modified_time": "1757320317.456789"
+      },
+      "Indirect_Edge_Trimming.stdout": {
+        "content": "Loading network files...\nApplying indirect edge trimming with threshold: 0.0\nFDR network: 2347 edges -> 1923 edges after trimming\nNumLinks network: 1000 edges -> 847 edges after trimming\nTrimming complete!",
+        "size": 198,
+        "modified_time": "1757320318.123456"
+      },
+      "Indirect_Edge_Trimming.stderr": {
+        "content": "",
+        "size": 0,
+        "modified_time": "1757320318.234567"
+      },
+      "Counting_Outdegree.stdout": {
+        "content": "Computing outdegree statistics...\nFDR network: 1248 nodes analyzed\nNumLinks network: 1000 nodes analyzed  \nFDRTrim network: 1152 nodes analyzed\nNumLinksTrim network: 891 nodes analyzed\nOutdegree analysis complete!",
+        "size": 219,
+        "modified_time": "1757320318.345678"
+      },
+      "Counting_Outdegree.stderr": {
+        "content": "",
+        "size": 0,
+        "modified_time": "1757320318.456789"
+      }
+    },
+    "snakefile": {
+      "content": "# TENET analysis workflow\n\n# Input data\nINPUT_H5AD = \"user/testuser/data/pbmc_light_1000.h5ad\"\nGENE_LIST = \"user/testuser/data/unique_genes.txt\"\nTF_LIST = \"user/testuser/data/GO_symbol_human_regulation_of_transcription+sequence-specific_DNA_binding_list.txt\"\n\n# Output directory\nRESULTS_DIR = \"user/testuser/workflow_1/algorithm_16/results\"\nLOGS_DIR = \"user/testuser/workflow_1/algorithm_16/logs\"\n\n# Parameters\nFDR_THRESHOLD = 0.01\nNUM_OUTDEGREES = 1000\nTRIMMING_THRESHOLD = 0\nNUM_DEVICES = 4\nUMAP_LASSO = \"seurat_annotation\"\nCELL_GROUP = \"CD4+ T;Memory CD4+ T;B;CD14+ Mono\"\nPSEUDOTIME = \"Pseudotime\"\n\nrule all:\n    input:\n        f\"{RESULTS_DIR}/FdrOutdegree.txt\",\n        f\"{RESULTS_DIR}/NumlinksOutdegree.txt\",\n        f\"{RESULTS_DIR}/FdrTrimOutdegree.txt\",\n        f\"{RESULTS_DIR}/NumlinksTrimOutdegree.txt\"\n\nrule TENET_Input:\n    input:\n        h5ad=INPUT_H5AD,\n        genes=GENE_LIST\n    output:\n        expression=f\"{RESULTS_DIR}/expression.csv\",\n        trajectory=f\"{RESULTS_DIR}/trajectory.txt\",\n        cells=f\"{RESULTS_DIR}/cellSelect.txt\"\n    log:\n        stdout=f\"{LOGS_DIR}/TENET_Input.stdout\",\n        stderr=f\"{LOGS_DIR}/TENET_Input.stderr\"\n    shell:\n        \"/opt/micromamba/envs/plugin_env/bin/python /scripts/tenet_input.py \"\n        \"{input.h5ad} {input.genes} {UMAP_LASSO} {output.expression} \"\n        \"{output.trajectory} {output.cells} {UMAP_LASSO} {PSEUDOTIME} \"\n        \"'{CELL_GROUP}' > {log.stdout} 2> {log.stderr}\"\n\nrule Run:\n    input:\n        expression=f\"{RESULTS_DIR}/expression.csv\",\n        trajectory=f\"{RESULTS_DIR}/trajectory.txt\",\n        cells=f\"{RESULTS_DIR}/cellSelect.txt\",\n        tf_list=TF_LIST\n    output:\n        result=f\"{RESULTS_DIR}/resultMatrix.txt\"\n    log:\n        stdout=f\"{LOGS_DIR}/Run.stdout\",\n        stderr=f\"{LOGS_DIR}/Run.stderr\"\n    shell:\n        \"/opt/micromamba/envs/plugin_env/bin/python /scripts/tenet_for_cellcraft.py \"\n        \"{input.expression} {input.trajectory} {input.cells} {input.tf_list} \"\n        \"{output.result} {NUM_DEVICES} > {log.stdout} 2> {log.stderr}\"\n\nrule GRN_Reconstruction__FDR:\n    input:\n        result=f\"{RESULTS_DIR}/resultMatrix.txt\"\n    output:\n        network=f\"{RESULTS_DIR}/Fdr.sif\"\n    log:\n        stdout=f\"{LOGS_DIR}/GRN_Reconstruction__FDR.stdout\",\n        stderr=f\"{LOGS_DIR}/GRN_Reconstruction__FDR.stderr\"\n    shell:\n        \"/opt/micromamba/envs/plugin_env/bin/python /scripts/makeGRN.py \"\n        \"{input.result} {output.network} {FDR_THRESHOLD} > {log.stdout} 2> {log.stderr}\"\n\nrule GRN_Reconstruction__NumLinks:\n    input:\n        result=f\"{RESULTS_DIR}/resultMatrix.txt\"\n    output:\n        network=f\"{RESULTS_DIR}/Numlinks.sif\"\n    log:\n        stdout=f\"{LOGS_DIR}/GRN_Reconstruction__NumLinks.stdout\",\n        stderr=f\"{LOGS_DIR}/GRN_Reconstruction__NumLinks.stderr\"\n    shell:\n        \"/opt/micromamba/envs/plugin_env/bin/python /scripts/makeGRNsameNumberOfLinks.py \"\n        \"{input.result} {output.network} {NUM_OUTDEGREES} > {log.stdout} 2> {log.stderr}\"\n\nrule Indirect_Edge_Trimming:\n    input:\n        fdr=f\"{RESULTS_DIR}/Fdr.sif\",\n        numlinks=f\"{RESULTS_DIR}/Numlinks.sif\"\n    output:\n        fdr_trim=f\"{RESULTS_DIR}/FdrTrim.sif\",\n        numlinks_trim=f\"{RESULTS_DIR}/NumlinksTrim.sif\"\n    log:\n        stdout=f\"{LOGS_DIR}/Indirect_Edge_Trimming.stdout\",\n        stderr=f\"{LOGS_DIR}/Indirect_Edge_Trimming.stderr\"\n    shell:\n        \"/opt/micromamba/envs/plugin_env/bin/python /scripts/trim_indirect.py \"\n        \"{input.fdr} {input.numlinks} {output.fdr_trim} {output.numlinks_trim} \"\n        \"{TRIMMING_THRESHOLD} > {log.stdout} 2> {log.stderr}\"\n\nrule Counting_Outdegree:\n    input:\n        fdr=f\"{RESULTS_DIR}/Fdr.sif\",\n        numlinks=f\"{RESULTS_DIR}/Numlinks.sif\",\n        fdr_trim=f\"{RESULTS_DIR}/FdrTrim.sif\",\n        numlinks_trim=f\"{RESULTS_DIR}/NumlinksTrim.sif\"\n    output:\n        fdr_out=f\"{RESULTS_DIR}/FdrOutdegree.txt\",\n        numlinks_out=f\"{RESULTS_DIR}/NumlinksOutdegree.txt\",\n        fdr_trim_out=f\"{RESULTS_DIR}/FdrTrimOutdegree.txt\",\n        numlinks_trim_out=f\"{RESULTS_DIR}/NumlinksTrimOutdegree.txt\"\n    log:\n        stdout=f\"{LOGS_DIR}/Counting_Outdegree.stdout\",\n        stderr=f\"{LOGS_DIR}/Counting_Outdegree.stderr\"\n    shell:\n        \"/opt/micromamba/envs/plugin_env/bin/python /scripts/countOutdegree.py \"\n        \"{input.fdr} {input.numlinks} {input.fdr_trim} {input.numlinks_trim} \"\n        \"{output.fdr_out} {output.numlinks_out} {output.fdr_trim_out} \"\n        \"{output.numlinks_trim_out} > {log.stdout} 2> {log.stderr}\"",
+      "path": "./user/testuser/workflow_1/algorithm_16/Snakefile"
+    },
+    "plugin_metadata": {
+      "content": {
+        "name": "TENET",
+        "author": "admin", 
+        "description": "A tool for reconstructing Transfer Entropy-based causal gene NETwork from pseudo-time ordered single cell transcriptomic data",
+        "version": "1.0",
+        "plugin_type": "analysis",
+        "source": "official",
+        "use_gpu": true,
+        "dependencies": {
+          "requirements.txt": "fasttenet>=0.1.17\nscanpy==1.9.2\nscipy==1.10.1\npandas==1.5.0\nnumpy==1.23.3\n"
+        }
+      },
+      "path": "/backend/plugin/official/TENET/metadata.json"
+    },
+    "meta_yml": {
+      "content": "workflow_id: 1\nalgorithm_id: 16\nplugin_name: TENET\nexecution_time: 27.445198\nstatus: SUCCESS\ninput_files:\n  - user/testuser/data/pbmc_light_1000.h5ad\n  - user/testuser/data/unique_genes.txt\n  - user/testuser/data/GO_symbol_human_regulation_of_transcription+sequence-specific_DNA_binding_list.txt\noutput_files:\n  - user/testuser/workflow_1/algorithm_16/results/expression.csv\n  - user/testuser/workflow_1/algorithm_16/results/trajectory.txt\n  - user/testuser/workflow_1/algorithm_16/results/cellSelect.txt\n  - user/testuser/workflow_1/algorithm_16/results/resultMatrix.txt\n  - user/testuser/workflow_1/algorithm_16/results/Fdr.sif\n  - user/testuser/workflow_1/algorithm_16/results/Numlinks.sif\n  - user/testuser/workflow_1/algorithm_16/results/FdrTrim.sif\n  - user/testuser/workflow_1/algorithm_16/results/NumlinksTrim.sif\n  - user/testuser/workflow_1/algorithm_16/results/FdrOutdegree.txt\n  - user/testuser/workflow_1/algorithm_16/results/NumlinksOutdegree.txt\n  - user/testuser/workflow_1/algorithm_16/results/FdrTrimOutdegree.txt\n  - user/testuser/workflow_1/algorithm_16/results/NumlinksTrimOutdegree.txt\nparameters:\n  FDR_THRESHOLD: 0.01\n  NUM_OUTDEGREES: 1000\n  TRIMMING_THRESHOLD: 0\n  NUM_DEVICES: 4\n  UMAP_LASSO: seurat_annotation\n  CELL_GROUP: \"CD4+ T;Memory CD4+ T;B;CD14+ Mono\"\n  PSEUDOTIME: Pseudotime\nresource_usage:\n  max_memory_mb: 2841\n  gpu_hours: 0.31\n  cpu_hours: 0.46",
+      "path": "./user/testuser/workflow_1/algorithm_16/meta.yml"
+    }
+  }
+}

@@ -19,8 +19,10 @@ from app.database.crud import crud_task, crud_workflow, crud_plugin
 from app.database.schemas.task import TaskMonitoringResponse, TaskMonitoringItem, PluginInfo
 from app.routes import dep
 from app.database import models
+from app.common.enums import PluginType
 import os
 from pathlib import Path
+import time
 
 router = APIRouter()                  
 
@@ -1042,3 +1044,203 @@ def clear_dag_caches(
             "error": f"Failed to clear caches: {str(e)}",
             "timestamp": time.time()
         }
+
+@router.get("/{task_id}/execution-manifest")
+def get_execution_manifest(
+    *,
+    db: Session = Depends(dep.get_db),
+    current_user: models.User = Depends(dep.get_current_active_user),
+    task_id: str
+) -> StreamingResponse:
+    """
+    SUCCESS 상태이고 Analysis 타입 플러그인인 Task의 execution manifest를 JSON 형식으로 다운로드합니다.
+    분석 재현을 위한 포괄적인 정보를 포함합니다.
+    
+    포함 정보:
+    - Task, Plugin, Workflow 메타데이터
+    - 모든 로그 파일 (run.log, *.stdout, *.stderr 등)
+    - Snakefile 내용
+    - Plugin metadata.json 내용
+    - meta.yml 파일 내용 (있는 경우)
+    """
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # task_id로 task 정보 조회
+        task = crud_task.get_task_by_task_id(db, task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # 권한 확인 (해당 유저의 task인지 확인)
+        if task.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Task 상태 검증 - SUCCESS 상태만 허용
+        if task.status != 'SUCCESS':
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Execution manifest is only available for tasks with SUCCESS status. Current status: {task.status}"
+            )
+        
+        # Plugin 정보 확인 및 타입 검증 - Analysis 타입만 허용
+        if not task.plugin:
+            raise HTTPException(status_code=400, detail="Plugin information not found for this task")
+        
+        if task.plugin.plugin_type != PluginType.ANALYSIS:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Execution manifest is only available for Analysis type plugins. Current plugin type: {task.plugin.plugin_type.value if task.plugin.plugin_type else 'unknown'}"
+            )
+        
+        # Workflow 정보 조회
+        workflow = crud_workflow.get_workflow_by_id(db, task.workflow_id)
+        
+        # 로그 폴더 경로 구성 - task_type에 따라 다른 경로 사용
+        if task.task_type == 'visualization':
+            task_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}"
+        else:
+            task_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}"
+        
+        logs_folder_path = os.path.join(task_folder_path, "logs")
+        
+        # Execution manifest 데이터 구성
+        manifest_data = {
+            "manifest_info": {
+                "format_version": "1.0",
+                "generated_at": datetime.now().isoformat(),
+                "generated_by": current_user.username,
+                "description": "CellCraft execution manifest for analysis reproducibility"
+            },
+            "task_metadata": {
+                "task_id": task.task_id,
+                "workflow_id": task.workflow_id,
+                "algorithm_id": task.algorithm_id,
+                "plugin_name": task.plugin_name,
+                "task_type": task.task_type,
+                "status": task.status,
+                "start_time": str(task.start_time) if task.start_time else None,
+                "end_time": str(task.end_time) if task.end_time else None,
+                "plugin_image_uri": task.plugin_image_uri
+            },
+            "plugin_metadata": {
+                "id": task.plugin.id,
+                "name": task.plugin.name,
+                "description": task.plugin.description,
+                "author": task.plugin.author,
+                "version": task.plugin.version,
+                "plugin_type": task.plugin.plugin_type.value if task.plugin.plugin_type else None,
+                "source": task.plugin.source,
+                "use_gpu": task.plugin.use_gpu,
+                "created_at": str(task.plugin.created_at),
+                "updated_at": str(task.plugin.updated_at),
+                "dependencies": task.plugin.dependencies,
+                "drawflow": task.plugin.drawflow,
+                "rules": task.plugin.rules
+            },
+            "workflow_metadata": {
+                "id": workflow.id if workflow else None,
+                "title": workflow.title if workflow else None,
+                "workflow_info": workflow.workflow_info if workflow else None,
+                "created_at": str(workflow.created_at) if workflow else None,
+                "updated_at": str(workflow.updated_at) if workflow else None
+            },
+            "execution_files": {
+                "logs": {},
+                "snakefile": None,
+                "plugin_metadata": None,
+                "meta_yml": None
+            }
+        }
+        
+        # 로그 파일들 수집
+        if os.path.exists(logs_folder_path):
+            logs_path = Path(logs_folder_path)
+            
+            for log_file_path in logs_path.glob("*"):
+                if log_file_path.is_file():
+                    try:
+                        with open(log_file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        manifest_data["execution_files"]["logs"][log_file_path.name] = {
+                            "content": content,
+                            "size": log_file_path.stat().st_size,
+                            "modified_time": str(log_file_path.stat().st_mtime)
+                        }
+                    except Exception as e:
+                        # 파일 읽기 실패 시에도 에러 정보 포함
+                        manifest_data["execution_files"]["logs"][log_file_path.name] = {
+                            "content": f"Error reading file: {str(e)}",
+                            "size": log_file_path.stat().st_size if log_file_path.exists() else 0,
+                            "modified_time": str(log_file_path.stat().st_mtime) if log_file_path.exists() else None,
+                            "error": str(e)
+                        }
+        
+        # Snakefile 내용 포함
+        snakefile_path = os.path.join(task_folder_path, "Snakefile")
+        if os.path.exists(snakefile_path):
+            try:
+                with open(snakefile_path, 'r', encoding='utf-8') as f:
+                    manifest_data["execution_files"]["snakefile"] = {
+                        "content": f.read(),
+                        "path": snakefile_path
+                    }
+            except Exception as e:
+                manifest_data["execution_files"]["snakefile"] = {
+                    "content": f"Error reading Snakefile: {str(e)}",
+                    "path": snakefile_path,
+                    "error": str(e)
+                }
+        
+        # Plugin metadata.json 파일 내용 포함
+        plugin_metadata_path = os.path.join(task.plugin.plugin_path, "metadata.json")
+        if os.path.exists(plugin_metadata_path):
+            try:
+                with open(plugin_metadata_path, 'r', encoding='utf-8') as f:
+                    import json as json_lib
+                    manifest_data["execution_files"]["plugin_metadata"] = {
+                        "content": json_lib.load(f),
+                        "path": plugin_metadata_path
+                    }
+            except Exception as e:
+                manifest_data["execution_files"]["plugin_metadata"] = {
+                    "content": f"Error reading plugin metadata.json: {str(e)}",
+                    "path": plugin_metadata_path,
+                    "error": str(e)
+                }
+        
+        # meta.yml 파일 내용 포함 (있는 경우)
+        meta_yml_path = os.path.join(task_folder_path, "meta.yml")
+        if os.path.exists(meta_yml_path):
+            try:
+                with open(meta_yml_path, 'r', encoding='utf-8') as f:
+                    manifest_data["execution_files"]["meta_yml"] = {
+                        "content": f.read(),
+                        "path": meta_yml_path
+                    }
+            except Exception as e:
+                manifest_data["execution_files"]["meta_yml"] = {
+                    "content": f"Error reading meta.yml: {str(e)}",
+                    "path": meta_yml_path,
+                    "error": str(e)
+                }
+        
+        # JSON으로 변환
+        json_content = json.dumps(manifest_data, indent=2, ensure_ascii=False)
+        
+        # 파일명 생성 (타임스탬프 포함)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"execution_manifest_{task.plugin_name}_{task_id[:8]}_{timestamp}.json"
+        
+        # StreamingResponse로 다운로드 제공
+        return StreamingResponse(
+            io.StringIO(json_content),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating execution manifest: {str(e)}")

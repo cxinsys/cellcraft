@@ -223,6 +223,12 @@ function exportTaskLogTXT(taskId, filename) {
   });
 }
 
+function downloadExecutionManifest(taskId) {
+  return instance.get(`/routes/task/${taskId}/execution-manifest`, {
+    responseType: "blob", // 서버로부터 받은 데이터를 blob 형태로 처리
+  });
+}
+
 function getHtml(filename) {
   return instance.get(`/routes/files/html/${filename}`);
 }
@@ -469,6 +475,7 @@ export {
   getTaskLogs,
   exportTaskLogsJSON,
   exportTaskLogTXT,
+  downloadExecutionManifest,
   convertFile,
   getColumns,
   getClusters,

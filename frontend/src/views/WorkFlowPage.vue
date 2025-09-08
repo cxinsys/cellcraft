@@ -18,7 +18,7 @@
     <CompileCheck v-if="compile_check" @deactivate-compile-check="deactivateCompileCheck" @run-workflow="runWorkflow" />
     <!-- <FileTable :show_files="show_files" :files_list="files_list" /> -->
     <JobTable class="margin__top-12" :show_jobs="show_jobs" :taskList="taskList" @cancel-task="cancelTask" @confirm-delete="confirmDelete"
-      @show-logs="showLogs" @view-progress="viewProgress" @close-popup="closeJobTable" />
+      @show-logs="showLogs" @view-progress="viewProgress" @download-execution-manifest="downloadExecutionManifest" @close-popup="closeJobTable" />
     <ControlBar :on_progress="on_progress" :isTabView="isTabView" :show_jobs="show_jobs" @toggle-file="toggleFile"
       @save-workflow-project="saveWorkflowProject" @activate-compile-check="activateCompileCheck"
       @toggle-task="toggleTask" @toggle-tab-view="toggleTabView" @zoom-in="zoomIn" @zoom-out="zoomOut" />
@@ -133,6 +133,7 @@ import {
   getTaskLogs,
   exportTaskLogsJSON,
   exportTaskLogTXT,
+  downloadExecutionManifest,
   getPluginTemplate,
   createTaskEventSource,
 } from "@/api/index";
@@ -746,6 +747,22 @@ export default {
       } catch (error) {
         console.error("Error exporting log file:", error);
         this.setMessage("error", "Failed to export log file: " + (error.response?.data?.detail || error.message));
+      }
+    },
+    async downloadExecutionManifest(taskId) {
+      try {
+        const response = await downloadExecutionManifest(taskId);
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const taskShortId = taskId.substring(0, 8);
+        const filename = `execution_manifest_${taskShortId}_${timestamp}.json`;
+        
+        this._downloadFile(response.data, filename);
+        
+        this.setMessage("success", "Execution manifest downloaded successfully!");
+      } catch (error) {
+        console.error("Error downloading execution manifest:", error);
+        this.setMessage("error", "Failed to download execution manifest: " + (error.response?.data?.detail || error.message));
       }
     },
     closeJobTable() {
