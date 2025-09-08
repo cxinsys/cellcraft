@@ -20,7 +20,7 @@
                             <polyline points="9,11 12,14 22,4"></polyline>
                             <path d="m21,12v7a2,2 0 0,1 -2,2H5a2,2 0 0,1 -2,-2V5a2,2 0 0,1 2,-2h11"></path>
                         </svg>
-                        <h4>Final Output Files</h4>
+                        <h4>Primary Outputs</h4>
                         <span class="section__count">({{ finalFileList.length }})</span>
                     </div>
                     <button class="action__button action__button--small" @click="toggleFinalSelectAll"
@@ -60,7 +60,7 @@
                              xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6,9 12,15 18,9"></polyline>
                         </svg>
-                        <h4>Intermediate Files</h4>
+                        <h4>Intermediate Outputs</h4>
                         <span class="section__count">({{ intermediateFileList.length }})</span>
                     </div>
                     <button class="action__button action__button--small" @click.stop="toggleIntermediateSelectAll"

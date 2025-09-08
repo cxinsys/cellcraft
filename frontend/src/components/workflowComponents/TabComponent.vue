@@ -34,8 +34,9 @@ export default {
             required: true
         },
         currentWorkflowId: {
-            type: String,
-            required: true
+            type: [String, Number],
+            required: false,
+            default: null
         }
     },
     components: {
@@ -101,7 +102,7 @@ export default {
                 this.$router.push({
                     path: newPath,
                     query: {
-                        workflow_id: this.currentWorkflowId,
+                        workflow_id: String(this.currentWorkflowId || ''),
                         node: tab.id,
                         forceReload: Date.now(),
                     },
@@ -110,7 +111,7 @@ export default {
                 this.$router.push({
                     path: newPath,
                     query: {
-                        workflow_id: this.currentWorkflowId,
+                        workflow_id: String(this.currentWorkflowId || ''),
                         node: tab.id,
                     },
                 });
