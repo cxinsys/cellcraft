@@ -46,6 +46,7 @@
       <li @click="cancelTask" v-else>Cancle</li>
       <li @click="showLogs">View Logs</li>
       <li @click="viewProgress">View Progress</li>
+      <li @click="downloadExecutionManifest" v-if="isCompleted && canDownloadManifest">Download Execution Manifest</li>
     </ul>
   </div>
 </template>
@@ -70,7 +71,9 @@ export default {
       xPosition: 0,
       yPosition: 0,
       isCompleted: false,
-      currentTaskId: null
+      currentTaskId: null,
+      currentTask: null,
+      canDownloadManifest: false
     };
   },
   created() {
@@ -99,6 +102,10 @@ export default {
       this.$emit('view-progress', this.currentTaskId);
       this.R_Mouse_isActive = false;
     },
+    downloadExecutionManifest() {
+      this.$emit('download-execution-manifest', this.currentTaskId);
+      this.R_Mouse_isActive = false;
+    },
     closePopup() {
       this.$emit('close-popup');
     },
@@ -123,7 +130,9 @@ export default {
 
         // 메뉴 크기 계산을 위해 임시로 메뉴를 표시
         this.currentTaskId = task.task_id;
+        this.currentTask = task;
         this.isCompleted = ["SUCCESS", "FAILURE", "REVOKED", "RETRY"].includes(task.status);
+        this.canDownloadManifest = task.status === 'SUCCESS' && this.formatPluginType(task) === 'Analysis';
         this.R_Mouse_isActive = true;
 
         // 다음 틱에서 실제 메뉴 크기 측정
@@ -200,7 +209,7 @@ export default {
       // Check if enhanced plugin data is available
       if (task.plugin && task.plugin.plugin_type) {
         const pluginType = task.plugin.plugin_type;
-        if (pluginType === 'compile') {
+        if (pluginType === 'compile' || pluginType === 'analysis') {
           return 'Analysis';
         } else if (pluginType === 'visualization') {
           return 'Visualization';
@@ -210,7 +219,7 @@ export default {
 
       // Legacy fallback for tasks without plugin relationship
       let taskType = task.task_type;
-      if (taskType === 'compile') {
+      if (taskType === 'compile' || pluginType === 'analysis') {
         return 'Analysis';
       } else if (taskType === 'visualization') {
         return 'Visualization';
