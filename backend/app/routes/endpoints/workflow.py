@@ -109,9 +109,15 @@ def compileWorkflow(
                 # 실행된 태스크 ID 저장
                 task_ids.append(process_task.id)
 
+            # Extract algorithm IDs for frontend state management
+            algorithm_ids = [algorithm['id'] for algorithm in algorithms]
+            task_algorithm_mapping = dict(zip(task_ids, algorithm_ids))
+            
             return {
                 "message": "Multiple tasks added to queue",
                 "task_ids": task_ids,
+                "algorithm_ids": algorithm_ids,
+                "task_algorithm_mapping": task_algorithm_mapping,
                 "results": [get_task_info(task_id) for task_id in task_ids]
             }
 
