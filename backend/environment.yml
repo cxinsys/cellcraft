@@ -173,7 +173,6 @@ dependencies:
   - zipp=3.8.1
   - zlib=1.2.12
   - zstd=1.5.2
-  - jpype1
   - pip:
       - alembic==1.13.2
       - aiormq==6.7.6
