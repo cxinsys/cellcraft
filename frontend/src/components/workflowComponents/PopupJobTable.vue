@@ -46,7 +46,7 @@
       <li @click="cancelTask" v-else>Cancle</li>
       <li @click="showLogs">View Logs</li>
       <li @click="viewProgress">View Progress</li>
-      <li @click="downloadExecutionManifest" v-if="isCompleted && canDownloadManifest">Download Execution Manifest</li>
+      <li @click="downloadExecutionManifest" v-if="isCompleted && canDownloadManifest">Download Manifest</li>
     </ul>
   </div>
 </template>

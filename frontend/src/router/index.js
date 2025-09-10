@@ -44,10 +44,6 @@ export default new Router({
           component: () => import("@/components/modals/Algorithm.vue"),
         },
         {
-          path: "ResultFile",
-          component: () => import("@/components/modals/ResultFile.vue"),
-        },
-        {
           path: "ResultFiles",
           component: () => import("@/components/modals/ResultFiles.vue"),
         },

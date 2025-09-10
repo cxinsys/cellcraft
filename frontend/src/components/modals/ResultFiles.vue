@@ -2,7 +2,7 @@
     <div class="result__layout">
         <div class="result__files-container">
             <div class="files__header">
-                <h3 class="files__title">Select Result Files</h3>
+                <h3 class="files__title">Select Outputs</h3>
                 <div class="files__actions">
                     <button class="action__button action__button--secondary" @click="toggleSelectAll"
                         :disabled="allFiles.length === 0">

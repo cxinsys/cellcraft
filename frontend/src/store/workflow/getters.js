@@ -226,4 +226,25 @@ export default {
       return 'none';
     };
   },
+  
+  // NEW: Running algorithm nodes getters
+  getRunningAlgorithmNodes(state) {
+    return state.runningAlgorithmNodes;
+  },
+  
+  isAlgorithmNodeRunning(state) {
+    return (nodeId) => {
+      return state.runningAlgorithmNodes.includes(String(nodeId));
+    };
+  },
+  
+  getTaskAlgorithmMapping(state) {
+    return state.taskAlgorithmMapping;
+  },
+  
+  getAlgorithmIdByTaskId(state) {
+    return (taskId) => {
+      return state.taskAlgorithmMapping[taskId] || null;
+    };
+  },
 };
