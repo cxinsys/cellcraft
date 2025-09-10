@@ -1,6 +1,7 @@
 <template>
   <div class="control-popup__jobs" v-if="show_jobs">
     <button class="close-button" @click="closePopup" aria-label="Close">
+      <span class="close-icon"></span>
     </button>
     <div class="job-table-container">
       <table class="job-table">
@@ -434,5 +435,39 @@ export default {
 
 .close-button:active {
   transform: scale(0.95);
+}
+
+/* X 아이콘 스타일 */
+.close-icon {
+  position: relative;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+}
+
+.close-icon::before,
+.close-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 2px;
+  background-color: white;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.close-icon::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.close-icon::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.close-button:hover .close-icon::before,
+.close-button:hover .close-icon::after {
+  opacity: 1;
 }
 </style>
