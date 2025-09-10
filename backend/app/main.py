@@ -172,7 +172,15 @@ async def check_and_pull_official_plugin_images():
         
         # Get all official plugins from database
         plugins = db.query(models.Plugin).filter_by(source="official").all()
-        print(f"Found {len(plugins)} official plugins to check")
+        
+        # Filter out GPU-only plugins when in CPU-only mode
+        cpu_only = os.getenv("CPU_ONLY", "false").lower() == "true"
+        if cpu_only:
+            gpu_only_plugins = {"FastSCODE", "FastTENET"}
+            plugins = [p for p in plugins if p.name not in gpu_only_plugins]
+            print(f"CPU-only mode: Filtering out GPU-only plugins. Found {len(plugins)} CPU-compatible plugins to check")
+        else:
+            print(f"Found {len(plugins)} official plugins to check")
         
         for plugin in plugins:
             try:
