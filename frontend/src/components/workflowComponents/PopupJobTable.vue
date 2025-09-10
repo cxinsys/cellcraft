@@ -219,7 +219,7 @@ export default {
 
       // Legacy fallback for tasks without plugin relationship
       let taskType = task.task_type;
-      if (taskType === 'compile' || pluginType === 'analysis') {
+      if (taskType === 'compile' || taskType === 'analysis') {
         return 'Analysis';
       } else if (taskType === 'visualization') {
         return 'Visualization';
