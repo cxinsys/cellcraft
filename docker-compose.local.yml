@@ -35,8 +35,8 @@ services:
       - ./backend/plugin/official:/app/plugin/official:ro
       - ./backend/plugin/local:/app/plugin/local:rw
       - ./backend/plugin/build_logs:/app/plugin/build_logs:rw
-      # User data persistence
-      - backend_user_data:/app/user_data
+      # User data persistence (direct host mount)
+      - ./backend/user:/app/user:rw
     depends_on:
       db:
         condition: service_healthy
@@ -99,8 +99,8 @@ services:
       - ./backend/plugin/official:/app/plugin/official:ro
       - ./backend/plugin/local:/app/plugin/local:rw
       - ./backend/plugin/build_logs:/app/plugin/build_logs:rw
-      # User data persistence
-      - backend_user_data:/app/user_data
+      # User data persistence (direct host mount)
+      - ./backend/user:/app/user:rw
     depends_on:
       rabbitmq:
         condition: service_started
@@ -124,4 +124,3 @@ networks:
 volumes:
   postgres_data:
   rabbitmq_data:
-  backend_user_data:
