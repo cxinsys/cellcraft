@@ -1,0 +1,121 @@
+version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.local
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Seoul
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  backend:
+    environment:
+      - TZ=Asia/Seoul
+      - CONDA_DEFAULT_ENV=snakemake
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - CPU_ONLY=true
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.cpu
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Plugin directory mounts
+      - ./backend/plugin/official:/app/plugin/official:ro
+      - ./backend/plugin/local:/app/plugin/local:rw
+      - ./backend/plugin/build_logs:/app/plugin/build_logs:rw
+      # User data persistence (direct host mount)
+      - ./backend/user:/app/user:rw
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  db:
+    image: postgres:15
+    environment:
+      - TZ=Asia/Seoul
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: "rabbitmq:management"
+    environment:
+      - TZ=Asia/Seoul
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  celery:
+    environment:
+      - CONDA_DEFAULT_ENV=snakemake
+      - C_FORCE_ROOT=true
+      - TZ=Asia/Seoul
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - CPU_ONLY=true
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.cpu.celery
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Plugin directory mounts
+      - ./backend/plugin/official:/app/plugin/official:ro
+      - ./backend/plugin/local:/app/plugin/local:rw
+      - ./backend/plugin/build_logs:/app/plugin/build_logs:rw
+      # User data persistence (direct host mount)
+      - ./backend/user:/app/user:rw
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
