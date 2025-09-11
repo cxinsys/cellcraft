@@ -49,7 +49,12 @@
     <section class="menu-component" id="menuId">
       <h1 class="menu__title">Tutorial</h1>
       <h2 class="menu__description">
-        Follow the posts below, ready the dataset for CellCraft
+        Follow the tutorials below to prepare your dataset for <strong>CellCraft</strong>. Detailed, step-by-step
+        instructions are
+        provided in the <strong>Seurat/Monocle</strong> and <strong>Scanpy/PAGA</strong> workflows. If your data are
+        stored as a <strong>Seurat</strong> object, derive
+        pseudotime with <strong>Monocle</strong>; if they are stored as a <strong>Scanpy</strong> AnnData object, use
+        <strong>PAGA</strong> for trajectory inference.
       </h2>
       <ul class="menu-list">
         <div class="menu-list__col">
@@ -96,8 +101,8 @@
     </section>
     <section class="menu-component">
       <div class="sub-description__box">
-        <h2 class="menu__description sub-description">Convert Output</h2>
-        <h2 class="menu__description sub-description">multi omics</h2>
+        <!-- <h2 class="menu__description sub-description">Convert Output</h2>
+        <h2 class="menu__description sub-description">Using Your Data</h2> -->
       </div>
       <ul class="menu-list">
         <div class="menu-list__col">
@@ -105,10 +110,9 @@
             @mouseover="mouseoverEvent" @mouseout="mouseoutEvent">
             <img class="menu-list__largeIcon" src="@/assets/output-conversion.png" />
             <div class="menu-list__textbox largeTextbox">
-              <p class="menu-list__title">
-                {{ textDict.outputConversion.title }}
+              <p class="menu-list__title menu-list__title--large" v-html="formatTitle(textDict.outputConversion.title)">
               </p>
-              <span class="menu-list__desc">{{ textDict.outputConversion.desc }}
+              <span class="menu-list__desc menu-list__desc--large">{{ textDict.outputConversion.desc }}
               </span>
             </div>
           </li>
@@ -118,10 +122,9 @@
             @mouseover="mouseoverEvent" @mouseout="mouseoutEvent">
             <img class="menu-list__largeIcon" src="@/assets/multi-omics.png" />
             <div class="menu-list__textbox largeTextbox">
-              <p class="menu-list__title">
-                {{ textDict.multiOmics.title }}
+              <p class="menu-list__title menu-list__title--large" v-html="formatTitle(textDict.multiOmics.title)">
               </p>
-              <span class="menu-list__desc">{{ textDict.multiOmics.desc }}
+              <span class="menu-list__desc menu-list__desc--large">{{ textDict.multiOmics.desc }}
               </span>
             </div>
           </li>
@@ -138,14 +141,30 @@
       <div class="about-container">
         <div class="about-content-box">
           <div class="about-description">
-            <p><strong>CellCraft</strong> is a web-based application for reconstructing gene regulatory networks (GRNs)
-              from single-cell RNA sequencing (scRNA-seq) data.</p>
-            <p>It features an intuitive visual interface that integrates seven GRN inference tools—including
+            <p><strong>CellCraft</strong> is a web-based application for reconstructing <strong>gene regulatory
+                networks (GRNs)</strong> from single-cell RNA sequencing (scRNA-seq) data. It features an intuitive
+              visual
+              interface that integrates seven GRN inference tools—including <strong>TENET</strong> and
+              <strong>FastTENET</strong>, developed by our
+              research team—through modular plugin integration. <strong>CellCraft</strong> enables researchers to
+              <strong>configure workflows</strong>,
+              <strong>run analysis</strong>, and <strong>explore results visually</strong>, all without needing
+              programming knowledge.
+            </p>
+            <!-- <p>It features an intuitive visual interface that integrates seven GRN inference tools—including
               <strong>TENET</strong> and <strong>FastTENET</strong>, developed by our research team—through modular
               plugin integration.
-            </p>
-            <p>CellCraft enables researchers to <strong>configure workflows</strong>, <strong>run analysis</strong>, and
-              <strong>explore results visually</strong>, all without needing programming knowledge.
+            </p> -->
+            <p>Built to <strong>lower technical barriers</strong> in GRN analysis, <strong>CellCraft</strong> unifies
+              access to multiple inference methods
+              behind a consistent, guided interface;
+              provides <strong>interactive visualizations</strong> for exploring regulatory relationships; and supports
+              scalable,
+              customizable workflows suitable for both rapid
+              prototyping and extensive studies. The application also emphasizes <strong>reproducibility</strong> and
+              <strong>onboarding</strong>, offering
+              tutorials, example datasets, and sample
+              input files that illustrate each step from data preparation to network interpretation.
             </p>
           </div>
         </div>
@@ -181,50 +200,53 @@ export default {
       textDict: {
         "seurat": {
           "title": "Seurat",
-          "desc": "A basic tutorial on single-cell transcriptomics using Seurat."
+          "desc": "A basic tutorial on preprocessing scRNA-seq data with Seurat"
         },
         "monocle": {
           "title": "Monocle",
-          "desc": "A tutorial on trajectory analysis using Monocle."
+          "desc": "A basic tutorial on constructing pseudotime with Monocle and generating TENET input files"
         },
         "scanpy": {
           "title": "Scanpy",
-          "desc": "A basic tutorial on single-cell transcriptomics using Scanpy."
+          "desc": "A basic tutorial on preprocessing scRNA-seq data with Scanpy"
         },
         "PAGA": {
           "title": "PAGA",
-          "desc": "A tutorial on trajectory analysis using PAGA."
+          "desc": "A basic tutorial on constructing pseudotime with PAGA and generating TENET input files"
         },
         "outputConversion": {
-          "title": "Output Conversion",
-          "desc": "A guide to converting analyzed files (RDS to H5AD)."
+          "title": "Format Conversion \n (Seurat/Scanpy Outputs)",
+          "desc": "How to Convert Seurat (RDS) to AnnData (H5AD)"
         },
         "multiOmics": {
-          "title": "Using Your Own Data",
-          "desc": "A tutorial on multi-omics analysis (scRNA-seq + scATAC-seq) using Seurat."
+          "title": "Working with Preprocessed \n scRNA-seq Data",
+          "desc": "From Preprocessed scRNA-seq to TENET Inputs"
         },
         intro: {
           title: "Intro",
-          desc: "Welcome to the official tutorial for CellCraft.",
+          desc: "Welcome to the official CellCraft tutorial.",
           desc1: [
-            "CellCraft offers a user-friendly interface that allows researchers to quickly explore, analyze, and visualize gene regulatory networks.",
-            "CellCraft can process complex datasets, providing accurate and actionable insights into genetic interactions.",
-            "Users can upload their data, select parameters for analysis, and witness the transformative power of CellCraft and TENET.",
-            "This main tutorial aims to give users a comprehensive overview of CellCraft, guiding them through its features and capabilities.",
+            "CellCraft is a user-oriented application for the exploration, analysis, and visualization of gene regulatory networks (GRNs).",
+            "It streamlines work with complex transcriptomic datasets and produces interpretable, decision-relevant insights into genetic interactions.",
+            "Through a guided interface, users can upload datasets, specify analysis parameters, and execute GRN inference with integrated tools such as TENET.",
+            "The tutorial provides a comprehensive overview of CellCraft’s functionality and workflow, enabling researchers to understand its capabilities and apply them effectively to their own data.",
           ],
         },
         gettingStarted: {
           title: "Getting Started",
-          desc: "Navigating CellCraft is simple and intuitive.",
+          desc: "Navigating CellCraft is straightforward.",
           desc1: [
-            "Refer to the sub-pages for detailed guidance on each step of the workflow—from dataset upload to GRN inference and result visualization.",
-            "Whether conducting a quick test or a more complex multi-step analysis, CellCraft helps researchers efficiently carry out GRN studies using integrated tools and visual programming."
+            "The accompanying subpages provide step-by-step guidance across the whole workflow—from dataset upload and preprocessing to GRN inference and results visualization.",
+            "Whether executing a rapid proof-of-concept or a multi-stage analysis, CellCraft enables efficient GRN studies through an integrated toolchain and visual, workflow-based programming."
           ],
         }
       },
     };
   },
   methods: {
+    formatTitle(title) {
+      return title.replace(/\\n/g, '<br>');
+    },
     mouseoverEvent(ev) {
       if (ev.target.children[2]) {
         ev.target.children[2].classList.add("right-move");
@@ -624,19 +646,21 @@ export default {
 .menu__description {
   font-family: "Montserrat", sans-serif;
   /* Montserrat 폰트 적용 */
-  font-weight: 700;
-  /* 두께는 bold로 설정 */
-  font-size: 1.9rem;
-  /* 크기는 2.5rem으로 설정 */
+  font-weight: 400;
+  /* 일반 두께로 설정 */
+  font-size: 1.1rem;
+  /* 작은 폰트 크기로 설정 */
   color: #525252;
   /* 글자 색상 설정 */
-  text-transform: uppercase;
-  /* 모든 글자를 대문자로 */
-  letter-spacing: 0.05em;
-  /* 글자 사이 간격 설정 */
+  text-transform: none;
+  /* 대문자 변환 없음 */
+  letter-spacing: normal;
+  /* 일반 글자 간격 */
   text-align: center;
   /* 중앙 정렬 */
   width: 70%;
+  line-height: 1.6;
+  /* 줄 간격 추가 */
 }
 
 .menu-list {
@@ -1051,8 +1075,40 @@ export default {
 
 .largeTextbox {
   width: 20rem;
-  height: 6rem;
+  height: 10rem;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}
+
+.menu-list__title--large {
+  pointer-events: none;
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: bold;
+  font-size: 1.35rem;
+  line-height: 1.4;
+  text-align: center;
+  color: rgb(31, 56, 90);
+  position: static;
+  margin: 0;
+}
+
+.menu-list__desc--large {
+  pointer-events: none;
+  font-family: "Montserrat", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.3;
+  text-align: center;
+  color: rgb(80, 80, 80);
+  position: static;
+  margin: 0;
+  max-width: 18rem;
 }
 
 .menu-list__largeTitle {
