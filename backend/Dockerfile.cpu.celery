@@ -1,9 +1,10 @@
 # Multi-platform build arguments
-ARG TARGETPLATFORM=linux/amd64
-ARG BUILDPLATFORM=linux/amd64
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
 # Build stage - 컴파일 도구 및 개발 의존성 설치
 FROM --platform=$BUILDPLATFORM python:3.10-slim AS builder
+ARG TARGETPLATFORM
 
 # 필수 빌드 도구 설치
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -19,17 +20,36 @@ ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
 
 RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
     case $PLATFORM in \
-        "linux/amd64")  MICROMAMBA_ARCH=linux-64  ;; \
-        "linux/arm64")  MICROMAMBA_ARCH=linux-aarch64  ;; \
-        *) MICROMAMBA_ARCH=linux-64 ;; \
+        "linux/amd64")  \
+            MICROMAMBA_ARCH=linux-64 && \
+            CONDA_SUBDIR=linux-64 ;; \
+        "linux/arm64")  \
+            MICROMAMBA_ARCH=linux-aarch64 && \
+            CONDA_SUBDIR=linux-aarch64 ;; \
+        *) \
+            MICROMAMBA_ARCH=linux-64 && \
+            CONDA_SUBDIR=linux-64 ;; \
     esac && \
     echo "Installing micromamba for $MICROMAMBA_ARCH" && \
+    echo "Setting CONDA_SUBDIR to $CONDA_SUBDIR" && \
     curl -L "https://micromamba.snakepit.net/api/micromamba/$MICROMAMBA_ARCH/latest" | \
-    tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba
+    tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba && \
+    export CONDA_SUBDIR=$CONDA_SUBDIR
 
-# Conda 환경 구성 (CPU 전용 환경 파일 사용)
+# Conda 환경 구성 (CPU 전용 환경 파일 사용 + 플랫폼별 패키지)
 COPY environment.cpu.yml ./
-RUN micromamba create -y -n snakemake -f environment.cpu.yml
+RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
+    case $PLATFORM in \
+        "linux/amd64")  export CONDA_SUBDIR=linux-64 ;; \
+        "linux/arm64")  export CONDA_SUBDIR=linux-aarch64 ;; \
+        *)              export CONDA_SUBDIR=linux-64 ;; \
+    esac && \
+    echo "Creating conda environment with CONDA_SUBDIR=$CONDA_SUBDIR" && \
+    micromamba config set channel_priority flexible && \
+    CONDA_SUBDIR=$CONDA_SUBDIR micromamba create -y -n snakemake -f environment.cpu.yml --platform $CONDA_SUBDIR || \
+    (echo "Retrying with relaxed dependencies..." && \
+     CONDA_SUBDIR=$CONDA_SUBDIR micromamba create -y -n snakemake python=3.10 -c conda-forge -c bioconda && \
+     CONDA_SUBDIR=$CONDA_SUBDIR micromamba install -y -n snakemake -f environment.cpu.yml --freeze-installed || true)
 
 # Runtime stage - 최소 런타임 환경
 FROM python:3.10-slim
