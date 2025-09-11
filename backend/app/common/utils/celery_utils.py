@@ -55,14 +55,14 @@ def create_celery():
 
     # 긴 작업을 위한 타임아웃 설정 추가
     celery_app.conf.update(broker_transport_options={
-        'visibility_timeout': 400000,  # 긴 작업을 위한 visibility timeout 설정 (초 단위)
+        'visibility_timeout': 259200,  # 긴 작업을 위한 visibility timeout 설정 (72시간)
         'confirm_publish': True,  # 메시지 발행 확인 활성화
         'confirm_timeout': 60.0  # 메시지 발행 확인을 위한 타임아웃 설정 (초 단위)
     })
 
-    # Task Time Limits 설정 (24시간 제한, 소프트 타임아웃 23시간 56분)
-    celery_app.conf.update(task_time_limit=86400)  # 작업 시간 제한
-    celery_app.conf.update(task_soft_time_limit=86200)  # 소프트 타임아웃 설정
+    # Task Time Limits 설정 (72시간 제한, 소프트 타임아웃 71시간 56분)
+    celery_app.conf.update(task_time_limit=259200)  # 작업 시간 제한 (72시간)
+    celery_app.conf.update(task_soft_time_limit=258960)  # 소프트 타임아웃 설정 (71시간 56분)
 
     # Celery 설정에서 ampq 연결 끊김 방지를 위한 연결 관련 옵션 조정
     celery_app.conf.update(
