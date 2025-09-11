@@ -228,7 +228,7 @@ class DOTParser:
         """라벨을 사용자 친화적으로 포맷팅"""
         # Snakemake 규칙명에서 불필요한 부분 제거
         formatted = re.sub(r'^\w+__', '', label)  # 접두사 제거
-        formatted = formatted.replace('_', ' ').title()
+        formatted = formatted.replace('_', ' ')  # 원본 대소문자 유지
         return formatted
     
     @staticmethod
