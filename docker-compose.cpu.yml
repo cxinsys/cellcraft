@@ -2,9 +2,7 @@ version: "3.8"
 
 services:
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.local
+    image: ghcr.io/cxinsys/cellcraft/frontend:v1.0.0
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -16,6 +14,7 @@ services:
       - app-network
 
   backend:
+    image: ghcr.io/cxinsys/cellcraft/backend-cpu:v1.0.0
     environment:
       - TZ=Asia/Seoul
       - CONDA_DEFAULT_ENV=snakemake
@@ -25,9 +24,6 @@ services:
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
       - CPU_ONLY=true
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.improved
     ports:
       - "8000:8000"
     volumes:
@@ -80,6 +76,7 @@ services:
       - app-network
 
   celery:
+    image: ghcr.io/cxinsys/cellcraft/celery-cpu:v1.0.0
     environment:
       - CONDA_DEFAULT_ENV=snakemake
       - C_FORCE_ROOT=true
@@ -90,9 +87,6 @@ services:
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
       - CPU_ONLY=true
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.improved.celery
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # Mount entire backend for Docker-in-Docker compatibility
