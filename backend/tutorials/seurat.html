@@ -13197,7 +13197,7 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><strong><font size="6"> Single Cell Genomics Analysis Tutorial </font></strong><font size="5">(Seurat)</font></p>
+<p><strong><font size="6"> Basic Seurat Tutorial - (i) preprocessing </font></strong>
 
 </div>
 </div>
@@ -13205,26 +13205,19 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="Abstract">Abstract<a class="anchor-link" href="#Abstract">&#182;</a></h2><p>&nbsp; A  "Cell type"  is a category used to identify cells that share morphological or phenotypic characteristics. The precise number of distinct cell types is not defined, but as of 2021, Cell Ontology lists over 2,300 different cell types.<br><strong><a href="https://www.nature.com/articles/s41556-021-00787-7" style="color: brown; text-decoration: none;">(Osumi-Sutherland D, Xu C, Keays M et al, 2021)</a></strong> <br>Due to the diverse nature of different cell types, analyzing cells based on their types can have significant potential.
-However, even since the introduction of NGS (Next-Generation Sequencing), there have been challenges in conducting such analyses for a while. Over time, thanks to technological advancements, we have now entered an era where we can profile the expression levels of thousands of genes within a single cell.
-From this technology, we can identify the composition of cells within tissues obtained from experiments or surgeries, understand the specific characteristics of each cell in various situations, and potentially uncover previously unknown cell types.</p>
-<p>&nbsp;The scRNA-seq method includes the process of extracting and interpreting the barcodes (cell barcodes) and Unique Molecular Identifiers (UMIs) from the sequencing reads, and followed by these steps :</p>
+<p>This tutorial serves as the foundational module for producing the input files required for <strong>TENET</strong> gene regulatory network (GRN) analysis.</p>
+
+<p><em>Structure.</em> The tutorial comprises two modules: (i) <strong>preprocessing</strong> and (ii) <strong>generation of TENET inputs</strong>. This page covers Module (i), demonstrating standard preprocessing of scRNA-seq data in Seurat—quality control (QC), normalization, feature selection, dimensionality reduction, clustering, and differential expression (DEG) analysis.</p>
+
+<p><em>Already preprocessed data?</em> If your scRNA-seq data have already been preprocessed, you may skip Module (i) and proceed directly to the relevant workflow:</p>
 <ul>
-<li><p><strong>Count matrix generation (method-specific steps)</strong>: This involves preparing sequencing reads, separating samples, aligning reads to a reference genome, and quantifying gene expression levels for each cell.</p>
-</li>
-<li><p><strong>Quality assessment  of raw counts</strong>: Removing low-quality cells to ensure the reliability of data used in subsequent analyses.</p>
-</li>
-<li><p><strong>Clustering of filtered counts</strong>: Grouping cells into clusters based on similarities in their transcriptional profiles, with each cluster representing distinct cell types or states.</p>
-</li>
-<li><p><strong>Downstream analysis</strong>: These may include additional analyses like differential gene expression studies, trajectory inference, data visualization, and interpretation based on research objectives.</p>
-</li>
+<li><strong>Seurat/Monocle tutorial:</strong> <a href="https://cellcraft.app/tutorial?htmlName=monocle">https://cellcraft.app/tutorial?htmlName=monocle</a></li>
+<li><strong>Scanpy/PAGA tutorial:</strong> <a href="https://cellcraft.app/tutorial?htmlName=PAGA">https://cellcraft.app/tutorial?htmlName=PAGA</a></li>
 </ul>
-<p>These steps are crucial for analyzing single-cell RNA sequencing data, providing insights into the cellular composition and gene expression patterns within a given sample or tissue.</p>
-<p>&nbsp;For these single-cell genomics analysis, there are tools like <strong><a href="https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger" style="font-size: 16px ;color: brown; text-decoration: none;">Cell-Ranger</a></strong>
-, <strong><a href="https://scanpy.readthedocs.io/en/stable/#" style="font-size: 16px ;color: brown; text-decoration: none;">Scanpy</a></strong> and <strong><a href="https://satijalab.org/seurat/" style="font-size: 16px ; color: brown; text-decoration: none;">Seurat</a></strong>.<br>Cell-Ranger is a set of analysis pipelines that process Chromium single cell data to align reads, generate feature-barcode matrices, perform clustering and other secondary analysis. Scanpy is a Python-based scalable toolkit for analyzing single-cell gene expression data built jointly with anndata. And Seurat is a toolkit based on the R  that provides various functionalities for single-cell genomics analysis.</p>
-<p>&nbsp; Among these tools, We will start with count data obtained from tools like CellRanger and then introduce a tutorial on Single Cell Genomics Analysis using Seurat. For this tutorial, we utilize a dataset of Peripheral Blood Mononuclear Cells (PBMC) freely available from 10X Genomics <strong><a href="https://support.10xgenomics.com/single-cell-gene-expression/datasets/1.1.0/pbmc3k" style="font-size: 14px ;color: coral; text-decoration: none;">(download web page)</a></strong>.</p>
-<blockquote style="font-style: italic; font-size: 14px;">
-&nbsp;This tutorial serves as a prerequisite for preparing the input files required for Tenet GRN analysis and continues at <span style="font-size: 18px; color: palegreen;"><strong><a href="#4.-Extracting-the-Cell-x-Gene-matrix-and-Cell-Select-file" style="color: inherit; text-decoration: none;">Preparing Tenet input files using Monocle2 Pseudotime </a></strong></span>
+
+<p><em>Data and pipeline.</em> We begin with count data generated by <strong>Cell Ranger</strong> and proceed through a standard Seurat workflow. For illustration, we use a publicly available <strong>Peripheral Blood Mononuclear Cell (PBMC)</strong> dataset from <strong>10x Genomics</strong>.</p>
+
+
 <br>
 </blockquote>
 </div>

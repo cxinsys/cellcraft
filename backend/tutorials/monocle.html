@@ -13197,7 +13197,7 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><strong><font size="6"> Preparing Tenet input files using Monocle2 Pseudotime</font></strong></p>
+<p><strong><font size="6"> Monocle2 Pseudotime Tutorial - (ii) generation of TENET inputs</font></strong></p>
 
 </div>
 </div>
@@ -13205,13 +13205,28 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="Abstract">Abstract<a class="anchor-link" href="#Abstract">&#182;</a></h2><p>&nbsp;Single-cell gene expression studies offer the capability to profile the regulation of transcription in complex biological processes and heterogeneous cell populations. These studies are instrumental in discovering genes that characterize specific cell subtypes, capture intermediate states within biological processes, and differentiate between alternative cell fates. In these investigations, individual cells progress through gene expression programs independently, resulting in each cell representing a snapshot of the transcriptional program under investigation.</p>
-<p><br></p>
-<p>&nbsp;There are several excellent tools for analyzing single-cell expression experiments. Among these tools, <strong><font size="3"><a href="http://cole-trapnell-lab.github.io/monocle-release/" style="color: brown; text-decoration: none;">Monocle2</a> </font> (see more details) <font size="2">stands out by introducing an innovative method for organizing individual cells based on pseudotime, positioning them along a path that mirrors a biological progression such as cell differentiation.</font></strong> This strategy capitalizes on the inherent asynchronous progression of these processes in individual cells. Monocle achieves this cell ordering by constructing a principled graph from the data obtained from single-cell genomics. Advanced machine learning techniques, including Reversed Graph Embedding, are employed to robustly and accurately unravel complex biological processes.</p>
-<p>&nbsp;Pseudotime is a metric representing the advancement of an individual cell within a process, like cell differentiation.  In various biological processes, cells don't progress uniformly. In single-cell expression studies, particularly in processes such as cell differentiation, the captured cells can show a wide distribution of progress. This implies that among cells captured simultaneously, some might be at an advanced stage while others might not have initiated the process yet. This lack of sychrony poses challenges when trying to understand the sequence of regulatory shifts as cells transition between different states.</p>
-<p><br></p>
-<p>&nbsp;So, our goal is to utilize the Pseudotime obtained from tools like Monocle to grasp the succession of regulatory changes that occur as cells transition between distinct states. For this goal, <a href="https://github.com/neocaleb/TENET" style="font-size: 18px; color: brown; text-decoration: none;"><strong>TENET</strong></a> enables the reconstruction of inter-cell type gene regulatory networks. The "TENET" approach uses a concept called transfer entropy (TE) to measure the amount of causal relationships between genes. This approach aims to predict large-scale gene regulatory cascades or relationships from scRNAseq data. According to the study, "TENET" outperforms other methods for reconstructing GRNs and is particularly successful in identifying key regulators from scRNAseq datasets. More Detailed principles and information are covered in the <a href="https://academic.oup.com/nar/article/49/1/e1/5973444" style="font-size: 16px; color: brown; text-decoration: none;"><strong>publication</strong></a><font>, so we encourage you to refer to it for understanding.</p>
-<p>&nbsp;The key data inputs from the single-cell expression dataset for TENET include "<strong>Pseudotime matrix</strong>", "<strong>Cell x Gene Matrix</strong>", and "<strong>Cell select file</strong>". If you follow this tutorial, you can obtain these 3 input files for GRN analysis using TENET</p>
+
+<p>This tutorial serves as the foundational module for producing the input files required for <strong>TENET</strong> gene regulatory network (GRN) analysis.</p>
+
+<p><em>Structure.</em> The tutorial comprises two modules: (i) <strong>preprocessing</strong> and (ii) <strong>generation of TENET inputs</strong>. This page covers Module (ii), demonstrating pseudotime construction and TENET input generation.</p>
+
+<h3 id="What-you-need-(TENET-inputs)">What you need (TENET inputs)<a class="anchor-link" href="#What-you-need-(TENET-inputs)">¶</a></h3><ol>
+<li>Pseudotime matrix: rows = cells; one or more pseudotime trajectories (numeric).</li>
+<li>Cell-by-gene expression matrix: rows = cells; columns = genes; normalized/log-scaled counts recommended.</li>
+<li>Cell-selection file: list or annotation of cells to include (e.g., a subset/trajectory).</li>
+</ol>
+<h3 id="How-to-generate-them">How to generate them<a class="anchor-link" href="#How-to-generate-them">¶</a></h3><ul>
+<li>Seurat → Monocle (R)<br/>
+  Outline: convert Seurat → Monocle, compute trajectory, export pseudotime, export expression matrix for selected cells, write a cell list.</li>
+<li>Scanpy → PAGA (Python)<br/>
+  Outline: compute neighbors/UMAP → PAGA/trajectory, extract pseudotime (diffusion/DF), subset cells, export expression matrix and cell list.</li>
+</ul>
+
+<br>
+<p>The required inputs for <strong>TENET</strong> from a single-cell expression dataset are:
+(i) a <strong>pseudotime matrix</strong>, (ii) a <strong>cell-by-gene expression matrix</strong>, and (iii) a <strong>cell-selection file</strong>.
+By following this tutorial, you will generate all three artifacts needed to run TENET for GRN inference.</p>
+
 
 </div>
 </div>
@@ -13249,7 +13264,10 @@ div#notebook {
 <p><br>
 <br></p>
 <h2 id="1.-Setting-up-the-Monocle-Object-from-Seurat-Object">1. Setting up the Monocle Object from Seurat Object<a class="anchor-link" href="#1.-Setting-up-the-Monocle-Object-from-Seurat-Object">&#182;</a></h2><p><a href="#Index">Retrun to Index</a> <br><br></p>
-<p>To run monocle2 in R statistical computing environment, several libraries are required. For this tutorial, we utilize a dataset of Peripheral Blood Mononuclear Cells (PBMC) freely available from 10X Genomics. Additionally, we will presume that users have the capability to analyze the dataset, like DEG analysis and annotation in Seurat. So, we will convert analyzed data in Seurat to the Monocle object</p>
+<p>To run <strong>Monocle 2</strong> in the R environment, several supporting packages are required. 
+  In this tutorial, we use a publicly available <strong>Peripheral Blood Mononuclear Cell (PBMC)</strong> dataset from <strong>10x Genomics</strong>. 
+  We assume that users have already performed key analyses in <strong>Seurat</strong> (e.g., DEG detection and cell-type annotation). 
+  Based on those results, we convert the analyzed Seurat object into a <strong>Monocle 2</strong> object for trajectory inference.</p>
 
 </div>
 </div>
@@ -15634,8 +15652,9 @@ In monocle2, there are preliminary tasks required to compute pseudotime, and the
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <h3 id="2-1.-Choosing-genes-that-define-a-cells's-progress">2-1. Choosing genes that define a cells's progress<a class="anchor-link" href="#2-1.-Choosing-genes-that-define-a-cells's-progress">&#182;</a></h3><p><br>
-There can be several methods to select genes for computing pseudotime, but most common approach is utilizing Differentially Expressed Genes (DEGs). <br>If DEG analysis already has been performed on the data in Seurat, using those genes would be appropriate.
-<br> Of course, Monocle also offers methods to identify DEGs</p>
+<p>Multiple strategies can be used to select genes for pseudotime estimation; the most common is to leverage <strong>differentially expressed genes (DEGs)</strong>. 
+  If DEG analysis has already been performed in <strong>Seurat</strong>, that gene set is appropriate for trajectory inference. 
+  Alternatively, <strong>Monocle</strong> provides native procedures to identify DEGs for this purpose.</p>
 <hr>
 
 </div>
@@ -15644,7 +15663,8 @@ There can be several methods to select genes for computing pseudotime, but most 
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>If you wish to check for DEGs in Seurat, you can do so using the following method.</p>
+<p>To identify differentially expressed genes (DEGs) in <strong>Seurat</strong>, use the built-in DEG functions as illustrated below.</p>
+
 
 </div>
 </div>
@@ -15699,10 +15719,11 @@ There can be several methods to select genes for computing pseudotime, but most 
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h4 id="DEG-analysis">DEG analysis<a class="anchor-link" href="#DEG-analysis">&#182;</a></h4><p>If you have already organized information or knowledge about your dataset within the metadata of the Seurat object, check the metadata. And then, you should determine the criteria for identifying DEGs. If you have information such as differentiation or experimental time, you can utilize that. Information about cell types could also serve as a viable criterion.
-<br>
-<br>In this tutorial, Seurat was used to perform cell type annotation, and the resulting information was added to the meta.data as seurat_annotation. (<a href="#1-1.-Setting-Up-the-Environment" style="font-size: 12px; color: darkblue; text-decoration: none;"><strong>1-1. Setting Up the Environment</strong></a>)
-<br>Subsequently, DEG analysis was conducted based on annotation(In this case, annotation means cell type).</p>
+<h4 id="DEG-analysis">DEG analysis<a class="anchor-link" href="#DEG-analysis">&#182;</a></h4><p>
+
+<p>If prior knowledge about the dataset has been curated in the Seurat object’s metadata, first inspect these fields and define explicit criteria for DEG identification. Relevant metadata may include differentiation state, experimental time point, or cell type.</p>
+<p>In this tutorial, we used cell-type annotations recorded as <code>seurat_annotation</code> in <code>meta.data</code> (see Section 1-1, <em>Setting Up the Environment</em>) and performed DEG analysis with this annotation as the grouping variable.</p>
+
 
 </div>
 </div>
