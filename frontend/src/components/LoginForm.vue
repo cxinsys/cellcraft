@@ -15,8 +15,13 @@
       <div class="login__error" v-if="isError">{{ errorMessage }}</div>
 
       <div class="login__login">
-        <button class="login__button" :disabled="!email || !password" type="submit">
-          Sign In
+        <button 
+          class="login__button" 
+          :disabled="!email || !password || isLoading" 
+          type="submit"
+          :class="{ 'login__button--loading': isLoading }"
+        >
+          {{ isLoading ? 'Signing In...' : 'Sign In' }}
         </button>
       </div>
     </form>
@@ -31,10 +36,16 @@ export default {
       password: "",
       errorMessage: "",
       isError: false,
+      isLoading: false,
     };
   },
   methods: {
     async submitForm() {
+      // 로딩 시작 및 에러 상태 클리어
+      this.isLoading = true;
+      this.isError = false;
+      this.errorMessage = "";
+
       try {
         const userData = {
           username: this.email,
@@ -51,12 +62,38 @@ export default {
         } else {
           this.$router.push("/projects");
         }
+
+        // 성공 시에만 폼 초기화
+        this.initForm();
       } catch (error) {
-        console.error(error.response.data.detail);
-        this.errorMessage = error.response.data.detail;
+        // 개발자용 콘솔 로그
+        console.error("로그인 오류:", error);
+
+        // 사용자에게 표시할 오류 메시지 결정
+        let userErrorMessage = "Login failed. Please try again later.";
+
+        if (error.response) {
+          // 서버 응답이 있는 경우
+          if (error.response.status === 401) {
+            userErrorMessage = "Invalid email or password.";
+          } else if (error.response.status === 422) {
+            userErrorMessage = "Invalid input information.";
+          } else if (error.response.status >= 500) {
+            userErrorMessage = "Server error occurred. Please try again later.";
+          } else if (error.response.data && error.response.data.detail) {
+            // 서버에서 제공하는 상세 메시지가 있는 경우
+            userErrorMessage = error.response.data.detail;
+          }
+        } else if (error.request) {
+          // 네트워크 오류
+          userErrorMessage = "Please check your network connection.";
+        }
+
+        this.errorMessage = userErrorMessage;
         this.isError = true;
       } finally {
-        this.initForm();
+        // 로딩 상태만 해제 (오류 발생 시 폼 유지)
+        this.isLoading = false;
       }
     },
     initForm() {
@@ -136,6 +173,9 @@ export default {
   border-radius: 0.4rem;
   background: rgb(75, 119, 209);
   color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease, opacity 0.3s ease;
 
   font-family: "Montserrat", sans-serif;
   font-style: normal;
@@ -143,6 +183,20 @@ export default {
   font-size: 1rem;
   line-height: 1rem;
   text-decoration: none;
+}
+
+.login__button:hover:not(:disabled) {
+  background: rgb(65, 109, 199);
+}
+
+.login__button:disabled {
+  background: rgb(170, 170, 170);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.login__button--loading {
+  position: relative;
 }
 
 .login__error {
