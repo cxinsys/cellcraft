@@ -1,4 +1,5 @@
 <img src="https://github.com/cxinsys/cellcraft/blob/807998fda59e15e185ea9d2835ff7b81a884460f/frontend/src/assets/cellcraft_logo_text.png"/>
+[![DOI](https://zenodo.org/badge/509372107.svg)](https://doi.org/10.5281/zenodo.17099930)
 
 [Demo Website](https://cellcraft.app) • [Docs](https://cellcraft.gitbook.io/cellcraft-docs)
 
