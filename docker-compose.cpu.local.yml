@@ -2,7 +2,9 @@ version: "3.8"
 
 services:
   frontend:
-    image: ghcr.io/cxinsys/cellcraft/frontend:v1.0.0
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.local
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -14,7 +16,9 @@ services:
       - app-network
 
   backend:
-    image: ghcr.io/cxinsys/cellcraft/backend-cpu:v1.0.0
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.improved
     environment:
       - TZ=Asia/Seoul
       - CONDA_DEFAULT_ENV=snakemake
@@ -76,7 +80,9 @@ services:
       - app-network
 
   celery:
-    image: ghcr.io/cxinsys/cellcraft/celery-cpu:v1.0.0
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.improved.celery
     environment:
       - CONDA_DEFAULT_ENV=snakemake
       - C_FORCE_ROOT=true
