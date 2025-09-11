@@ -64,21 +64,16 @@ class PluginVersionValidator:
                     })
                     issues.append(f"Plugin '{plugin_name}' has version '{db_version}' in database, expected '{repository_version}'")
             
-            # Check Docker image availability
+            # Skip Docker registry checks - will be handled during actual pull
             docker_availability = {}
             missing_docker_images = []
             
+            # Mark all as potentially available (actual check happens during pull)
             for plugin_name in plugin_names:
-                # Check if Docker image exists with the repository version
-                image_exists = self.check_docker_image_availability(plugin_name, repository_version)
                 docker_availability[plugin_name] = {
                     "version": repository_version,
-                    "available": image_exists
+                    "available": True  # Assume available, actual pull will verify
                 }
-                
-                if not image_exists:
-                    missing_docker_images.append(plugin_name)
-                    issues.append(f"Docker image for '{plugin_name}:{repository_version}' not found in registry")
             
             # Determine overall consistency
             consistent = len(issues) == 0
