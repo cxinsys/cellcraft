@@ -34,7 +34,6 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
 
    ```bash
    git clone --recurse-submodules https://github.com/cxinsys/cellcraft.git
-   cd cellcraft
    ```
 
 2. Start the application:
