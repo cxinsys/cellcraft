@@ -139,8 +139,10 @@ async def startup_event():
         # Ensure plugins are initialized
         if not version_status.get("database_plugin_count", 0):
             print("   Initializing plugins from CSV...")
-            initialize_plugins_from_csv("./plugin/official/plugins.csv")
-            print("   ✅ Plugins initialized")
+            initialized_count = initialize_plugins_from_csv("./plugin/official/plugins.csv")
+            print(f"   ✅ {initialized_count} plugins initialized")
+        else:
+            print(f"   ✅ {version_status.get('database_plugin_count', 0)} plugins already in database")
             
     except Exception as e:
         print(f"   ⚠️  Plugin initialization warning: {e}")
@@ -148,8 +150,8 @@ async def startup_event():
         # Always try to initialize from CSV as fallback
         try:
             print("   Attempting fallback initialization from plugins.csv...")
-            initialize_plugins_from_csv("./plugin/official/plugins.csv")
-            print("   ✅ Fallback initialization successful")
+            fallback_count = initialize_plugins_from_csv("./plugin/official/plugins.csv")
+            print(f"   ✅ Fallback initialization successful: {fallback_count} plugins")
         except Exception as fallback_error:
             print(f"   ❌ Critical: Could not initialize plugins: {fallback_error}")
             logger.error(f"Failed to initialize plugins: {fallback_error}")
@@ -177,10 +179,13 @@ async def check_and_pull_official_plugin_images():
         cpu_only = os.getenv("CPU_ONLY", "false").lower() == "true"
         if cpu_only:
             gpu_only_plugins = {"FastSCODE", "FastTENET"}
-            plugins = [p for p in plugins if p.name not in gpu_only_plugins]
-            print(f"CPU-only mode: Filtering out GPU-only plugins. Found {len(plugins)} CPU-compatible plugins to check")
+            filtered_plugins = [p for p in plugins if p.name not in gpu_only_plugins]
+            if len(filtered_plugins) != len(plugins):
+                print(f"   CPU-only mode: Filtered out {len(plugins) - len(filtered_plugins)} GPU-only plugins")
+            plugins = filtered_plugins
+            print(f"   Found {len(plugins)} CPU-compatible plugins to check")
         else:
-            print(f"Found {len(plugins)} official plugins to check")
+            print(f"   Found {len(plugins)} official plugins to check")
         
         for plugin in plugins:
             try:
@@ -193,28 +198,28 @@ async def check_and_pull_official_plugin_images():
                 # Check if image exists locally
                 try:
                     client.images.get(image_uri)
-                    print(f"✓ Image {image_uri} already exists locally")
+                    print(f"   ✓ Image {image_uri} already exists locally")
                 except docker.errors.ImageNotFound:
                     # Pull from registry
-                    print(f"⬇ Pulling {image_uri}...")
+                    print(f"   ⬇ Pulling {image_uri}...")
                     try:
                         client.images.pull(image_uri)
-                        print(f"✓ Successfully pulled {image_uri}")
+                        print(f"   ✓ Successfully pulled {image_uri}")
                     except docker.errors.APIError as e:
                         if "not found" in str(e).lower():
-                            print(f"⚠ Image {image_uri} not found in registry, will fallback to local build if needed")
+                            print(f"   ⚠ Image {image_uri} not found in registry, will fallback to local build if needed")
                         else:
-                            print(f"❌ Failed to pull {image_uri}: {e}")
+                            print(f"   ❌ Failed to pull {image_uri}: {e}")
                     except Exception as e:
-                        print(f"❌ Unexpected error pulling {image_uri}: {e}")
+                        print(f"   ❌ Unexpected error pulling {image_uri}: {e}")
                 
             except Exception as e:
-                print(f"❌ Error processing plugin {plugin.name}: {e}")
+                print(f"   ❌ Error processing plugin {plugin.name}: {e}")
                 continue
                 
     except docker.errors.DockerException as e:
-        print(f"⚠ Docker not available: {e}")
+        print(f"   ⚠ Docker not available: {e}")
     except Exception as e:
-        print(f"❌ Error checking/pulling images: {e}")
+        print(f"   ❌ Error checking/pulling images: {e}")
     finally:
         db.close()
