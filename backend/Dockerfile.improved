@@ -1,0 +1,85 @@
+# Multi-platform build arguments
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+# Build stage - 컴파일 도구 및 개발 의존성 설치
+FROM --platform=$BUILDPLATFORM python:3.10-slim AS builder
+ARG TARGETPLATFORM
+
+# 필수 빌드 도구 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    curl \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Micromamba 설치 (플랫폼별 아키텍처 자동 감지)
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
+
+RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
+    case $PLATFORM in \
+        "linux/amd64")  \
+            MICROMAMBA_ARCH=linux-64 && \
+            CONDA_SUBDIR=linux-64 ;; \
+        "linux/arm64")  \
+            MICROMAMBA_ARCH=linux-aarch64 && \
+            CONDA_SUBDIR=linux-aarch64 ;; \
+        *) \
+            MICROMAMBA_ARCH=linux-64 && \
+            CONDA_SUBDIR=linux-64 ;; \
+    esac && \
+    echo "Installing micromamba for $MICROMAMBA_ARCH" && \
+    echo "Setting CONDA_SUBDIR to $CONDA_SUBDIR" && \
+    curl -L "https://micromamba.snakepit.net/api/micromamba/$MICROMAMBA_ARCH/latest" | \
+    tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba && \
+    export CONDA_SUBDIR=$CONDA_SUBDIR
+
+# Conda 환경 구성 (개선된 환경 파일 사용 + 플랫폼별 패키지)
+COPY environment.improved.yml ./
+RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
+    case $PLATFORM in \
+        "linux/amd64")  export CONDA_SUBDIR=linux-64 ;; \
+        "linux/arm64")  export CONDA_SUBDIR=linux-aarch64 ;; \
+        *)              export CONDA_SUBDIR=linux-64 ;; \
+    esac && \
+    echo "Creating conda environment with CONDA_SUBDIR=$CONDA_SUBDIR" && \
+    micromamba config set channel_priority flexible && \
+    CONDA_SUBDIR=$CONDA_SUBDIR micromamba create -y -n snakemake -f environment.improved.yml --platform $CONDA_SUBDIR || \
+    (echo "Retrying with relaxed dependencies..." && \
+     CONDA_SUBDIR=$CONDA_SUBDIR micromamba create -y -n snakemake python=3.10 -c conda-forge -c bioconda && \
+     CONDA_SUBDIR=$CONDA_SUBDIR micromamba install -y -n snakemake -f environment.improved.yml --freeze-installed || true)
+
+# Runtime stage - 최소 런타임 환경
+FROM python:3.10-slim
+
+# 런타임 패키지만 설치 (Java 의존성 제거)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    jq \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Micromamba와 환경을 빌드 스테이지에서 복사
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
+COPY --from=builder /usr/local/bin/micromamba /usr/local/bin/micromamba
+COPY --from=builder /opt/micromamba /opt/micromamba
+
+# Micromamba 환경 PATH 등록
+ENV PATH=/opt/micromamba/envs/snakemake/bin:$PATH
+ENV CONDA_DEFAULT_ENV=snakemake
+
+
+# 작업 디렉토리 설정 및 코드 복사
+WORKDIR /app
+COPY . .
+
+# Note: Git submodules are managed on the host and mounted via volumes
+# This ensures proper branch synchronization between host and container
+
+# FastAPI 서버 실행 (Micromamba env 내 python 사용)
+EXPOSE 8000
+CMD ["/opt/micromamba/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
