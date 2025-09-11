@@ -40,7 +40,10 @@
         adminPage__footer: adminPage,
       }"
     >
-      <div class="copyright__txt">© 2025 CellCraft. All rights reserved</div>
+      <div class="footer__content">
+        <div class="copyright__txt">© 2025 CellCraft. All rights reserved</div>
+        <div class="version__info">v1.0.0 | release/v1.0.0</div>
+      </div>
     </footer>
   </div>
 </template>
@@ -222,20 +225,31 @@ body {
   display: none;
 }
 
-.copyright__txt {
+.footer__content {
   width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
+}
 
+.copyright__txt {
   font-family: "NanumGothic";
   font-style: normal;
   font-weight: 400;
   font-size: 16px;
   line-height: 16px;
-  /* identical to box height */
-
   color: #5e5e5e;
+}
+
+.version__info {
+  font-family: "NanumGothic";
+  font-style: normal;
+  font-weight: 300;
+  font-size: 12px;
+  line-height: 12px;
+  color: #9e9e9e;
 }
 </style>
