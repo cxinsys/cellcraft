@@ -7,11 +7,8 @@
           <h3>Workflow Progress: {{ taskName }}</h3>
           <div class="dag-progress" v-if="progressInfo">
             <div class="progress-bar">
-              <div 
-                class="progress-fill" 
-                :style="{ width: progressInfo.percentage + '%' }"
-                :class="{ 'has-failed': progressInfo.failed_rules > 0 }"
-              ></div>
+              <div class="progress-fill" :style="{ width: progressInfo.percentage + '%' }"
+                :class="{ 'has-failed': progressInfo.failed_rules > 0 }"></div>
             </div>
             <div class="progress-text">
               {{ progressInfo.completed_rules }}/{{ progressInfo.total_rules }} completed
@@ -24,7 +21,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- Controls -->
         <div class="dag-controls">
           <button @click="refreshStatus" class="control-btn" title="Refresh Status">
@@ -41,7 +38,7 @@
           </button>
         </div>
       </div>
-      
+
       <!-- Main Content -->
       <div class="dag-body">
         <!-- Plot Container -->
@@ -55,12 +52,12 @@
             <button @click="retryLoad" class="retry-btn">Retry</button>
           </div>
         </div>
-        
+
         <!-- Side Panel -->
         <div class="dag-sidebar" v-if="selectedNode">
           <div class="node-details">
             <h4>{{ selectedNode.label }} Details</h4>
-            
+
             <div class="detail-section">
               <div class="detail-label">Status:</div>
               <div class="detail-content">
@@ -69,12 +66,12 @@
                 </span>
               </div>
             </div>
-            
+
             <div class="detail-section" v-if="selectedNode.description">
               <div class="detail-label">Description:</div>
               <div class="detail-content">{{ selectedNode.description }}</div>
             </div>
-            
+
             <div class="detail-section" v-if="selectedNode.inputs && selectedNode.inputs.length">
               <div class="detail-label">Input Files:</div>
               <div class="detail-content">
@@ -83,7 +80,7 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="detail-section" v-if="selectedNode.outputs && selectedNode.outputs.length">
               <div class="detail-label">Output Files:</div>
               <div class="detail-content">
@@ -92,7 +89,7 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="detail-section" v-if="selectedNode.params && selectedNode.params.length">
               <div class="detail-label">Parameters:</div>
               <div class="detail-content">
@@ -101,14 +98,14 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="detail-section" v-if="selectedNode.script">
               <div class="detail-label">Script:</div>
               <div class="detail-content script-content">
                 {{ selectedNode.script }}
               </div>
             </div>
-            
+
             <div class="detail-actions">
               <button @click="showRuleLogs" class="action-btn">
                 📋 View Logs
@@ -120,7 +117,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Status Legend -->
       <div class="dag-footer">
         <div class="status-legend">
@@ -139,7 +136,7 @@
         </div>
       </div>
     </div>
-    
+
   </div>
 </template>
 
@@ -176,17 +173,17 @@ export default {
       dagData: null,
       nodeStatuses: {},
       progressInfo: null,
-      
+
       // 시각화 상태
       isLoading: false,
       errorMessage: '',
       selectedNode: null,
-      
+
       // 레이아웃 설정 (고정값)
       currentDirection: 'LR',  // Left to Right로 고정
       textPosition: 'outside', // Outside로 고정
-      
-      
+
+
       // 색상 매핑
       statusColors: {
         'pending': '#9E9E9E',    // 회색
@@ -235,31 +232,31 @@ export default {
      */
     async loadDAGData() {
       console.log('loadDAGData called with taskId:', this.taskId);
-      
+
       if (!this.taskId) {
         console.warn('loadDAGData: taskId is null or undefined');
         this.errorMessage = 'Task ID is required';
         return;
       }
-      
+
       this.isLoading = true;
       this.errorMessage = '';
-      
+
       try {
         console.log('Calling getDAGStructure with taskId:', this.taskId);
         const response = await getDAGStructure(this.taskId);
         console.log('getDAGStructure response:', response);
-        
+
         this.dagData = response.data.dag_structure;
         console.log('DAG structure loaded:', this.dagData);
         console.log('DAG nodes:', this.dagData?.nodes?.map(n => ({ id: n.id, label: n.label })));
-        
+
         // 상태 정보도 함께 로드
         await this.updateRuleStatuses();
-        
+
         // DAG 시각화 렌더링
         await this.renderDAG();
-        
+
         this.isLoading = false;
       } catch (error) {
         console.error('Failed to load DAG data:', error);
@@ -280,33 +277,33 @@ export default {
         this.isLoading = false;
       }
     },
-    
+
     /**
      * Rule 상태 업데이트
      */
     async updateRuleStatuses() {
       console.log('updateRuleStatuses called with taskId:', this.taskId);
-      
+
       if (!this.taskId) {
         console.warn('Cannot update rule statuses: taskId is not available');
         return;
       }
-      
+
       try {
         console.log('Calling getRuleStatuses with taskId:', this.taskId, 'taskStatus:', this.taskStatus);
         const response = await getRuleStatuses(this.taskId, this.taskStatus);
         console.log('getRuleStatuses response:', response);
         console.log('Raw rule_statuses from API:', response.data.rule_statuses);
         console.log('Raw rule_statuses keys:', Object.keys(response.data.rule_statuses || {}));
-        
+
         this.nodeStatuses = response.data.rule_statuses;
         this.progressInfo = response.data.progress;
-        
+
         console.log('nodeStatuses after assignment:', this.nodeStatuses);
         console.log('nodeStatuses keys:', Object.keys(this.nodeStatuses || {}));
         console.log('nodeStatuses type:', typeof this.nodeStatuses);
         console.log('nodeStatuses is array:', Array.isArray(this.nodeStatuses));
-        
+
         // 이미 렌더링된 경우 색상 업데이트
         if (this.dagData && this.$refs.dagPlot && this.$refs.dagPlot.data) {
           this.updateNodeColors();
@@ -316,27 +313,27 @@ export default {
         // 사용자에게 알리지 않고 조용히 실패 - 폴링 중에는 너무 많은 오류 메시지가 방해가 될 수 있음
       }
     },
-    
+
     /**
      * DAG 시각화 렌더링
      */
     async renderDAG() {
       if (!this.dagData || !this.$refs.dagPlot) return;
-      
+
       const { nodes, edges } = this.dagData;
-      
+
       // 레이아웃 계산
       const layout = new HierarchicalLayout(nodes, edges, {
         direction: this.currentDirection,
         rankSep: 180,
         nodeSep: 250
       });
-      
+
       const positions = layout.calculatePositions();
-      
+
       // Plotly 데이터 생성
       const plotData = this.createPlotlyData(nodes, edges, positions);
-      
+
       // Plotly 레이아웃 설정
       const plotLayout = {
         showlegend: false,
@@ -362,27 +359,27 @@ export default {
           color: '#ecf0f1'
         }
       };
-      
+
       const config = {
         responsive: true,
         displayModeBar: true,
         modeBarButtonsToRemove: ['select2d', 'lasso2d', 'toggleSpikelines'],
         displaylogo: false
       };
-      
+
       // Plotly 렌더링
       await Plotly.newPlot(this.$refs.dagPlot, plotData, plotLayout, config);
-      
+
       // 이벤트 리스너 설정
       this.setupPlotlyEvents();
     },
-    
+
     /**
      * Plotly 데이터 생성
      */
     createPlotlyData(nodes, edges, positions) {
       const traces = [];
-      
+
       // 1. Edge Trace (연결선)
       const edgeTrace = {
         x: [],
@@ -397,20 +394,20 @@ export default {
         name: 'edges',
         showlegend: false
       };
-      
+
       edges.forEach(edge => {
         const sourcePos = positions[edge.source];
         const targetPos = positions[edge.target];
-        
+
         if (sourcePos && targetPos) {
           edgeTrace.x.push(sourcePos.x, targetPos.x, null);
           edgeTrace.y.push(sourcePos.y, targetPos.y, null);
         }
       });
-      
+
       // 2. Arrow Markers (방향 표시)
       const arrowTrace = this.createArrowMarkers(edges, positions);
-      
+
       // 3. Node Trace (노드)
       const nodeTrace = {
         x: [],
@@ -419,7 +416,7 @@ export default {
         mode: 'markers+text',
         textposition: this.textPosition === 'center' ? 'middle center' : 'top center',
         textfont: {
-          size: 13,
+          size: 20,
           color: this.textPosition === 'center' ? 'white' : '#ecf0f1',
           family: 'Arial, sans-serif',
           weight: 'bold'
@@ -440,34 +437,34 @@ export default {
         name: 'nodes',
         showlegend: false
       };
-      
+
       // 노드 데이터 채우기
       nodes.forEach(node => {
         const pos = positions[node.id];
         if (pos) {
           nodeTrace.x.push(pos.x);
           nodeTrace.y.push(pos.y);
-          
+
           // 텍스트 위치에 따른 라벨 선택
-          const label = this.textPosition === 'center' ? 
-                       (node.shortLabel || node.label) : node.label;
+          const label = this.textPosition === 'center' ?
+            (node.shortLabel || node.label) : node.label;
           nodeTrace.text.push(label);
-          
+
           // 노드 색상 (상태 기반)
           const status = this.nodeStatuses[node.id] || 'pending';
           console.log(`Node ${node.id} status lookup:`, status, 'available statuses:', Object.keys(this.nodeStatuses || {}));
           nodeTrace.marker.color.push(this.statusColors[status]);
-          
+
           // 호버 텍스트
           nodeTrace.hovertext.push(this.createHoverText(node));
         }
       });
-      
+
       traces.push(edgeTrace, arrowTrace, nodeTrace);
-      
+
       return traces;
     },
-    
+
     /**
      * 화살표 마커 생성
      */
@@ -487,21 +484,21 @@ export default {
         name: 'arrows',
         showlegend: false
       };
-      
+
       edges.forEach(edge => {
         const sourcePos = positions[edge.source];
         const targetPos = positions[edge.target];
-        
+
         if (sourcePos && targetPos) {
           const dx = targetPos.x - sourcePos.x;
           const dy = targetPos.y - sourcePos.y;
           const angle = Math.atan2(dy, dx) * 180 / Math.PI - 90;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          
+
           // 노드 경계에서 떨어진 위치
           const arrowOffset = 50;
           const ratio = (dist - arrowOffset) / dist;
-          
+
           if (ratio > 0 && ratio < 1) {
             arrowTrace.x.push(sourcePos.x + dx * ratio);
             arrowTrace.y.push(sourcePos.y + dy * ratio);
@@ -509,10 +506,10 @@ export default {
           }
         }
       });
-      
+
       return arrowTrace;
     },
-    
+
     /**
      * 호버 텍스트 생성
      */
@@ -520,30 +517,30 @@ export default {
       const status = this.nodeStatuses[node.id] || 'pending';
       let hoverText = `<b>${node.label}</b><br>`;
       hoverText += `Status: <b>${status.toUpperCase()}</b><br>`;
-      
+
       if (node.description) {
         hoverText += `${node.description}<br>`;
       }
-      
+
       if (node.inputs && node.inputs.length > 0) {
         hoverText += `Inputs: ${node.inputs.length} files<br>`;
       }
-      
+
       if (node.outputs && node.outputs.length > 0) {
         hoverText += `Outputs: ${node.outputs.length} files<br>`;
       }
-      
+
       hoverText += '<br><i>Click for details</i>';
-      
+
       return hoverText;
     },
-    
+
     /**
      * Plotly 이벤트 설정
      */
     setupPlotlyEvents() {
       const plotElement = this.$refs.dagPlot;
-      
+
       // 노드 클릭 이벤트
       plotElement.on('plotly_click', (data) => {
         if (data.points[0] && data.points[0].data.name === 'nodes') {
@@ -551,13 +548,13 @@ export default {
           this.handleNodeClick(nodeIndex);
         }
       });
-      
+
       // 더블클릭으로 뷰 리셋
       plotElement.on('plotly_doubleclick', () => {
         this.resetView();
       });
     },
-    
+
     /**
      * 노드 클릭 처리
      */
@@ -567,16 +564,16 @@ export default {
         this.highlightConnectedNodes(nodeIndex);
       }
     },
-    
+
     /**
      * 연결된 노드 하이라이트
      */
     highlightConnectedNodes(nodeIndex) {
       if (!this.dagData) return;
-      
+
       const selectedNodeId = this.dagData.nodes[nodeIndex].id;
       const connected = new Set([nodeIndex]);
-      
+
       // 연결된 노드 찾기
       this.dagData.edges.forEach(edge => {
         if (edge.source === selectedNodeId) {
@@ -588,35 +585,35 @@ export default {
           if (sourceIndex !== -1) connected.add(sourceIndex);
         }
       });
-      
+
       // 불투명도 조정
-      const opacity = this.dagData.nodes.map((_, idx) => 
+      const opacity = this.dagData.nodes.map((_, idx) =>
         connected.has(idx) ? 1 : 0.3
       );
-      
+
       Plotly.restyle(this.$refs.dagPlot, {
         'marker.opacity': [opacity]
       }, [2]); // nodes trace index
     },
-    
+
     /**
      * 노드 색상 업데이트
      */
     updateNodeColors() {
       if (!this.dagData || !this.$refs.dagPlot) return;
-      
+
       const colors = this.dagData.nodes.map(node => {
         const status = this.nodeStatuses[node.id] || 'pending';
         return this.statusColors[status];
       });
-      
+
       Plotly.restyle(this.$refs.dagPlot, {
         'marker.color': [colors]
       }, [2]); // nodes trace index
     },
-    
-    
-    
+
+
+
     /**
      * 상태 수동 새로고침
      */
@@ -624,7 +621,7 @@ export default {
       console.log('refreshStatus called');
       await this.updateRuleStatuses();
     },
-    
+
     /**
      * PNG 내보내기
      */
@@ -638,7 +635,7 @@ export default {
         });
       }
     },
-    
+
     /**
      * SVG 내보내기
      */
@@ -652,14 +649,14 @@ export default {
         });
       }
     },
-    
-    
+
+
     /**
      * 뷰 리셋
      */
     resetView() {
       this.selectedNode = null;
-      
+
       if (this.dagData && this.$refs.dagPlot) {
         const opacity = new Array(this.dagData.nodes.length).fill(1);
         Plotly.restyle(this.$refs.dagPlot, {
@@ -667,16 +664,16 @@ export default {
         }, [2]);
       }
     },
-    
+
     /**
      * Rule 로그 보기
      */
     async showRuleLogs() {
       if (!this.selectedNode || !this.taskId) return;
-      
+
       try {
         const response = await getRuleLogs(this.taskId, this.selectedNode.id);
-        
+
         // 로그 데이터를 별도 모달이나 탭에서 표시
         console.log('Rule logs:', response.data);
         // TODO: 로그 뷰어 모달 구현
@@ -686,14 +683,14 @@ export default {
         alert('Failed to load rule logs. Please try again.');
       }
     },
-    
+
     /**
      * 파일명 추출
      */
     getFileName(filepath) {
       return filepath.split('/').pop();
     },
-    
+
     /**
      * 재시도
      */
@@ -701,8 +698,8 @@ export default {
       console.log('retryLoad called');
       await this.loadDAGData();
     },
-    
-    
+
+
     /**
      * 모달 닫기
      */
@@ -825,7 +822,7 @@ export default {
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.8em;
+  font-size: 1.5rem;
 }
 
 .close-btn:hover {
@@ -870,8 +867,13 @@ export default {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .error-message {
@@ -953,7 +955,8 @@ export default {
   color: white;
 }
 
-.file-item, .param-item {
+.file-item,
+.param-item {
   padding: 2px 0;
   font-family: monospace;
   font-size: 0.9em;
@@ -1031,10 +1034,21 @@ export default {
   border-radius: 50%;
 }
 
-.status-dot.pending { background-color: #9E9E9E; }
-.status-dot.running { background-color: #f39c12; }
-.status-dot.success { background-color: #4CAF50; }
-.status-dot.failed { background-color: #F44336; }
+.status-dot.pending {
+  background-color: #9E9E9E;
+}
+
+.status-dot.running {
+  background-color: #f39c12;
+}
+
+.status-dot.success {
+  background-color: #4CAF50;
+}
+
+.status-dot.failed {
+  background-color: #F44336;
+}
 
 
 /* 반응형 디자인 */
@@ -1043,31 +1057,31 @@ export default {
     width: 95%;
     height: 85%;
   }
-  
+
   .dag-header {
     flex-direction: column;
     gap: 12px;
     padding: 12px;
   }
-  
+
   .dag-progress {
     width: 100%;
   }
-  
+
   .dag-body {
     flex-direction: column;
   }
-  
+
   .dag-sidebar {
     width: 100%;
     max-height: 200px;
   }
-  
+
   .dag-controls {
     flex-wrap: wrap;
     gap: 4px;
   }
-  
+
   .control-btn {
     padding: 4px 8px;
     font-size: 0.7em;
