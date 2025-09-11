@@ -53,13 +53,13 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
    For GPU-enabled setup:
    ```bash
    cd backend/plugin/official && git switch release/plugins-v1.0
-   cd ../../.. && docker compose -f docker-compose.gpu.yml up --build
+   cd ../../.. && docker compose -f docker-compose.gpu.local.yml up --build
    ```
 
    For CPU-only setup:
    ```bash
    cd backend/plugin/official && git switch release/plugins-v1.0-cpu
-   cd ../../.. && docker compose -f docker-compose.cpu.yml up --build
+   cd ../../.. && docker compose -f docker-compose.cpu.local.yml up --build
    ```
 
 3. Access the application at [http://localhost:8080](http://localhost:8080).
