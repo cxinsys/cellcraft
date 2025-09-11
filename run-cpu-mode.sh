@@ -19,7 +19,8 @@ readonly NC='\033[0m' # No Color
 # Configuration
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PLUGIN_DIR="${SCRIPT_DIR}/backend/plugin/official"
-readonly COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.cpu.yml"
+readonly COMPOSE_FILE_GHCR="${SCRIPT_DIR}/docker-compose.cpu.yml"
+readonly COMPOSE_FILE_LOCAL="${SCRIPT_DIR}/docker-compose.cpu.local.yml"
 readonly CHECK_SCRIPT="${SCRIPT_DIR}/check-installation.sh"
 readonly CPU_BRANCH="release/plugins-v1.0-cpu"
 readonly VERSION_FILE="${PLUGIN_DIR}/version.json"
@@ -108,17 +109,58 @@ parse_arguments() {
     done
 }
 
+# Check GHCR image availability
+check_ghcr_availability() {
+    log_header "GHCR Image Availability Check"
+    
+    # Test images for CPU mode
+    local images=("frontend:v1.0.0" "backend-cpu:v1.0.0" "celery-cpu:v1.0.0")
+    
+    # Test with the smallest image (frontend)
+    local test_image="ghcr.io/cxinsys/cellcraft/frontend:v1.0.0"
+    
+    log_step "Testing GHCR accessibility with: $test_image"
+    
+    # Check if image manifest is accessible (faster than pull)
+    if timeout 30 docker manifest inspect "$test_image" >/dev/null 2>&1; then
+        log_success "GHCR images are accessible"
+        return 0
+    else
+        log_warning "GHCR access failed (network/auth issue)"
+        return 1
+    fi
+}
+
+# Determine compose strategy
+determine_compose_strategy() {
+    if check_ghcr_availability; then
+        log_success "Strategy: GHCR images (fast deployment)"
+        echo "ghcr"
+    else
+        log_warning "Strategy: Local build (slower but reliable)"
+        echo "local"
+    fi
+}
+
 # Check prerequisites
 check_prerequisites() {
     log_header "Prerequisites Check"
     
     # Check if we're in the correct directory
-    if [[ ! -f "${COMPOSE_FILE}" ]]; then
+    if [[ ! -f "${COMPOSE_FILE_GHCR}" ]]; then
         log_error "docker-compose.cpu.yml not found in current directory"
         log_error "Please run this script from the CellCraft root directory"
         exit 1
     fi
     log_success "Found docker-compose.cpu.yml"
+    
+    # Check local compose file
+    if [[ ! -f "${COMPOSE_FILE_LOCAL}" ]]; then
+        log_error "docker-compose.cpu.local.yml not found in current directory"
+        log_error "Please ensure all compose files are present"
+        exit 1
+    fi
+    log_success "Found docker-compose.cpu.local.yml"
     
     # Check if plugin directory exists
     if [[ ! -d "${PLUGIN_DIR}" ]]; then
@@ -248,8 +290,9 @@ clean_containers() {
     if [[ "${CLEAN_CONTAINERS}" == "true" ]]; then
         log_header "Container Cleanup"
         
-        log_step "Stopping existing containers"
-        docker compose -f "${COMPOSE_FILE}" down || {
+        log_step "Stopping existing containers (trying both compose files)"
+        docker compose -f "${COMPOSE_FILE_GHCR}" down 2>/dev/null || true
+        docker compose -f "${COMPOSE_FILE_LOCAL}" down 2>/dev/null || {
             log_warning "Some containers may not have been running"
         }
         
@@ -262,27 +305,43 @@ clean_containers() {
     fi
 }
 
-# Build and launch containers
+# Build and launch containers with smart strategy
 launch_containers() {
-    log_header "Container Launch"
+    log_header "Smart Container Launch"
     
-    local build_flag=""
-    if [[ "${FORCE_REBUILD}" == "true" ]]; then
-        build_flag="--build"
-        log_step "Force rebuilding containers"
+    # Determine deployment strategy
+    local strategy
+    strategy=$(determine_compose_strategy)
+    
+    local compose_file
+    local docker_args=""
+    
+    if [[ "$strategy" == "ghcr" ]]; then
+        compose_file="${COMPOSE_FILE_GHCR}"
+        log_info "Using GHCR images: docker compose up -d"
     else
-        log_step "Launching containers (using cache if available)"
+        compose_file="${COMPOSE_FILE_LOCAL}"
+        docker_args="--build"
+        log_info "Using local build: docker compose up -d --build"
+    fi
+    
+    log_step "Compose file: $(basename "$compose_file")"
+    
+    # Handle force rebuild option
+    if [[ "${FORCE_REBUILD}" == "true" ]]; then
+        docker_args="--build"
+        log_step "Force rebuild enabled"
     fi
     
     # Launch containers
     log_step "Starting CellCraft services in CPU-only mode"
-    if docker compose -f "${COMPOSE_FILE}" up -d ${build_flag}; then
+    if docker compose -f "$compose_file" up -d $docker_args; then
         log_success "All containers launched successfully"
     else
         log_error "Failed to launch containers"
         log_error "Check Docker logs for details:"
-        log_error "  docker compose -f ${COMPOSE_FILE} logs"
-        docker compose -f "${COMPOSE_FILE}" logs
+        log_error "  docker compose -f $compose_file logs"
+        docker compose -f "$compose_file" logs
         restore_git_state
         exit 1
     fi
@@ -298,9 +357,9 @@ launch_containers() {
     local all_services
     all_services=$(docker compose -f "${COMPOSE_FILE}" config --services)
     
-    # Check for unhealthy containers
+    # Check for unhealthy containers (using dynamic compose file)
     local unhealthy_containers
-    unhealthy_containers=$(docker compose -f "${COMPOSE_FILE}" ps --format "table {{.Service}}\t{{.Status}}" | grep -E "(unhealthy|exited|restarting)" | awk '{print $1}' | tr '\n' ' ')
+    unhealthy_containers=$(docker compose -f "$compose_file" ps --format "table {{.Service}}\t{{.Status}}" | grep -E "(unhealthy|exited|restarting)" | awk '{print $1}' | tr '\n' ' ')
     
     if [[ -n "${unhealthy_containers// /}" ]]; then
         log_warning "Found unhealthy containers: ${unhealthy_containers}"
@@ -310,13 +369,13 @@ launch_containers() {
         for container in ${unhealthy_containers}; do
             if [[ -n "${container}" ]]; then
                 log_info "Logs for ${container}:"
-                docker compose -f "${COMPOSE_FILE}" logs --tail=20 "${container}" || true
+                docker compose -f "$compose_file" logs --tail=20 "${container}" || true
             fi
         done
         
         # Restart the entire stack
         log_step "Restarting all services"
-        if docker compose -f "${COMPOSE_FILE}" up -d --force-recreate; then
+        if docker compose -f "$compose_file" up -d --force-recreate; then
             log_success "Services restarted successfully"
             # Wait again for services to stabilize
             log_step "Waiting for services to stabilize (15 seconds)"
@@ -324,7 +383,7 @@ launch_containers() {
         else
             log_error "Failed to restart services"
             log_error "Full service logs:"
-            docker compose -f "${COMPOSE_FILE}" logs
+            docker compose -f "$compose_file" logs
             restore_git_state
             exit 1
         fi
@@ -332,11 +391,11 @@ launch_containers() {
     
     # Final status check
     local running_containers
-    running_containers=$(docker compose -f "${COMPOSE_FILE}" ps --services --filter "status=running" | wc -l)
+    running_containers=$(docker compose -f "$compose_file" ps --services --filter "status=running" | wc -l)
     log_info "Running containers: ${running_containers}"
     
     # Show container status
-    docker compose -f "${COMPOSE_FILE}" ps
+    docker compose -f "$compose_file" ps
 }
 
 # Verify installation
@@ -393,9 +452,9 @@ show_final_status() {
     echo -e "  • ${CYAN}RabbitMQ Management:${NC} http://localhost:15672 (guest/guest)"
     echo ""
     echo -e "${BLUE}🔧 Management Commands:${NC}"
-    echo -e "  • View logs: ${CYAN}docker compose -f docker-compose.cpu.yml logs${NC}"
-    echo -e "  • Stop services: ${CYAN}docker compose -f docker-compose.cpu.yml down${NC}"
-    echo -e "  • Restart services: ${CYAN}docker compose -f docker-compose.cpu.yml restart${NC}"
+    echo -e "  • View logs: ${CYAN}docker compose -f [compose-file] logs${NC}"
+    echo -e "  • Stop services: ${CYAN}docker compose -f [compose-file] down${NC}"
+    echo -e "  • Restart services: ${CYAN}docker compose -f [compose-file] restart${NC}"
     echo ""
     echo -e "${BLUE}📊 Current Configuration:${NC}"
     echo -e "  • Mode: CPU-Only (GPU plugins excluded)"
