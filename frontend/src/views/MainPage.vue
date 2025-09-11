@@ -200,7 +200,7 @@ export default {
           "desc": "A guide to converting analyzed files (RDS to H5AD)."
         },
         "multiOmics": {
-          "title": "Multi-Omics",
+          "title": "Using Your Own Data",
           "desc": "A tutorial on multi-omics analysis (scRNA-seq + scATAC-seq) using Seurat."
         },
         intro: {

@@ -45,9 +45,9 @@
       @click.stop>
       <li @click="confirmDelete" v-if="isCompleted">Delete</li>
       <li @click="cancelTask" v-else>Cancle</li>
-      <li @click="showLogs">View Logs</li>
-      <li @click="viewProgress">View Progress</li>
-      <li @click="downloadExecutionManifest" v-if="isCompleted && canDownloadManifest">Download Manifest</li>
+      <li @click="showLogs">View logs</li>
+      <li @click="viewProgress" v-if="isAnalysisTask">View progress</li>
+      <li @click="downloadExecutionManifest" v-if="isCompleted && canDownloadManifest">Download manifest</li>
     </ul>
   </div>
 </template>
@@ -74,7 +74,8 @@ export default {
       isCompleted: false,
       currentTaskId: null,
       currentTask: null,
-      canDownloadManifest: false
+      canDownloadManifest: false,
+      isAnalysisTask: false
     };
   },
   created() {
@@ -134,6 +135,7 @@ export default {
         this.currentTask = task;
         this.isCompleted = ["SUCCESS", "FAILURE", "REVOKED", "RETRY"].includes(task.status);
         this.canDownloadManifest = task.status === 'SUCCESS' && this.formatPluginType(task) === 'Analysis';
+        this.isAnalysisTask = this.formatPluginType(task) === 'Analysis';
         this.R_Mouse_isActive = true;
 
         // 다음 틱에서 실제 메뉴 크기 측정
