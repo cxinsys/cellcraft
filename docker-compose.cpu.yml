@@ -27,7 +27,7 @@ services:
       - CPU_ONLY=true
     build:
       context: ./backend
-      dockerfile: Dockerfile.cpu
+      dockerfile: Dockerfile.improved
     ports:
       - "8000:8000"
     volumes:
@@ -94,7 +94,7 @@ services:
       - CPU_ONLY=true
     build:
       context: ./backend
-      dockerfile: Dockerfile.cpu.celery
+      dockerfile: Dockerfile.improved.celery
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # Plugin directory mounts
