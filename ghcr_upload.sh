@@ -18,8 +18,6 @@ REPO_NAME="${REPO_NAME:-cellcraft}"
 REGISTRY="ghcr.io"
 BASE_IMAGE_NAME="${REGISTRY}/${GITHUB_USERNAME}/${REPO_NAME}"
 
-# Global variables for buildx capabilities
-ARM64_SUPPORTED=false
 
 # Colors for output
 RED='\033[0;31m'
@@ -121,7 +119,7 @@ check_prerequisites() {
     log_success "Prerequisites check passed"
 }
 
-# Check buildx capabilities and setup
+# Check buildx capabilities
 check_buildx() {
     log_step "Checking Docker Buildx capabilities..."
     
@@ -132,34 +130,9 @@ check_buildx() {
         exit 1
     fi
     
-    # Check current builder
-    local current_builder=$(docker buildx ls | grep "^[* ]" | head -1 | awk '{print $1}' | tr -d '* ')
-    log_info "Current builder: ${current_builder}"
-    
-    # Get supported platforms
-    local supported_platforms=$(docker buildx ls | grep "^[* ]" | head -1 | awk -F 'PLATFORMS' '{print $2}' | awk '{print $1}')
-    log_info "Supported platforms: ${supported_platforms}"
-    
-    # Check if ARM64 is supported for multi-platform builds
-    if echo "$supported_platforms" | grep -q "linux/arm64"; then
-        ARM64_SUPPORTED=true
-        log_success "✅ Multi-platform build (AMD64 + ARM64) supported"
-    else
-        ARM64_SUPPORTED=false
-        log_warning "⚠️  ARM64 not supported, will use AMD64 only for all images"
-    fi
-    
-    # Check if we need to create/use a multi-platform builder
-    if [ "$ARM64_SUPPORTED" = true ] && ! docker buildx ls | grep -q "docker-container"; then
-        log_info "Creating multi-platform builder..."
-        docker buildx create --name cellcraft-builder --use --bootstrap 2>/dev/null || true
-        local new_builder=$(docker buildx ls | grep "cellcraft-builder" | awk '{print $1}' | tr -d '* ')
-        if [ -n "$new_builder" ]; then
-            log_success "Created and using builder: ${new_builder}"
-        fi
-    fi
-    
-    log_success "Buildx setup completed"
+    log_success "✅ Docker Buildx is available"
+    log_info "🚀 CPU images will be built for AMD64 and ARM64"
+    log_info "🎮 GPU images will be built for AMD64 only"
 }
 
 # Determine build platforms based on image type
@@ -169,14 +142,9 @@ get_build_platforms() {
     # GPU images: AMD64 only (GPU dependencies)
     if [[ "$image_name" == *"gpu"* ]]; then
         echo "linux/amd64"
-        return
-    fi
-    
-    # CPU images: Multi-platform if supported, otherwise AMD64
-    if [ "$ARM64_SUPPORTED" = true ]; then
-        echo "linux/amd64,linux/arm64"
     else
-        echo "linux/amd64"
+        # CPU images: Multi-platform
+        echo "linux/amd64,linux/arm64"
     fi
 }
 
@@ -244,7 +212,7 @@ build_and_push() {
     log_step "Starting Docker buildx build and push..."
     local build_start_time=$(date +%s)
     
-    # Use buildx with multi-platform support and integrated push
+    # Build and push using buildx
     if docker buildx build \
         --platform "${build_platforms}" \
         --progress=plain \
@@ -264,34 +232,7 @@ build_and_push() {
         
         return 0
     else
-        log_warning "⚠️  Buildx failed, attempting fallback to AMD64 only..."
-        
-        # Fallback: try AMD64 only build if multi-platform failed
-        if [[ "$build_platforms" == *","* ]]; then
-            log_step "Retrying with AMD64 only..."
-            
-            if docker buildx build \
-                --platform "linux/amd64" \
-                --progress=plain \
-                -f "${context_dir}/${dockerfile}" \
-                -t "${versioned_tag}" \
-                -t "${latest_tag}" \
-                --push \
-                "${context_dir}"; then
-                
-                local build_end_time=$(date +%s)
-                local build_duration=$((build_end_time - build_start_time))
-                
-                log_success "✅ Fallback build completed in ${build_duration}s (AMD64 only)"
-                log_success "Pushed: ${versioned_tag}"
-                log_success "Pushed: ${latest_tag}"
-                log_warning "⚠️  Built for AMD64 only due to multi-platform build failure"
-                
-                return 0
-            fi
-        fi
-        
-        log_error "❌ Build failed for ${image_name} (both multi-platform and fallback)"
+        log_error "❌ Build failed for ${image_name}"
         return 1
     fi
 }
@@ -418,9 +359,7 @@ main() {
         check_buildx
         login_ghcr
     else
-        # For dry run, we still need to check buildx to determine platforms
-        ARM64_SUPPORTED=false  # Default to false for dry run
-        log_info "Dry run mode: Using default platform settings"
+        log_info "Dry run mode: Skipping buildx check and GHCR login"
     fi
     
     echo
