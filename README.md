@@ -119,7 +119,18 @@ To help you get started with CellCraft, we have prepared step-by-step tutorial v
 
 Before installing CellCraft, please verify your system meets the following requirements:
 
-![System Requirements](https://github.com/user-attachments/assets/system-requirements-table.png)
+| Component | Minimum | Recommended |
+| :--- | :--- | :--- |
+| CPU | 4 cores | 8+ cores |
+| RAM | 8 GB | 16+ GB |
+| Storage | 70 GB | 100+ GB |
+| OS | Ubuntu 20.04 LTS, Window 10/11, macOS 10.15 Catalina | Ubuntu 22.04 LTS |
+| OS Kernel | 6.8.0 | 6.8.0+ |
+| glibc | 2.3.9 | 2.3.9+ |
+| Docker | 20.10.0 | 24.0.0+ |
+| Docker Compose | v2.0.0 | v2.20.0+ |
+| NVIDIA Driver | 535.171.04 | 535.171.04+ |
+| CUDA | 12.1 | 12.2+ |
 
 **Additional Notes**:
 - For GPU-enabled installation, use `./run-gpu-mode.sh`
