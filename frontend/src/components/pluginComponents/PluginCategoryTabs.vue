@@ -2,12 +2,8 @@
   <div class="category-tabs-container">
     <!-- Main Category Tabs -->
     <div class="main-category-tabs">
-      <button
-        v-for="category in mainCategories"
-        :key="category.key"
-        @click="setActiveMainCategory(category.key)"
-        :class="['main-tab', { active: activeMainCategory === category.key }]"
-      >
+      <button v-for="category in mainCategories" :key="category.key" @click="setActiveMainCategory(category.key)"
+        :class="['main-tab', { active: activeMainCategory === category.key }]">
         <div class="tab-content">
           <img :src="category.icon" :alt="category.label" class="tab-icon" />
           <span class="tab-label">{{ category.label }}</span>
@@ -20,12 +16,8 @@
     <!-- Source Filter (Official/Local) -->
     <div class="source-filter">
       <div class="source-tabs">
-        <button
-          v-for="source in sourceFilters"
-          :key="source.key"
-          @click="setActiveSource(source.key)"
-          :class="['source-tab', { active: activeSource === source.key }]"
-        >
+        <button v-for="source in sourceFilters" :key="source.key" @click="setActiveSource(source.key)"
+          :class="['source-tab', { active: activeSource === source.key }]">
           <span class="source-label">{{ source.label }}</span>
           <span class="source-count">{{ getSourceCount(source.key) }}</span>
         </button>
@@ -35,12 +27,8 @@
     <!-- Resource Filter (GPU/CPU) -->
     <div class="resource-filter">
       <div class="resource-tabs">
-        <button
-          v-for="resource in resourceFilters"
-          :key="resource.key"
-          @click="setActiveResource(resource.key)"
-          :class="['resource-tab', { active: activeResource === resource.key }]"
-        >
+        <button v-for="resource in resourceFilters" :key="resource.key" @click="setActiveResource(resource.key)"
+          :class="['resource-tab', { active: activeResource === resource.key }]">
           <span class="resource-label">{{ resource.label }}</span>
           <span class="resource-count">{{ getResourceCount(resource.key) }}</span>
         </button>
@@ -67,7 +55,7 @@ export default {
         {
           key: 'all',
           label: 'All Plugins',
-          icon: require('@/assets/workflows.png')
+          icon: require('@/assets/plugins.png')
         },
         {
           key: 'algorithm',
@@ -107,7 +95,7 @@ export default {
     },
     getCategoryCount(category) {
       if (category === 'all') return this.plugins.length;
-      
+
       return this.plugins.filter(plugin => {
         const pluginCategory = this.getPluginCategory(plugin);
         return pluginCategory === category;
@@ -115,7 +103,7 @@ export default {
     },
     getSourceCount(source) {
       if (source === 'all') return this.plugins.length;
-      
+
       return this.plugins.filter(plugin => {
         const pluginSource = plugin.source || 'local';
         return pluginSource === source;
@@ -123,7 +111,7 @@ export default {
     },
     getResourceCount(resource) {
       if (resource === 'all') return this.plugins.length;
-      
+
       return this.plugins.filter(plugin => {
         const useGpu = plugin.use_gpu || false;
         if (resource === 'gpu') return useGpu;
@@ -141,21 +129,21 @@ export default {
           return 'visualization';
         }
       }
-      
+
       // Legacy support: check category field
       if (plugin.category) {
         return plugin.category;
       }
-      
+
       // Fallback: analyze plugin name/description for categorization
       const name = plugin.name.toLowerCase();
       const desc = (plugin.description || '').toLowerCase();
-      
+
       const visualizationKeywords = ['plot', 'chart', 'graph', 'visual', 'heatmap', 'scatter'];
-      const isVisualization = visualizationKeywords.some(keyword => 
+      const isVisualization = visualizationKeywords.some(keyword =>
         name.includes(keyword) || desc.includes(keyword)
       );
-      
+
       return isVisualization ? 'visualization' : 'algorithm';
     },
     emitFilters() {
@@ -378,25 +366,25 @@ export default {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .main-tab {
     padding: 1rem;
   }
-  
+
   .tab-content {
     flex-direction: row;
     justify-content: space-between;
   }
-  
+
   .tab-icon {
     width: 2rem;
     height: 2rem;
   }
-  
+
   .sub-category-tabs {
     justify-content: center;
   }
-  
+
   .sub-tab {
     padding: 0.5rem 1rem;
   }
