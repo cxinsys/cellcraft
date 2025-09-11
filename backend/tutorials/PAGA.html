@@ -15110,7 +15110,7 @@ body[data-format='mobile'] .jp-OutputArea-child .jp-OutputArea-output {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p><strong><font size="6"> PAGA Tutorial </font></strong></p>
+<p><strong><font size="6"> PAGA Pseudotime Tutorial - (ii) generation of TENET inputs </font></strong></p>
 
 </div>
 </div>
@@ -15122,7 +15122,27 @@ body[data-format='mobile'] .jp-OutputArea-child .jp-OutputArea-output {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h2 id="Abstract">Abstract<a class="anchor-link" href="#Abstract">&#182;</a></h2><p> PAGA (Partition-based Graph Abstraction) is a powerful tool available in Scanpy designed for analyzing single-cell RNA sequencing data. It enables the exploration of cellular relationships, trajectory inference, and understanding of cell state transitions by modeling single-cell data as a graph. For more information, please visit the <strong><font size="4"><a href="https://scanpy.readthedocs.io/en/stable/index.html" style="color: Brown; text-decoration: none;">Scanpy Website</a></font></strong>.</p>
+
+<p>This tutorial serves as the foundational module for producing the input files required for <strong>TENET</strong> gene regulatory network (GRN) analysis.</p>
+
+<p><em>Structure.</em> The tutorial comprises two modules: (i) <strong>preprocessing</strong> and (ii) <strong>generation of TENET inputs</strong>. This page covers Module (ii), demonstrating pseudotime construction and TENET input generation.</p>
+
+<h3 id="What-you-need-(TENET-inputs)">What you need (TENET inputs)<a class="anchor-link" href="#What-you-need-(TENET-inputs)">¶</a></h3><ol>
+<li>Pseudotime matrix: rows = cells; one or more pseudotime trajectories (numeric).</li>
+<li>Cell-by-gene expression matrix: rows = cells; columns = genes; normalized/log-scaled counts recommended.</li>
+<li>Cell-selection file: list or annotation of cells to include (e.g., a subset/trajectory).</li>
+</ol>
+<h3 id="How-to-generate-them">How to generate them<a class="anchor-link" href="#How-to-generate-them">¶</a></h3><ul>
+<li>Seurat → Monocle (R)<br/>
+  Outline: convert Seurat → Monocle, compute trajectory, export pseudotime, export expression matrix for selected cells, write a cell list.</li>
+<li>Scanpy → PAGA (Python)<br/>
+  Outline: compute neighbors/UMAP → PAGA/trajectory, extract pseudotime (diffusion/DF), subset cells, export expression matrix and cell list.</li>
+</ul>
+
+<br>
+<p>The required inputs for <strong>TENET</strong> from a single-cell expression dataset are:
+(i) a <strong>pseudotime matrix</strong>, (ii) a <strong>cell-by-gene expression matrix</strong>, and (iii) a <strong>cell-selection file</strong>.
+By following this tutorial, you will generate all three artifacts needed to run TENET for GRN inference.</p>
 
 </div>
 </div>
