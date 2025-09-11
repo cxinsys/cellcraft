@@ -12,7 +12,7 @@ from app.database import models
 from app.database.conn import engine, initialize_plugins_from_csv, get_new_engine_and_session
 from celery.signals import worker_shutting_down
 import docker
-from app.common.utils.github_registry_client import GitHubRegistryClient
+# GitHub Registry Client removed - no authentication needed
 from app.common.utils.plugin_sync_manager import PluginSyncManager
 from app.common.utils.plugin_version_validator import PluginVersionValidator
 import logging
@@ -105,7 +105,7 @@ async def startup_event():
                 print(f"   Build time: {version_info.get('build_time', 'unknown')}")
                 print(f"   Commit: {version_info.get('commit', 'unknown')}")
         
-        # Perform consistency check
+        # Perform consistency check (simplified - skip Docker registry checks)
         print("\n2. Version Consistency Check...")
         try:
             consistency_result = validator.validate_consistency()
@@ -113,34 +113,35 @@ async def startup_event():
             if consistency_result.get("consistent", False):
                 print("   ✅ All components are in sync")
             else:
-                print("   ⚠️  Version inconsistencies detected")
-                issues = consistency_result.get("issues", [])
-                for issue in issues[:3]:  # Show first 3 issues
-                    print(f"      - {issue}")
-                
-                if len(issues) > 3:
-                    print(f"      ... and {len(issues) - 3} more issues")
+                print("   ⚠️  Version differences detected (will be handled during sync)")
+                # Don't block on version issues - let sync handle it
                 
                 # Attempt automatic synchronization
                 print("\n3. Automatic Synchronization...")
-                sync_result = sync_manager.sync_plugins_to_database()
-                
-                if sync_result.get("success", False):
-                    print("   ✅ Database synchronized successfully")
-                    print(f"   Updated to version: {sync_result.get('version', 'unknown')}")
-                else:
-                    print("   ⚠️  Synchronization incomplete: {sync_result.get('error', 'Unknown error')}")
+                try:
+                    sync_result = sync_manager.sync_plugins_to_database()
+                    
+                    if sync_result.get("success", False):
+                        print("   ✅ Database synchronized successfully")
+                        print(f"   Updated to version: {sync_result.get('version', 'unknown')}")
+                    else:
+                        print("   ⚠️  Synchronization incomplete (non-critical)")
+                        print("   Using existing database entries")
+                except Exception as sync_e:
+                    print(f"   ⚠️  Sync skipped: {sync_e}")
                     print("   Using existing database entries")
         
         except Exception as e:
-            print(f"   ⚠️  Consistency check skipped: {e}")
-            logger.warning(f"Version consistency check failed: {e}")
+            print(f"   ⚠️  Consistency check skipped (non-critical): {e}")
+            logger.warning(f"Version consistency check had issues: {e}")
         
         # Ensure plugins are initialized
         if not version_status.get("database_plugin_count", 0):
             print("   Initializing plugins from CSV...")
-            initialize_plugins_from_csv("./plugin/official/plugins.csv")
-            print("   ✅ Plugins initialized")
+            initialized_count = initialize_plugins_from_csv("./plugin/official/plugins.csv")
+            print(f"   ✅ {initialized_count} plugins initialized")
+        else:
+            print(f"   ✅ {version_status.get('database_plugin_count', 0)} plugins already in database")
             
     except Exception as e:
         print(f"   ⚠️  Plugin initialization warning: {e}")
@@ -148,65 +149,86 @@ async def startup_event():
         # Always try to initialize from CSV as fallback
         try:
             print("   Attempting fallback initialization from plugins.csv...")
-            initialize_plugins_from_csv("./plugin/official/plugins.csv")
-            print("   ✅ Fallback initialization successful")
+            fallback_count = initialize_plugins_from_csv("./plugin/official/plugins.csv")
+            print(f"   ✅ Fallback initialization successful: {fallback_count} plugins")
         except Exception as fallback_error:
             print(f"   ❌ Critical: Could not initialize plugins: {fallback_error}")
             logger.error(f"Failed to initialize plugins: {fallback_error}")
     
-    # Docker image pulling
+    # Docker image pulling - always attempt this
     print("\n4. Docker Images Check...")
-    await check_and_pull_official_plugin_images()
+    try:
+        await check_and_pull_official_plugin_images()
+        print("   Docker image check completed")
+    except Exception as e:
+        print(f"   ⚠️  Docker image check had issues (non-critical): {e}")
+        logger.warning(f"Docker image check had issues: {e}")
     
     print("\n" + "=" * 80)
     print("STARTUP COMPLETE")
     print("=" * 80)
 
 async def check_and_pull_official_plugin_images():
-    """Check and pull official plugin Docker images from GitHub Registry"""
-    db = get_new_engine_and_session()
+    """Check and pull official plugin Docker images"""
+    try:
+        db = get_new_engine_and_session()
+    except Exception as e:
+        print(f"   ❌ Failed to get database connection: {e}")
+        return  # Don't raise, just return to allow server to continue
     
     try:
         client = docker.from_env()
-        registry = GitHubRegistryClient()
         
         # Get all official plugins from database
         plugins = db.query(models.Plugin).filter_by(source="official").all()
-        print(f"Found {len(plugins)} official plugins to check")
+        
+        # Filter out GPU-only plugins when in CPU-only mode
+        cpu_only = os.getenv("CPU_ONLY", "false").lower() == "true"
+        if cpu_only:
+            gpu_only_plugins = {"FastSCODE", "FastTENET"}
+            filtered_plugins = [p for p in plugins if p.name not in gpu_only_plugins]
+            if len(filtered_plugins) != len(plugins):
+                print(f"   CPU-only mode: Filtered out {len(plugins) - len(filtered_plugins)} GPU-only plugins")
+            plugins = filtered_plugins
+            print(f"   Found {len(plugins)} CPU-compatible plugins to check")
+        else:
+            print(f"   Found {len(plugins)} official plugins to check")
         
         for plugin in plugins:
             try:
-                # Generate image URI
-                image_uri = registry.get_image_uri(
-                    plugin.name.lower(), 
-                    plugin.version or "latest"
-                )
+                # Generate simple image URI without registry client
+                plugin_name_lower = plugin.name.lower()
+                version = plugin.version or "latest"
+                image_uri = f"ghcr.io/cxinsys/cellcraft-{plugin_name_lower}:{version}"
                 
                 # Check if image exists locally
                 try:
                     client.images.get(image_uri)
-                    print(f"✓ Image {image_uri} already exists locally")
+                    print(f"   ✓ Image {image_uri} already exists locally")
                 except docker.errors.ImageNotFound:
-                    # Pull from registry
-                    print(f"⬇ Pulling {image_uri}...")
+                    # Try to pull from registry (will use Docker's credential helper if configured)
+                    print(f"   ⬇ Pulling {image_uri}...")
                     try:
                         client.images.pull(image_uri)
-                        print(f"✓ Successfully pulled {image_uri}")
+                        print(f"   ✓ Successfully pulled {image_uri}")
                     except docker.errors.APIError as e:
-                        if "not found" in str(e).lower():
-                            print(f"⚠ Image {image_uri} not found in registry, will fallback to local build if needed")
+                        error_msg = str(e).lower()
+                        if "not found" in error_msg or "404" in error_msg:
+                            print(f"   ⚠ Image {image_uri} not found in registry")
+                        elif "unauthorized" in error_msg or "401" in error_msg:
+                            print(f"   ⚠ Cannot access {image_uri} (authentication may be required)")
                         else:
-                            print(f"❌ Failed to pull {image_uri}: {e}")
+                            print(f"   ⚠ Failed to pull {image_uri}: {e}")
                     except Exception as e:
-                        print(f"❌ Unexpected error pulling {image_uri}: {e}")
+                        print(f"   ⚠ Could not pull {image_uri}: {e}")
                 
             except Exception as e:
-                print(f"❌ Error processing plugin {plugin.name}: {e}")
+                print(f"   ⚠ Error processing plugin {plugin.name}: {e}")
                 continue
                 
     except docker.errors.DockerException as e:
-        print(f"⚠ Docker not available: {e}")
+        print(f"   ⚠ Docker not available: {e}")
     except Exception as e:
-        print(f"❌ Error checking/pulling images: {e}")
+        print(f"   ⚠ Error checking/pulling images: {e}")
     finally:
         db.close()

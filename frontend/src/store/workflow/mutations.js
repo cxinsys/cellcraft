@@ -366,4 +366,34 @@ export default {
       console.error(`No object found with id: ${nodeId}`);
     }
   },
+  
+  // NEW: Running algorithm nodes management
+  setRunningAlgorithmNodes(state, nodeIds) {
+    state.runningAlgorithmNodes = [...nodeIds];
+  },
+  
+  addRunningAlgorithmNode(state, nodeId) {
+    if (!state.runningAlgorithmNodes.includes(nodeId)) {
+      state.runningAlgorithmNodes.push(nodeId);
+    }
+  },
+  
+  removeRunningAlgorithmNode(state, nodeId) {
+    const index = state.runningAlgorithmNodes.indexOf(nodeId);
+    if (index > -1) {
+      state.runningAlgorithmNodes.splice(index, 1);
+    }
+  },
+  
+  clearRunningAlgorithmNodes(state) {
+    state.runningAlgorithmNodes = [];
+  },
+  
+  setTaskAlgorithmMapping(state, mapping) {
+    state.taskAlgorithmMapping = { ...mapping };
+  },
+  
+  clearTaskAlgorithmMapping(state) {
+    state.taskAlgorithmMapping = {};
+  },
 };

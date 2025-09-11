@@ -492,9 +492,9 @@ class SnakemakeDAGParser:
     
     def format_label(self, rule_name: str) -> str:
         """Rule 이름을 사용자 친화적으로 포맷팅"""
-        # 언더스코어를 공백으로 변환하고 첫 글자 대문자화
+        # 언더스코어를 공백으로 변환 (원본 대소문자 유지)
         formatted = rule_name.replace('_', ' ')
-        return formatted.title()
+        return formatted
     
     def create_short_label(self, rule_name: str) -> str:
         """사각형 노드 내부에 표시할 짧은 라벨 생성"""

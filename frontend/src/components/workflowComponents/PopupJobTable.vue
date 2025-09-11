@@ -1,6 +1,7 @@
 <template>
   <div class="control-popup__jobs" v-if="show_jobs">
     <button class="close-button" @click="closePopup" aria-label="Close">
+      <span class="close-icon"></span>
     </button>
     <div class="job-table-container">
       <table class="job-table">
@@ -44,9 +45,9 @@
       @click.stop>
       <li @click="confirmDelete" v-if="isCompleted">Delete</li>
       <li @click="cancelTask" v-else>Cancle</li>
-      <li @click="showLogs">View Logs</li>
-      <li @click="viewProgress">View Progress</li>
-      <li @click="downloadExecutionManifest" v-if="isCompleted && canDownloadManifest">Download Execution Manifest</li>
+      <li @click="showLogs">View logs</li>
+      <li @click="viewProgress" v-if="isAnalysisTask">View progress</li>
+      <li @click="downloadExecutionManifest" v-if="isCompleted && canDownloadManifest">Download manifest</li>
     </ul>
   </div>
 </template>
@@ -73,7 +74,8 @@ export default {
       isCompleted: false,
       currentTaskId: null,
       currentTask: null,
-      canDownloadManifest: false
+      canDownloadManifest: false,
+      isAnalysisTask: false
     };
   },
   created() {
@@ -133,6 +135,7 @@ export default {
         this.currentTask = task;
         this.isCompleted = ["SUCCESS", "FAILURE", "REVOKED", "RETRY"].includes(task.status);
         this.canDownloadManifest = task.status === 'SUCCESS' && this.formatPluginType(task) === 'Analysis';
+        this.isAnalysisTask = this.formatPluginType(task) === 'Analysis';
         this.R_Mouse_isActive = true;
 
         // 다음 틱에서 실제 메뉴 크기 측정
@@ -219,7 +222,7 @@ export default {
 
       // Legacy fallback for tasks without plugin relationship
       let taskType = task.task_type;
-      if (taskType === 'compile' || pluginType === 'analysis') {
+      if (taskType === 'compile' || taskType === 'analysis') {
         return 'Analysis';
       } else if (taskType === 'visualization') {
         return 'Visualization';
@@ -434,5 +437,39 @@ export default {
 
 .close-button:active {
   transform: scale(0.95);
+}
+
+/* X 아이콘 스타일 */
+.close-icon {
+  position: relative;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+}
+
+.close-icon::before,
+.close-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 2px;
+  background-color: white;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.close-icon::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.close-icon::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.close-button:hover .close-icon::before,
+.close-button:hover .close-icon::after {
+  opacity: 1;
 }
 </style>

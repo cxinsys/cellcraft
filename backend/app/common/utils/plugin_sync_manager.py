@@ -46,6 +46,7 @@ class PluginSyncManager:
             else:
                 # Default branch if version.json doesn't exist
                 logger.warning("version.json not found, using default branch")
+                print("version.json not found, using default branch")
                 return "release/plugins-v1.0"
                 
         except Exception as e:

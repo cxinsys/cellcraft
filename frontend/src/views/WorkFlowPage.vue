@@ -118,7 +118,6 @@ import InputFile from "@/components/nodes/InputFileNode.vue";
 import DataTable from "@/components/nodes/DataTableNode.vue";
 import ScatterPlot from "@/components/nodes/ScatterPlotNode.vue";
 import Algorithm from "@/components/nodes/AlgorithmNode.vue";
-import ResultFile from "@/components/nodes/ResultFileNode.vue";
 import ResultFiles from "@/components/nodes/ResultFilesNode.vue";
 import Visualization from "@/components/nodes/VisualizationNode.vue";
 
@@ -185,12 +184,6 @@ export default {
           output: 1,
         },
         {
-          name: "ResultFile",
-          img: require("@/assets/ResultFile_logo.png"),
-          input: 1,
-          output: 1,
-        },
-        {
           name: "ResultFiles",
           img: require("@/assets/ResultFiles_logo.png"),
           input: 1,
@@ -239,7 +232,6 @@ export default {
     this.$df.registerNode("DataTable", DataTable, {}, {});
     this.$df.registerNode("ScatterPlot", ScatterPlot, {}, {});
     this.$df.registerNode("Algorithm", Algorithm, {}, {});
-    this.$df.registerNode("ResultFile", ResultFile, {}, {});
     this.$df.registerNode("ResultFiles", ResultFiles, {}, {});
     this.$df.registerNode("Visualization", Visualization, {}, {});
 
@@ -419,12 +411,24 @@ export default {
           this.on_progress = false;
           this.closeEventSource(task_id);
           clearInterval(this.timeInterval);
+          
+          // Remove the completed algorithm node from running list
+          const algorithmId = this.$store.getters.getAlgorithmIdByTaskId(task_id);
+          if (algorithmId) {
+            this.$store.commit('removeRunningAlgorithmNode', algorithmId);
+          }
         },
         onError: (error) => {
           console.error("SSE Error:", error);
           this.on_progress = false;
           this.closeEventSource(task_id);
           clearInterval(this.timeInterval);
+          
+          // Remove the errored algorithm node from running list
+          const algorithmId = this.$store.getters.getAlgorithmIdByTaskId(task_id);
+          if (algorithmId) {
+            this.$store.commit('removeRunningAlgorithmNode', algorithmId);
+          }
         }
       });
     },
@@ -460,6 +464,15 @@ export default {
 
         // task_ids가 배열이므로 각 태스크 ID에 대해 createEventSource 실행
         if (workflow_data.data.task_ids && Array.isArray(workflow_data.data.task_ids)) {
+          // Store task-algorithm mapping and set running algorithm nodes
+          if (workflow_data.data.task_algorithm_mapping) {
+            this.$store.commit('setTaskAlgorithmMapping', workflow_data.data.task_algorithm_mapping);
+          }
+          
+          if (workflow_data.data.algorithm_ids && Array.isArray(workflow_data.data.algorithm_ids)) {
+            this.$store.commit('setRunningAlgorithmNodes', workflow_data.data.algorithm_ids);
+          }
+          
           workflow_data.data.task_ids.forEach(task_id => {
             this.createEventSource(task_id);
           });

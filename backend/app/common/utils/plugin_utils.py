@@ -329,6 +329,8 @@ def generate_merged_plugin_drawflow( drawflow_data_list: List[Dict[str, Any]], p
 
     pos_x_datatable = pos_x_start + pos_x_increment
     pos_x_algorithm = pos_x_datatable + pos_x_increment
+    pos_x_resultfile = pos_x_algorithm + pos_x_increment
+    pos_x_visualization = pos_x_resultfile + pos_x_increment
 
     pos_y = pos_y_start
 
@@ -399,6 +401,64 @@ def generate_merged_plugin_drawflow( drawflow_data_list: List[Dict[str, Any]], p
         "pos_y": pos_y_start
     }
     merged_drawflow["drawflow"]["Home"]["data"][str(node_id)] = algorithm_node
+    algorithm_node_id = node_id
+    node_id += 1
+
+    # ResultFiles 노드 생성
+    resultfiles_node_id = node_id
+    resultfiles_node = {
+        "id": resultfiles_node_id,
+        "name": "ResultFiles",
+        "data": {"title": "ResultFiles"},
+        "class": "ResultFiles",
+        "html": "ResultFiles",
+        "typenode": "vue",
+        "inputs": {
+            "input_1": {
+                "connections": [{"node": str(algorithm_node_id), "input": "output_1"}]
+            }
+        },
+        "outputs": {
+            "output_1": {
+                "connections": []
+            }
+        },
+        "pos_x": pos_x_resultfile,
+        "pos_y": pos_y_start  # Same Y as Algorithm node
+    }
+    merged_drawflow["drawflow"]["Home"]["data"][str(node_id)] = resultfiles_node
+    node_id += 1
+
+    # Visualization 노드 생성
+    visualization_node = {
+        "id": node_id,
+        "name": "Visualization",
+        "data": {},  # No title
+        "class": "Visualization",
+        "html": "Visualization",
+        "typenode": "vue",
+        "inputs": {
+            "input_1": {
+                "connections": [{"node": str(resultfiles_node_id), "input": "output_1"}]
+            }
+        },
+        "outputs": {},  # No outputs
+        "pos_x": pos_x_visualization,
+        "pos_y": pos_y_start  # Same Y as Algorithm node
+    }
+    merged_drawflow["drawflow"]["Home"]["data"][str(node_id)] = visualization_node
+
+    # Update Algorithm output connection
+    algorithm_node["outputs"]["output_1"]["connections"].append({
+        "node": str(resultfiles_node_id),
+        "output": "input_1"
+    })
+
+    # Update ResultFiles output connection
+    resultfiles_node["outputs"]["output_1"]["connections"].append({
+        "node": str(visualization_node['id']),
+        "input": "input_1"
+    })
 
     # 생성된 drawflow 출력
     print(json.dumps(merged_drawflow, indent=2))
@@ -441,8 +501,6 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
 
     # 새로운 노드를 저장할 리스트 초기화
     new_nodes = []
-    resultfile_nodes = []
-    visualization_nodes = []
 
     # 기존 노드를 순회하며 새로운 노드를 생성합니다.
     for key, node in original_data.items():
@@ -558,72 +616,6 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
                     node_id += 1
                     pos_y_inputfile += pos_y_increment
 
-        # outputs를 확인하여 connections가 비어있는 경우 새로운 노드 생성
-        for output_key, output_val in node['outputs'].items():
-            # connections가 비어있거나, 모든 연결이 isVisualization이 True인 노드에만 연결되어 있는지 확인
-            should_create_resultfile = False
-            if not output_val['connections']:
-                should_create_resultfile = True
-            else:
-                # 모든 연결이 isVisualization이 True인 노드인지 확인
-                all_visualization = True
-                for conn in output_val['connections']:
-                    connected_node = original_data.get(conn['node'])
-                    if connected_node and not connected_node.get('data', {}).get('isVisualization', False):
-                        all_visualization = False
-                        break
-                should_create_resultfile = all_visualization
-
-            if should_create_resultfile:
-                index = int(output_key.split('_')[1]) - 1
-                output_file = node['data']['outputs'][index]
-                if node['data'].get('isVisualization', False):
-                    visualization_node = {
-                        "id": node_id,
-                        "name": "Visualization",
-                        "data": {"title": output_file},
-                        "class": "Visualization",
-                        "html": "Visualization",
-                        "typenode": "vue",
-                        "inputs": {
-                            "input_1": {
-                                "connections": []
-                            }
-                        },
-                        "outputs": {},
-                        "pos_x": pos_x_visualization,
-                        "pos_y": pos_y_visualization
-                    }
-                    new_drawflow["drawflow"]["Home"]["data"][str(node_id)] = visualization_node
-                    visualization_nodes.append(visualization_node)
-                    node_id += 1
-                    pos_y_visualization += pos_y_increment
-                else:
-                    resultfile_node = {
-                        "id": node_id,
-                        "name": "ResultFile",
-                        "data": {"title": output_file},
-                        "class": "ResultFile",
-                        "html": "ResultFile",
-                        "typenode": "vue",
-                        "inputs": {
-                            "input_1": {
-                                "connections": []
-                            }
-                        },
-                        "outputs": {
-                            "output_1": {
-                                "connections": []
-                            }
-                        },
-                        "pos_x": pos_x_resultfile,
-                        "pos_y": pos_y_resultfile
-                    }
-                    new_drawflow["drawflow"]["Home"]["data"][str(node_id)] = resultfile_node
-                    resultfile_nodes.append(resultfile_node)
-                    node_id += 1
-                    pos_y_resultfile += pos_y_increment
-
     # Algorithm 노드 생성
     algorithm_node = {
         "id": node_id,
@@ -661,28 +653,62 @@ def generate_plugin_drawflow_template(drawflow_data: Dict[str, Any], plugin_name
     algorithm_node_id = node_id
     node_id += 1
 
-    # Algorithm 노드의 output과 모든 ResultFile 노드의 input을 연결
-    for resultfile_node in resultfile_nodes:
-        resultfile_node["inputs"]["input_1"]["connections"].append({
-            "node": str(algorithm_node_id),
-            "input": "output_1"
-        })
-        algorithm_node["outputs"]["output_1"]["connections"].append({
-            "node": str(resultfile_node['id']),
-            "output": "input_1"
-        })
+    # ResultFiles 노드 생성
+    resultfiles_node_id = node_id
+    resultfiles_node = {
+        "id": resultfiles_node_id,
+        "name": "ResultFiles",
+        "data": {"title": "ResultFiles"},
+        "class": "ResultFiles",
+        "html": "ResultFiles",
+        "typenode": "vue",
+        "inputs": {
+            "input_1": {
+                "connections": [{"node": str(algorithm_node_id), "input": "output_1"}]
+            }
+        },
+        "outputs": {
+            "output_1": {
+                "connections": []
+            }
+        },
+        "pos_x": pos_x_resultfile,
+        "pos_y": pos_y_algorithm  # Same Y as Algorithm node
+    }
+    new_drawflow["drawflow"]["Home"]["data"][str(node_id)] = resultfiles_node
+    node_id += 1
 
-    # visualization 노드의 입력을 모든 ResultFile 노드의 출력에 연결
-    for visualization_node in visualization_nodes:
-        visualization_node["inputs"]["input_1"]["connections"] = [
-            {"node": str(resultfile_node['id']), "input": "output_1"}
-            for resultfile_node in resultfile_nodes
-        ]
-        for resultfile_node in resultfile_nodes:
-            resultfile_node["outputs"]["output_1"]["connections"].append({
-                "node": str(visualization_node['id']),
-                "input": "input_1"
-            })
+    # Visualization 노드 생성
+    visualization_node = {
+        "id": node_id,
+        "name": "Visualization",
+        "data": {},  # No title
+        "class": "Visualization",
+        "html": "Visualization",
+        "typenode": "vue",
+        "inputs": {
+            "input_1": {
+                "connections": [{"node": str(resultfiles_node_id), "input": "output_1"}]
+            }
+        },
+        "outputs": {},  # No outputs
+        "pos_x": pos_x_visualization,
+        "pos_y": pos_y_algorithm  # Same Y as Algorithm node
+    }
+    new_drawflow["drawflow"]["Home"]["data"][str(node_id)] = visualization_node
+    node_id += 1
+
+    # Update Algorithm output connection
+    algorithm_node["outputs"]["output_1"]["connections"].append({
+        "node": str(resultfiles_node_id),
+        "output": "input_1"
+    })
+
+    # Update ResultFiles output connection
+    resultfiles_node["outputs"]["output_1"]["connections"].append({
+        "node": str(visualization_node['id']),
+        "input": "input_1"
+    })
 
     # 생성된 new_drawflow 데이터를 출력합니다.
     print(json.dumps(new_drawflow, indent=2))

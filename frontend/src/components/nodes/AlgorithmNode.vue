@@ -2,6 +2,9 @@
   <div>
     <div class="nodeBox" ref="nodeBox">
       <img class="nodeBox__icon" src="@/assets/Algorithm_logo.png" draggable="false" />
+      <div class="running-indicator" v-if="isRunning">
+        <div class="spinner"></div>
+      </div>
     </div>
     <div class="nodeTitleBox">
       <input type="text" class="nodeTitle" v-model="nodeTitle" @input="updateTitle" df-title />
@@ -40,6 +43,12 @@ export default {
         this.updateWorkflowNodeTitle({ nodeId: this.nodeId, newTitle });
       },
     },
+    isRunning() {
+      if (this.nodeId == null) {
+        return false;
+      }
+      return this.$store.getters.isAlgorithmNodeRunning(this.nodeId);
+    },
   },
   methods: {
     ...mapMutations(["updateWorkflowNodeTitle"]),
@@ -58,12 +67,45 @@ export default {
   align-items: center;
   justify-content: center;
   text-align: center;
+  position: relative;
 }
 
 .nodeBox__icon {
   width: 55%;
   height: 55%;
   object-fit: contain;
+}
+
+.running-indicator {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #FF8C00;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  min-width: 18px;
+  font-family: "Montserrat", sans-serif;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid transparent;
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .nodeTitleBox {

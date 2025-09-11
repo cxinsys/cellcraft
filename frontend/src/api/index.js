@@ -233,10 +233,6 @@ function getHtml(filename) {
   return instance.get(`/routes/files/html/${filename}`);
 }
 
-function getResultFile(fileInfo) {
-  return instance.post("/routes/files/result", fileInfo);
-}
-
 function getDownloadResult(filename) {
   return instance.get(`/routes/files/result/${filename}`, {
     responseType: "blob", // 서버로부터 받은 데이터를 blob 형태로 처리
@@ -247,10 +243,6 @@ function getTutorialFileDownload(filename) {
   return instance.get(`/routes/files/tutorials/${filename}`, {
     responseType: "blob", // 서버로부터 받은 데이터를 blob 형태로 처리
   });
-}
-
-function getResultFileOne(filename) {
-  return instance.get(`/routes/files/result/${filename}`);
 }
 
 function validationPlugin(plugin, rules, drawflow) {
@@ -484,9 +476,7 @@ export {
   getOptions,
   checkOptions,
   getHtml,
-  getResultFile,
   getDownloadResult,
-  getResultFileOne,
   validationPlugin,
   uploadPluginMetadata,
   syncPluginData,

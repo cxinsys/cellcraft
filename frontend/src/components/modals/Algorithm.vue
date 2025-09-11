@@ -535,12 +535,6 @@ export default {
       }
     },
     activatePlugin(selectedPluginInputOutput, currentNodeConnection) {
-      // ResultFile인 항목의 개수를 계산
-      const resultFileCount = currentNodeConnection.filter(item => item.name === 'ResultFile').length;
-
-      // ResultFile 항목을 처리하기 위한 인덱스
-      let resultFileIndex = 0;
-
       return selectedPluginInputOutput.map(item => {
         let activate = false;
         let file_name = null; // file_name 초기값 설정
@@ -584,11 +578,8 @@ export default {
             };
           }
         } else if (item.type === 'outputFile') {
-          // outputFile 타입의 경우
-          if (resultFileIndex < resultFileCount) {
-            activate = true;
-            resultFileIndex++;
-          }
+          // 모든 출력 파일을 활성화 (ResultFiles는 다중 파일 처리 가능)
+          activate = true;
         }
 
         return {

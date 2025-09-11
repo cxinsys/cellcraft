@@ -70,7 +70,7 @@ class GitHubRegistryClient:
     def get_available_versions(self, plugin_name: str) -> List[str]:
         """
         Get available versions for a plugin from GitHub Container Registry.
-        Uses multiple fallback methods to retrieve version information.
+        Uses Docker Registry v2 API directly to avoid authentication issues.
         
         Args:
             plugin_name: Name of the plugin
@@ -78,68 +78,14 @@ class GitHubRegistryClient:
         Returns:
             List of available version tags
         """
-        # Try method 1: GitHub Packages API (requires auth)
+        # Primary method: Docker Registry v2 API (public access)
         package_name = f"cellcraft-{plugin_name.lower()}"
         
         try:
-            url = f"{self.BASE_URL}/orgs/{self.owner}/packages/container/{package_name}/versions"
-            logger.info(f"Fetching versions for {package_name} from GitHub Registry API")
-            
-            response = self.session.get(url, timeout=self.timeout)
-            
-            if response.status_code == 404:
-                logger.warning(f"Package {package_name} not found in registry")
-                return self._get_fallback_versions(plugin_name)
-            
-            if response.status_code == 401:
-                logger.warning(f"Unauthorized access to {package_name}, trying fallback methods")
-                return self._get_fallback_versions(plugin_name)
-            
-            response.raise_for_status()
-            
-            versions = []
-            for version_info in response.json():
-                # Extract tags from the version metadata
-                if 'metadata' in version_info and 'container' in version_info['metadata']:
-                    tags = version_info['metadata']['container'].get('tags', [])
-                    versions.extend(tags)
-            
-            # Remove duplicates and sort
-            unique_versions = list(set(versions))
-            unique_versions.sort(reverse=True)  # Latest first
-            
-            if not unique_versions:
-                return self._get_fallback_versions(plugin_name)
-            
-            logger.info(f"Found {len(unique_versions)} versions for {plugin_name}")
-            return unique_versions
-            
-        except requests.exceptions.Timeout:
-            logger.error(f"Timeout fetching versions for {plugin_name}")
-            return self._get_fallback_versions(plugin_name)
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error fetching versions for {plugin_name}: {e}")
-            return self._get_fallback_versions(plugin_name)
-        except Exception as e:
-            logger.error(f"Unexpected error fetching versions for {plugin_name}: {e}")
-            return self._get_fallback_versions(plugin_name)
-    
-    def _get_fallback_versions(self, plugin_name: str) -> List[str]:
-        """
-        Fallback method to get versions using Docker Registry API or predefined versions.
-        
-        Args:
-            plugin_name: Name of the plugin
-            
-        Returns:
-            List of fallback version tags
-        """
-        try:
-            # Try Docker Registry API v2 for public images
-            package_name = f"cellcraft-{plugin_name.lower()}"
+            # Try Docker Registry API v2 for public images first
             registry_api_url = f"https://ghcr.io/v2/{self.owner}/{package_name}/tags/list"
             
-            logger.info(f"Trying Docker Registry API for {package_name}")
+            logger.info(f"Fetching versions for {package_name} from Docker Registry v2 API")
             
             response = self.session.get(registry_api_url, timeout=self.timeout)
             
@@ -151,20 +97,41 @@ class GitHubRegistryClient:
                     sorted_tags = sorted(tags, key=lambda x: (not self._is_semantic_version(x), x), reverse=True)
                     logger.info(f"Found {len(sorted_tags)} versions via Docker Registry API for {plugin_name}")
                     return sorted_tags
+                else:
+                    logger.warning(f"No tags found for {package_name}")
+            elif response.status_code == 404:
+                logger.warning(f"Package {package_name} not found in registry")
+            else:
+                logger.warning(f"Docker Registry API failed for {package_name}, status: {response.status_code}")
             
-            logger.warning(f"Docker Registry API failed for {package_name}, status: {response.status_code}")
-            
+        except requests.exceptions.Timeout:
+            logger.error(f"Timeout fetching versions for {plugin_name}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Docker Registry API error for {plugin_name}: {e}")
         except Exception as e:
-            logger.warning(f"Docker Registry API error for {plugin_name}: {e}")
+            logger.error(f"Unexpected error fetching versions for {plugin_name}: {e}")
         
-        # Final fallback: return predefined versions based on common plugin versioning
+        # Fallback to predefined versions
+        return self._get_fallback_versions(plugin_name)
+    
+    def _get_fallback_versions(self, plugin_name: str) -> List[str]:
+        """
+        Fallback method to return predefined versions for known plugins.
+        
+        Args:
+            plugin_name: Name of the plugin
+            
+        Returns:
+            List of fallback version tags
+        """
+        # Use predefined versions for CPU-only branch plugins
         fallback_versions = self._get_predefined_versions(plugin_name)
         logger.info(f"Using predefined fallback versions for {plugin_name}: {fallback_versions}")
         return fallback_versions
     
     def _get_predefined_versions(self, plugin_name: str) -> List[str]:
         """
-        Get predefined versions for known plugins.
+        Get predefined versions for known plugins in CPU-only mode.
         
         Args:
             plugin_name: Name of the plugin
@@ -172,23 +139,29 @@ class GitHubRegistryClient:
         Returns:
             List of predefined version tags
         """
-        # Actual plugin versions matching the current GitHub Container Registry
-        # Note: These should be updated when new versions are released
-        predefined_versions = {
-            'tenet': ['1.0.0', 'latest'],
-            'fasttenet': ['1.0.0', 'latest'],
-            'genie3': ['1.0.0', 'latest'],
-            'grnboost2': ['1.0.0', 'latest'],
-            'leap': ['1.0.0', 'latest'],
-            'scribe': ['1.0.0', 'latest'],
+        # CPU-only compatible plugin versions for release/plugins-v1.0-cpu branch
+        # Note: FastSCODE and FastTENET are GPU-only and excluded in CPU mode
+        cpu_compatible_versions = {
+            'tenet': ['1.0', 'latest'],
+            'genie3': ['1.0', 'latest'],
+            'grnboost2': ['1.0', 'latest'],
+            'grnviz': ['1.0', 'latest'],
+            'leap': ['1.0', 'latest'],
+            'scribe': ['1.0', 'latest'],
         }
         
         plugin_lower = plugin_name.lower()
-        if plugin_lower in predefined_versions:
-            return predefined_versions[plugin_lower]
+        if plugin_lower in cpu_compatible_versions:
+            return cpu_compatible_versions[plugin_lower]
+        
+        # For GPU-only plugins, return empty list to indicate unavailability
+        gpu_only_plugins = {'fastscode', 'fasttenet'}
+        if plugin_lower in gpu_only_plugins:
+            logger.warning(f"Plugin {plugin_name} is GPU-only and not available in CPU mode")
+            return []
         
         # Generic fallback for unknown plugins
-        return ['1.0.0', 'latest']
+        return ['1.0', 'latest']
     
     def _is_semantic_version(self, version: str) -> bool:
         """

@@ -36,6 +36,9 @@ def initialize_plugins_from_csv(csv_file_path: str = None):
     
     Args:
         csv_file_path (str, optional): Path to CSV file. If None, uses official plugins CSV.
+        
+    Returns:
+        int: Number of plugins successfully initialized
     """
     # Default to official plugins CSV if no path provided
     if csv_file_path is None:
@@ -44,14 +47,14 @@ def initialize_plugins_from_csv(csv_file_path: str = None):
     # Check if CSV file exists
     if not os.path.exists(csv_file_path):
         print(f"Warning: Plugin CSV file not found at {csv_file_path}")
-        return
+        return 0
     
     # CSV 파일 읽기
     try:
         df = pd.read_csv(csv_file_path)
     except Exception as e:
         print(f"Error reading CSV file {csv_file_path}: {e}")
-        return
+        return 0
     
     # 세션 시작
     session = get_new_engine_and_session()
@@ -225,11 +228,12 @@ def initialize_plugins_from_csv(csv_file_path: str = None):
         # 커밋하여 변경 사항 저장
         session.commit()
         print(f"Successfully initialized {plugins_added} plugins from {csv_file_path}")
+        return plugins_added
 
     except Exception as e:
         session.rollback()
         print(f"Error during plugin initialization: {e}")
-        raise
+        return 0
     finally:
         # 세션 종료
         session.close()

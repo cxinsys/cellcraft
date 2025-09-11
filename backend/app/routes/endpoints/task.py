@@ -1150,7 +1150,8 @@ def get_execution_manifest(
                 "logs": {},
                 "snakefile": None,
                 "plugin_metadata": None,
-                "meta_yml": None
+                "meta_yml": None,
+                "results": {}
             }
         }
         
@@ -1225,6 +1226,57 @@ def get_execution_manifest(
                     "path": meta_yml_path,
                     "error": str(e)
                 }
+        
+        # Results 디렉토리의 파일들 메타데이터 수집
+        results_folder_path = os.path.join(task_folder_path, "results")
+        if os.path.exists(results_folder_path) and os.path.isdir(results_folder_path):
+            results_path = Path(results_folder_path)
+            
+            # 파일 타입 분류 함수
+            def get_file_type(extension):
+                file_type_mapping = {
+                    '.sif': 'network',
+                    '.txt': 'text',
+                    '.csv': 'tabular',
+                    '.tsv': 'tabular',
+                    '.json': 'visualization',
+                    '.npy': 'numpy_array',
+                    '.h5ad': 'anndata',
+                    '.png': 'image',
+                    '.jpg': 'image',
+                    '.jpeg': 'image',
+                    '.pdf': 'document'
+                }
+                return file_type_mapping.get(extension.lower(), 'unknown')
+            
+            for result_file_path in results_path.glob("*"):
+                if result_file_path.is_file():
+                    try:
+                        file_stat = result_file_path.stat()
+                        file_extension = result_file_path.suffix
+                        
+                        manifest_data["execution_files"]["results"][result_file_path.name] = {
+                            "size": file_stat.st_size,
+                            "modified_time": str(file_stat.st_mtime),
+                            "extension": file_extension,
+                            "file_type": get_file_type(file_extension),
+                            "path": str(result_file_path)
+                        }
+                    except Exception as e:
+                        # 파일 정보 읽기 실패 시에도 기본 정보는 포함
+                        manifest_data["execution_files"]["results"][result_file_path.name] = {
+                            "size": 0,
+                            "modified_time": None,
+                            "extension": result_file_path.suffix,
+                            "file_type": "error",
+                            "error": str(e)
+                        }
+            
+            # 결과 파일이 없는 경우 정보 표시
+            if not manifest_data["execution_files"]["results"]:
+                logger.warning(f"No result files found in {results_folder_path}")
+        else:
+            logger.info(f"Results directory not found or not accessible: {results_folder_path}")
         
         # JSON으로 변환
         json_content = json.dumps(manifest_data, indent=2, ensure_ascii=False)

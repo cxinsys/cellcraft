@@ -3,7 +3,7 @@
     <div class="modal-container">
       <div class="modal-header">
         <h2>
-          Plugin Settings
+          Plugin Editor
           <span v-if="readOnly || pluginSource === 'official'" class="read-only-badge">Read-only</span>
         </h2>
         <button @click="$emit('close')" class="close-button">✕</button>

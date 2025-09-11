@@ -1,40 +1,60 @@
-FROM tiangolo/uvicorn-gunicorn:python3.10
+# Multi-platform build arguments
+ARG TARGETPLATFORM=linux/amd64
+ARG BUILDPLATFORM=linux/amd64
 
-# 필요한 패키지 설치
+# Build stage - 컴파일 도구 및 개발 의존성 설치
+FROM --platform=$BUILDPLATFORM python:3.10-slim AS builder
+
+# 필수 빌드 도구 설치
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
-    bzip2 \
+    curl \
     git \
     build-essential \
-    autoconf \
-    automake \
-    libtool \
-    curl \
-    make \
-    g++ \
-    unzip \
-    default-jdk \
-    python3-pip \
-    python3-dev \
-    jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Miniconda 설치
-RUN wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
-    && rm Miniconda3-latest-Linux-x86_64.sh
+# Micromamba 설치 (플랫폼별 아키텍처 자동 감지)
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
 
-# Conda 환경 변수 설정
-ENV PATH /opt/conda/bin:$PATH
+RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
+    case $PLATFORM in \
+        "linux/amd64")  MICROMAMBA_ARCH=linux-64  ;; \
+        "linux/arm64")  MICROMAMBA_ARCH=linux-aarch64  ;; \
+        *) MICROMAMBA_ARCH=linux-64 ;; \
+    esac && \
+    echo "Installing micromamba for $MICROMAMBA_ARCH" && \
+    curl -L "https://micromamba.snakepit.net/api/micromamba/$MICROMAMBA_ARCH/latest" | \
+    tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba
 
-# Conda 환경 설정
+# Conda 환경 구성 (jpype1 제거된 환경 파일 사용)
 COPY environment.yml ./
-RUN conda env create -f environment.yml
+RUN micromamba create -y -n snakemake -f environment.yml
 
-# 작업 디렉토리 설정
+# Runtime stage - 최소 런타임 환경
+FROM python:3.10-slim
+
+# 런타임 패키지만 설치 (Java 의존성 제거)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    jq \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Micromamba와 환경을 빌드 스테이지에서 복사
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
+COPY --from=builder /usr/local/bin/micromamba /usr/local/bin/micromamba
+COPY --from=builder /opt/micromamba /opt/micromamba
+
+# Micromamba 환경 PATH 등록
+ENV PATH=/opt/micromamba/envs/snakemake/bin:$PATH
+ENV CONDA_DEFAULT_ENV=snakemake
+
+
+# 작업 디렉토리 설정 및 코드 복사
 WORKDIR /app
-
-# 애플리케이션 소스 코드 복사
 COPY . .
 
 # Initialize git submodules
@@ -43,5 +63,6 @@ RUN if [ -f .gitmodules ]; then \
     git submodule update --init --recursive plugin/official || true; \
     fi
 
-# Conda 환경 활성화 및 FastAPI 애플리케이션 실행
-CMD ["/opt/conda/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# FastAPI 서버 실행 (Micromamba env 내 python 사용)
+EXPOSE 8000
+CMD ["/opt/micromamba/envs/snakemake/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
