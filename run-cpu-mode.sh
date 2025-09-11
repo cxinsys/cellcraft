@@ -144,7 +144,7 @@ check_prerequisites() {
     log_success "Docker daemon is running"
     
     # Check Docker Compose
-    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+    if ! docker compose version &> /dev/null; then
         log_error "Docker Compose is not available"
         exit 1
     fi
@@ -249,7 +249,7 @@ clean_containers() {
         log_header "Container Cleanup"
         
         log_step "Stopping existing containers"
-        docker-compose -f "${COMPOSE_FILE}" down || {
+        docker compose -f "${COMPOSE_FILE}" down || {
             log_warning "Some containers may not have been running"
         }
         
@@ -276,12 +276,13 @@ launch_containers() {
     
     # Launch containers
     log_step "Starting CellCraft services in CPU-only mode"
-    if docker-compose -f "${COMPOSE_FILE}" up -d ${build_flag}; then
+    if docker compose -f "${COMPOSE_FILE}" up -d ${build_flag}; then
         log_success "All containers launched successfully"
     else
         log_error "Failed to launch containers"
         log_error "Check Docker logs for details:"
-        log_error "  docker-compose -f ${COMPOSE_FILE} logs"
+        log_error "  docker compose -f ${COMPOSE_FILE} logs"
+        docker compose -f "${COMPOSE_FILE}" logs
         restore_git_state
         exit 1
     fi
@@ -290,14 +291,52 @@ launch_containers() {
     log_step "Waiting for services to initialize (30 seconds)"
     sleep 30
     
-    # Check container status
+    # Check container status and handle unhealthy containers
     log_step "Checking container status"
+    
+    # Get all service names
+    local all_services
+    all_services=$(docker compose -f "${COMPOSE_FILE}" config --services)
+    
+    # Check for unhealthy containers
+    local unhealthy_containers
+    unhealthy_containers=$(docker compose -f "${COMPOSE_FILE}" ps --format "table {{.Service}}\t{{.Status}}" | grep -E "(unhealthy|exited|restarting)" | awk '{print $1}' | tr '\n' ' ')
+    
+    if [[ -n "${unhealthy_containers// /}" ]]; then
+        log_warning "Found unhealthy containers: ${unhealthy_containers}"
+        log_step "Attempting to restart unhealthy containers"
+        
+        # Show logs for unhealthy containers
+        for container in ${unhealthy_containers}; do
+            if [[ -n "${container}" ]]; then
+                log_info "Logs for ${container}:"
+                docker compose -f "${COMPOSE_FILE}" logs --tail=20 "${container}" || true
+            fi
+        done
+        
+        # Restart the entire stack
+        log_step "Restarting all services"
+        if docker compose -f "${COMPOSE_FILE}" up -d --force-recreate; then
+            log_success "Services restarted successfully"
+            # Wait again for services to stabilize
+            log_step "Waiting for services to stabilize (15 seconds)"
+            sleep 15
+        else
+            log_error "Failed to restart services"
+            log_error "Full service logs:"
+            docker compose -f "${COMPOSE_FILE}" logs
+            restore_git_state
+            exit 1
+        fi
+    fi
+    
+    # Final status check
     local running_containers
-    running_containers=$(docker-compose -f "${COMPOSE_FILE}" ps --services --filter "status=running" | wc -l)
+    running_containers=$(docker compose -f "${COMPOSE_FILE}" ps --services --filter "status=running" | wc -l)
     log_info "Running containers: ${running_containers}"
     
     # Show container status
-    docker-compose -f "${COMPOSE_FILE}" ps
+    docker compose -f "${COMPOSE_FILE}" ps
 }
 
 # Verify installation
@@ -354,9 +393,9 @@ show_final_status() {
     echo -e "  • ${CYAN}RabbitMQ Management:${NC} http://localhost:15672 (guest/guest)"
     echo ""
     echo -e "${BLUE}🔧 Management Commands:${NC}"
-    echo -e "  • View logs: ${CYAN}docker-compose -f docker-compose.cpu.yml logs${NC}"
-    echo -e "  • Stop services: ${CYAN}docker-compose -f docker-compose.cpu.yml down${NC}"
-    echo -e "  • Restart services: ${CYAN}docker-compose -f docker-compose.cpu.yml restart${NC}"
+    echo -e "  • View logs: ${CYAN}docker compose -f docker-compose.cpu.yml logs${NC}"
+    echo -e "  • Stop services: ${CYAN}docker compose -f docker-compose.cpu.yml down${NC}"
+    echo -e "  • Restart services: ${CYAN}docker compose -f docker-compose.cpu.yml restart${NC}"
     echo ""
     echo -e "${BLUE}📊 Current Configuration:${NC}"
     echo -e "  • Mode: CPU-Only (GPU plugins excluded)"
