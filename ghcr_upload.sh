@@ -17,6 +17,9 @@ GITHUB_USERNAME="${GITHUB_USERNAME:-cxinsys}"
 REPO_NAME="${REPO_NAME:-cellcraft}"
 REGISTRY="ghcr.io"
 BASE_IMAGE_NAME="${REGISTRY}/${GITHUB_USERNAME}/${REPO_NAME}"
+# Optional release tag to add alongside auto version and latest
+# Defaults to initial release version; override with: RELEASE_VERSION=v1.2.3 ./ghcr_upload.sh
+RELEASE_VERSION="${RELEASE_VERSION:-v1.0.0}"
 
 
 # Colors for output
@@ -181,6 +184,7 @@ build_and_push() {
     local full_image_name="${BASE_IMAGE_NAME}/${image_name}"
     local versioned_tag="${full_image_name}:${version}"
     local latest_tag="${full_image_name}:latest"
+    local release_tag="${full_image_name}:${RELEASE_VERSION}"
     
     # Get actual build platforms based on image type
     local build_platforms=$(get_build_platforms "$image_name")
@@ -199,7 +203,7 @@ build_and_push() {
     log_info "Context: ${context_dir}"
     log_info "Dockerfile: ${dockerfile}"
     log_info "Platforms: ${platform_display}"
-    log_info "Tags: ${version}, latest"
+    log_info "Tags: ${version}, ${RELEASE_VERSION}, latest"
     echo "========================================"
     
     # Check if Dockerfile exists
@@ -218,6 +222,7 @@ build_and_push() {
         --progress=plain \
         -f "${context_dir}/${dockerfile}" \
         -t "${versioned_tag}" \
+        -t "${release_tag}" \
         -t "${latest_tag}" \
         --push \
         "${context_dir}"; then
@@ -227,6 +232,7 @@ build_and_push() {
         
         log_success "✅ Build and push completed in ${build_duration}s"
         log_success "Pushed: ${versioned_tag}"
+        log_success "Pushed: ${release_tag}"
         log_success "Pushed: ${latest_tag}"
         log_info "Platforms: ${build_platforms}"
         
@@ -293,6 +299,7 @@ main() {
         echo "                         Needs 'write:packages' and 'read:packages' permissions"
         echo "  GITHUB_USERNAME        GitHub username (default: cxinsys)"
         echo "  REPO_NAME              Repository name (default: cellcraft)"
+        echo "  RELEASE_VERSION        Extra semver tag to add (default: v1.0.0)"
         echo ""
         echo "Examples:"
         echo "  # Build and upload all images with auto version"
@@ -368,6 +375,7 @@ main() {
     echo "================================================"
     log_info "Images to build: ${IMAGES_LIST}"
     log_info "Version: ${VERSION}"
+    log_info "Release tag: ${RELEASE_VERSION}"
     log_info "Registry: ${BASE_IMAGE_NAME}"
     log_info "Total images: ${#IMAGE_ARRAY[@]}"
     echo "================================================"
@@ -392,10 +400,10 @@ main() {
             log_info "[🔍 DRY RUN $step_num/$total_count] Would build: ${BASE_IMAGE_NAME}/${image_name}:${VERSION}"
             log_info "Context: ${context_dir}, Dockerfile: ${dockerfile}, Platform: ${platform}"
             log_success "✅ Dry run completed for ${image_name}"
-            ((success_count++))
+            success_count=$((success_count + 1))
         else
             if build_and_push "$context_dir" "$dockerfile" "$image_name" "$VERSION" "$platform" "$step_num" "$total_count"; then
-                ((success_count++))
+                success_count=$((success_count + 1))
             else
                 log_error "❌ Failed to build ${image_name}"
             fi
@@ -423,6 +431,7 @@ main() {
             IFS=':' read -ra IMAGE_INFO <<< "${IMAGES[$image_key]}"
             image_name="${IMAGE_INFO[2]}"
             echo "   • ${BASE_IMAGE_NAME}/${image_name}:${VERSION}"
+            echo "   • ${BASE_IMAGE_NAME}/${image_name}:${RELEASE_VERSION}"
             echo "   • ${BASE_IMAGE_NAME}/${image_name}:latest"
             echo ""
         done
