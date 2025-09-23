@@ -1,9 +1,11 @@
-# Multi-platform build arguments
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
+# syntax=docker/dockerfile:1.4
+
+# Multi-platform build arguments (with safe defaults for non-buildx environments)
+ARG TARGETPLATFORM=linux/amd64
+ARG BUILDPLATFORM=linux/amd64
 
 # Build stage - 컴파일 도구 및 개발 의존성 설치
-FROM --platform=$BUILDPLATFORM python:3.10-slim AS builder
+FROM --platform=${BUILDPLATFORM:-linux/amd64} python:3.10-slim AS builder
 ARG TARGETPLATFORM
 
 # 필수 빌드 도구 설치
