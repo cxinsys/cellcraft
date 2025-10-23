@@ -137,6 +137,9 @@ import {
   createTaskEventSource,
 } from "@/api/index";
 import { connectionRules } from "@/utils/connectionRules.js";
+import { formatFileSize, getTimeDifference, getRunningTime } from "@/utils/formatters";
+import { downloadFile } from "@/utils/download";
+import { generateAllLogsFilename, generateLogFilename, generateManifestFilename } from "@/utils/filename";
 
 export default {
   components: {
@@ -371,6 +374,7 @@ export default {
     document.addEventListener('keydown', this.handleKeyDown);
   },
   methods: {
+    formatFileSize,
     handleKeyDown(event) {
       if (event.key === 'Escape') {
         // 1순위: JobTable이 활성화되어 있으면 먼저 비활성화
@@ -446,42 +450,84 @@ export default {
     deactivateCompileCheck() {
       this.compile_check = false;
     },
+    /**
+     * Prepare workflow data for submission
+     * @returns {Object} Workflow payload with id, title, thumbnail, and workflow_info
+     */
+    prepareWorkflowData() {
+      this.updateWorkflowInfo();
+      this.exportValue = this.$df.export();
+      const title = this.$store.getters.getTitle;
+      const thumbnail = this.$store.getters.getThumbnail;
+
+      return {
+        id: this.currentWorkflowId,
+        title: title,
+        thumbnail: thumbnail,
+        workflow_info: this.exportValue,
+      };
+    },
+    /**
+     * Submit workflow to server
+     * @param {Object} workflow - Workflow data to submit
+     * @returns {Promise} API response
+     */
+    async submitWorkflow(workflow) {
+      console.log(this.$df.drawflow.drawflow[this.$df.module]);
+      return await exportData(workflow);
+    },
+    /**
+     * Handle workflow submission response
+     * @param {Object} workflowData - Response from workflow submission
+     */
+    handleWorkflowResponse(workflowData) {
+      if (!workflowData.data.task_ids || !Array.isArray(workflowData.data.task_ids)) {
+        return;
+      }
+
+      this.updateTaskMapping(workflowData.data);
+      this.startTaskMonitoring(workflowData.data.task_ids);
+    },
+    /**
+     * Update task-algorithm mapping in store
+     * @param {Object} data - Workflow response data
+     */
+    updateTaskMapping(data) {
+      if (data.task_algorithm_mapping) {
+        this.$store.commit('setTaskAlgorithmMapping', data.task_algorithm_mapping);
+      }
+
+      if (data.algorithm_ids && Array.isArray(data.algorithm_ids)) {
+        this.$store.commit('setRunningAlgorithmNodes', data.algorithm_ids);
+      }
+    },
+    /**
+     * Start monitoring tasks via SSE
+     * @param {Array<string>} taskIds - Array of task IDs to monitor
+     */
+    startTaskMonitoring(taskIds) {
+      taskIds.forEach(task_id => {
+        this.createEventSource(task_id);
+      });
+    },
+    /**
+     * Update UI state after workflow submission
+     */
+    updateUIStateAfterRun() {
+      if (this.show_jobs) {
+        this.show_jobs = false;
+        this.toggleTask();
+      }
+    },
+    /**
+     * Main workflow execution method (orchestrator)
+     */
     async runWorkflow() {
       try {
-        this.updateWorkflowInfo();
-        this.exportValue = this.$df.export();
-        const title = this.$store.getters.getTitle;
-        const thumbnail = this.$store.getters.getThumbnail;
-        // console.log(JSON.stringify(this.exportValue));
-        console.log(this.$df.drawflow.drawflow[this.$df.module]);
-        const workflow = {
-          id: this.currentWorkflowId,
-          title: title,
-          thumbnail: thumbnail,
-          workflow_info: this.exportValue,
-        };
-        const workflow_data = await exportData(workflow);
-
-        // task_ids가 배열이므로 각 태스크 ID에 대해 createEventSource 실행
-        if (workflow_data.data.task_ids && Array.isArray(workflow_data.data.task_ids)) {
-          // Store task-algorithm mapping and set running algorithm nodes
-          if (workflow_data.data.task_algorithm_mapping) {
-            this.$store.commit('setTaskAlgorithmMapping', workflow_data.data.task_algorithm_mapping);
-          }
-          
-          if (workflow_data.data.algorithm_ids && Array.isArray(workflow_data.data.algorithm_ids)) {
-            this.$store.commit('setRunningAlgorithmNodes', workflow_data.data.algorithm_ids);
-          }
-          
-          workflow_data.data.task_ids.forEach(task_id => {
-            this.createEventSource(task_id);
-          });
-        }
-
-        if (this.show_jobs) {
-          this.show_jobs = false;
-          this.toggleTask();
-        }
+        const workflow = this.prepareWorkflowData();
+        const workflowData = await this.submitWorkflow(workflow);
+        this.handleWorkflowResponse(workflowData);
+        this.updateUIStateAfterRun();
       } catch (error) {
         console.error(error);
       }
@@ -589,31 +635,67 @@ export default {
         console.error(error);
       }
     },
+    /**
+     * Fetch user tasks from server
+     * @returns {Promise<Array>} List of user tasks
+     */
+    async fetchUserTasks() {
+      const user_tasks = await userTaskMonitoring();
+      console.log(user_tasks);
+      return user_tasks.data;
+    },
+    /**
+     * Process task list and calculate running times
+     * @param {Array} tasks - List of tasks to process
+     */
+    processTaskList(tasks) {
+      this.taskList = tasks;
+
+      this.taskList.forEach((task, idx) => {
+        if (task.status === "SUCCESS" ||
+          task.status === "FAILURE" ||
+          task.status === "REVOKED" ||
+          task.status === "RETRY") {
+          this.taskList[idx].running_time = getTimeDifference(
+            task.start_time,
+            task.end_time
+          );
+        } else if (task.status === "RUNNING" || task.status === "PENDING" || task.status === "INSTALLING") {
+          // RUNNING 또는 PENDING 상태일 때 타이머 시작
+          this.timeInterval = this.startTimer(idx);
+          // Task가 실행 중이므로 on_progress를 true로 설정
+          this.on_progress = true;
+        }
+      });
+    },
+    /**
+     * Stop all running task timers
+     */
+    stopTaskTimers() {
+      clearInterval(this.timeInterval);
+    },
+    /**
+     * Show task list popup
+     */
+    async showTaskList() {
+      const tasks = await this.fetchUserTasks();
+      this.processTaskList(tasks);
+    },
+    /**
+     * Hide task list popup
+     */
+    hideTaskList() {
+      this.stopTaskTimers();
+    },
+    /**
+     * Toggle task list popup visibility
+     */
     async toggleTask() {
       try {
         if (!this.show_jobs) {
-          const user_tasks = await userTaskMonitoring();
-          console.log(user_tasks);
-          this.taskList = user_tasks.data;
-
-          this.taskList.forEach((task, idx) => {
-            if (task.status === "SUCCESS" ||
-              task.status === "FAILURE" ||
-              task.status === "REVOKED" ||
-              task.status === "RETRY") {
-              this.taskList[idx].running_time = this.getTimeDifference(
-                task.start_time,
-                task.end_time
-              );
-            } else if (task.status === "RUNNING" || task.status === "PENDING" || task.status === "INSTALLING") {
-              // RUNNING 또는 PENDING 상태일 때 타이머 시작
-              this.timeInterval = this.startTimer(idx);
-              // Task가 실행 중이므로 on_progress를 true로 설정
-              this.on_progress = true;
-            }
-          });
+          await this.showTaskList();
         } else {
-          clearInterval(this.timeInterval);
+          this.hideTaskList();
         }
 
         setTimeout(() => {
@@ -697,25 +779,6 @@ export default {
       this.selectedDAGTaskId = null;
       this.selectedDAGTaskName = null;
     },
-    /**
-     * Creates a file from data and triggers a browser download.
-     * @param {any} data - The data to be written to the file (e.g., string, Blob).
-     * @param {string} filename - The desired name for the downloaded file.
-     */
-    _downloadFile(data, filename) {
-      const blob = new Blob([data]);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      
-      document.body.appendChild(link);
-      link.click();
-      
-      // Clean up by removing the link and revoking the object URL
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    },
     async exportAllLogsJSON() {
       if (!this.selectedTaskLogs || !this.selectedTaskLogs.task_info) {
         this.setMessage("error", "No logs available to export");
@@ -725,13 +788,11 @@ export default {
       try {
         const taskId = this.selectedTaskLogs.task_info.task_id;
         const response = await exportTaskLogsJSON(taskId);
-        
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        const taskShortId = taskId.substring(0, 8);
-        const filename = `task_${taskShortId}_logs_${timestamp}.json`;
-        
-        this._downloadFile(response.data, filename);
-        
+
+        const filename = generateAllLogsFilename(taskId);
+
+        downloadFile(response.data, filename);
+
         this.setMessage("success", "All logs exported successfully!");
       } catch (error) {
         console.error("Error exporting logs:", error);
@@ -747,15 +808,11 @@ export default {
       try {
         const taskId = this.selectedTaskLogs.task_info.task_id;
         const response = await exportTaskLogTXT(taskId, logFilename);
-        
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        const taskShortId = taskId.substring(0, 8);
-        const baseName = logFilename.split('.').slice(0, -1).join('.') || logFilename;
-        const extension = 'txt'; // Force all log downloads to use .txt extension
-        const downloadFilename = `task_${taskShortId}_${baseName}_${timestamp}.${extension}`;
-        
-        this._downloadFile(response.data, downloadFilename);
-        
+
+        const downloadFilename = generateLogFilename(taskId, logFilename);
+
+        downloadFile(response.data, downloadFilename);
+
         this.setMessage("success", `Log file '${logFilename}' exported successfully!`);
       } catch (error) {
         console.error("Error exporting log file:", error);
@@ -765,13 +822,11 @@ export default {
     async downloadExecutionManifest(taskId) {
       try {
         const response = await downloadExecutionManifest(taskId);
-        
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        const taskShortId = taskId.substring(0, 8);
-        const filename = `execution_manifest_${taskShortId}_${timestamp}.json`;
-        
-        this._downloadFile(response.data, filename);
-        
+
+        const filename = generateManifestFilename(taskId);
+
+        downloadFile(response.data, filename);
+
         this.setMessage("success", "Execution manifest downloaded successfully!");
       } catch (error) {
         console.error("Error downloading execution manifest:", error);
@@ -781,13 +836,6 @@ export default {
     closeJobTable() {
       this.show_jobs = false;
       clearInterval(this.timeInterval);
-    },
-    formatFileSize(bytes) {
-      if (bytes === 0) return '0 Bytes';
-      const k = 1024;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     },
     async toggleFile() {
       if (!this.show_files) {
@@ -819,7 +867,7 @@ export default {
         if (this.taskList[idx].status === "RUNNING" ||
           this.taskList[idx].status === "PENDING" || this.taskList[idx].status === "INSTALLING") {
           let currentTime = new Date();
-          let running_time = this.getRunningTime(
+          let running_time = getRunningTime(
             this.taskList[idx].start_time,
             currentTime
           );
@@ -831,44 +879,6 @@ export default {
         }
       }, 1000);
       return interval;
-    },
-    getTimeDifference(start_time, end_time) {
-      const start = new Date(start_time);
-      const end = new Date(end_time);
-      let diff = Math.abs(end - start); // Difference in milliseconds
-      let hours = Math.floor(diff / 3600000);
-      diff -= hours * 3600000;
-
-      const minutes = Math.floor(diff / 60000);
-      diff -= minutes * 60000;
-
-      const seconds = Math.floor(diff / 1000);
-
-      return `${hours.toString().padStart(2, "0")}:${minutes
-        .toString()
-        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-    },
-    getRunningTime(startTime, currentTime) {
-      const start = new Date(startTime);
-      let diff = Math.abs(currentTime - start); // Difference in milliseconds
-      let hours = Math.floor(diff / 3600000);
-      diff -= hours * 3600000;
-
-      const minutes = Math.floor(diff / 60000);
-      diff -= minutes * 60000;
-
-      const seconds = Math.floor(diff / 1000);
-
-      hours = hours;
-      console.log(
-        `${hours.toString().padStart(2, "0")}:${minutes
-          .toString()
-          .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
-      );
-
-      return `${hours.toString().padStart(2, "0")}:${minutes
-        .toString()
-        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
     },
     async getWorkflowTitle(id) {
       const workflow_id = {
@@ -886,22 +896,42 @@ export default {
         this.toggleMessage = false;
       }, 5000);
     },
+    /**
+     * Build workflow payload for saving
+     * @returns {Object} Workflow payload
+     */
+    buildWorkflowPayload() {
+      const title = this.$store.getters.getTitle;
+      const thumbnail = this.$store.getters.getThumbnail;
+
+      return {
+        id: this.currentWorkflowId,
+        title: title,
+        thumbnail: thumbnail,
+        workflow_info: this.exportValue,
+      };
+    },
+    /**
+     * Save workflow to server
+     * @param {Object} workflow - Workflow payload
+     * @returns {Promise<Object>} Saved workflow data
+     */
+    async saveWorkflowToServer(workflow) {
+      console.log("currentWorkflowId : " + workflow.id + " type : " + typeof workflow.id);
+      const workflow_data = await saveWorkflow(workflow);
+      this.currentWorkflowId = String(workflow_data.data.id);
+      return workflow_data.data;
+    },
+    /**
+     * Set and save current workflow (orchestrator)
+     * @returns {Promise<Object>} Saved workflow data
+     */
     async setCurrentWorkflow() {
       try {
         this.setCurrentWorkflowInfo();
         await this.captureWorkflow();
-        const title = this.$store.getters.getTitle;
-        const thumbnail = this.$store.getters.getThumbnail;
-        const workflow = {
-          id: this.currentWorkflowId,
-          title: title,
-          thumbnail: thumbnail,
-          workflow_info: this.exportValue,
-        };
-        console.log("currentWorkflowId : " + workflow.id + "type : " + typeof workflow.id);
-        const workflow_data = await saveWorkflow(workflow);
-        this.currentWorkflowId = String(workflow_data.data.id);
-        return workflow_data.data;
+        const workflow = this.buildWorkflowPayload();
+        return await this.saveWorkflowToServer(workflow);
       } catch (error) {
         console.error(error);
       }
@@ -970,35 +1000,6 @@ export default {
     
     // ESC 키 이벤트 리스너 제거
     document.removeEventListener('keydown', this.handleKeyDown);
-  },
-  filters: {
-    titleNone(value) {
-      if (value === "" || !value) return "Untitled";
-      return value;
-    },
-    formatBytes(a, b) {
-      if (a === 0) return "0 Bytes";
-      const c = 1024;
-      const d = b || 2;
-      const e = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-      const f = Math.floor(Math.log(a) / Math.log(c));
-
-      return parseFloat((a / Math.pow(c, f)).toFixed(d)) + " " + e[f];
-    },
-    cutFromT(value) {
-      return value.split("T")[0];
-    },
-    cutFromDotName(value) {
-      return value.split(".")[0];
-    },
-    cutFromDotType(value) {
-      return value.split(".")[1];
-    },
-    formatDateTime(dateTime) {
-      const date = moment(dateTime).format("MMMM Do, HH:mm");
-      if (date === "Invalid date") return "Not Yet Completed";
-      return date;
-    },
   },
   computed: {
     filteredMessageContent() {
