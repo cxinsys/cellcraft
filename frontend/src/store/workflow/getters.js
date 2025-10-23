@@ -1,3 +1,5 @@
+import { NODE_TYPES, NODE_PROPERTIES, FILE_FORMATS } from './constants';
+
 export default {
   getTitle(state) {
     return state.title;
@@ -10,7 +12,7 @@ export default {
   },
   getWorkflowVisualizationNodeInfo(state) {
     const nodes = state.workflow_info.drawflow.Home.data;
-    return Object.values(nodes).filter(node => node.class === "Visualization");
+    return Object.values(nodes).filter(node => node[NODE_PROPERTIES.CLASS] === NODE_TYPES.VISUALIZATION);
   },
   getWorkflowNodeInfo(state) {
     return (id) => {
@@ -103,7 +105,7 @@ export default {
           }
 
           // Check if the current node is of type "Algorithm"
-          if (currentNode.class === "Algorithm") {
+          if (currentNode[NODE_PROPERTIES.CLASS] === NODE_TYPES.ALGORITHM) {
             return state.workflow_info.drawflow.Home.data[currentNodeId];
           }
 
@@ -208,22 +210,22 @@ export default {
     return (id) => {
       const node = state.workflow_info.drawflow.Home.data[id];
       if (!node || !node.data) {
-        return 'none';
+        return FILE_FORMATS.NONE;
       }
-      
+
       if (node.data.files && Array.isArray(node.data.files)) {
-        return 'multi';
+        return FILE_FORMATS.MULTI;
       }
-      
+
       if (node.data.file) {
-        return 'single';
+        return FILE_FORMATS.SINGLE;
       }
-      
+
       if (node.data.files && typeof node.data.files === 'object') {
-        return 'algorithm';
+        return FILE_FORMATS.ALGORITHM;
       }
-      
-      return 'none';
+
+      return FILE_FORMATS.NONE;
     };
   },
   

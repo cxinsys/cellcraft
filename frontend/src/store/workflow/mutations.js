@@ -1,3 +1,10 @@
+import {
+  getNodeFromState,
+  propagateFileToConnectedNodes,
+  removeFileFromConnectedNodes
+} from './utils';
+import { DEFAULT_VALUES } from './constants';
+
 export default {
   setTitle(state, title) {
     state.title = title;
@@ -6,7 +13,7 @@ export default {
     state.thumbnail = thumbnail;
   },
   clearTitle(state) {
-    state.title = "Untitled";
+    state.title = DEFAULT_VALUES.TITLE;
   },
   clearThumbnail(state) {
     state.thumbnail = null;
@@ -25,195 +32,55 @@ export default {
     }
   },
   shareWorkflowFile(state, id) {
-    const node = state.workflow_info.drawflow.Home.data[id];
-
+    const node = getNodeFromState(state, id);
     if (!node) {
-        console.error(`No node found with id: ${id}`);
-        return;
+      return;
     }
 
     const file_name = node.data.file;
     if (!file_name) {
-        console.error(`No file found in node with id: ${id}`);
-        return;
+      console.error(`No file found in node with id: ${id}`);
+      return;
     }
 
-    if (!Object.keys(node.outputs).some(outputKey => node.outputs[outputKey].connections.length > 0)) {
-        return;
-    }
-
-    let currentNodes = [id];
-    while (currentNodes.length > 0) {
-      const nextNodes = [];
-      for (const currentNodeId of currentNodes) {
-          const currentNode = state.workflow_info.drawflow.Home.data[currentNodeId];
-  
-          if (!currentNode) {
-              console.error(`No node found with id: ${currentNodeId}`);
-              continue;
-          }
-  
-          // Check if the current node is of type "Algorithm"
-          if (currentNode.name === 'Algorithm') {
-              return;
-          }
-  
-          // Iterate over the outputs to find connections
-          Object.keys(currentNode.outputs).forEach(outputKey => {
-              currentNode.outputs[outputKey].connections.forEach(connection => {
-                  const targetNode = state.workflow_info.drawflow.Home.data[connection.node];
-  
-                  if (targetNode) {
-                      if (targetNode.name === 'Algorithm') {
-                          if (!targetNode.data.files) {
-                              targetNode.data.files = {};
-                          }
-                          targetNode.data.files[id] = file_name;
-                          return;
-                      }
-
-                      targetNode.data.file = file_name;
-  
-                      // Add the connected node to the next nodes to process
-                      nextNodes.push(connection.node);
-                  }
-              });
-          });
-      }
-  
-      currentNodes = nextNodes;
-    }
+    propagateFileToConnectedNodes(state, id, file_name, false);
   },
   removeWorkflowFile(state, id) {
-    const node = state.workflow_info.drawflow.Home.data[id];
+    const node = getNodeFromState(state, id);
     if (!node) {
-        console.error(`No node found with id: ${id}`);
-        return;
+      return;
     }
 
     // Check both single and multi-file formats
     const hasSingleFile = node.data.file;
     const hasMultiFiles = node.data.files && Array.isArray(node.data.files) && node.data.files.length > 0;
-    
+
     if (!hasSingleFile && !hasMultiFiles) {
-        console.error(`No file(s) found in node with id: ${id}`);
-        return;
+      console.error(`No file(s) found in node with id: ${id}`);
+      return;
     }
 
-    if (!Object.keys(node.outputs).some(outputKey => node.outputs[outputKey].connections.length > 0)) {
-        return;
-    }
-
-    let currentNodes = [id];
-    while (currentNodes.length > 0) {
-        const nextNodes = [];
-        for (const currentNodeId of currentNodes) {
-            const currentNode = state.workflow_info.drawflow.Home.data[currentNodeId];
-
-            if (!currentNode) {
-                console.error(`No node found with id: ${currentNodeId}`);
-                continue;
-            }
-
-            // Check if the current node is of type "Algorithm"
-            if (currentNode.name === 'Algorithm') {
-                console.log(`Node with id: ${currentNodeId} is of type 'Algorithm'. Stopping.`);
-                return;
-            }
-
-            // Iterate over the outputs to find connections
-            Object.keys(currentNode.outputs).forEach(outputKey => {
-                currentNode.outputs[outputKey].connections.forEach(connection => {
-                    const targetNode = state.workflow_info.drawflow.Home.data[connection.node];
-
-                    if (targetNode) {
-                        if (targetNode.name === 'Algorithm') {
-                            console.log(`Node with id: ${targetNode.id} is of type 'Algorithm'. Stopping.`);
-                            if (targetNode.data.files) {
-                                delete targetNode.data.files[id];
-                            }
-                            return;
-                        }
-
-                        // Clear both single and multi-file formats
-                        targetNode.data.file = null;
-                        if (targetNode.data.files && Array.isArray(targetNode.data.files)) {
-                          targetNode.data.files = [];
-                        }
-
-                        // Add the connected node to the next nodes to process
-                        nextNodes.push(connection.node);
-                    }
-                });
-            });
-        }
-
-        currentNodes = nextNodes;
-    }
+    removeFileFromConnectedNodes(state, id);
   },
   
   removeWorkflowFiles(state, id) {
-    const node = state.workflow_info.drawflow.Home.data[id];
+    const node = getNodeFromState(state, id);
     if (!node) {
-        console.error(`No node found with id: ${id}`);
-        return;
+      return;
     }
 
     // Clear multi-file format
     if (node.data.files && Array.isArray(node.data.files)) {
       node.data.files = [];
     }
-    
-    // Clear single file format for complete cleanup
+
+    // Clear single file format
     if (node.data.file) {
       node.data.file = null;
     }
-    
-    // Also propagate removal using existing logic
-    // This ensures connected nodes are also cleared
-    if (Object.keys(node.outputs).some(outputKey => node.outputs[outputKey].connections.length > 0)) {
-      // Use existing removal logic by temporarily restoring a dummy file
-      const originalFile = node.data.file;
-      node.data.file = 'temp';
-      
-      // Call existing removal logic
-      let currentNodes = [id];
-      while (currentNodes.length > 0) {
-          const nextNodes = [];
-          for (const currentNodeId of currentNodes) {
-              const currentNode = state.workflow_info.drawflow.Home.data[currentNodeId];
 
-              if (!currentNode || currentNode.name === 'Algorithm') {
-                  continue;
-              }
-
-              Object.keys(currentNode.outputs).forEach(outputKey => {
-                  currentNode.outputs[outputKey].connections.forEach(connection => {
-                      const targetNode = state.workflow_info.drawflow.Home.data[connection.node];
-
-                      if (targetNode) {
-                          if (targetNode.name === 'Algorithm') {
-                              if (targetNode.data.files) {
-                                  delete targetNode.data.files[id];
-                              }
-                              return;
-                          }
-
-                          targetNode.data.file = null;
-                          if (targetNode.data.files && Array.isArray(targetNode.data.files)) {
-                            targetNode.data.files = [];
-                          }
-                          nextNodes.push(connection.node);
-                      }
-                  });
-              });
-          }
-          currentNodes = nextNodes;
-      }
-      
-      // Clean up the temporary file
-      node.data.file = originalFile;
-    }
+    // Propagate removal to connected nodes
+    removeFileFromConnectedNodes(state, id);
   },
   updateWorkflowNodeTitle(state, { nodeId, newTitle }) {
     if (state.workflow_info.drawflow.Home.data[nodeId]) {
@@ -265,17 +132,15 @@ export default {
   },
   
   shareWorkflowFiles(state, id) {
-    const node = state.workflow_info.drawflow.Home.data[id];
-
+    const node = getNodeFromState(state, id);
     if (!node) {
-        console.error(`No node found with id: ${id}`);
-        return;
+      return;
     }
 
     // Determine what files to share - handle both single and multi-file formats
     let filesToShare = null;
     let isMultiFile = false;
-    
+
     if (node.data.files && Array.isArray(node.data.files)) {
       // Multi-file format: get selected files
       const selectedFiles = node.data.files.filter(f => f.selected).map(f => f.name);
@@ -287,73 +152,13 @@ export default {
       // Single file format (backward compatibility)
       filesToShare = node.data.file;
     }
-    
+
     if (!filesToShare) {
-        console.error(`No file(s) selected in node with id: ${id}`);
-        return;
+      console.error(`No file(s) selected in node with id: ${id}`);
+      return;
     }
 
-    if (!Object.keys(node.outputs).some(outputKey => node.outputs[outputKey].connections.length > 0)) {
-        return;
-    }
-
-    let currentNodes = [id];
-    while (currentNodes.length > 0) {
-      const nextNodes = [];
-      for (const currentNodeId of currentNodes) {
-          const currentNode = state.workflow_info.drawflow.Home.data[currentNodeId];
-  
-          if (!currentNode) {
-              console.error(`No node found with id: ${currentNodeId}`);
-              continue;
-          }
-  
-          // Check if the current node is of type "Algorithm"
-          if (currentNode.name === 'Algorithm') {
-              return;
-          }
-  
-          // Iterate over the outputs to find connections
-          Object.keys(currentNode.outputs).forEach(outputKey => {
-              currentNode.outputs[outputKey].connections.forEach(connection => {
-                  const targetNode = state.workflow_info.drawflow.Home.data[connection.node];
-  
-                  if (targetNode) {
-                      if (targetNode.name === 'Algorithm') {
-                          if (!targetNode.data.files) {
-                              targetNode.data.files = {};
-                          }
-                          // Store files from this source node
-                          targetNode.data.files[id] = filesToShare;
-                          return;
-                      }
-
-                      // For non-algorithm nodes, propagate in compatible format
-                      if (isMultiFile) {
-                        // If source has multiple files, convert to multi-file format
-                        targetNode.data.files = filesToShare.map(name => ({ 
-                          name, 
-                          selected: true, 
-                          size: 0 
-                        }));
-                        // Clear old single file
-                        if (targetNode.data.file) {
-                          delete targetNode.data.file;
-                        }
-                      } else {
-                        // Single file: maintain backward compatibility
-                        targetNode.data.file = filesToShare;
-                      }
-  
-                      // Add the connected node to the next nodes to process
-                      nextNodes.push(connection.node);
-                  }
-              });
-          });
-      }
-  
-      currentNodes = nextNodes;
-    }
+    propagateFileToConnectedNodes(state, id, filesToShare, isMultiFile);
   },
   setWorkflowNodeDataObject(state, { nodeId, dataObject }) {
     if (state.workflow_info.drawflow.Home.data[nodeId]) {
