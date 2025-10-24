@@ -95,3 +95,77 @@ export function formatTitle(title) {
   if (title === null || title === "" || !title) return "Untitled";
   return title;
 }
+
+/**
+ * Extract date from ISO string (cuts at 'T')
+ * @param {string} isoString - ISO format date-time string (e.g., "2025-10-23T12:34:56")
+ * @returns {string} Date portion only (e.g., "2025-10-23")
+ */
+export function cutDateFromISO(isoString) {
+  if (!isoString || typeof isoString !== 'string') {
+    return '';
+  }
+  return isoString.split("T")[0];
+}
+
+/**
+ * Extract filename without extension
+ * @param {string} fullName - Full filename with extension
+ * @returns {string} Filename without extension
+ */
+export function extractFileName(fullName) {
+  if (!fullName || typeof fullName !== 'string') {
+    return '';
+  }
+  const parts = fullName.split(".");
+  return parts.length > 1 ? parts.slice(0, -1).join(".") : fullName;
+}
+
+/**
+ * Extract file extension from filename
+ * @param {string} fullName - Full filename with extension
+ * @returns {string} File extension (e.g., "txt", "h5ad")
+ */
+export function extractExtension(fullName) {
+  if (!fullName || typeof fullName !== 'string') {
+    return '';
+  }
+  const parts = fullName.split(".");
+  return parts.length > 1 ? parts[parts.length - 1] : '';
+}
+
+/**
+ * Format relative time from a past timestamp
+ * @param {string|Date} timestamp - Past timestamp to format
+ * @param {Date} currentTime - Current time (default: Date.now())
+ * @returns {string} Relative time string (e.g., "Edited Recently", "Edited 5 hours ago")
+ */
+export function formatRelativeTime(timestamp, currentTime = null) {
+  if (!timestamp) {
+    return '';
+  }
+
+  const now = currentTime ? new Date(currentTime).getTime() : Date.now();
+  const past = new Date(timestamp).getTime();
+
+  if (isNaN(past)) {
+    return '';
+  }
+
+  const time_diff = now - past;
+
+  // Handle future timestamps (e.g., server clock ahead of client)
+  if (time_diff < 0) {
+    return "Edited Recently";
+  }
+
+  const hours = Math.floor(time_diff / (1000 * 60 * 60));
+
+  if (hours === 0) {
+    return "Edited Recently";
+  } else if (hours === 1) {
+    return "Edited 1 hour ago";
+  } else {
+    return `Edited ${hours} hours ago`;
+  }
+}

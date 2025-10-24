@@ -14,6 +14,35 @@ export function formatTimestamp(date = new Date()) {
 }
 
 /**
+ * Extract file extension from filename
+ * @param {string} fileName - Filename with extension
+ * @returns {string} File extension in lowercase (empty string if no extension)
+ */
+export function extractFileExtension(fileName) {
+  if (!fileName || typeof fileName !== 'string') {
+    return '';
+  }
+  const parts = fileName.split('.');
+  return parts.length > 1 ? parts.pop().toLowerCase() : '';
+}
+
+/**
+ * Generate filename for file upload with folder prefix
+ * @param {string} folderName - Folder name to prefix
+ * @param {string} originalFileName - Original file name
+ * @returns {string} Generated filename (e.g., "data_experiment.h5ad")
+ */
+export function generateUploadFileName(folderName, originalFileName) {
+  if (!originalFileName || typeof originalFileName !== 'string') {
+    return '';
+  }
+  if (!folderName || typeof folderName !== 'string') {
+    return originalFileName;
+  }
+  return `${folderName}_${originalFileName}`;
+}
+
+/**
  * Extract short identifier from task ID
  * @param {string} taskId - Full task ID
  * @param {number} length - Number of characters to extract (default: 8)
