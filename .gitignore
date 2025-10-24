@@ -17,3 +17,7 @@ GEMINI.md
 .env.local
 .env.development.local
 .claude
+
+# Frontend test artifacts
+frontend/coverage/
+frontend/coverage-output.txt
