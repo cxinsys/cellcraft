@@ -40,7 +40,7 @@
           </div>
           <div class="project__info">
             <p class="project__title">{{ workflow.title }}</p>
-            <p class="project__date">{{ workflow.updated_at | updateTime }}</p>
+            <p class="project__date">{{ formatRelativeTime(workflow.updated_at) }}</p>
           </div>
         </li>
       </ul>
@@ -112,6 +112,7 @@
 
 <script>
 import { getUser, getWorkflows, deleteWorkflow, getPlugins } from "@/api/index";
+import { formatRelativeTime } from "@/utils/formatters";
 
 export default {
   data() {
@@ -134,6 +135,7 @@ export default {
     };
   },
   methods: {
+    formatRelativeTime,
     createProject() {
       this.isSelectModalVisible = true;
     },
@@ -168,16 +170,24 @@ export default {
       this.showDeleteModal = true;
     },
     async removeWorkflow() {
+      // Store workflow for potential restoration
+      this.targetWorkflow = this.workflows[this.list_idx];
+
+      // Optimistic update - remove from UI immediately
+      this.workflows.splice(this.list_idx, 1);
+      this.showDeleteModal = false;
+
       try {
         const workflow = {
           id: this.workflow_id,
         };
         await deleteWorkflow(workflow);
-        this.workflows.splice(this.list_idx, 1);
-        this.showDeleteModal = false;
         this.setMessage("success", "Workflow deleted successfully");
       } catch (error) {
         console.error(error);
+        // Restore workflow on error
+        this.workflows.splice(this.list_idx, 0, this.targetWorkflow);
+        this.setMessage("error", "Failed to delete workflow. Please try again.");
       }
     },
     closeSelectModal() {
@@ -213,63 +223,60 @@ export default {
         this.toggleMessage = false;
       }, 5000);
     },
-  },
-  async mounted() {
-    try {
-      const [userResult, workflowsResult, pluginsResult] = await Promise.allSettled([
-        getUser(),
-        getWorkflows(),
-        getPlugins()
-      ]);
+    async fetchUserProfile() {
+      const profile = await getUser();
+      this.profile = profile.data;
+      return profile.data.username;
+    },
+    async fetchWorkflows() {
+      const workflows = await getWorkflows();
+      workflows.data.sort((a, b) => {
+        return new Date(b.updated_at) - new Date(a.updated_at);
+      });
+      this.workflows = workflows.data;
+    },
+    async fetchPlugins(currentUser) {
+      const plugins = await getPlugins();
+      this.plugins = plugins.data.plugins.map(plugin => {
+        const userIncluded = plugin.users.some(user => user.username === currentUser);
+        return {
+          ...plugin,
+          checked: userIncluded,
+        };
+      });
+    },
+    async initializeData() {
+      try {
+        const [userResult, workflowsResult] = await Promise.allSettled([
+          this.fetchUserProfile(),
+          this.fetchWorkflows()
+        ]);
 
-      // Handle getUser result
-      if (userResult.status === "fulfilled") {
-        const profile = userResult.value;
-        this.profile = profile.data;
-        const currentUser = profile.data.username;
+        // Handle fetchUserProfile result
+        if (userResult.status === "fulfilled") {
+          const currentUser = userResult.value;
 
-        // Handle getWorkflows result
-        if (workflowsResult.status === "fulfilled") {
-          const workflows = workflowsResult.value;
-          workflows.data.sort((a, b) => {
-            return new Date(b.updated_at) - new Date(a.updated_at);
-          });
-          this.workflows = workflows.data;
+          // Fetch plugins using the dedicated method
+          try {
+            await this.fetchPlugins(currentUser);
+          } catch (error) {
+            console.error("Failed to fetch plugins:", error);
+          }
         } else {
+          console.error("Failed to fetch user profile:", userResult.reason);
+        }
+
+        // Handle fetchWorkflows result
+        if (workflowsResult.status === "rejected") {
           console.error("Failed to fetch workflows:", workflowsResult.reason);
         }
-
-        // Handle getPlugins result
-        if (pluginsResult.status === "fulfilled") {
-          const plugins = pluginsResult.value;
-          console.log(plugins.data.plugins);
-          this.plugins = plugins.data.plugins.map(plugin => {
-            const userIncluded = plugin.users.some(user => user.username === currentUser);
-            return {
-              ...plugin,
-              checked: userIncluded,
-            };
-          });
-        } else {
-          console.error("Failed to fetch plugins:", pluginsResult.reason);
-        }
-      } else {
-        console.error("Failed to fetch user profile:", userResult.reason);
-      }
-    } catch (error) {
-      console.error("Unexpected error:", error);
-    }
-  },
-  filters: {
-    updateTime(updated_at) {
-      const time_diff = Date.now() - new Date(updated_at).getTime();
-      const hours = Math.floor(time_diff / (1000 * 60 * 60));
-      if (hours === 0) {
-        return "Edited Recently";
-      } else {
-        return `Edited ${hours} hours ago`;
+      } catch (error) {
+        console.error("Initialization error:", error);
       }
     },
+  },
+  async mounted() {
+    await this.initializeData();
   },
   computed: {
     filteredPlugins() {

@@ -21,11 +21,11 @@
         <tbody>
           <tr v-for="(task, index) in taskList" :key="index" @click.right.prevent="RMouseClick($event, task)">
             <td>{{ index + 1 }}</td>
-            <td>{{ task.workflow_title | titleNone }}</td>
+            <td>{{ formatTitle(task.workflow_title) }}</td>
             <td>{{ formatPluginInfo(task) }}</td>
             <td>{{ formatPluginType(task) }}</td>
-            <td>{{ task.start_time | formatDateTime }}</td>
-            <td>{{ task.end_time | formatDateTime }}</td>
+            <td>{{ formatDateTime(task.start_time) }}</td>
+            <td>{{ formatDateTime(task.end_time) }}</td>
             <td>{{ task.running_time }}</td>
             <td>
               <div class="task-status">
@@ -53,7 +53,8 @@
 </template>
 
 <script>
-import moment from "moment";
+import { formatDateTime, formatTitle } from "@/utils/formatters";
+import { getStatusClass } from "@/utils/taskStatus";
 
 export default {
   props: {
@@ -111,11 +112,7 @@ export default {
     closePopup() {
       this.$emit('close-popup');
     },
-    getStatusClass(status) {
-      if (status === "SUCCESS") return "status-success";
-      if (status === "FAILURE" || status === "REVOKED" || status === "RETRY") return "status-failure";
-      if (status === "RUNNING" || status === "PENDING" || status === "INSTALLING") return "status-running";
-    },
+    getStatusClass,
     RMouseClick(event, task) {
       // 기존 메뉴를 먼저 숨김
       this.R_Mouse_isActive = false;
@@ -229,17 +226,8 @@ export default {
       }
       return taskType || 'unknown';
     },
-  },
-  filters: {
-    formatDateTime(dateTime) {
-      const date = moment(dateTime).format("YYYY.MM.DD-HH:mm");
-      if (date === "Invalid date") return "Not Yet Completed"; // 날짜가 유효하지 않을 경우 처리
-      return date;
-    },
-    titleNone(title) {
-      if (title === null) return "Untitled";
-      return title;
-    }
+    formatDateTime,
+    formatTitle
   }
 };
 </script>

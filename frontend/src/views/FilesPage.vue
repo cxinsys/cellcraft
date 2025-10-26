@@ -57,10 +57,10 @@
         <tbody>
           <tr class="files__item" v-for="(file, idx) in files_list" :key="idx" @contextmenu.prevent
             @click.right="RMouseClick($event, file.file_name, idx)" v-bind:class="{ select: R_Mouse_isActive }">
-            <td>{{ file.file_name | cutFromDotName }}</td>
-            <td>{{ file.created_at | cutFromT }}</td>
-            <td>{{ file.file_name | cutFromDotType }}</td>
-            <td>{{ file.file_size | formatBytes }}</td>
+            <td>{{ extractFileName(file.file_name) }}</td>
+            <td>{{ cutDateFromISO(file.created_at) }}</td>
+            <td>{{ extractExtension(file.file_name) }}</td>
+            <td>{{ formatBytes(file.file_size) }}</td>
           </tr>
         </tbody>
       </table>
@@ -82,6 +82,10 @@
 
 <script>
 import { uploadForm, getFiles, findFolder, deleteFile } from "@/api/index";
+import { formatBytes, cutDateFromISO, extractFileName, extractExtension } from "@/utils/formatters";
+import { validateFileExtension } from "@/utils/validation";
+import { generateUploadFileName } from "@/utils/filename";
+import { calculateContextMenuPosition } from "@/utils/positionCalculator";
 
 export default {
   props: {
@@ -115,8 +119,9 @@ export default {
   methods: {
     RMouseClick(event, file_name, idx) {
       this.R_Mouse_isActive = false;
-      this.xPosition = event.clientX + "px";
-      this.yPosition = event.clientY - 55 + "px";
+      const { x, y } = calculateContextMenuPosition(event.clientX, event.clientY);
+      this.xPosition = x;
+      this.yPosition = y;
       this.R_Mouse_isActive = true;
       this.file_name = file_name;
       this.list_idx = idx;
@@ -136,28 +141,27 @@ export default {
       if (this.$refs.selectFile.files.length > 0) {
         const file = this.$refs.selectFile.files[0];
 
-        // 파일 이름에서 확장자를 추출하여 검사
-        const fileExtension = file.name.split('.').pop().toLowerCase(); // 확장자를 소문자로 변환하여 검사
-
-        // file이 .h5ad, .csv, .txt 확장자가 아니면 오류 발생
-        if (fileExtension !== 'h5ad' && fileExtension !== 'csv' && fileExtension !== 'txt') {
-          alert("Please upload .h5ad or .csv or .txt file");
+        // Validate file extension using utility function
+        const validation = validateFileExtension(file.name);
+        if (!validation.isValid) {
+          alert(validation.message);
           return;
         }
 
-        this.selectFile = new File(
-          [file],
-          `${this.currentFolder}_${file.name}`
-        );
+        // Generate upload filename using utility function
+        const newFileName = generateUploadFileName(this.currentFolder, file.name);
+        this.selectFile = new File([file], newFileName);
 
         const form = new FormData();
         form.append("files", this.selectFile);
+
         // 파일 업로드 진행률을 추적하기 위한 콜백
         const onUploadProgress = (progressEvent) => {
           this.uploadPercentage = parseInt(
             Math.round((progressEvent.loaded * 100) / progressEvent.total)
           );
         };
+
         try {
           await uploadForm(form, onUploadProgress);
           this.uploadPercentage = 0; // 업로드 완료 후 초기화
@@ -170,7 +174,7 @@ export default {
         }
       }
     },
-    removeFile() {
+    async removeFile() {
       this.targetFile = this.files_list[this.list_idx];
       this.files_list.splice(this.list_idx, 1);
       // this.toggleMessage = true;
@@ -183,9 +187,11 @@ export default {
           const file = {
             file_name: this.file_name,
           };
-          deleteFile(file);
+          await deleteFile(file);
         } catch (error) {
           console.error(error);
+          // Restore file to list on error
+          this.files_list.splice(this.list_idx, 0, this.targetFile);
         }
       }
     },
@@ -210,26 +216,6 @@ export default {
     } catch (error) {
       console.error(error);
     }
-  },
-  filters: {
-    formatBytes(a, b) {
-      if (a === 0) return "0 Bytes";
-      const c = 1024;
-      const d = b || 2;
-      const e = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-      const f = Math.floor(Math.log(a) / Math.log(c));
-
-      return parseFloat((a / Math.pow(c, f)).toFixed(d)) + " " + e[f];
-    },
-    cutFromT(value) {
-      return value.split("T")[0];
-    },
-    cutFromDotName(value) {
-      return value.split(".")[0];
-    },
-    cutFromDotType(value) {
-      return value.split(".")[1];
-    },
   },
 };
 </script>

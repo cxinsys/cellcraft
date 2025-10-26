@@ -171,10 +171,20 @@
 </template>
 
 <script>
-import { getUser, getPlugins, associatePlugin, dissociatePlugin, buildPluginDocker, checkPluginImage, getBuildStatus, getBuildTasks, cancelBuildTask, getBuildLogs } from "@/api/index";
 import PluginExtention from "@/components/PluginExtention.vue";
 import BuildMonitor from "@/components/pluginComponents/BuildMonitor.vue";
 import PluginCategoryTabs from "@/components/pluginComponents/PluginCategoryTabs.vue";
+
+// Services and utilities
+import { PluginService } from "@/services/pluginService";
+import { BuildMonitor as BuildMonitorService, BuildStatus } from "@/services/buildMonitorService";
+import { DialogService } from "@/services/dialogService";
+import { NotificationService } from "@/services/notificationService";
+import { BuildService } from "@/services/buildService";
+import { IntervalManager } from "@/utils/intervalManager";
+import { enrichPlugins } from "@/utils/pluginDataProcessor";
+import { transformBuildTasks } from "@/utils/buildTaskMapper";
+import { analyzeError } from "@/utils/errorAnalyzer";
 
 export default {
   components: {
@@ -184,6 +194,14 @@ export default {
   },
   data() {
     return {
+      // Service instances
+      pluginService: new PluginService(),
+      intervalManager: new IntervalManager(),
+      buildMonitor: null, // Will be initialized in created()
+      dialogService: new DialogService(),
+      notificationService: new NotificationService(),
+      buildService: new BuildService(),
+
       showPluginExtension: false,
       showBuildMonitor: false,
       buildTaskList: [],
@@ -196,24 +214,7 @@ export default {
         source: 'all',
         resource: 'all'
       },
-      plugins: [
-        // {
-        //   id: 1,
-        //   name: "TENET",
-        //   description:
-        //     "A tool for reconstructing Transfer Entropy-based causal gene NETwork from pseudo-time ordered single cell transcriptomic data",
-        //   lastUpdated: "2024/03/18",
-        //   checked: true,
-        // },
-        // {
-        //   id: 2,
-        //   name: "TENET TF",
-        //   description:
-        //     "A tool for reconstructing Transfer Entropy-based causal gene NETwork from pseudo-time ordered single cell transcriptomic data",
-        //   lastUpdated: "2024/03/18",
-        //   checked: true,
-        // },
-      ],
+      plugins: [],
       profile: {},
       selectedPlugin: {
         name: "",
@@ -236,6 +237,10 @@ export default {
       maxRetryAttempts: 3
     };
   },
+  created() {
+    // Initialize BuildMonitor with IntervalManager
+    this.buildMonitor = new BuildMonitorService(this.intervalManager);
+  },
   async mounted() {
     // Check network status
     this.isOffline = !navigator.onLine;
@@ -254,8 +259,16 @@ export default {
     // Clean up event listeners
     window.removeEventListener('online', this.handleOnline);
     window.removeEventListener('offline', this.handleOffline);
-    // Stop build task monitoring
-    this.stopBuildTaskMonitoring();
+
+    // Stop all build monitoring
+    if (this.buildMonitor) {
+      this.buildMonitor.stopAll();
+    }
+
+    // Stop all intervals
+    if (this.intervalManager) {
+      this.intervalManager.stopAll();
+    }
   },
   computed: {
     filteredPlugins() {
@@ -462,32 +475,35 @@ export default {
     async closePluginExtension(buildInfo) {
       this.showPluginExtension = false;
 
-      // extension 완료했으니, 다시 plugin list를 불러옵니다.
+      // Reload plugin list after extension is closed
       try {
         await this.getUserAssociatePlugins();
 
-        // 빌드가 시작된 새 플러그인이 있으면 상태 업데이트 (API 데이터 로드 후에 덮어쓰기)
+        // Apply build info if a new plugin build was started
         if (buildInfo && buildInfo.buildStarted) {
-          // 잠시 기다린 후 상태 업데이트 (API 응답 처리 완료 후)
           this.$nextTick(() => {
-            const plugin = this.plugins.find(p => p.name === buildInfo.pluginName);
-            if (plugin) {
-              // 강제로 빌드 상태 설정 (API에서 받은 데이터 덮어쓰기)
-              plugin.building = true;
-              plugin.buildTaskId = buildInfo.taskId;
-              plugin.buildStatus = 'RUNNING';
-              plugin.imageExists = false;
-
-              console.log(`Plugin ${buildInfo.pluginName} build status forced to building`);
-
-              // 빌드 모니터링 시작
-              this.startBuildMonitoring(plugin);
-            }
+            this.applyBuildInfo(buildInfo);
           });
         }
       } catch (error) {
         console.error(error);
       }
+    },
+
+    applyBuildInfo(buildInfo) {
+      const plugin = this.plugins.find(p => p.name === buildInfo.pluginName);
+      if (!plugin) return;
+
+      // Force build state (override API data)
+      plugin.building = true;
+      plugin.buildTaskId = buildInfo.taskId;
+      plugin.buildStatus = 'RUNNING';
+      plugin.imageExists = false;
+
+      console.log(`Plugin ${buildInfo.pluginName} build status forced to building`);
+
+      // Start build monitoring
+      this.startBuildMonitoring(plugin);
     },
     getCurrentDateString() {
       const today = new Date();
@@ -522,42 +538,30 @@ export default {
     },
     async getUserAssociatePlugins() {
       try {
-        const profile = await getUser();
-        this.profile = profile.data;
+        // Get user profile and plugins list using service
+        this.profile = await this.pluginService.getUserProfile();
+        const plugins = await this.pluginService.getPluginsList();
 
-        const plugins = await getPlugins();
-        const currentUser = this.profile.username;
+        // Enrich plugins with user association and build status
+        this.plugins = enrichPlugins(plugins, this.profile.username);
 
-        this.plugins = plugins.data.plugins.map(plugin => {
-          const userIncluded = plugin.users.some(user => user.username === currentUser);
-          const buildInfo = plugin.latest_build || {};
-          const isBuilding = buildInfo.status === 'RUNNING' || buildInfo.status === 'PENDING';
+        // Check plugin images
+        this.plugins = await this.pluginService.checkMultiplePluginImages(this.plugins);
 
-          return {
-            ...plugin,
-            checked: userIncluded,
-            building: isBuilding,
-            imageExists: false,
-            buildTaskId: buildInfo.task_id || null,
-            buildStatus: buildInfo.status || null,
-            // Add version information for official plugins
-            current_version: plugin.version || plugin.current_version || 'latest',
-          };
-        });
-
-        // 각 플러그인의 이미지 존재 여부 확인
-        await this.checkAllPluginImages();
-
-        // 빌드 중인 플러그인들의 모니터링 시작
-        this.plugins.forEach(plugin => {
-          if (plugin.building && plugin.buildTaskId) {
-            console.log(`Starting monitoring for plugin ${plugin.name} with task ${plugin.buildTaskId}`);
-            this.startBuildMonitoring(plugin);
-          }
-        });
+        // Start monitoring for plugins that are currently building
+        this.startMonitoringForBuildingPlugins();
       } catch (error) {
         console.error(error);
       }
+    },
+
+    startMonitoringForBuildingPlugins() {
+      this.plugins.forEach(plugin => {
+        if (plugin.building && plugin.buildTaskId) {
+          console.log(`Starting monitoring for plugin ${plugin.name} with task ${plugin.buildTaskId}`);
+          this.startBuildMonitoring(plugin);
+        }
+      });
     },
     async handlePluginAssociate(plugin) {
       const pluginId = parseInt(plugin.id);
@@ -565,11 +569,11 @@ export default {
       try {
         let result;
         if (plugin.checked) {
-          result = await associatePlugin(pluginId);
+          result = await this.pluginService.associatePlugin(pluginId);
         } else {
-          result = await dissociatePlugin(pluginId);
+          result = await this.pluginService.dissociatePlugin(pluginId);
         }
-        console.log(result.data);
+        console.log(result);
 
         // 1초 동안 체크박스 비활성화
         this.isCheckboxDisabled = true;
@@ -578,17 +582,6 @@ export default {
         }, 1000);
       } catch (error) {
         console.error('Error associating/disassociating plugin:', error);
-      }
-    },
-    async checkAllPluginImages() {
-      for (let plugin of this.plugins) {
-        try {
-          const result = await checkPluginImage(plugin.name);
-          plugin.imageExists = result.data.image_exists;
-        } catch (error) {
-          console.error(`Error checking image for plugin ${plugin.name}:`, error);
-          plugin.imageExists = false;
-        }
       }
     },
     async handleBuildPlugin(plugin) {
@@ -604,75 +597,69 @@ export default {
 
       try {
         plugin.building = true;
-        const result = await buildPluginDocker(plugin.name, false); // 기존 플러그인은 기본적으로 GPU 비활성화
+        const result = await this.buildService.buildPlugin(plugin.name, false); // 기존 플러그인은 기본적으로 GPU 비활성화
+
+        if (!result.success) {
+          plugin.building = false;
+          this.showErrorNotification(
+            `Failed to start build for plugin ${plugin.name}`,
+            'Build Failed'
+          );
+          return;
+        }
 
         // 태스크 ID 저장
-        plugin.buildTaskId = result.data.task_id;
+        plugin.buildTaskId = result.taskId;
         plugin.buildStatus = 'RUNNING';
 
         // 빌드 상태 주기적 모니터링 시작
         this.startBuildMonitoring(plugin);
 
-        console.log('Build started:', result.data);
+        console.log('Build started:', result.taskId);
         this.showSuccessNotification(`Plugin ${plugin.name} build started!`, 'Build Started');
       } catch (error) {
         console.error(`Error starting build for plugin ${plugin.name}:`, error);
         plugin.building = false;
-
-        // 에러 메시지 표시
-        let errorMessage = `Failed to start build for plugin ${plugin.name}`;
-        if (error.response && error.response.data && error.response.data.detail) {
-          if (typeof error.response.data.detail === 'string') {
-            errorMessage += `: ${error.response.data.detail}`;
-          } else if (error.response.data.detail.message) {
-            errorMessage += `: ${error.response.data.detail.message}`;
-          }
-        }
-        this.showErrorNotification(errorMessage, 'Build Failed');
+        this.showErrorNotification(
+          `Failed to start build for plugin ${plugin.name}`,
+          'Build Failed'
+        );
       }
     },
-    async startBuildMonitoring(plugin) {
-      const checkInterval = setInterval(async () => {
-        try {
-          const result = await getBuildStatus(plugin.buildTaskId);
-          const status = result.data.state; // 'state' not 'status'
+    startBuildMonitoring(plugin) {
+      this.buildMonitor.startMonitoring(
+        plugin.name,
+        plugin.buildTaskId,
+        ({ pluginName, status, error }) => {
+          // Find the plugin to update
+          const pluginToUpdate = this.plugins.find(p => p.name === pluginName);
+          if (!pluginToUpdate) return;
 
-          console.log(`Build status for ${plugin.name}: ${status}`);
+          // Update build status
+          pluginToUpdate.buildStatus = status;
 
-          // 상태에 따라 플러그인 속성 업데이트
-          plugin.buildStatus = status;
+          console.log(`Build status for ${pluginName}: ${status}`);
 
-          if (status === 'SUCCESS') {
-            plugin.building = false;
-            plugin.imageExists = true;
-            plugin.buildStatus = 'SUCCESS';
-            clearInterval(checkInterval);
-            console.log(`Plugin ${plugin.name} built successfully!`);
-
-            // 성공 알림 (선택사항)
-            this.showBuildNotification(plugin.name, 'success');
-          } else if (status === 'FAILURE' || status === 'REVOKED') {
-            plugin.building = false;
-            plugin.buildStatus = status;
-            plugin.imageExists = false; // 실패 시 이미지 존재하지 않음
-            clearInterval(checkInterval);
-            console.error(`Plugin ${plugin.name} build failed with status: ${status}`);
-
-            // 실패 알림 (선택사항)
-            this.showBuildNotification(plugin.name, 'failure');
-          } else if (status === 'RUNNING' || status === 'PENDING') {
-            // 빌드 중 상태 유지
-            plugin.building = true;
-            plugin.buildStatus = status;
+          // Handle terminal states
+          if (status === BuildStatus.SUCCESS) {
+            pluginToUpdate.building = false;
+            pluginToUpdate.imageExists = true;
+            console.log(`Plugin ${pluginName} built successfully!`);
+            this.showBuildNotification(pluginName, 'success');
+          } else if (status === BuildStatus.FAILURE || status === BuildStatus.REVOKED) {
+            pluginToUpdate.building = false;
+            pluginToUpdate.imageExists = false;
+            console.error(`Plugin ${pluginName} build failed with status: ${status}`);
+            this.showBuildNotification(pluginName, 'failure');
+          } else if (status === BuildStatus.ERROR) {
+            pluginToUpdate.building = false;
+            console.error(`Build monitoring error for ${pluginName}:`, error);
+          } else if (status === BuildStatus.RUNNING || status === BuildStatus.PENDING) {
+            pluginToUpdate.building = true;
           }
-        } catch (error) {
-          console.error(`Error checking build status for plugin ${plugin.name}:`, error);
-          // 에러 발생 시 모니터링 중단
-          clearInterval(checkInterval);
-          plugin.building = false;
-          plugin.buildStatus = 'ERROR';
-        }
-      }, 2000); // 2초마다 상태 확인
+        },
+        { interval: 2000 }
+      );
     },
     showBuildNotification(pluginName, status) {
       if (status === 'success') {
@@ -692,11 +679,12 @@ export default {
         this.showLogsModal = true;
         this.selectedBuildLogs = null;
 
-        const result = await getBuildLogs(plugin.name);
+        const result = await this.buildService.getBuildLogs(plugin.name);
+
         this.selectedBuildLogs = {
           status: plugin.buildStatus || 'Unknown',
           timestamp: new Date().toLocaleString(),
-          logs: result.data.log_content || 'No logs available'
+          logs: result.success ? result.logs : result.error
         };
 
         console.log('Build logs loaded for plugin:', plugin.name);
@@ -749,22 +737,10 @@ export default {
     },
     async fetchBuildTasks() {
       try {
-        const response = await getBuildTasks();
-        const tasks = response.data.tasks || [];
+        const tasks = await this.pluginService.getBuildTasks();
 
-        // 태스크 데이터를 PopupJobTable 형식에 맞게 변환
-        this.buildTaskList = tasks.map(task => {
-          return {
-            task_id: task.task_id,
-            plugin_name: task.plugin_name,
-            start_time: task.start_time,
-            end_time: task.end_time,
-            running_time: this.calculateDuration(task),
-            status: task.state,
-            error: task.error,
-            info: task.info
-          };
-        });
+        // Transform tasks using utility function
+        this.buildTaskList = transformBuildTasks(tasks, this.calculateDuration);
 
         console.log('Build tasks fetched:', this.buildTaskList);
       } catch (error) {
@@ -806,14 +782,14 @@ export default {
     },
     startBuildTaskMonitoring() {
       // 5초마다 태스크 상태 업데이트
-      this.buildTaskInterval = setInterval(() => {
+      this.intervalManager.start('buildTaskFetch', () => {
         if (this.showBuildMonitor) {
           this.fetchBuildTasks();
         }
       }, 5000);
 
       // 1초마다 실행 중인 태스크의 duration 업데이트
-      this.durationUpdateInterval = setInterval(() => {
+      this.intervalManager.start('durationUpdate', () => {
         if (this.showBuildMonitor) {
           this.updateRunningTaskDurations();
         }
@@ -828,30 +804,22 @@ export default {
       });
     },
     stopBuildTaskMonitoring() {
-      if (this.buildTaskInterval) {
-        clearInterval(this.buildTaskInterval);
-        this.buildTaskInterval = null;
-      }
-      if (this.durationUpdateInterval) {
-        clearInterval(this.durationUpdateInterval);
-        this.durationUpdateInterval = null;
-      }
+      this.intervalManager.stop('buildTaskFetch');
+      this.intervalManager.stop('durationUpdate');
     },
     async cancelBuildTask(taskId) {
-      if (!confirm('Are you sure you want to cancel this build task?')) {
+      const confirmed = this.dialogService.confirm('Are you sure you want to cancel this build task?');
+      if (!confirmed) {
         return;
       }
 
-      try {
-        await cancelBuildTask(taskId);
-        this.showSuccessNotification('Build task has been cancelled.', 'Task Cancelled');
+      const result = await this.buildService.cancelBuildTask(taskId);
+
+      if (result.success) {
+        this.showSuccessNotification(result.message, 'Task Cancelled');
         await this.fetchBuildTasks();
-      } catch (error) {
-        console.error('Failed to cancel build task:', error);
-        this.showErrorNotification(
-          `Failed to cancel build task: ${this.getErrorMessage(error)}`,
-          'Cancellation Failed'
-        );
+      } else {
+        this.showErrorNotification(result.error, 'Cancellation Failed');
       }
     },
     async showBuildTaskLogs(taskId) {
@@ -863,107 +831,69 @@ export default {
     },
     async buildAllPlugins() {
       try {
-        // 빌드가 필요한 플러그인들만 필터링 (building이 아니고 imageExists가 false인 것들)
-        const pluginsToBuild = this.plugins.filter(plugin => !plugin.building && !plugin.imageExists);
+        // Filter plugins that need to be built
+        const pluginsToBuild = this.buildService.filterPluginsToBuild(this.plugins);
 
         if (pluginsToBuild.length === 0) {
-          this.showWarningNotification('No plugins need to be built. All plugins are already built or currently building.', 'Build Status');
+          this.notificationService.warning(
+            'No plugins need to be built. All plugins are already built or currently building.',
+            'Build Status'
+          );
           return;
         }
 
-        if (!confirm(`Build ${pluginsToBuild.length} plugin(s)?`)) {
+        // Confirm with user
+        const confirmed = this.dialogService.confirm(`Build ${pluginsToBuild.length} plugin(s)?`);
+        if (!confirmed) {
           return;
         }
 
-        const buildPromises = pluginsToBuild.map(plugin => {
+        // Mark plugins as building
+        pluginsToBuild.forEach(plugin => {
           plugin.building = true;
-          return buildPluginDocker(plugin.name, false) // 기존 플러그인은 기본적으로 GPU 비활성화
-            .then(result => {
-              console.log(`Build result for ${plugin.name}:`, result.data);
-              setTimeout(async () => {
-                try {
-                  const checkResult = await checkPluginImage(plugin.name);
-                  plugin.imageExists = checkResult.data.image_exists;
-                } catch (error) {
-                  console.error(`Error checking image after build for plugin ${plugin.name}:`, error);
-                }
-                plugin.building = false;
-              }, 1000);
-              return { success: true, plugin: plugin.name };
-            })
-            .catch(error => {
-              console.error(`Error building plugin ${plugin.name}:`, error);
-              plugin.building = false;
-              return { success: false, plugin: plugin.name, error };
-            });
         });
 
-        const results = await Promise.all(buildPromises);
-        const successful = results.filter(r => r.success).length;
-        const failed = results.filter(r => !r.success).length;
+        // Build plugins in parallel
+        const results = await this.buildService.buildMultiplePlugins(pluginsToBuild, false);
 
-        if (failed === 0) {
-          this.showSuccessNotification(`All ${successful} plugin(s) were built successfully!`, 'Build Complete');
-        } else {
-          this.showWarningNotification(`${successful} plugin(s) built successfully, ${failed} plugin(s) failed.`, 'Build Results');
+        // Update plugin states based on results
+        results.forEach(result => {
+          const plugin = this.plugins.find(p => p.name === result.plugin);
+          if (plugin) {
+            plugin.building = false;
+            if (result.success) {
+              plugin.imageExists = result.imageExists || false;
+            }
+          }
+        });
+
+        // Process results and show notification
+        const summary = this.buildService.processBuildResults(results);
+        const message = this.buildService.getBuildSummaryMessage(summary);
+
+        switch (message.type) {
+          case 'success':
+            this.notificationService.success(message.text, 'Build Complete');
+            break;
+          case 'warning':
+            this.notificationService.warning(message.text, 'Build Results');
+            break;
+          case 'error':
+            this.notificationService.error(message.text, 'Build Failed');
+            break;
+          default:
+            this.notificationService.info(message.text, 'Build Status');
         }
       } catch (error) {
         console.error('Error building all plugins:', error);
-        this.showErrorNotification('An error occurred while building plugins.', 'Build Error');
+        this.notificationService.error('An error occurred while building plugins.', 'Build Error');
       }
     },
 
 
     // Error handling methods
     handleLoadingError(error) {
-      this.pluginError = {
-        message: this.getErrorMessage(error),
-        canRetry: this.canRetryError(error),
-        timestamp: new Date()
-      };
-    },
-
-    getErrorMessage(error) {
-      if (error.response) {
-        // API error response
-        if (error.response.data?.detail) {
-          return typeof error.response.data.detail === 'string' 
-            ? error.response.data.detail 
-            : error.response.data.detail.message || 'Unknown API error';
-        }
-        if (error.response.status === 404) {
-          return 'Service not found. Please check if the server is running.';
-        }
-        if (error.response.status === 503) {
-          return 'Service temporarily unavailable. Please try again later.';
-        }
-        if (error.response.status >= 500) {
-          return 'Server error occurred. Please try again later.';
-        }
-        return `Request failed with status ${error.response.status}`;
-      }
-      
-      if (error.request) {
-        // Network error
-        return 'Network error. Please check your internet connection.';
-      }
-      
-      return error.message || 'An unexpected error occurred';
-    },
-
-    canRetryError(error) {
-      if (error.response) {
-        const status = error.response.status;
-        // Don't retry client errors (4xx) except 408, 429
-        if (status >= 400 && status < 500) {
-          return status === 408 || status === 429;
-        }
-        // Retry server errors (5xx) and timeout
-        return status >= 500 || status === 408;
-      }
-      
-      // Retry network errors
-      return !!error.request;
+      this.pluginError = analyzeError(error);
     },
 
 
@@ -983,8 +913,8 @@ export default {
     handleOffline() {
       this.isOffline = true;
       console.log('Connection lost');
-      
-      this.showErrorNotification(
+
+      this.notificationService.error(
         'Internet connection lost. Some features may not work properly.',
         'Network Status'
       );
@@ -992,21 +922,15 @@ export default {
 
     // User notification methods
     showSuccessNotification(message, title = 'Success') {
-      // For now using browser alert - can be replaced with a toast library
-      console.log(`SUCCESS - ${title}: ${message}`);
-      alert(`${title}: ${message}`);
+      this.notificationService.success(message, title);
     },
 
     showErrorNotification(message, title = 'Error') {
-      // For now using browser alert - can be replaced with a toast library
-      console.error(`ERROR - ${title}: ${message}`);
-      alert(`${title}: ${message}`);
+      this.notificationService.error(message, title);
     },
 
     showWarningNotification(message, title = 'Warning') {
-      // For now using browser alert - can be replaced with a toast library
-      console.warn(`WARNING - ${title}: ${message}`);
-      alert(`${title}: ${message}`);
+      this.notificationService.warning(message, title);
     },
   },
 };
