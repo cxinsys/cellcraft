@@ -10,7 +10,18 @@ from app.common.config import settings
 from app.database import models
 from app.common.security import get_password_hash
 
-engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, echo=True ,pool_pre_ping=True)
+# Use test PostgreSQL database when TESTING=1 (matches production environment)
+if os.environ.get("TESTING") == "1":
+    # Test DB runs on Docker test-db service (localhost:5433)
+    SQLALCHEMY_TEST_DATABASE_URI = "postgresql://test_user:test_pass@localhost:5433/cellcraft_test"
+    engine = create_engine(
+        SQLALCHEMY_TEST_DATABASE_URI,
+        echo=False,  # Disable SQL logging in tests
+        pool_pre_ping=True
+    )
+else:
+    engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, echo=True, pool_pre_ping=True)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @as_declarative()
