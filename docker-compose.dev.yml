@@ -59,6 +59,21 @@ services:
       timeout: 5s
       retries: 5
 
+  test-db:
+    image: postgres:15
+    environment:
+      - TZ=Asia/Seoul
+      - POSTGRES_DB=cellcraft_test
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_pass
+    ports:
+      - "5433:5432"  # Host 5433 -> Container 5432 (avoid conflict with db)
+    networks:
+      - app-network
+    # No volumes - ephemeral test database
+    # No restart - manual control for testing
+    # No healthcheck - keep it minimal
+
   rabbitmq:
     image: "rabbitmq:management"
     ports:

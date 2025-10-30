@@ -21,30 +21,27 @@ from app.routes import dep
 router = APIRouter()
 
 #create New User
-@router.post("/register", response_model=user.User)
+@router.post("/register", response_model=user.UserProfile)
 def create_user(
     *,
     db: Session = Depends(dep.get_db),
     user_in: user.UserCreate,
 ) -> Any:
-    try:
-        user = crud_user.get_user_by_email(db, email=user_in.email)
-        if user:
-            raise HTTPException(
-                status_code=400,
-                detail="this email already exists in the system",
-            )
-        user = crud_user.create_user(db, user=user_in)
-        USER_DIRECTORY_NAME = './user/' + user_in.username + '/data'
-        os.makedirs(USER_DIRECTORY_NAME)
-        #회원가입 시 보내는 확인 이메일
-        # if user_in.email:
-        #     send_new_account_email(
-        #         email_to=user_in.email, username=user_in.email, password=user_in.password
-        #     )
-        return user
-    except FileExistsError as err:
-        return err
+    user = crud_user.get_user_by_email(db, email=user_in.email)
+    if user:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered",
+        )
+    user = crud_user.create_user(db, user=user_in)
+    USER_DIRECTORY_NAME = './user/' + user_in.username + '/data'
+    os.makedirs(USER_DIRECTORY_NAME, exist_ok=True)
+    #회원가입 시 보내는 확인 이메일
+    # if user_in.email:
+    #     send_new_account_email(
+    #         email_to=user_in.email, username=user_in.email, password=user_in.password
+    #     )
+    return user
 
 #Login + JWT 발급
 @router.post("/login/access-token", response_model=model.Token)
@@ -78,10 +75,10 @@ def read_user_me(
     current_user: models.User = Depends(dep.get_current_active_user),
 ) -> Any:
 
-    return { "email" : current_user.email, "username" : current_user.username, "is_superuser" : current_user.is_superuser}
+    return { "id": current_user.id, "email" : current_user.email, "username" : current_user.username, "is_superuser" : current_user.is_superuser}
 
 #update user plugins
-@router.post("/plugins", response_model=user.User)
+@router.post("/plugins", response_model=user.UserProfile)
 def update_user_plugins(
     *,
     db: Session = Depends(dep.get_db),

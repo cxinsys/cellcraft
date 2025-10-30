@@ -102,6 +102,9 @@ def get_task_by_task_id(db: Session, task_id: str):
 
 def delete_user_task(db: Session, user_id: int, task_id: str):
     target_task = db.query(models.Task).filter(models.Task.task_id == task_id, models.Task.user_id == user_id).first()
+    if target_task is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
     db.delete(target_task)
     db.commit()
     return target_task

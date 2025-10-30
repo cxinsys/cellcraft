@@ -280,41 +280,43 @@ def get_task_logs(
     """
     특정 task의 로그 파일들을 조회합니다.
     """
+    from app.common.utils.path_utils import construct_logs_path, is_safe_path, get_logs_base_path
+
     try:
         # task_id로 task 정보 조회
         task = crud_task.get_task_by_task_id(db, task_id)
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
-        
+
         # 권한 확인 (해당 유저의 task인지 확인)
         if task.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
-        
-        # 로그 폴더 경로 구성 - task_type에 따라 다른 경로 사용
-        if task.task_type == 'visualization':
-            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}/logs"
-        else:
-            # algorithm 또는 기타 타입은 기존 경로 사용
-            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/logs"
-        
+
+        # 로그 폴더 경로 구성 (centralized utility 사용)
+        logs_folder_path = construct_logs_path(
+            username=current_user.username,
+            workflow_id=task.workflow_id,
+            algorithm_id=task.algorithm_id,
+            task_type=task.task_type
+        )
+
+        # 보안 검증: path traversal 방지
+        if not is_safe_path(logs_folder_path, get_logs_base_path()):
+            raise HTTPException(status_code=400, detail="Invalid path")
+
         if not os.path.exists(logs_folder_path):
-            return {
-                "message": "Logs folder not found", 
-                "logs": [],
-                "task_info": {
-                    "task_id": task.task_id,
-                    "workflow_id": task.workflow_id,
-                    "algorithm_id": task.algorithm_id,
-                    "status": task.status
-                }
-            }
-        
+            raise HTTPException(status_code=404, detail="Logs folder not found")
+
         # 로그 파일들 읽기
         log_files = []
         logs_path = Path(logs_folder_path)
-        
+
         for log_file_path in logs_path.glob("*"):
             if log_file_path.is_file():
+                # 각 파일도 안전성 검증
+                if not is_safe_path(str(log_file_path), get_logs_base_path()):
+                    continue  # Skip unsafe files (e.g., symlinks outside base dir)
+
                 try:
                     with open(log_file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
@@ -332,12 +334,11 @@ def get_task_logs(
                         "size": log_file_path.stat().st_size,
                         "modified_time": str(log_file_path.stat().st_mtime)
                     })
-        
+
         # run.log 파일을 맨 앞으로 정렬
         log_files.sort(key=lambda x: (x["filename"] != "run.log", x["filename"]))
-        
+
         return {
-            "message": "Logs retrieved successfully",
             "logs": log_files,
             "task_info": {
                 "task_id": task.task_id,
@@ -348,7 +349,7 @@ def get_task_logs(
                 "end_time": str(task.end_time) if task.end_time else None
             }
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -365,31 +366,43 @@ def export_task_logs_json(
     특정 task의 모든 로그 파일들을 JSON 형식으로 export합니다.
     JSON 형태: {"filename1.log": "content1", "filename2.log": "content2"}
     """
+    from app.common.utils.path_utils import construct_logs_path, is_safe_path, get_logs_base_path
+
     try:
         # task_id로 task 정보 조회
         task = crud_task.get_task_by_task_id(db, task_id)
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
-        
+
         # 권한 확인 (해당 유저의 task인지 확인)
         if task.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
-        
-        # 로그 폴더 경로 구성 - task_type에 따라 다른 경로 사용
-        if task.task_type == 'visualization':
-            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}/logs"
-        else:
-            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/logs"
-        
+
+        # 로그 폴더 경로 구성
+        logs_folder_path = construct_logs_path(
+            username=current_user.username,
+            workflow_id=task.workflow_id,
+            algorithm_id=task.algorithm_id,
+            task_type=task.task_type
+        )
+
+        # 보안 검증
+        if not is_safe_path(logs_folder_path, get_logs_base_path()):
+            raise HTTPException(status_code=400, detail="Invalid path")
+
         if not os.path.exists(logs_folder_path):
             raise HTTPException(status_code=404, detail="Logs folder not found")
-        
+
         # 모든 로그 파일을 JSON 형태로 수집
         logs_data = {}
         logs_path = Path(logs_folder_path)
-        
+
         for log_file_path in logs_path.glob("*"):
             if log_file_path.is_file():
+                # 보안 검증: 각 파일이 안전한지 확인
+                if not is_safe_path(str(log_file_path), get_logs_base_path()):
+                    continue  # Skip unsafe files
+
                 try:
                     with open(log_file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
@@ -397,25 +410,25 @@ def export_task_logs_json(
                 except Exception as e:
                     # 파일 읽기 실패 시 에러 정보 포함
                     logs_data[log_file_path.name] = f"Error reading file: {str(e)}"
-        
+
         if not logs_data:
             raise HTTPException(status_code=404, detail="No log files found")
-        
+
         # JSON으로 변환
         json_content = json.dumps(logs_data, indent=2, ensure_ascii=False)
-        
+
         # 파일명 생성 (타임스탬프 포함)
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"task_{task_id[:8]}_logs_{timestamp}.json"
-        
+
         # StreamingResponse로 다운로드 제공
         return StreamingResponse(
             io.StringIO(json_content),
             media_type="application/json",
             headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -432,52 +445,73 @@ def export_task_log_txt(
     """
     특정 task의 개별 로그 파일을 TXT 형식으로 export합니다.
     """
+    from app.common.utils.path_utils import (
+        construct_logs_path,
+        is_safe_path,
+        get_logs_base_path,
+        validate_export_filename
+    )
+
     try:
+        # 파일명 보안 검증 (path traversal 방지)
+        if not validate_export_filename(filename, task_id):
+            raise HTTPException(status_code=400, detail="Invalid filename")
+
         # task_id로 task 정보 조회
         task = crud_task.get_task_by_task_id(db, task_id)
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
-        
+
         # 권한 확인 (해당 유저의 task인지 확인)
         if task.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
-        
-        # 로그 폴더 경로 구성 - task_type에 따라 다른 경로 사용
-        if task.task_type == 'visualization':
-            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}/logs"
-        else:
-            logs_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}/logs"
-        
+
+        # 로그 폴더 경로 구성
+        logs_folder_path = construct_logs_path(
+            username=current_user.username,
+            workflow_id=task.workflow_id,
+            algorithm_id=task.algorithm_id,
+            task_type=task.task_type
+        )
+
+        # 보안 검증: 폴더 경로
+        if not is_safe_path(logs_folder_path, get_logs_base_path()):
+            raise HTTPException(status_code=400, detail="Invalid path")
+
         # 요청된 로그 파일 경로
         log_file_path = Path(logs_folder_path) / filename
-        
+
+        # 보안 검증: 최종 파일 경로
+        if not is_safe_path(str(log_file_path), get_logs_base_path()):
+            raise HTTPException(status_code=400, detail="Invalid file path")
+
         if not log_file_path.exists():
             raise HTTPException(status_code=404, detail=f"Log file '{filename}' not found")
-        
+
         if not log_file_path.is_file():
             raise HTTPException(status_code=400, detail=f"'{filename}' is not a valid file")
-        
+
         # 파일 읽기
         try:
             with open(log_file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
-        
+
         # 다운로드용 파일명 생성 (타임스탬프 포함)
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base_name = Path(filename).stem
         extension = Path(filename).suffix or ".txt"
         download_filename = f"task_{task_id[:8]}_{base_name}_{timestamp}{extension}"
-        
+
         # StreamingResponse로 다운로드 제공
         return StreamingResponse(
             io.StringIO(content),
             media_type="text/plain",
             headers={"Content-Disposition": f"attachment; filename={download_filename}"}
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
