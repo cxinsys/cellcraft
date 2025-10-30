@@ -26,31 +26,96 @@ async def fileUpload(
     db: Session = Depends(dep.get_db),
     files: List[UploadFile] = File(),
     current_user: models.User = Depends(dep.get_current_active_user),
-    ) -> Any:
-    #upload to directory
+) -> Any:
+    from app.common.config import MAX_FILES_PER_UPLOAD
+    from app.common.utils.file_security import validate_file_upload
+
+    # Validation 1: Check batch upload limit
+    if len(files) > MAX_FILES_PER_UPLOAD:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many files. Maximum {MAX_FILES_PER_UPLOAD} files per upload."
+        )
+
+    # Setup upload directory
     UPLOAD_DIRECTORY = f'./user/{current_user.username}/data'
+    os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
+
+    uploaded_files = []
+
     for item_file in files:
-        contents = await item_file.read()
+        # Validation 2: Comprehensive file validation
+        safe_filename = validate_file_upload(item_file)
 
-        # 이 과정은 어디에 써먹을려고 한거지? 모르겠음..
-        # if 'h5ad' not in item_file.filename:
-        #     with open(os.path.join(UPLOAD_DIRECTORY, item_file.filename), "wb") as f:
-        #         f.write(contents)
-        #     return {'file_name': item_file.filename}
+        # Parse folder and filename (format: "folder_filename.ext")
+        folder_file = safe_filename.split('_', 1)
+        if len(folder_file) != 2:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid filename format. Expected 'folder_filename.ext', got '{safe_filename}'"
+            )
 
-        folder_file = item_file.filename.split('_', 1)
-        with open(os.path.join(UPLOAD_DIRECTORY, folder_file[1]), "wb") as f:
-            f.write(contents)
-        user_file = crud_file.get_user_file(db, current_user.id, folder_file[1])
+        folder, actual_filename = folder_file
+        final_filename = actual_filename
+
+        # Check for duplicate files
+        user_file = crud_file.get_user_file(db, current_user.id, final_filename)
         if user_file:
             raise HTTPException(
                 status_code=400,
-                detail="this file already exists in your files",
-                )
-        # print(len(contents))
-        create_file = crud_file.create_file(db, folder_file[1], len(contents), UPLOAD_DIRECTORY, folder_file[0], current_user.id)
-        
-    return create_file
+                detail=f"File '{final_filename}' already exists in your files"
+            )
+
+        # Stream file to disk in chunks to prevent memory exhaustion
+        from app.common.config import UPLOAD_CHUNK_SIZE
+
+        file_path = os.path.join(UPLOAD_DIRECTORY, final_filename)
+        file_size = 0
+
+        try:
+            with open(file_path, "wb") as f:
+                while chunk := await item_file.read(UPLOAD_CHUNK_SIZE):
+                    f.write(chunk)
+                    file_size += len(chunk)
+
+                    # Enforce size limit during streaming to fail fast
+                    if file_size > MAX_UPLOAD_SIZE:
+                        # Clean up partial file
+                        f.close()
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                        raise HTTPException(
+                            status_code=413,
+                            detail=f"File too large. Maximum size is {MAX_UPLOAD_SIZE / (1024*1024):.0f}MB"
+                        )
+        except HTTPException:
+            raise
+        except Exception as e:
+            # Clean up partial file on error
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise HTTPException(
+                status_code=500,
+                detail=f"File upload failed: {str(e)}"
+            )
+
+        # Create database record
+        created_file = crud_file.create_file(
+            db,
+            final_filename,
+            file_size,
+            UPLOAD_DIRECTORY,
+            folder,
+            current_user.id
+        )
+        uploaded_files.append(created_file)
+
+    # Return last uploaded file (maintain backward compatibility)
+    # or return list if multiple files
+    if len(uploaded_files) == 1:
+        return uploaded_files[0]
+    else:
+        return {"files": uploaded_files, "count": len(uploaded_files)}
 
 #User Files get
 @router.get("/me")
@@ -110,23 +175,17 @@ def delete_user_file(
     current_user: models.User = Depends(dep.get_current_active_user),
     fileInfo: FileDelete,
     ) -> Any:
+    from app.common.utils.file_security import validate_file_path
+
     user_file = crud_file.get_user_file(db, current_user.id, fileInfo.file_name)
     if user_file:
         # 실제 파일 경로 구성
         user_folder = f'./user/{current_user.username}/data'
         file_path = os.path.join(user_folder, fileInfo.file_name)
-        
-        # 보안: Path traversal 방지
-        real_user_folder = os.path.realpath(user_folder)
-        real_file_path = os.path.realpath(file_path)
-        
-        # 파일 경로가 사용자 폴더 내에 있는지 확인
-        if not real_file_path.startswith(real_user_folder):
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: Invalid file path"
-            )
-        
+
+        # 보안: Path traversal 방지 (centralized validation)
+        validate_file_path(user_folder, file_path)
+
         # 파일 존재 여부 확인 및 삭제
         if os.path.exists(file_path) and os.path.isfile(file_path):
             try:
@@ -136,7 +195,7 @@ def delete_user_file(
                     status_code=500,
                     detail=f"Failed to delete file: {str(e)}"
                 )
-        
+
         # DB에서 파일 정보 삭제
         delete_file = crud_file.delete_user_file(db, current_user.id, fileInfo.file_name)
         return delete_file
@@ -298,8 +357,17 @@ def read_user_file(
     current_user: models.User = Depends(dep.get_current_active_user),
     file_name: str,
     ) -> Any:
-    folder_path = './user' + '/' + current_user.username
-    input_filepath = f"{folder_path}/data/{file_name}"
+    from app.common.utils.file_security import validate_file_path
+
+    folder_path = f'./user/{current_user.username}/data'
+    input_filepath = os.path.join(folder_path, file_name)
+
+    # Security: Prevent path traversal
+    validate_file_path(folder_path, input_filepath)
+
+    if not os.path.exists(input_filepath):
+        raise HTTPException(status_code=404, detail="File not found")
+
     # file_name에 해당하는 파일이 .json 확장자면 json으로 로드해서 return
     # 아니면 파일을 읽어서 return
     if file_name.endswith('.json'):
@@ -351,8 +419,18 @@ async def download_result_file(
     current_user: models.User = Depends(dep.get_current_active_user),
     filename: str,
     ) -> Any:
-    folder_path = './user' + '/' + current_user.username + "/result/"
-    return FileResponse(folder_path + filename ,filename=filename)
+    from app.common.utils.file_security import validate_file_path
+
+    folder_path = f'./user/{current_user.username}/result'
+    file_path = os.path.join(folder_path, filename)
+
+    # Security: Prevent path traversal
+    validate_file_path(folder_path, file_path)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(file_path, filename=filename)
 
 @router.get("/data/{filename}")
 async def download_data_file(
@@ -360,18 +438,25 @@ async def download_data_file(
     current_user: models.User = Depends(dep.get_current_active_user),
     filename: str,
     ) -> Any:
-    PATH_DATA_FILE = './user' + '/' + current_user.username + "/data/" + filename
+    from app.common.utils.file_security import validate_file_path
+
+    folder_path = f'./user/{current_user.username}/data'
+    file_path = os.path.join(folder_path, filename)
+
+    # Security: Prevent path traversal
+    validate_file_path(folder_path, file_path)
+
     # 파일이 존재하는지 확인
-    if not os.path.isfile(PATH_DATA_FILE):
+    if not os.path.isfile(file_path):
         raise HTTPException(
                 status_code=400,
                 detail="this file not exists in your files",
         )
 
     if filename.endswith('.h5ad'):
-        df = load_tab_file(PATH_DATA_FILE)
+        df = load_tab_file(file_path)
         return df.to_dict(orient="records")
-    return FileResponse(PATH_DATA_FILE, filename=filename)
+    return FileResponse(file_path, filename=filename)
 
 @router.get("/tutorials/{filename}")
 async def download_tutorial_file(
@@ -379,5 +464,15 @@ async def download_tutorial_file(
     current_user: models.User = Depends(dep.get_current_active_user),
     filename: str,
     ) -> Any:
-    PATH_TUTORIAL_FILE = './tutorials/' + filename
-    return FileResponse(PATH_TUTORIAL_FILE, filename=filename)
+    from app.common.utils.file_security import validate_file_path
+
+    folder_path = './tutorials'
+    file_path = os.path.join(folder_path, filename)
+
+    # Security: Prevent path traversal
+    validate_file_path(folder_path, file_path)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(file_path, filename=filename)
