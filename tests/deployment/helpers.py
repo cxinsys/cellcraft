@@ -187,26 +187,56 @@ def check_service_accessible(url: str, timeout: int = 10) -> bool:
         return False
 
 
-def wait_for_service_ready(url: str, timeout: int = 60) -> bool:
+def wait_for_service_ready(url: str, timeout: int = 60, stability_checks: int = 3) -> bool:
     """
-    Wait for service to become accessible.
+    Wait for service to become accessible with stability verification.
 
     Polls service every 2 seconds until accessible or timeout.
+    Requires consecutive successful checks to ensure service stability.
 
     Args:
         url: Service URL to check
         timeout: Maximum wait time in seconds (default: 60)
+        stability_checks: Number of consecutive successes required (default: 3)
 
     Returns:
-        bool: True if service became accessible, False if timeout
+        bool: True if service became accessible and stable, False if timeout
     """
     start_time = time.time()
+    consecutive_successes = 0
 
     while time.time() - start_time < timeout:
         if check_service_accessible(url, timeout=5):
-            return True
+            consecutive_successes += 1
+            if consecutive_successes >= stability_checks:
+                return True  # Service is stable
+        else:
+            consecutive_successes = 0  # Reset on failure
         time.sleep(2)
 
+    return False
+
+
+def check_service_with_retry(url: str, retries: int = 3, retry_delay: int = 2) -> bool:
+    """
+    Check service accessibility with retry logic.
+
+    Attempts multiple times to verify service is accessible,
+    with delay between attempts.
+
+    Args:
+        url: Service URL to check
+        retries: Number of retry attempts (default: 3)
+        retry_delay: Delay between retries in seconds (default: 2)
+
+    Returns:
+        bool: True if service is accessible, False after all retries failed
+    """
+    for attempt in range(retries):
+        if check_service_accessible(url, timeout=10):
+            return True
+        if attempt < retries - 1:  # Don't sleep after last attempt
+            time.sleep(retry_delay)
     return False
 
 
@@ -233,6 +263,96 @@ def get_plugin_list() -> List[Dict[str, Any]]:
         return response.json()
     except Exception as e:
         raise RuntimeError(f"Failed to get plugin list: {e}")
+
+
+def get_plugins_from_db(
+    container_name: str = "cellcraft-db-1",
+    source: str = "official"
+) -> List[Dict[str, Any]]:
+    """
+    Query plugins table directly via Docker exec for deployment validation.
+
+    This bypasses API authentication requirements and directly validates
+    database initialization state.
+
+    Args:
+        container_name: Name of database container (default: cellcraft-db-1)
+        source: Plugin source filter (default: "official")
+
+    Returns:
+        list: List of plugin dictionaries with fields:
+            - id: Plugin ID
+            - name: Plugin name
+            - use_gpu: Boolean GPU requirement
+            - source: Plugin source (official/custom)
+            - created_at: Timestamp
+
+    Raises:
+        RuntimeError: If Docker exec fails or query returns error
+
+    Example:
+        >>> plugins = get_plugins_from_db()
+        >>> cpu_plugins = [p for p in plugins if not p['use_gpu']]
+        >>> len(cpu_plugins)  # Should be 6 or 7 depending on platform
+    """
+    import json
+
+    # SQL query to get plugins with specified source
+    query = f"""
+    SELECT
+        id,
+        name,
+        use_gpu,
+        source,
+        created_at,
+        updated_at
+    FROM plugins
+    WHERE source = '{source}'
+    ORDER BY name;
+    """
+
+    try:
+        # Execute query via docker exec
+        result = subprocess.run(
+            [
+                "docker", "exec", container_name,
+                "psql", "-U", "cellcraft_admin", "-d", "cellcraft",
+                "-t", "-A", "-F", ",",  # -t: tuples only, -A: unaligned, -F: field separator
+                "-c", query
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True
+        )
+
+        # Parse CSV output
+        plugins = []
+        for line in result.stdout.strip().split('\n'):
+            if not line:
+                continue
+            parts = line.split(',')
+            if len(parts) >= 6:
+                plugins.append({
+                    'id': int(parts[0]),
+                    'name': parts[1],
+                    'use_gpu': parts[2].lower() == 't',  # PostgreSQL boolean: 't' or 'f'
+                    'source': parts[3],
+                    'created_at': parts[4],
+                    'updated_at': parts[5]
+                })
+
+        return plugins
+
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"Database query timed out on container '{container_name}'")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"Failed to query plugins from database: {e.stderr}\n"
+            f"Container: {container_name}, Query: {query}"
+        )
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error querying database: {e}")
 
 
 # ==============================================================================
@@ -661,14 +781,14 @@ def measure_volume_io_latency() -> Dict[str, Any]:
 
 def restart_container(container_name: str, timeout: int = 60) -> bool:
     """
-    Restart a Docker container and wait for it to be healthy.
+    Restart a Docker container and wait for it to be healthy (or running if no health check).
 
     Args:
         container_name: Name of Docker container
         timeout: Maximum wait time in seconds (default: 60)
 
     Returns:
-        bool: True if container restarted successfully and is healthy, False otherwise
+        bool: True if container restarted successfully and is healthy/running, False otherwise
 
     Example:
         >>> if restart_container("cellcraft-backend-1"):
@@ -686,8 +806,14 @@ def restart_container(container_name: str, timeout: int = 60) -> bool:
         if result.returncode != 0:
             return False
 
-        # Wait for container to be healthy
-        return wait_for_container_healthy(container_name, timeout)
+        # Check if container has a health check
+        status_info = get_container_status(container_name)
+        if status_info and status_info["health"] != "none":
+            # Container has health check, wait for it to be healthy
+            return wait_for_container_healthy(container_name, timeout)
+        else:
+            # No health check, just wait for container to be running
+            return wait_for_container_running(container_name, timeout)
 
     except Exception:
         return False
@@ -884,6 +1010,302 @@ def recover_from_failure(
             return wait_for_container_healthy(container_name, timeout)
 
         return True
+
+    except Exception:
+        return False
+
+
+# ==============================================================================
+# Submodule Validation (Phase 2 - Submodule Tests)
+# ==============================================================================
+
+def get_submodule_status(submodule_path: str) -> Dict[str, Any]:
+    """
+    Get git submodule status including initialization state, branch, commit hash, and sync state.
+
+    Args:
+        submodule_path: Relative path to submodule from project root (e.g., "backend/plugin/official")
+
+    Returns:
+        dict: Submodule status information with keys:
+            - initialized: bool - Whether submodule is initialized
+            - commit_hash: str - Current commit hash (short)
+            - commit_hash_full: str - Current commit hash (full)
+            - branch: str - Current branch name (or None if detached HEAD)
+            - remote_url: str - Remote repository URL
+            - sync_status: str - "synced", "ahead", "behind", or "diverged"
+            - has_uncommitted_changes: bool - Whether there are uncommitted changes
+            - error: str - Error message if status check failed
+
+    Example:
+        >>> status = get_submodule_status("backend/plugin/official")
+        >>> if status["initialized"]:
+        ...     print(f"Branch: {status['branch']}, Commit: {status['commit_hash']}")
+    """
+    import subprocess
+    import os
+
+    try:
+        status = {
+            "initialized": False,
+            "commit_hash": None,
+            "commit_hash_full": None,
+            "branch": None,
+            "remote_url": None,
+            "sync_status": "unknown",
+            "has_uncommitted_changes": False,
+            "error": None
+        }
+
+        # Check if submodule directory exists
+        if not os.path.exists(submodule_path):
+            status["error"] = f"Submodule path does not exist: {submodule_path}"
+            return status
+
+        # Check if directory is empty (not initialized)
+        if not os.listdir(submodule_path):
+            status["error"] = "Submodule directory is empty (not initialized)"
+            return status
+
+        status["initialized"] = True
+
+        # Get current commit hash (short and full)
+        result = subprocess.run(
+            ["git", "-C", submodule_path, "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            status["commit_hash"] = result.stdout.strip()
+
+        result = subprocess.run(
+            ["git", "-C", submodule_path, "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            status["commit_hash_full"] = result.stdout.strip()
+
+        # Get current branch (or detect detached HEAD)
+        result = subprocess.run(
+            ["git", "-C", submodule_path, "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            branch = result.stdout.strip()
+            status["branch"] = None if branch == "HEAD" else branch
+
+        # Get remote URL
+        result = subprocess.run(
+            ["git", "-C", submodule_path, "config", "--get", "remote.origin.url"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            status["remote_url"] = result.stdout.strip()
+
+        # Check sync status with remote (if branch is known)
+        if status["branch"]:
+            # Fetch remote to get latest refs (quiet mode)
+            subprocess.run(
+                ["git", "-C", submodule_path, "fetch", "origin", "--quiet"],
+                capture_output=True,
+                timeout=30
+            )
+
+            # Check ahead/behind status
+            result = subprocess.run(
+                ["git", "-C", submodule_path, "rev-list", "--left-right", "--count",
+                 f"HEAD...origin/{status['branch']}"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                counts = result.stdout.strip().split()
+                if len(counts) == 2:
+                    ahead, behind = int(counts[0]), int(counts[1])
+                    if ahead == 0 and behind == 0:
+                        status["sync_status"] = "synced"
+                    elif ahead > 0 and behind == 0:
+                        status["sync_status"] = "ahead"
+                    elif ahead == 0 and behind > 0:
+                        status["sync_status"] = "behind"
+                    else:
+                        status["sync_status"] = "diverged"
+
+        # Check for uncommitted changes
+        result = subprocess.run(
+            ["git", "-C", submodule_path, "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            status["has_uncommitted_changes"] = len(result.stdout.strip()) > 0
+
+        return status
+
+    except subprocess.TimeoutExpired:
+        return {
+            **status,
+            "error": "Git command timed out"
+        }
+    except Exception as e:
+        return {
+            **status,
+            "error": f"Failed to get submodule status: {str(e)}"
+        }
+
+
+def get_submodule_branch(submodule_path: str) -> Optional[str]:
+    """
+    Get current branch name of submodule.
+
+    Args:
+        submodule_path: Relative path to submodule from project root
+
+    Returns:
+        str: Branch name, or None if detached HEAD or error
+
+    Example:
+        >>> branch = get_submodule_branch("backend/plugin/official")
+        >>> print(f"Current branch: {branch}")
+        Current branch: release/plugins-v1.0-cpu
+    """
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", submodule_path, "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        if result.returncode == 0:
+            branch = result.stdout.strip()
+            return None if branch == "HEAD" else branch
+
+        return None
+
+    except Exception:
+        return None
+
+
+def validate_version_file(version_file_path: str) -> Dict[str, Any]:
+    """
+    Validate version.json file format and contents.
+
+    Expected format:
+    {
+        "version": "1.0.0",
+        "branch": "release/plugins-v1.0-cpu",
+        "commit": "5e49d2b",
+        "build_date": "2024-01-15",
+        "plugins": ["TENET", "GENIE3", ...]
+    }
+
+    Args:
+        version_file_path: Absolute path to version.json file
+
+    Returns:
+        dict: Validation result with keys:
+            - valid: bool - Whether file is valid
+            - version: str - Version string (if valid)
+            - branch: str - Branch name (if valid)
+            - commit: str - Commit hash (if valid)
+            - plugins: list - Plugin list (if valid)
+            - error: str - Error message if invalid
+
+    Example:
+        >>> result = validate_version_file("backend/plugin/official/version.json")
+        >>> if result["valid"]:
+        ...     print(f"Version: {result['version']}, Branch: {result['branch']}")
+    """
+    import json
+    import os
+
+    result = {
+        "valid": False,
+        "version": None,
+        "branch": None,
+        "commit": None,
+        "plugins": [],
+        "error": None
+    }
+
+    try:
+        # Check if file exists
+        if not os.path.exists(version_file_path):
+            result["error"] = f"version.json file not found: {version_file_path}"
+            return result
+
+        # Read and parse JSON
+        with open(version_file_path, 'r') as f:
+            data = json.load(f)
+
+        # Validate required fields
+        required_fields = ["version", "branch", "commit"]
+        missing_fields = [field for field in required_fields if field not in data]
+
+        if missing_fields:
+            result["error"] = f"Missing required fields: {', '.join(missing_fields)}"
+            return result
+
+        # Extract values
+        result["version"] = data.get("version")
+        result["branch"] = data.get("branch")
+        result["commit"] = data.get("commit")
+        result["plugins"] = data.get("plugins", [])
+        result["valid"] = True
+
+        return result
+
+    except json.JSONDecodeError as e:
+        result["error"] = f"Invalid JSON format: {str(e)}"
+        return result
+    except Exception as e:
+        result["error"] = f"Failed to validate version file: {str(e)}"
+        return result
+
+
+def check_submodule_clean(submodule_path: str) -> bool:
+    """
+    Check if submodule has uncommitted changes (clean working directory).
+
+    Args:
+        submodule_path: Relative path to submodule from project root
+
+    Returns:
+        bool: True if working directory is clean, False if there are uncommitted changes
+
+    Example:
+        >>> if check_submodule_clean("backend/plugin/official"):
+        ...     print("Submodule is clean")
+        ... else:
+        ...     print("Submodule has uncommitted changes")
+    """
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", submodule_path, "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        if result.returncode == 0:
+            # Empty output means clean working directory
+            return len(result.stdout.strip()) == 0
+
+        return False
 
     except Exception:
         return False

@@ -205,7 +205,7 @@ def platform_constraints(platform_info: Dict[str, any]) -> Dict[str, any]:
         expected_gpu_plugins = 0  # GPU not supported
     else:
         # Linux/WSL2: All plugins supported
-        expected_cpu_plugins = 7  # Including Custom Plugin
+        expected_cpu_plugins = 6  # CPU mode: GRNBOOST2, LEAP, TENET, GENIE3, GRNViz, Scribe
         expected_gpu_plugins = 8 if supports_gpu else 0
 
     # Maximum startup times (baseline * multiplier)
@@ -213,6 +213,7 @@ def platform_constraints(platform_info: Dict[str, any]) -> Dict[str, any]:
     max_startup_time_gpu = int(90 * timeout_multiplier)
 
     return {
+        "platform": platform_info["os_type"],
         "timeout_multiplier": timeout_multiplier,
         "supports_gpu": supports_gpu,
         "supports_custom_plugin": supports_custom_plugin,
