@@ -36,7 +36,7 @@ class TestOptimization:
         """
         import subprocess
         import os
-        from .helpers import get_container_status, check_service_accessible
+        from .helpers import get_container_status, check_service_accessible, wait_for_service_ready, check_service_with_retry
 
         os.chdir(project_root)
 
@@ -52,6 +52,11 @@ class TestOptimization:
         # Check if deployment succeeded (either via GHCR or local build)
         assert result.returncode == 0, \
             f"Deployment should succeed with GHCR fallback: {result.stderr}"
+
+        # Wait for services to be fully ready before checking accessibility
+        # GHCR images may require longer initialization time
+        wait_for_service_ready("http://localhost:8080", timeout=120)
+        wait_for_service_ready("http://localhost:8000/docs", timeout=120)
 
         # Check logs for fallback indicators
         output = result.stdout + result.stderr
@@ -69,9 +74,10 @@ class TestOptimization:
             frontend_status and frontend_status["status"] == "running"
         )
 
-        # Verify services are accessible
-        backend_accessible = check_service_accessible("http://localhost:8000", timeout=10)
-        frontend_accessible = check_service_accessible("http://localhost:8080", timeout=10)
+        # Verify services are accessible with retry logic
+        # Services may take additional time to stabilize after initial readiness
+        backend_accessible = check_service_with_retry("http://localhost:8000", retries=5, retry_delay=2)
+        frontend_accessible = check_service_with_retry("http://localhost:8080", retries=5, retry_delay=2)
 
         services_accessible = backend_accessible and frontend_accessible
 
@@ -170,6 +176,7 @@ class TestOptimization:
         import subprocess
         import os
         import time
+        import re
         from datetime import datetime
 
         os.chdir(project_root)
@@ -198,9 +205,11 @@ class TestOptimization:
         for service, container_name in container_names.items():
             status_info = get_container_status(container_name)
             if status_info:
-                start_times[service] = datetime.fromisoformat(
-                    status_info["started_at"].replace("Z", "+00:00")
-                )
+                # Docker timestamps can have nanosecond precision, strip to microseconds
+                timestamp_str = status_info["started_at"].replace("Z", "+00:00")
+                # Remove nanoseconds (keep only microseconds - 6 digits after decimal)
+                timestamp_str = re.sub(r'\.(\d{6})\d+', r'.\1', timestamp_str)
+                start_times[service] = datetime.fromisoformat(timestamp_str)
 
         # Verify independent containers started in parallel
         # db and rabbitmq should start at nearly the same time
