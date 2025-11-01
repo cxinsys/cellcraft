@@ -17,10 +17,16 @@ if os.environ.get("TESTING") == "1":
     engine = create_engine(
         SQLALCHEMY_TEST_DATABASE_URI,
         echo=False,  # Disable SQL logging in tests
-        pool_pre_ping=True
+        pool_pre_ping=True,
+        pool_recycle=3600  # Recycle connections after 1 hour
     )
 else:
-    engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, echo=True, pool_pre_ping=True)
+    engine = create_engine(
+        settings.SQLALCHEMY_DATABASE_URI,
+        echo=True,
+        pool_pre_ping=True,
+        pool_recycle=3600  # Recycle connections after 1 hour
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -36,7 +42,11 @@ class Base:
     #     return re.sub(r'(?<!^)(?=[A-Z])', '_', cls.__name__).lower()
 
 def get_new_engine_and_session() -> Session:
-    engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, pool_pre_ping=True)
+    engine = create_engine(
+        settings.SQLALCHEMY_DATABASE_URI,
+        pool_pre_ping=True,
+        pool_recycle=3600  # Recycle connections after 1 hour
+    )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     return SessionLocal()
 
