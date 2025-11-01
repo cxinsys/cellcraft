@@ -389,11 +389,11 @@ launch_containers() {
     
     # Get all service names
     local all_services
-    all_services=$(docker compose -f "${COMPOSE_FILE}" config --services)
+    all_services=$(docker compose -f "$compose_file" config --services)
     
     # Check for unhealthy containers (using dynamic compose file)
     local unhealthy_containers
-    unhealthy_containers=$(docker compose -f "$compose_file" ps --format "table {{.Service}}\t{{.Status}}" | grep -E "(unhealthy|exited|restarting)" | awk '{print $1}' | tr '\n' ' ')
+    unhealthy_containers=$(docker compose -f "$compose_file" ps --format "table {{.Service}}\t{{.Status}}" | grep -E "(unhealthy|exited|restarting)" | awk '{print $1}' | tr '\n' ' ' || true)
     
     if [[ -n "${unhealthy_containers// /}" ]]; then
         log_warning "Found unhealthy containers: ${unhealthy_containers}"

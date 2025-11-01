@@ -82,10 +82,10 @@
 
 <script>
 import { uploadForm, getFiles, findFolder, deleteFile } from "@/api/index";
-import { formatBytes, cutDateFromISO, extractFileName, extractExtension } from "@/utils/formatters";
 import { validateFileExtension } from "@/utils/validation";
 import { generateUploadFileName } from "@/utils/filename";
 import { calculateContextMenuPosition } from "@/utils/positionCalculator";
+import { formatBytes, cutDateFromISO, extractFileName, extractExtension } from "@/utils/formatters";
 
 export default {
   props: {
@@ -117,6 +117,12 @@ export default {
   },
 
   methods: {
+    // Formatter methods for template
+    formatBytes,
+    cutDateFromISO,
+    extractFileName,
+    extractExtension,
+
     RMouseClick(event, file_name, idx) {
       this.R_Mouse_isActive = false;
       const { x, y } = calculateContextMenuPosition(event.clientX, event.clientY);

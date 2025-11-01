@@ -103,7 +103,6 @@
 
 <script>
 import Vue from "vue";
-import moment from "moment";
 /* eslint-disable */
 
 // import FileTable from "@/components/workflowComponents/PopupFileTable.vue"

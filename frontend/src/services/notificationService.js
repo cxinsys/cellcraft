@@ -31,10 +31,9 @@ export class NotificationService {
    *
    * @param {string} message - Message to display
    * @param {string} title - Notification title
-   * @param {string} type - Notification type
    * @private
    */
-  defaultDisplay(message, title, type) {
+  defaultDisplay(message, title) {
     const formattedMessage = title ? `${title}: ${message}` : message;
     window.alert(formattedMessage);
   }
