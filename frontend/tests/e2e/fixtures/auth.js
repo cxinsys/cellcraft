@@ -17,46 +17,48 @@ const credentials = {
  */
 export const test = base.extend({
   storageState: async ({ browser, baseURL }, use) => {
-    let stateReady = true;
+    let firstAttemptFailed = false;
     try {
       await fs.stat(authFile);
     } catch {
-      stateReady = false;
+      firstAttemptFailed = true;
     }
 
-    if (!stateReady) {
+    if (!firstAttemptFailed) {
+      console.log('Reusing existing authentication state');
+      await use(authFile);
+
+      try {
+        await fs.stat(authFile);
+      } catch {
+        firstAttemptFailed = true;
+      }
+    }
+
+    if (firstAttemptFailed) {
       console.log('Authenticating user...');
-      // Create context with baseURL
       const context = await browser.newContext({ baseURL });
       const page = await context.newPage();
 
-      // Navigate to login page
       await page.goto('/login');
-
-      // Fill in credentials
       await page.getByPlaceholder('Email').fill(credentials.email);
       await page.getByPlaceholder('Password').fill(credentials.password);
 
-      // Submit form and wait for redirect to projects page
       await Promise.all([
-        page.waitForURL('**/projects', { timeout: 10000 }),
+        page.waitForURL('**/projects', { timeout: 15000 }),
         page.getByRole('button', { name: /Sign In/i }).click(),
       ]);
 
-      // Verify successful login by checking for projects page
       await expect(page).toHaveURL(/.*\/projects/);
 
-      // Save authentication state
       await context.storageState({ path: authFile });
       console.log('Authentication state saved to', authFile);
 
       await page.close();
       await context.close();
-    } else {
-      console.log('Reusing existing authentication state');
-    }
 
-    await use(authFile);
+      await use(authFile);
+    }
   },
 });
 

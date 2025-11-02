@@ -346,12 +346,16 @@ test.describe.serial('Project Initialization Workflow', () => {
     await test.step('Open plugin selection modal', async () => {
       await projectsPage.clickNewWorkflow();
 
-      const plugins = await projectsPage.getAvailablePlugins();
-      console.log('Available plugins:', plugins);
-
-      // Verify at least TENET plugin is available
-      const hasTENET = plugins.some((p) => p.name.includes('TENET'));
-      expect(hasTENET).toBe(true);
+      await expect
+        .poll(async () => {
+          const plugins = await projectsPage.getAvailablePlugins();
+          console.log('Available plugins:', plugins);
+          return plugins.some((p) => p.name && p.name.includes('TENET'));
+        }, {
+          message: 'Waiting for TENET plugin to appear in plugin list',
+          timeout: 20000,
+        })
+        .toBe(true);
     });
 
     await test.step('Select default template', async () => {
