@@ -113,6 +113,7 @@ export default {
       messageContent: "",
       targetFile: null,
       uploadPercentage: 0,
+      isDeletingFile: false, // Track file deletion state to prevent concurrent deletions
     };
   },
 
@@ -171,34 +172,87 @@ export default {
         try {
           await uploadForm(form, onUploadProgress);
           this.uploadPercentage = 0; // 업로드 완료 후 초기화
+
+          // 업로드 성공 후 파일 목록 새로고침
           const folderList = await findFolder({
             folder_name: this.currentFolder,
           });
           this.files_list = folderList.data;
         } catch (error) {
-          console.error(error);
+          console.error('File upload failed:', error);
+
+          // 업로드 실패 시 진행률 리셋
+          this.uploadPercentage = 0;
+
+          // 사용자에게 에러 메시지 표시
+          let errorMessage = 'File upload failed. Please try again.';
+
+          if (error.response) {
+            // 백엔드 에러 응답이 있는 경우
+            if (error.response.data && error.response.data.detail) {
+              errorMessage = error.response.data.detail;
+            } else if (error.response.status === 413) {
+              errorMessage = 'File is too large. Please choose a smaller file.';
+            } else if (error.response.status === 400) {
+              errorMessage = 'Invalid file. Please check the file format and try again.';
+            } else if (error.response.status === 500) {
+              errorMessage = 'Server error occurred. Please try again later.';
+            }
+          } else if (error.request) {
+            errorMessage = 'Network error. Please check your connection.';
+          }
+
+          alert(errorMessage);
         }
       }
     },
     async removeFile() {
-      this.targetFile = this.files_list[this.list_idx];
-      this.files_list.splice(this.list_idx, 1);
-      // this.toggleMessage = true;
+      // Prevent concurrent deletions
+      if (this.isDeletingFile) {
+        return;
+      }
+
+      // Show confirmation dialog BEFORE any state changes
       if (
-        confirm(
+        !confirm(
           "Are you sure you want to delete this file? This action cannot be undone."
         )
       ) {
-        try {
-          const file = {
-            file_name: this.file_name,
-          };
-          await deleteFile(file);
-        } catch (error) {
-          console.error(error);
-          // Restore file to list on error
-          this.files_list.splice(this.list_idx, 0, this.targetFile);
+        return; // User cancelled
+      }
+
+      // Set loading state
+      this.isDeletingFile = true;
+
+      try {
+        const file = {
+          file_name: this.file_name,
+        };
+
+        // Call API and wait for response
+        await deleteFile(file);
+
+        // Only remove from UI after successful deletion
+        this.targetFile = this.files_list[this.list_idx];
+        this.files_list.splice(this.list_idx, 1);
+
+      } catch (error) {
+        console.error('File deletion failed:', error);
+
+        // User-friendly error messages
+        let errorMessage = 'Failed to delete file. Please try again.';
+        if (error.response?.data?.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response?.status === 404) {
+          errorMessage = 'File not found. It may have been already deleted.';
+        } else if (error.request) {
+          errorMessage = 'Network error. Please check your connection.';
         }
+
+        alert(errorMessage);
+      } finally {
+        // Reset loading state
+        this.isDeletingFile = false;
       }
     },
     undoDeletion() {

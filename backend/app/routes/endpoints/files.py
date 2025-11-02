@@ -67,7 +67,7 @@ async def fileUpload(
             )
 
         # Stream file to disk in chunks to prevent memory exhaustion
-        from app.common.config import UPLOAD_CHUNK_SIZE
+        from app.common.config import UPLOAD_CHUNK_SIZE, MAX_UPLOAD_SIZE
 
         file_path = os.path.join(UPLOAD_DIRECTORY, final_filename)
         file_size = 0
