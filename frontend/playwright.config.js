@@ -68,15 +68,13 @@ export default defineConfig({
       },
     },
 
-    /* WebKit (Safari) - Linux 환경에서 시스템 의존성 필요 */
-    /* macOS 환경이나 CI/CD의 macOS runner에서만 활성화 권장 */
-    // {
-    //   name: 'webkit',
-    //   use: {
-    //     ...devices['Desktop Safari'],
-    //     viewport: { width: 1920, height: 1080 }
-    //   },
-    // },
+    {
+      name: 'webkit',
+      use: {
+        ...devices['Desktop Safari'],
+        viewport: { width: 1920, height: 1080 },
+      },
+    },
 
     /* 모바일 테스트 (선택사항) */
     // {
