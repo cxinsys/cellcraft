@@ -158,9 +158,19 @@ export async function waitForPlotlyRender(
       if (!container) return false;
 
       const svg = container.querySelector('svg.main-svg');
-      const scatterLayer = container.querySelector('.scatterlayer');
+      if (!svg) return false;
 
-      return svg && scatterLayer && scatterLayer.children.length > 0;
+      const scatterLayer = container.querySelector('.scatterlayer');
+      if (scatterLayer && scatterLayer.children.length > 0) {
+        return true;
+      }
+
+      const webglCanvas = container.querySelector('.gl-container canvas');
+      if (webglCanvas) {
+        return true;
+      }
+
+      return false;
     },
     containerId,
     { timeout }
@@ -257,27 +267,6 @@ export async function getWorkflowMetadata(page) {
  * @param {string} fileName - File name to wait for
  * @param {number} timeout - Maximum time to wait (default: 5000ms)
  */
-export async function waitForFilePropagation(page, fileName, timeout = 5000) {
-  await page.waitForFunction(
-    (name) => {
-      const store = window.app?.$store || window.vue?.$store || window.$store;
-      if (!store) return false;
-
-      const workflowInfo = store.state.workflow?.workflow_info;
-      if (!workflowInfo || !workflowInfo.data) return false;
-
-      // Check if any node has the file assigned
-      return Object.values(workflowInfo.data).some(
-        (node) =>
-          node.data?.file === name ||
-          (node.data?.files && Object.values(node.data.files).includes(name))
-      );
-    },
-    fileName,
-    { timeout }
-  );
-}
-
 /**
  * Get node file assignment from Vuex store
  * @param {Page} page - Playwright page object
@@ -290,13 +279,29 @@ export async function getNodeFileAssignment(page, nodeId) {
     if (!store) return null;
 
     const workflowInfo = store.state.workflow?.workflow_info;
-    if (!workflowInfo || !workflowInfo.data) return null;
+    if (!workflowInfo) return null;
 
-    const node = workflowInfo.data[id];
+    const drawflowData =
+      workflowInfo.drawflow?.Home?.data ||
+      workflowInfo.drawflow?.home?.data ||
+      workflowInfo.data ||
+      null;
+
+    if (!drawflowData) return null;
+
+    const node = drawflowData[id];
     if (!node) return null;
 
-    // Return file or files object
-    return node.data?.file || node.data?.files || null;
+    // Return file or files object (single string, array, or mapping)
+    if (node.data?.file) {
+      return node.data.file;
+    }
+
+    if (node.data?.files) {
+      return node.data.files;
+    }
+
+    return null;
   }, nodeId);
 }
 

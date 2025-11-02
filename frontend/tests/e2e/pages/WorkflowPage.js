@@ -106,9 +106,27 @@ export class WorkflowPage {
    * @returns {Promise<Locator>} The node locator
    */
   async findNodeByType(nodeType) {
-    // TENET template: node-7 is always "Input h5ad" InputFile
+    // TENET template: node-7 is "Input h5ad" InputFile, node-8 is "DataTable"
     if (nodeType === 'Input h5ad') {
       const node = this.page.locator('#node-7.drawflow-node');
+      await node.waitFor({ state: 'attached', timeout: 5000 });
+      return node;
+    }
+
+    if (nodeType === 'DataTable') {
+      const node = this.page.locator('#node-8.drawflow-node');
+      await node.waitFor({ state: 'attached', timeout: 5000 });
+      return node;
+    }
+
+    if (nodeType === 'ScatterPlot') {
+      const node = this.page.locator('#node-9.drawflow-node');
+      await node.waitFor({ state: 'attached', timeout: 5000 });
+      return node;
+    }
+
+    if (nodeType === 'Algorithm') {
+      const node = this.page.locator('#node-12.drawflow-node');
       await node.waitFor({ state: 'attached', timeout: 5000 });
       return node;
     }

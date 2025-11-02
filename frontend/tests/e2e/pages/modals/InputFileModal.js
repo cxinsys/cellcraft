@@ -50,15 +50,17 @@ export class InputFileModal {
    * @returns {Promise<Array<string>>} Array of folder names
    */
   async getFolders() {
-    const folders = await this.folderItems.all();
-    const folderNames = [];
+    const folderNamesLocator = this.folderItems.locator('.folder__name');
 
-    for (const folder of folders) {
-      const name = await folder.locator('.folder__name').textContent();
-      folderNames.push(name?.trim());
-    }
+    await folderNamesLocator.first().waitFor({ state: 'visible', timeout: 10000 });
 
-    return folderNames;
+    const items = await folderNamesLocator.evaluateAll((elements) =>
+      elements
+        .map((el) => el.textContent?.trim())
+        .filter((name) => name && name.length > 0)
+    );
+
+    return items;
   }
 
   /**

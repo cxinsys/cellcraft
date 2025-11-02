@@ -5,8 +5,13 @@ import { WorkflowPage } from './pages/WorkflowPage.js';
 import { FilesPage } from './pages/FilesPage.js';
 import { InputFileModal } from './pages/modals/InputFileModal.js';
 import { AlgorithmModal } from './pages/modals/AlgorithmModal.js';
-import { setupWorkflowRoutes, clearWorkflowRoutes } from './fixtures/workflow-api.js';
-import { inputFileNodeExists } from './utils/workflow.js';
+import { DataTableModal } from './pages/modals/DataTableModal.js';
+import { ScatterPlotModal } from './pages/modals/ScatterPlotModal.js';
+import {
+  inputFileNodeExists,
+  getNodeFileAssignment,
+  getWorkflowMetadata,
+} from './utils/workflow.js';
 
 /**
  * Test Suite: Workflow Configuration (Section 2.2)
@@ -29,6 +34,8 @@ test.describe('Workflow Configuration Tests', () => {
   let filesPage;
   let inputFileModal;
   let algorithmModal;
+  let dataTableModal;
+  let scatterPlotModal;
 
   // Track uploaded files for cleanup
   const uploadedFiles = [];
@@ -50,6 +57,8 @@ test.describe('Workflow Configuration Tests', () => {
     filesPage = new FilesPage(page);
     inputFileModal = new InputFileModal(page);
     algorithmModal = new AlgorithmModal(page);
+    dataTableModal = new DataTableModal(page);
+    scatterPlotModal = new ScatterPlotModal(page);
 
     // Setup API mocking for deterministic tests
     // Commenting out for now to use real backend, uncomment when needed
@@ -57,6 +66,14 @@ test.describe('Workflow Configuration Tests', () => {
 
     // Ensure required test file exists (conditional upload to avoid duplication)
     await filesPage.goto();
+    await filesPage.verifyPageLoaded();
+
+    try {
+      await filesPage.selectFolder(testWorkflow.folder);
+    } catch (error) {
+      console.log(`⚠️ Unable to select folder "${testWorkflow.folder}":`, error.message);
+    }
+
     await filesPage.verifyPageLoaded();
 
     const fileExists = await filesPage.isFilePresent(testWorkflow.expectedFile);
@@ -79,8 +96,7 @@ test.describe('Workflow Configuration Tests', () => {
     }
 
     // For Test 2 (file change test), upload a second file
-    const currentTestTitle = test.info().title;
-    if (currentTestTitle.includes('change assigned file')) {
+    const ensureDemoUpload = async () => {
       const secondFileExists = await filesPage.isFilePresent('demo.h5ad');
 
       if (!secondFileExists) {
@@ -89,6 +105,7 @@ test.describe('Workflow Configuration Tests', () => {
           'demo.h5ad',
           {
             targetFileName: 'demo.h5ad',
+            timeout: 60000,
           }
         );
         uploadedFiles.push(secondFile);
@@ -98,6 +115,27 @@ test.describe('Workflow Configuration Tests', () => {
       } else {
         console.log('ℹ️  Second test file already exists: demo.h5ad');
       }
+    };
+
+    const currentTestTitle = test.info().title;
+    if (currentTestTitle.includes('change assigned file')) {
+      await ensureDemoUpload();
+
+    try {
+      await filesPage.deleteFile(testWorkflow.expectedFile);
+      console.log(`🧹 Removed existing ${testWorkflow.expectedFile} before test`);
+    } catch (error) {
+      console.log(`ℹ️ No existing ${testWorkflow.expectedFile} to delete (expected in some runs)`);
+    }
+
+    await filesPage.goto();
+    await filesPage.selectFolder(testWorkflow.folder);
+    await filesPage.uploadFile('test_data.h5ad', {
+      targetFileName: testWorkflow.expectedFile,
+      timeout: 60000,
+    });
+    await filesPage.waitForUploadComplete();
+    await filesPage.verifyFileExists(testWorkflow.expectedFile);
     }
 
     // Navigate to Projects page (already authenticated via fixture)
@@ -124,8 +162,7 @@ test.describe('Workflow Configuration Tests', () => {
       uploadedFiles.length = 0;
     }
 
-    // Clean up route handlers
-    // await clearWorkflowRoutes(page);
+    // Clean up route handlers (enable if API mocking is used in future tests)
   });
 
   /**
@@ -230,9 +267,15 @@ test.describe('Workflow Configuration Tests', () => {
     // Verify the file is still assigned (from Vuex store)
     // When modal reopens, mounted() hook (InputFile.vue:151-178) reads from store:
     //   const currentFile = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId)
-    const persistedFileInfo = await inputFileModal.getCurrentFileInfo();
-    expect(persistedFileInfo).not.toBeNull();
-    expect(persistedFileInfo.name).toBe(testWorkflow.expectedFile);
+    await expect
+      .poll(async () => {
+        const info = await inputFileModal.getCurrentFileInfo();
+        return info?.name ?? null;
+      }, {
+        message: 'Waiting for InputFile modal to reload assigned file',
+        timeout: 10000,
+      })
+      .toBe(testWorkflow.expectedFile);
 
     // Verify Apply button is still in "Applied" state
     await inputFileModal.verifyApplyButtonState(true);
@@ -340,5 +383,379 @@ test.describe('Workflow Configuration Tests', () => {
     expect(persistedFileInfo.name).toBe(secondFile);
 
     console.log(`✅ File successfully changed to "${secondFile}"`);
+  });
+
+  test('Priority 4: Should display matrix data in DataTable node', async ({ page }) => {
+    test.setTimeout(60000);
+    test.info().annotations.push({
+      type: 'priority',
+      description: 'Priority 4 - DataTable matrix display verification',
+    });
+
+    // Create workflow from TENET template
+    await projectsPage.clickNewWorkflow();
+    await projectsPage.selectPluginTemplate(testWorkflow.name);
+    await workflowPage.verifyPageLoaded();
+    await page.waitForSelector('.drawflow-node', { timeout: 10000 });
+
+    // Assign file to InputFile node
+    await workflowPage.openNodeModal(testWorkflow.inputNodeName);
+    await inputFileModal.assignFile(testWorkflow.folder, testWorkflow.expectedFile);
+
+    // Close InputFile tab to focus on DataTable later
+    await workflowPage.closeTab(testWorkflow.inputNodeTabName);
+    await page.waitForTimeout(300);
+
+    // Determine DataTable node id from DOM (fallback to known default if missing)
+    const dataTableLocator = await workflowPage.findNodeByType('DataTable');
+    const dataTableNodeIdAttr = await dataTableLocator.getAttribute('id');
+    const dataTableNodeId = dataTableNodeIdAttr?.replace('node-', '') ?? '8';
+
+    // Debug: log workflow drawflow data before polling
+    const metadataBefore = await getWorkflowMetadata(page);
+    console.log(
+      '📦 Vuex drawflow data (before polling):',
+      JSON.stringify(metadataBefore?.workflowInfo?.drawflow?.Home?.data ?? null, null, 2)
+    );
+
+    // Verify file propagation via Vuex store (ensures connection + assignment)
+    await expect
+      .poll(async () => await getNodeFileAssignment(page, dataTableNodeId), {
+        message: `Expected DataTable node (${dataTableNodeId}) to receive file ${testWorkflow.expectedFile}`,
+        timeout: 10000,
+      })
+      .toBe(testWorkflow.expectedFile);
+
+    const metadataAfter = await getWorkflowMetadata(page);
+    console.log(
+      '📦 Vuex drawflow data (after polling):',
+      JSON.stringify(metadataAfter?.workflowInfo?.drawflow?.Home?.data ?? null, null, 2)
+    );
+
+    // Observe DataTable API call to ensure backend responds successfully
+    const dataRequestPromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/routes/datatable/load_data') &&
+        resp.request().method() === 'POST',
+      { timeout: 15000 }
+    );
+
+    await workflowPage.openNodeModal('DataTable');
+    await dataTableModal.verifyModalOpen();
+
+    const dataResponse = await dataRequestPromise;
+    const payload = await dataResponse.json();
+    console.log('📡 DataTable API payload:', payload);
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'success')) {
+      expect(payload.success).toBeTruthy();
+    }
+
+    const payloadColumns = Array.isArray(payload.columns) ? payload.columns.length : 0;
+    const payloadRows = Array.isArray(payload.rows) ? payload.rows.length : 0;
+
+    expect(payloadColumns).toBeGreaterThan(0);
+    expect(payloadRows).toBeGreaterThan(0);
+
+    // Wait for table to render
+    await dataTableModal.waitForDataLoaded();
+
+    const emptyStateVisible = await dataTableModal.isEmptyStateVisible();
+    expect(emptyStateVisible).toBeFalsy();
+
+    await expect(page.locator('.table-layout')).toBeVisible();
+
+    const rowCount = await dataTableModal.getRowCount();
+    expect(rowCount).toBeGreaterThan(0);
+  });
+
+  test('Priority 5: Should render UMAP scatter plot in ScatterPlot node', async ({ page }) => {
+    test.setTimeout(60000);
+    test.info().annotations.push({
+      type: 'priority',
+      description: 'Priority 5 - ScatterPlot UMAP visualization verification',
+    });
+
+    await projectsPage.clickNewWorkflow();
+    await projectsPage.selectPluginTemplate(testWorkflow.name);
+    await workflowPage.verifyPageLoaded();
+    await page.waitForSelector('.drawflow-node', { timeout: 10000 });
+
+    await workflowPage.openNodeModal(testWorkflow.inputNodeName);
+    await inputFileModal.assignFile(testWorkflow.folder, testWorkflow.expectedFile);
+
+    await workflowPage.closeTab(testWorkflow.inputNodeTabName);
+    await page.waitForTimeout(300);
+
+    const scatterLocator = await workflowPage.findNodeByType('ScatterPlot');
+    const scatterNodeIdAttr = await scatterLocator.getAttribute('id');
+    const scatterNodeId = scatterNodeIdAttr?.replace('node-', '') ?? '9';
+
+    const scatterMetadataBefore = await getWorkflowMetadata(page);
+    console.log(
+      '📦 Vuex drawflow data before ScatterPlot polling:',
+      JSON.stringify(scatterMetadataBefore?.workflowInfo?.drawflow?.Home?.data ?? null, null, 2)
+    );
+
+    await expect
+      .poll(async () => {
+        const assignment = await getNodeFileAssignment(page, scatterNodeId);
+        if (!assignment) return null;
+        if (typeof assignment === 'string') return assignment;
+        if (Array.isArray(assignment)) {
+          return assignment.find((item) => item === testWorkflow.expectedFile) ?? null;
+        }
+        if (typeof assignment === 'object') {
+          const values = Object.values(assignment);
+          return values.find((item) => item === testWorkflow.expectedFile) ?? null;
+        }
+        return null;
+      }, {
+        message: `Expected ScatterPlot node (${scatterNodeId}) to receive file ${testWorkflow.expectedFile}`,
+        timeout: 10000,
+      })
+      .toBe(testWorkflow.expectedFile);
+
+    const scatterMetadataAfter = await getWorkflowMetadata(page);
+    console.log(
+      '📦 Vuex drawflow data after ScatterPlot polling:',
+      JSON.stringify(scatterMetadataAfter?.workflowInfo?.drawflow?.Home?.data ?? null, null, 2)
+    );
+
+    const scatterDataResponsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/routes/files/data/') &&
+        resp.request().method() === 'GET',
+      { timeout: 15000 }
+    );
+
+    await workflowPage.openNodeModal('ScatterPlot');
+    await scatterPlotModal.verifyModalOpen();
+
+    const scatterDataResponse = await scatterDataResponsePromise;
+    const scatterPayload = await scatterDataResponse.json();
+    console.log('📡 ScatterPlot API payload:', scatterPayload);
+
+    if (Object.prototype.hasOwnProperty.call(scatterPayload, 'success')) {
+      expect(scatterPayload.success).toBeTruthy();
+    }
+
+    await scatterPlotModal.waitForPlotly();
+
+    const blankStateVisible = await scatterPlotModal.isBlankStateVisible();
+    expect(blankStateVisible).toBeFalsy();
+
+    await expect(page.locator('#plotly__scatter')).toBeVisible();
+
+    const traceCount = await scatterPlotModal.getTraceCount();
+    expect(traceCount).toBeGreaterThan(0);
+
+    await test.step('Update ScatterPlot X axis dropdown', async () => {
+      const { previous, next } = await scatterPlotModal.selectDifferentXAxis();
+      console.log(`🔁 ScatterPlot X axis changed: ${previous} → ${next}`);
+      expect(next).not.toBe(previous);
+      await scatterPlotModal.waitForPlotly();
+      const current = await scatterPlotModal.getSelectedXAxisValue();
+      expect(current).toBe(next);
+    });
+
+    await test.step('Update ScatterPlot Y axis dropdown', async () => {
+      const { previous, next } = await scatterPlotModal.selectDifferentYAxis();
+      console.log(`🔁 ScatterPlot Y axis changed: ${previous} → ${next}`);
+      expect(next).not.toBe(previous);
+      await scatterPlotModal.waitForPlotly();
+      const current = await scatterPlotModal.getSelectedYAxisValue();
+      expect(current).toBe(next);
+    });
+
+    await test.step('Update ScatterPlot group dropdown', async () => {
+      const { previous, next } = await scatterPlotModal.selectDifferentGroup();
+      console.log(`🔁 ScatterPlot group changed: ${previous} → ${next}`);
+      expect(next).not.toBe(previous);
+      await scatterPlotModal.waitForPlotly();
+      const current = await scatterPlotModal.getSelectedGroupValue();
+      expect(current).toBe(next);
+      const tracesAfterGroup = await scatterPlotModal.getTraceCount();
+      expect(tracesAfterGroup).toBeGreaterThan(0);
+    });
+  });
+
+  test('Priority 6: Should configure Algorithm node parameters', async ({ page }) => {
+    test.setTimeout(60000);
+    test.info().annotations.push({
+      type: 'priority',
+      description: 'Priority 6 - Algorithm parameter configuration verification',
+    });
+
+    await projectsPage.clickNewWorkflow();
+    await projectsPage.selectPluginTemplate(testWorkflow.name);
+    await workflowPage.verifyPageLoaded();
+    await page.waitForSelector('.drawflow-node', { timeout: 10000 });
+
+    await workflowPage.openNodeModal(testWorkflow.inputNodeName);
+    await inputFileModal.assignFile(testWorkflow.folder, testWorkflow.expectedFile);
+
+    await workflowPage.closeTab(testWorkflow.inputNodeTabName);
+    await page.waitForTimeout(300);
+
+    const algorithmLocator = await workflowPage.findNodeByType('Algorithm');
+    const algorithmNodeIdAttr = await algorithmLocator.getAttribute('id');
+    const algorithmNodeId = algorithmNodeIdAttr?.replace('node-', '') ?? '12';
+
+    await expect
+      .poll(async () => {
+        const assignment = await getNodeFileAssignment(page, algorithmNodeId);
+        if (!assignment) return null;
+
+        if (typeof assignment === 'string') {
+          return assignment.includes(testWorkflow.expectedFile) ? assignment : null;
+        }
+
+        if (Array.isArray(assignment)) {
+          return assignment.find((value) =>
+            typeof value === 'string' && value.includes(testWorkflow.expectedFile)
+          ) ?? null;
+        }
+
+        if (typeof assignment === 'object') {
+          return (
+            Object.values(assignment).find(
+              (value) => typeof value === 'string' && value.includes(testWorkflow.expectedFile)
+            ) ?? null
+          );
+        }
+
+        return null;
+      }, {
+        message: `Expected Algorithm node (${algorithmNodeId}) to receive file ${testWorkflow.expectedFile}`,
+        timeout: 10000,
+      })
+      .not.toBeNull();
+
+    await workflowPage.openNodeModal('Algorithm');
+    await algorithmModal.verifyModalOpen();
+
+    await expect
+      .poll(async () => {
+        const logoText = await algorithmModal.getPluginLogoText();
+        return logoText;
+      }, {
+        message: `Waiting for algorithm logo to display plugin name ${testWorkflow.name}`,
+        timeout: 15000,
+      })
+      .toContain(testWorkflow.name);
+
+    const pluginLogoText = await algorithmModal.getPluginLogoText();
+    console.log('🔖 Algorithm logo text:', pluginLogoText);
+
+    await algorithmModal.verifyFileInDropdown(0, testWorkflow.expectedFile);
+    const selectedInputFile = await algorithmModal.getSelectedInputFile(0);
+    expect(selectedInputFile).toContain(testWorkflow.expectedFile);
+
+    const metadataBefore = await getWorkflowMetadata(page);
+    console.log(
+      '📦 Vuex drawflow data before Algorithm parameter changes:',
+      JSON.stringify(metadataBefore?.workflowInfo?.drawflow?.Home?.data ?? null, null, 2)
+    );
+
+    const algorithmNodeDataBefore = metadataBefore?.workflowInfo?.drawflow?.Home?.data?.[algorithmNodeId];
+    const pluginRulesBefore = algorithmNodeDataBefore?.data?.selectedPluginRules ?? [];
+    console.log('🧮 Algorithm selectedPluginRules (before):', JSON.stringify(pluginRulesBefore, null, 2));
+
+    const flattenedParamsBefore = pluginRulesBefore.flatMap((rule) => rule.parameters ?? []);
+
+    const numericParam = flattenedParamsBefore.find((param) =>
+      ['int', 'float', 'number'].includes(param?.type)
+    );
+    let numericParamName = null;
+    let numericNewValue = null;
+    if (numericParam) {
+      numericParamName = numericParam.name;
+      const numericInitialValue = Number(numericParam.defaultValue ?? 0);
+      numericNewValue = String(numericInitialValue + 1);
+      await algorithmModal.setParameterValueByName(numericParamName, numericNewValue);
+      const numericUiValue = await algorithmModal.getParameterValueByName(numericParamName);
+      expect(numericUiValue).toBe(numericNewValue);
+    }
+
+    const stringParam = flattenedParamsBefore.find((param) => param?.type === 'string');
+    let stringParamName = null;
+    let stringNewValue = null;
+    if (!numericParam && stringParam) {
+      stringParamName = stringParam.name;
+      const stringInitialValue = stringParam.defaultValue ?? '';
+      stringNewValue = stringInitialValue === '' ? 'test-value' : `${stringInitialValue}-updated`;
+      await algorithmModal.setParameterValueByName(stringParamName, stringNewValue);
+      const stringUiValue = await algorithmModal.getParameterValueByName(stringParamName);
+      expect(stringUiValue).toBe(stringNewValue);
+    }
+
+    const booleanParam = flattenedParamsBefore.find((param) => param?.type === 'boolean');
+    let booleanParamName = null;
+    let booleanNewValue = null;
+    if (booleanParam) {
+      booleanParamName = booleanParam.name;
+      const booleanInitialValue = booleanParam.defaultValue === true || booleanParam.defaultValue === 'true';
+      booleanNewValue = !booleanInitialValue;
+      await algorithmModal.setParameterValueByName(booleanParamName, booleanNewValue);
+      const booleanUiValue = await algorithmModal.getParameterValueByName(booleanParamName);
+      expect(booleanUiValue).toBe(booleanNewValue);
+    }
+
+    const dropdownParam = flattenedParamsBefore.find(
+      (param) => param?.type === 'h5adParameter' && param?.name !== 'clusters'
+    );
+    let dropdownParamName = null;
+    let dropdownNewValue = null;
+    if (dropdownParam) {
+      dropdownParamName = dropdownParam.name;
+      const dropdownOptions = await algorithmModal.getParameterDropdownOptions(dropdownParamName);
+      console.log(`📝 Dropdown options for ${dropdownParamName}:`, dropdownOptions);
+      const preferredOption = dropdownOptions.find((opt) => opt && opt !== dropdownParam.defaultValue) ?? dropdownOptions[0];
+
+      if (preferredOption && preferredOption !== dropdownParam.defaultValue) {
+        const { next } = await algorithmModal.selectParameterDropdownOption(
+          dropdownParamName,
+          preferredOption
+        );
+        dropdownNewValue = next;
+        const dropdownUiValue = await algorithmModal.getParameterValueByName(dropdownParamName);
+        expect(dropdownUiValue).toBe(dropdownNewValue);
+      }
+    }
+
+    await page.waitForTimeout(500);
+
+    const metadataAfter = await getWorkflowMetadata(page);
+    console.log(
+      '📦 Vuex drawflow data after Algorithm polling:',
+      JSON.stringify(metadataAfter?.workflowInfo?.drawflow?.Home?.data ?? null, null, 2)
+    );
+
+    const algorithmNodeDataAfter = metadataAfter?.workflowInfo?.drawflow?.Home?.data?.[algorithmNodeId];
+    const pluginRulesAfter = algorithmNodeDataAfter?.data?.selectedPluginRules ?? [];
+    const flattenedParamsAfter = pluginRulesAfter.flatMap((rule) => rule.parameters ?? []);
+
+    if (numericParamName) {
+      const updatedNumericParam = flattenedParamsAfter.find((param) => param?.name === numericParamName);
+      expect(updatedNumericParam?.defaultValue).toBe(numericNewValue);
+    }
+
+    if (stringParamName) {
+      const updatedStringParam = flattenedParamsAfter.find((param) => param?.name === stringParamName);
+      expect(updatedStringParam?.defaultValue).toBe(stringNewValue);
+    }
+
+    if (booleanParamName) {
+      const updatedBooleanParam = flattenedParamsAfter.find((param) => param?.name === booleanParamName);
+      const booleanAfterValue = updatedBooleanParam?.defaultValue;
+      const booleanAfterNormalized = booleanAfterValue === true || booleanAfterValue === 'true';
+      expect(booleanAfterNormalized).toBe(booleanNewValue);
+    }
+
+    if (dropdownParamName && dropdownNewValue) {
+      const updatedDropdownParam = flattenedParamsAfter.find((param) => param?.name === dropdownParamName);
+      expect(updatedDropdownParam?.defaultValue).toBe(dropdownNewValue);
+    }
   });
 });

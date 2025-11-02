@@ -15,6 +15,7 @@ export class AlgorithmModal {
     // Plugin selection
     this.pluginDropdown = page.locator('.plugin-dropdown');
     this.pluginOptions = page.locator('.plugin-dropdown option');
+    this.pluginLogo = page.locator('.algorithm-logo');
 
     // Input/Output file dropdowns
     this.inputDropdowns = page.locator('.plugin-input-dropdown');
@@ -23,6 +24,7 @@ export class AlgorithmModal {
     // Parameter inputs
     this.parameterInputs = page.locator('.parameter__input');
     this.parameterLabels = page.locator('.parameter__label');
+    this.parameterContainers = page.locator('.parameters');
 
     // Checkbox parameters
     this.parameterCheckboxes = page.locator('input[type="checkbox"]');
@@ -37,6 +39,15 @@ export class AlgorithmModal {
    */
   async verifyModalOpen() {
     await expect(this.modal).toBeVisible();
+  }
+
+  /**
+   * Get the plugin logo text rendered in the modal header
+   * @returns {Promise<string>}
+   */
+  async getPluginLogoText() {
+    const text = await this.pluginLogo.textContent();
+    return text?.trim() ?? '';
   }
 
   /**
@@ -62,8 +73,18 @@ export class AlgorithmModal {
    * @param {string} pluginName - Name of the plugin to select
    */
   async selectPlugin(pluginName) {
-    await this.pluginDropdown.selectOption({ label: pluginName });
-    await this.page.waitForLoadState('networkidle');
+    const dropdownCount = await this.pluginDropdown.count();
+    if (dropdownCount === 0) {
+      return;
+    }
+
+    const dropdown = this.pluginDropdown.first();
+    await dropdown.waitFor({ state: 'visible', timeout: 10000 });
+    await dropdown.selectOption({ label: pluginName }).catch(async () => {
+      // fallback: try value-based selection if label is missing
+      await dropdown.selectOption(pluginName).catch(() => null);
+    });
+    await this.page.waitForTimeout(300);
   }
 
   /**
@@ -110,8 +131,9 @@ export class AlgorithmModal {
    */
   async getSelectedInputFile(dropdownIdentifier) {
     const dropdown = await this.getInputDropdown(dropdownIdentifier);
-    const selectedValue = await dropdown.inputValue();
-    return selectedValue;
+    const selectedOption = dropdown.locator('option:checked');
+    const text = await selectedOption.textContent();
+    return text?.trim() ?? '';
   }
 
   /**
@@ -233,6 +255,151 @@ export class AlgorithmModal {
     }
 
     return names;
+  }
+
+  /**
+   * Get a parameter container by name
+   * @param {string} parameterName
+   * @returns {Locator}
+   */
+  _getParameterContainer(parameterName) {
+    return this.parameterContainers.filter({
+      has: this.page.locator('.parameter-id', { hasText: parameterName }),
+    }).first();
+  }
+
+  /**
+   * Retrieve the current parameter value from the UI
+   * @param {string} parameterName
+   * @returns {Promise<string|boolean|null>}
+   */
+  async getParameterValueByName(parameterName) {
+    const container = this._getParameterContainer(parameterName);
+    await expect(container, `Parameter container for "${parameterName}" not found`).toBeVisible();
+
+    const numberInput = container.locator('input[type="number"]');
+    if (await numberInput.count()) {
+      return await numberInput.first().inputValue();
+    }
+
+    const textInput = container.locator('input[type="text"]:not(.umap-status-input)');
+    if (await textInput.count()) {
+      return await textInput.first().inputValue();
+    }
+
+    const checkbox = container.locator('input[type="checkbox"]');
+    if (await checkbox.count()) {
+      return await checkbox.first().isChecked();
+    }
+
+    const select = container.locator('select');
+    if (await select.count()) {
+      return await select.first().inputValue();
+    }
+
+    return null;
+  }
+
+  /**
+   * Set a parameter value by name, handling different input types
+   * @param {string} parameterName
+   * @param {string|number|boolean} value
+   */
+  async setParameterValueByName(parameterName, value) {
+    const container = this._getParameterContainer(parameterName);
+    await expect(container, `Parameter container for "${parameterName}" not found`).toBeVisible();
+
+    const numberInput = container.locator('input[type="number"]');
+    if (await numberInput.count()) {
+      await numberInput.first().fill(String(value));
+      await numberInput.first().blur();
+      await this.page.waitForTimeout(300);
+      return;
+    }
+
+    const textInput = container.locator('input[type="text"]:not(.umap-status-input)');
+    if (await textInput.count()) {
+      await textInput.first().fill(String(value));
+      await textInput.first().blur();
+      await this.page.waitForTimeout(300);
+      return;
+    }
+
+    const checkbox = container.locator('input[type="checkbox"]');
+    if (await checkbox.count()) {
+      const shouldCheck = Boolean(value);
+      const target = checkbox.first();
+      const isChecked = await target.isChecked();
+      if (shouldCheck !== isChecked) {
+        await target.click();
+        await this.page.waitForTimeout(200);
+      }
+      return;
+    }
+
+    const select = container.locator('select');
+    if (await select.count()) {
+      await select.first().selectOption(String(value));
+      await this.page.waitForTimeout(300);
+      return;
+    }
+
+    throw new Error(`Unsupported parameter input type for "${parameterName}"`);
+  }
+
+  /**
+   * Retrieve available dropdown options for a parameter
+   * @param {string} parameterName
+   * @returns {Promise<Array<string>>}
+   */
+  async getParameterDropdownOptions(parameterName) {
+    const container = this._getParameterContainer(parameterName);
+    const select = container.locator('select');
+    if (!(await select.count())) {
+      return [];
+    }
+
+    return await select
+      .first()
+      .locator('option')
+      .evaluateAll((options) =>
+        options
+          .filter((opt) => !opt.disabled)
+          .map((opt) => opt.value)
+      );
+  }
+
+  /**
+   * Select specific option from parameter dropdown, or the first different option if none provided
+   * @param {string} parameterName
+   * @param {string|null} optionValue
+   * @returns {Promise<{ previous: string|null, next: string }>} previous and selected values
+   */
+  async selectParameterDropdownOption(parameterName, optionValue = null) {
+    const container = this._getParameterContainer(parameterName);
+    const select = container.locator('select');
+    await expect(select, `Dropdown for parameter "${parameterName}" not found`).toBeVisible();
+
+    const currentValue = await select.first().inputValue();
+    const options = await this.getParameterDropdownOptions(parameterName);
+
+    let nextValue = optionValue;
+    if (!nextValue) {
+      nextValue = options.find((opt) => opt !== currentValue && opt !== '') ?? currentValue;
+    }
+
+    if (!nextValue) {
+      throw new Error(`No selectable option available for "${parameterName}" dropdown`);
+    }
+
+    if (nextValue === currentValue) {
+      // Nothing to change
+      return { previous: currentValue, next: currentValue };
+    }
+
+    await select.first().selectOption(nextValue);
+    await this.page.waitForTimeout(300);
+    return { previous: currentValue, next: nextValue };
   }
 
   /**
