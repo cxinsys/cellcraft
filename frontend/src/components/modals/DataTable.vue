@@ -1,7 +1,7 @@
 <template>
   <div class="layout">
     <div v-if="current_file === null">
-      <span> NO DATA FOR TABLE</span>
+      <span>NO DATA FOR TABLE</span>
     </div>
     <!-- <div v-else-if="isLoading" class="loading-layout">
       <span v-if="current_files !== null"></span>
