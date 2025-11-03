@@ -145,6 +145,29 @@ export class ProjectsPage {
   }
 
   /**
+   * Open the most recently updated workflow (first workflow card after "New Workflow")
+   * @returns {Promise<{ title: string }>} Recently opened workflow info
+   */
+  async openMostRecentWorkflow() {
+    const workflowCards = this.page.locator('.project-component');
+    const count = await workflowCards.count();
+
+    if (count <= 1) {
+      throw new Error('No existing workflows available to open.');
+    }
+
+    const mostRecentCard = workflowCards.nth(1);
+    const titleText = await mostRecentCard.locator('.project__title').textContent();
+
+    await mostRecentCard.click();
+    await this.page.waitForURL('**/workflow**', { timeout: 10000 });
+
+    return {
+      title: titleText?.trim() ?? '',
+    };
+  }
+
+  /**
    * Delete a workflow by title
    * @param {string} workflowTitle - Title of the workflow to delete
    */

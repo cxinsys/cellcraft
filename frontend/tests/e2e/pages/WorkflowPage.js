@@ -15,6 +15,17 @@ export class WorkflowPage {
     this.tabComponent = page.locator('.content-component');
     this.contentView = page.locator('.content-view');
     this.messageBox = page.locator('.message');
+    this.runButton = page.locator('button.run_button');
+    this.compileCheckModal = page.locator('.modal-content');
+    this.jobStatusButton = page.locator('.control-bar__button.job-status-button');
+    this.jobTable = page.locator('.control-popup__jobs');
+    this.jobTableRows = this.jobTable.locator('.job-table tbody tr');
+    this.workflowTitleText = page.locator('.workflow-title__text');
+    this.workflowTitleInput = page.locator('.workflow-title__input');
+    this.controlBar = page.locator('.control-bar');
+    this.saveButton = this.controlBar.locator('.control-bar__button').first();
+    this.jobContextMenu = page.locator('.toggle__menu');
+    this.workflowTitleText = page.locator('.workflow-title__text');
 
     // Node bar draggable nodes
     this.nodeBarNodes = page.locator('.node-bar__drag-drawflow');
@@ -336,10 +347,11 @@ export class WorkflowPage {
     await this.messageBox.waitFor({ state: 'visible', timeout });
 
     if (expectedMessage) {
-      const messageText = await this.messageBox
+      const messageTexts = await this.messageBox
         .locator('.message__text')
-        .textContent();
-      expect(messageText).toContain(expectedMessage);
+        .allTextContents();
+      const normalized = messageTexts.map((text) => text?.trim() ?? '').join(' ');
+      expect(normalized).toContain(expectedMessage);
     }
   }
 
@@ -349,6 +361,259 @@ export class WorkflowPage {
   async closeMessage() {
     await this.messageBox.locator('.message__close').click();
     await this.messageBox.waitFor({ state: 'hidden', timeout: 3000 });
+  }
+
+  /**
+   * Open the compile check modal (task execution panel) via the run button
+   */
+  async openCompileCheck() {
+    await this.runButton.click();
+    await this.compileCheckModal.waitFor({ state: 'visible', timeout: 10000 });
+  }
+
+  /**
+   * Wait for the compile check modal to close (detached from DOM)
+   */
+  async waitForCompileCheckClose() {
+    await this.compileCheckModal.waitFor({ state: 'detached', timeout: 15000 });
+  }
+
+  /**
+   * Open the job table popup that lists workflow executions
+   */
+  async openJobTable() {
+    await this.jobStatusButton.click();
+    await this.jobTable.waitFor({ state: 'visible', timeout: 10000 });
+  }
+
+  /**
+   * Close the job table popup if it is visible
+   */
+  async closeJobTable() {
+    if (await this.jobTable.isVisible()) {
+      await this.jobStatusButton.click();
+      await this.jobTable.waitFor({ state: 'detached', timeout: 10000 }).catch(async () => {
+        await expect(this.jobTable).toBeHidden();
+      });
+    }
+  }
+
+  /**
+   * Retrieve trimmed status text values for all rows in the job table
+   * @returns {Promise<Array<string>>}
+   */
+  async getJobStatuses() {
+    const rowCount = await this.jobTableRows.count();
+    const statuses = [];
+
+    for (let index = 0; index < rowCount; index += 1) {
+      const text = await this.jobTableRows
+        .nth(index)
+        .locator('.task-status')
+        .innerText();
+      statuses.push(text.replace(/\s+/g, ' ').trim());
+    }
+
+    return statuses;
+  }
+
+  /**
+   * Wait until the job table has at least the specified number of rows
+   * @param {number} minRows - Minimum number of rows expected
+   * @param {number} timeout - Maximum wait time
+   */
+  async waitForJobRows(minRows = 1, timeout = 60000) {
+    await expect
+      .poll(
+        async () => {
+          if (!(await this.jobTable.isVisible())) {
+            return 0;
+          }
+          return await this.jobTableRows.count();
+        },
+        {
+          timeout,
+          message: `Waiting for at least ${minRows} job row(s)`
+        }
+      )
+      .toBeGreaterThanOrEqual(minRows);
+  }
+
+  /**
+   * Wait for any job row to include the desired status text
+   * @param {string} expectedStatus - Status text to find (case-insensitive)
+   * @param {number} timeout - Maximum wait time in ms
+   */
+  async waitForJobStatus(expectedStatus, timeout = 60000) {
+    const normalizedTarget = expectedStatus.trim().toUpperCase();
+
+    await expect
+      .poll(
+        async () => {
+          if (!(await this.jobTable.isVisible())) {
+            return null;
+          }
+
+          const statuses = await this.getJobStatuses();
+          return (
+            statuses.find((status) => status.toUpperCase().includes(normalizedTarget)) ?? null
+          );
+        },
+        {
+          timeout,
+          message: `Waiting for job status to include "${expectedStatus}"`
+        }
+      )
+      .not.toBeNull();
+  }
+
+  /**
+   * Get the current workflow title displayed in the header
+   * @returns {Promise<string>}
+   */
+  async getWorkflowTitle() {
+    await this.workflowTitleText.first().waitFor({ state: 'visible', timeout: 10000 });
+    const text = await this.workflowTitleText.first().innerText();
+    return text?.trim() ?? '';
+  }
+
+  _parseJobTimestamp(text) {
+    if (!text) {
+      return Number.NEGATIVE_INFINITY;
+    }
+
+    const candidates = [
+      text,
+      text.replace(/\./g, '-'),
+      text.replace(/\//g, '-'),
+    ];
+
+    for (const candidate of candidates) {
+      const parsed = Date.parse(candidate);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  /**
+   * Retrieve structured job table entries
+   * @returns {Promise<Array<{ name: string, plugin: string, type: string, startText: string, startTimestamp: number, status: string }>>}
+   */
+  async getJobTableEntries() {
+    const rows = await this.jobTableRows.all();
+    const entries = [];
+
+    for (const row of rows) {
+      const cells = await row.locator('td').allTextContents();
+      const statusText = await row.locator('.task-status').innerText();
+
+      const entry = {
+        name: cells[1]?.trim() ?? '',
+        plugin: cells[2]?.trim() ?? '',
+        type: cells[3]?.trim() ?? '',
+        startText: cells[4]?.trim() ?? '',
+        startTimestamp: this._parseJobTimestamp(cells[4]?.trim()),
+        status: statusText.replace(/\s+/g, ' ').trim(),
+      };
+
+      entries.push(entry);
+    }
+
+    return entries;
+  }
+
+  /**
+   * Get the most recent job entry matching the given title
+   * @param {string} jobTitle
+   * @returns {Promise<{ name: string, plugin: string, type: string, startText: string, startTimestamp: number, status: string } | null>}
+   */
+  async getLatestJobEntryByTitle(jobTitle) {
+    const entries = await this.getJobTableEntries();
+    const matches = entries.filter((entry) => entry.name === jobTitle);
+
+    if (matches.length === 0) {
+      return null;
+    }
+
+    matches.sort((a, b) => b.startTimestamp - a.startTimestamp);
+    return matches[0];
+  }
+
+  /**
+   * Wait until the most recent job for the given title matches the expected status
+   * @param {string} jobTitle
+   * @param {string} expectedStatus
+   * @param {number} timeout
+   */
+  async waitForLatestJobStatus(jobTitle, expectedStatus, timeout = 240000) {
+    const expectedUpper = expectedStatus.trim().toUpperCase();
+
+    await expect
+      .poll(
+        async () => {
+          const latestEntry = await this.getLatestJobEntryByTitle(jobTitle);
+          return latestEntry?.status?.toUpperCase() ?? null;
+        },
+        {
+          timeout,
+          message: `Waiting for latest job "${jobTitle}" to reach status ${expectedUpper}`,
+        }
+      )
+      .toBe(expectedUpper);
+  }
+
+  async waitForWorkflowTitle(expectedTitle, timeout = 10000) {
+    await expect(this.workflowTitleText.first()).toHaveText(expectedTitle, { timeout });
+  }
+
+  async updateWorkflowTitle(newTitle) {
+    await this.workflowTitleText.first().click();
+    await this.workflowTitleInput.first().waitFor({ state: 'visible', timeout: 5000 });
+    await this.workflowTitleInput.first().fill('');
+    await this.workflowTitleInput.first().fill(newTitle);
+    await this.workflowTitleInput.first().press('Enter');
+    await this.waitForWorkflowTitle(newTitle);
+  }
+
+  async clickSaveButton() {
+    await this.controlBar.waitFor({ state: 'visible', timeout: 10000 });
+    await expect(this.saveButton).toBeVisible({ timeout: 10000 });
+    await this.saveButton.scrollIntoViewIfNeeded();
+    await this.saveButton.click();
+  }
+
+  async saveWorkflow(message = 'Save workflow successfully!') {
+    await this.clickSaveButton();
+    await this.waitForMessage(message, 15000);
+  }
+
+  async getJobRowByTitle(jobTitle) {
+    const row = this.jobTableRows.filter({
+      has: this.page.locator('td:nth-child(2)', { hasText: jobTitle }),
+    }).first();
+
+    await row.waitFor({ state: 'visible', timeout: 20000 });
+    return row;
+  }
+
+  async openJobContextMenuForTitle(jobTitle) {
+    const row = await this.getJobRowByTitle(jobTitle);
+    await row.click({ button: 'right' });
+    await this.jobContextMenu.waitFor({ state: 'visible', timeout: 5000 });
+  }
+
+  async selectJobContextOption(optionText) {
+    const option = this.jobContextMenu.locator(`li:has-text("${optionText}")`);
+    await option.waitFor({ state: 'visible', timeout: 5000 });
+    await option.click();
+  }
+
+  async cancelJobByTitle(jobTitle) {
+    await this.openJobContextMenuForTitle(jobTitle);
+    await this.selectJobContextOption('Cancle');
   }
 
   /**

@@ -269,6 +269,49 @@ export class AlgorithmModal {
   }
 
   /**
+   * Internal helper to set cluster selections using the checkbox dropdown
+   * @param {Locator} container - Parameter container locator
+   * @param {Array<string>} clusterNames - Cluster names to select
+   */
+  async _setClusterSelection(container, clusterNames) {
+    const dropdown = container.locator('.parameter__dropdown--checkbox');
+
+    if (!(await dropdown.count())) {
+      throw new Error('Cluster dropdown not found for parameter');
+    }
+
+    // Ensure dropdown is active so that checkboxes are interactable
+    await dropdown.click();
+
+    const menu = dropdown.locator('.parameter__dropdown--menu');
+    const checkboxes = menu.locator('input[type="checkbox"]');
+
+    await checkboxes.first().waitFor({ state: 'visible', timeout: 10000 });
+
+    const desiredSet = new Set((clusterNames || []).map((name) => name.trim()));
+    const checkboxCount = await checkboxes.count();
+
+    for (let index = 0; index < checkboxCount; index += 1) {
+      const isActive = await dropdown.evaluate((node) => node.classList.contains('isactive'));
+      if (!isActive) {
+        await dropdown.click();
+        await this.page.waitForTimeout(100);
+      }
+
+      const checkbox = checkboxes.nth(index);
+      const optionName = await checkbox.evaluate(
+        (node) => node.name || node.getAttribute('name') || node.value || ''
+      );
+      const shouldSelect = desiredSet.has(optionName.trim());
+      await checkbox.setChecked(shouldSelect);
+    }
+
+    // Collapse dropdown to avoid covering other controls
+    await dropdown.click();
+    await this.page.waitForTimeout(300);
+  }
+
+  /**
    * Retrieve the current parameter value from the UI
    * @param {string} parameterName
    * @returns {Promise<string|boolean|null>}
@@ -285,6 +328,18 @@ export class AlgorithmModal {
     const textInput = container.locator('input[type="text"]:not(.umap-status-input)');
     if (await textInput.count()) {
       return await textInput.first().inputValue();
+    }
+
+    const clusterDropdown = container.locator('.parameter__dropdown--checkbox');
+    if (await clusterDropdown.count()) {
+      const selectedClusters = await clusterDropdown
+        .locator('input[type="checkbox"]')
+        .evaluateAll((inputs) =>
+          inputs
+            .filter((input) => input.checked)
+            .map((input) => input.name || input.getAttribute('name') || input.value)
+        );
+      return selectedClusters;
     }
 
     const checkbox = container.locator('input[type="checkbox"]');
@@ -325,6 +380,20 @@ export class AlgorithmModal {
       return;
     }
 
+    const select = container.locator('select');
+    if (await select.count()) {
+      await select.first().selectOption(String(value));
+      await this.page.waitForTimeout(300);
+      return;
+    }
+
+    const clusterDropdown = container.locator('.parameter__dropdown--checkbox');
+    if (await clusterDropdown.count()) {
+      const values = Array.isArray(value) ? value : [value];
+      await this._setClusterSelection(container, values.filter(Boolean));
+      return;
+    }
+
     const checkbox = container.locator('input[type="checkbox"]');
     if (await checkbox.count()) {
       const shouldCheck = Boolean(value);
@@ -334,13 +403,6 @@ export class AlgorithmModal {
         await target.click();
         await this.page.waitForTimeout(200);
       }
-      return;
-    }
-
-    const select = container.locator('select');
-    if (await select.count()) {
-      await select.first().selectOption(String(value));
-      await this.page.waitForTimeout(300);
       return;
     }
 

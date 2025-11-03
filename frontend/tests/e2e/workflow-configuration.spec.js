@@ -7,11 +7,26 @@ import { InputFileModal } from './pages/modals/InputFileModal.js';
 import { AlgorithmModal } from './pages/modals/AlgorithmModal.js';
 import { DataTableModal } from './pages/modals/DataTableModal.js';
 import { ScatterPlotModal } from './pages/modals/ScatterPlotModal.js';
+import { LogsModal } from './pages/modals/LogsModal.js';
+import { DagModal } from './pages/modals/DagModal.js';
+import { CompileCheckModal } from './pages/modals/CompileCheckModal.js';
 import {
   inputFileNodeExists,
   getNodeFileAssignment,
   getWorkflowMetadata,
 } from './utils/workflow.js';
+
+function generateUniqueFileName(baseFileName) {
+  const timestamp = Date.now();
+  const randomId = Math.random().toString(36).substring(2, 8);
+  const lastDot = baseFileName.lastIndexOf('.');
+  if (lastDot === -1) {
+    return `${baseFileName}_${timestamp}_${randomId}`;
+  }
+  const name = baseFileName.substring(0, lastDot);
+  const extension = baseFileName.substring(lastDot);
+  return `${name}_${timestamp}_${randomId}${extension}`;
+}
 
 /**
  * Test Suite: Workflow Configuration (Section 2.2)
@@ -36,6 +51,9 @@ test.describe('Workflow Configuration Tests', () => {
   let algorithmModal;
   let dataTableModal;
   let scatterPlotModal;
+  let logsModal;
+  let dagModal;
+  let compileCheckModal;
 
   // Track uploaded files for cleanup
   const uploadedFiles = [];
@@ -59,6 +77,9 @@ test.describe('Workflow Configuration Tests', () => {
     algorithmModal = new AlgorithmModal(page);
     dataTableModal = new DataTableModal(page);
     scatterPlotModal = new ScatterPlotModal(page);
+    logsModal = new LogsModal(page);
+    dagModal = new DagModal(page);
+    compileCheckModal = new CompileCheckModal(page);
 
     // Setup API mocking for deterministic tests
     // Commenting out for now to use real backend, uncomment when needed
@@ -757,5 +778,277 @@ test.describe('Workflow Configuration Tests', () => {
       const updatedDropdownParam = flattenedParamsAfter.find((param) => param?.name === dropdownParamName);
       expect(updatedDropdownParam?.defaultValue).toBe(dropdownNewValue);
     }
+  });
+
+  test('Priority 7-8: Should execute TENET workflow, monitor metadata, and clean up resources', async ({ page }) => {
+    test.setTimeout(600000);
+    test.info().annotations.push({
+      type: 'priority',
+      description: 'Priority 7 & 8 - Combined execution, monitoring, and cleanup flow',
+    });
+
+    const desiredClusters = ['CD4+ T', 'CD14+ Mono', 'NK'];
+    const cleanupUploads = [];
+    const newTitle = `Playwright Workflow ${Date.now()}`;
+    const fixturesToUpload = ['test_data.h5ad'];
+    let workflowInputFileName = testWorkflow.expectedFile;
+
+    await test.step('Upload additional files for workflow run', async () => {
+      await filesPage.goto();
+      await filesPage.verifyPageLoaded();
+
+      try {
+        await filesPage.selectFolder(testWorkflow.folder);
+      } catch (error) {
+        console.warn(`⚠️ Unable to select folder "${testWorkflow.folder}":`, error.message);
+      }
+
+      for (const fixtureName of fixturesToUpload) {
+        const uniqueFileName = generateUniqueFileName(fixtureName);
+        const { uploadedFileName } = await filesPage.uploadFile(fixtureName, {
+          targetFileName: uniqueFileName,
+        });
+        cleanupUploads.push(uploadedFileName);
+        uploadedFiles.push(uploadedFileName);
+        await filesPage.waitForUploadComplete();
+        await filesPage.verifyFileExists(uploadedFileName);
+        console.log(`✅ Uploaded fixture ${fixtureName} as ${uploadedFileName}`);
+
+        // Use the newly uploaded PBMC file as workflow input
+        workflowInputFileName = uploadedFileName;
+      }
+
+      await projectsPage.goto();
+      await projectsPage.verifyPageLoaded();
+    });
+
+    let originalTitle;
+    let currentJobTitle;
+
+    await test.step('Create workflow from TENET template', async () => {
+      await projectsPage.clickNewWorkflow();
+      await projectsPage.selectPluginTemplate(testWorkflow.name);
+      await workflowPage.verifyPageLoaded();
+      await page.waitForSelector('.drawflow-node', { timeout: 10000 });
+      originalTitle = await workflowPage.getWorkflowTitle();
+      currentJobTitle = originalTitle;
+    });
+
+    await test.step('Assign InputFile node to pbmc dataset', async () => {
+      await workflowPage.openNodeModal(testWorkflow.inputNodeName);
+      await inputFileModal.assignFile(testWorkflow.folder, workflowInputFileName);
+      await workflowPage.closeTab(testWorkflow.inputNodeTabName);
+      await page.waitForTimeout(300);
+    });
+
+    await test.step('Configure Algorithm node parameters for TENET', async () => {
+      await workflowPage.openNodeModal('Algorithm');
+      await algorithmModal.verifyModalOpen();
+
+      await expect
+        .poll(async () => {
+          const options = await algorithmModal.getParameterDropdownOptions('cell group');
+          return options.includes('seurat_annotation') ? 'ready' : null;
+        }, {
+          message: 'Waiting for Cell group options to load',
+          timeout: 20000,
+        })
+        .toBe('ready');
+
+      await algorithmModal.setParameterValueByName('cell group', 'seurat_annotation');
+      expect(await algorithmModal.getParameterValueByName('cell group')).toBe('seurat_annotation');
+
+      await expect
+        .poll(async () => {
+          const options = await algorithmModal.getParameterDropdownOptions('pseudotime');
+          return options.includes('Pseudotime') ? 'ready' : null;
+        }, {
+          message: 'Waiting for pseudotime options to load',
+          timeout: 20000,
+        })
+        .toBe('ready');
+
+      await algorithmModal.setParameterValueByName('pseudotime', 'Pseudotime');
+      expect(await algorithmModal.getParameterValueByName('pseudotime')).toBe('Pseudotime');
+
+      await algorithmModal.setParameterValueByName('clusters', desiredClusters);
+      const selectedClusters = await algorithmModal.getParameterValueByName('clusters');
+      expect(selectedClusters).toEqual(expect.arrayContaining(desiredClusters));
+
+      const pluginLogo = await algorithmModal.getPluginLogoText();
+      console.log('Algorithm modal plugin:', pluginLogo);
+      expect(pluginLogo).toContain(testWorkflow.name);
+    });
+
+    await test.step('Open compile check panel and verify task summary', async () => {
+      await workflowPage.openCompileCheck();
+      await compileCheckModal.waitForOpen();
+      await compileCheckModal.waitForResourcesLoaded();
+      await compileCheckModal.verifyCoreSectionsVisible();
+
+      const taskEntries = await compileCheckModal.getTaskEntries();
+      console.log('Compile check task entries:', taskEntries);
+      expect(taskEntries.length).toBeGreaterThan(0);
+      expect(
+        taskEntries.some((entry) => entry.plugin && entry.plugin.includes(testWorkflow.name))
+      ).toBeTruthy();
+
+      const resourceLabels = await compileCheckModal.getResourceLabels();
+      console.log('Resource summary labels:', resourceLabels);
+      expect(resourceLabels.length).toBeGreaterThan(0);
+    });
+
+    await test.step('Execute workflow and wait for RUNNING status', async () => {
+      page.once('dialog', async (dialog) => {
+        console.log('Execution confirmation dialog:', dialog.message());
+        await dialog.accept();
+      });
+
+      await compileCheckModal.clickExecute();
+      await compileCheckModal.waitForClose();
+
+      await page.waitForTimeout(1000);
+      await workflowPage.openJobTable();
+      await workflowPage.waitForJobRows(1, 180000);
+
+      await workflowPage.waitForLatestJobStatus(currentJobTitle, 'RUNNING', 240000);
+      const latestJob = await workflowPage.getLatestJobEntryByTitle(currentJobTitle);
+
+      console.log('Latest job entry:', latestJob);
+      expect(latestJob).not.toBeNull();
+      expect(latestJob?.status?.toUpperCase()).toContain('RUNNING');
+      expect(latestJob?.plugin ?? '').toContain(testWorkflow.name);
+
+      const pluginFormatRegex = /^[^/]+\/[^ :]+ : v\d+(?:\.\d+)*$/;
+      expect(latestJob?.plugin ?? '').toMatch(pluginFormatRegex);
+    });
+
+    await test.step('Wait and rename workflow title', async () => {
+      await page.waitForTimeout(30000);
+      await workflowPage.closeJobTable();
+      await workflowPage.updateWorkflowTitle(newTitle);
+      await workflowPage.saveWorkflow();
+      await workflowPage.closeMessage().catch(() => {});
+      currentJobTitle = newTitle;
+    });
+
+    await test.step('Validate RUNNING job and inspect logs', async () => {
+      await workflowPage.openJobTable();
+      await workflowPage.waitForJobRows(1, 180000);
+
+      await expect
+        .poll(async () => {
+          const entry = await workflowPage.getLatestJobEntryByTitle(currentJobTitle);
+          return entry?.status?.toUpperCase() ?? null;
+        }, {
+          timeout: 240000,
+          message: `Waiting for job "${currentJobTitle}" to remain RUNNING`,
+        })
+        .toBe('RUNNING');
+
+      const latestJob = await workflowPage.getLatestJobEntryByTitle(currentJobTitle);
+      console.log('Latest job entry:', latestJob);
+      expect(latestJob).not.toBeNull();
+      expect(latestJob?.name).toBe(currentJobTitle);
+      expect(latestJob?.plugin ?? '').toContain(testWorkflow.name);
+      const pluginFormatRegex = /^[^/]+\/[^ :]+ : v\d+(?:\.\d+)*$/;
+      expect(latestJob?.plugin ?? '').toMatch(pluginFormatRegex);
+
+      await workflowPage.openJobContextMenuForTitle(currentJobTitle);
+      await workflowPage.selectJobContextOption('View logs');
+      await logsModal.waitForOpen();
+      await logsModal.waitForLoaded();
+      await logsModal.expectLogsAvailable();
+
+      try {
+        const jsonDownload = await logsModal.downloadAllLogsJson();
+        await jsonDownload.delete().catch(() => {});
+      } catch (error) {
+        console.warn('⚠️ Failed to download JSON logs:', error.message);
+      }
+
+      try {
+        const txtDownload = await logsModal.downloadFirstLogTxt();
+        await txtDownload.delete().catch(() => {});
+      } catch (error) {
+        console.warn('⚠️ Failed to download TXT log:', error.message);
+      }
+
+      await logsModal.close();
+      await workflowPage.closeMessage().catch(() => {});
+    });
+
+    await test.step('Inspect workflow progress visualization', async () => {
+      const dagStructurePromise = page.waitForResponse(
+        (resp) => resp.url().includes('/dag-structure') && resp.request().method() === 'GET',
+        { timeout: 20000 }
+      );
+
+      const ruleStatusPromise = page.waitForResponse(
+        (resp) => resp.url().includes('/rule-status') && resp.request().method() === 'GET',
+        { timeout: 20000 }
+      );
+
+      await workflowPage.openJobContextMenuForTitle(currentJobTitle);
+      await workflowPage.selectJobContextOption('View progress');
+
+      const dagStructureResponse = await dagStructurePromise;
+      expect(dagStructureResponse.ok()).toBeTruthy();
+
+      const ruleStatusResponse = await ruleStatusPromise;
+      expect(ruleStatusResponse.ok()).toBeTruthy();
+
+      await dagModal.waitForOpen();
+      await dagModal.waitForLoaded();
+      await dagModal.close();
+    });
+
+    await test.step('Cancel running job and verify message', async () => {
+      await workflowPage.cancelJobByTitle(currentJobTitle);
+      await workflowPage.waitForMessage('Cancel task successfully!', 15000);
+      await workflowPage.closeMessage().catch(() => {});
+
+      await workflowPage.openJobTable();
+      await workflowPage.waitForJobRows(1, 60000);
+      await workflowPage.waitForLatestJobStatus(currentJobTitle, 'REVOKED', 240000);
+
+      const cancelledJob = await workflowPage.getLatestJobEntryByTitle(currentJobTitle);
+      console.log('Cancelled job entry:', cancelledJob);
+      expect(cancelledJob?.status?.toUpperCase()).toBe('REVOKED');
+
+      await workflowPage.closeJobTable();
+    });
+
+    await test.step('Clean up uploaded test files', async () => {
+      if (cleanupUploads.length === 0) {
+        return;
+      }
+
+      await filesPage.goto();
+      await filesPage.verifyPageLoaded();
+
+      try {
+        await filesPage.selectFolder(testWorkflow.folder);
+      } catch (error) {
+        console.warn(`⚠️ Unable to re-open folder "${testWorkflow.folder}":`, error.message);
+      }
+
+      for (const fileName of cleanupUploads) {
+        try {
+          await filesPage.deleteFile(fileName);
+          await filesPage.verifyFileNotExists(fileName);
+          console.log(`🧹 Deleted uploaded file: ${fileName}`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to delete uploaded file ${fileName}:`, error.message);
+        } finally {
+          const idx = uploadedFiles.indexOf(fileName);
+          if (idx !== -1) {
+            uploadedFiles.splice(idx, 1);
+          }
+        }
+      }
+
+      cleanupUploads.length = 0;
+    });
   });
 });
