@@ -165,6 +165,20 @@ export async function waitForPlotlyRender(
         return true;
       }
 
+      const heatmapLayer = container.querySelector('.heatmaplayer, .hm');
+      if (heatmapLayer) {
+        const hasImage = heatmapLayer.querySelector('image');
+        const hasRects = heatmapLayer.querySelector('rect');
+        if (hasImage || hasRects || heatmapLayer.children.length > 0) {
+          return true;
+        }
+      }
+
+      const imageLayer = container.querySelector('.layer-above image, .layer-above .imagelayer image');
+      if (imageLayer) {
+        return true;
+      }
+
       const webglCanvas = container.querySelector('.gl-container canvas');
       if (webglCanvas) {
         return true;

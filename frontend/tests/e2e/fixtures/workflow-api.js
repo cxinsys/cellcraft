@@ -203,6 +203,130 @@ export const mockH5ADColumns = {
 };
 
 /**
+ * Mock response for ResultFiles modal (workflow/results)
+ */
+export const mockResultFilesResponse = [
+  {
+    name: 'tenet_primary_network.csv',
+    size: 24576,
+    type: 'csv',
+  },
+  {
+    name: 'tenet_primary_scores.json',
+    size: 16384,
+    type: 'json',
+  },
+  {
+    name: 'tenet_intermediate_heatmap.png',
+    size: 40960,
+    type: 'png',
+  },
+];
+
+/**
+ * Mock execution manifest payload
+ */
+export const mockExecutionManifest = {
+  manifest_info: {
+    format_version: '1.0',
+    generated_at: '2025-10-15T09:30:00Z',
+    generated_by: 'mock-user',
+    description: 'Mock execution manifest for GRNViz visualization test',
+  },
+  task_metadata: {
+    task_id: 'mock-task-1234',
+    workflow_id: 42,
+    algorithm_id: '12',
+    plugin_name: 'TENET',
+    task_type: 'compile',
+    status: 'SUCCESS',
+    start_time: '2025-10-15 09:00:00',
+    end_time: '2025-10-15 09:15:00',
+    plugin_image_uri: 'ghcr.io/cellcraft/tenet:1.0.0',
+  },
+  plugin_metadata: {
+    name: 'TENET',
+    description: 'Mock TENET metadata',
+    author: 'mock-user',
+    version: '1.0.0',
+    plugin_type: 'analysis',
+    source: 'mock',
+  },
+  workflow_metadata: {
+    title: 'SUCCESS',
+    created_at: '2025-10-15T08:30:00Z',
+    updated_at: '2025-10-15T09:15:00Z',
+    node_count: 6,
+  },
+  execution_files: [
+    {
+      name: 'tenet_primary_network.csv',
+      type: 'primary',
+      size: 24576,
+    },
+    {
+      name: 'tenet_primary_scores.json',
+      type: 'primary',
+      size: 16384,
+    },
+    {
+      name: 'tenet_intermediate_heatmap.png',
+      type: 'intermediate',
+      size: 40960,
+    },
+  ],
+};
+
+/**
+ * Mock response for GRNViz visualization execution/result
+ */
+export const mockVisualizationRunResponse = {
+  success: true,
+  task_id: 'mock-visualization-task',
+  status: 'SUCCESS',
+};
+
+export const mockVisualizationResultResponse = {
+  data: [
+    {
+      type: 'bar',
+      x: ['Cluster A', 'Cluster B', 'Cluster C'],
+      y: [32, 18, 27],
+      marker: {
+        color: ['#1f77b4', '#ff7f0e', '#2ca02c'],
+      },
+      name: 'Regulatory score',
+    },
+  ],
+  layout: {
+    title: 'Mock GRNViz Bar Plot',
+    xaxis: { title: 'Cluster' },
+    yaxis: { title: 'Score' },
+    showlegend: true,
+  },
+  success: true,
+};
+
+/**
+ * Mock response for /routes/task/monitoring (job list)
+ */
+export const mockTaskMonitoringResponse = {
+  data: [
+    {
+      task_id: 'mock-task-1234',
+      workflow_title: 'SUCCESS',
+      plugin_name: 'TENET/MockPlugin : v1.0.0',
+      plugin_type: 'Analysis',
+      start_time: '2025-10-15 09:00:00',
+      end_time: '2025-10-15 09:15:00',
+      running_time: '00:15:00',
+      status: 'SUCCESS',
+    },
+  ],
+  success: true,
+};
+
+/**
  * Setup route handlers for workflow APIs
  * @param {Page} page - Playwright page object
  * @param {object} options - Configuration options
@@ -210,7 +334,11 @@ export const mockH5ADColumns = {
  * @param {object} options.customResponses - Override specific responses
  */
 export async function setupWorkflowRoutes(page, options = {}) {
-  const { useDefaultFixtures = true, customResponses = {} } = options;
+  const {
+    useDefaultFixtures = true,
+    customResponses = {},
+    enableResultMocks = false,
+  } = options;
 
   if (!useDefaultFixtures && Object.keys(customResponses).length === 0) {
     return; // No mocking needed
@@ -282,6 +410,62 @@ export async function setupWorkflowRoutes(page, options = {}) {
     }
   });
 
+  // Optional mocks for completed workflow artefacts
+  if (enableResultMocks || customResponses.results) {
+    await page.route('**/api/routes/workflow/results', async (route) => {
+      const payload = customResponses.results || mockResultFilesResponse;
+      await route.fulfill({ json: payload });
+    });
+
+    await page.route('**/api/routes/workflow/result', async (route) => {
+      const bodyData = route.request().postDataJSON?.() || {};
+      const fileName = bodyData?.filename || 'mock-result.txt';
+      const fileContent = customResponses.resultFileContent || `mock content for ${fileName}`;
+
+      await route.fulfill({
+        body: fileContent,
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${fileName}"`,
+        },
+      });
+    });
+  }
+
+  if (enableResultMocks || customResponses.manifest) {
+    await page.route('**/api/routes/task/*/execution-manifest', async (route) => {
+      const manifestPayload = customResponses.manifest || mockExecutionManifest;
+      const manifestJson = JSON.stringify(manifestPayload, null, 2);
+
+      await route.fulfill({
+        body: manifestJson,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Disposition': 'attachment; filename="execution_manifest.json"',
+        },
+      });
+    });
+  }
+
+  if (enableResultMocks || customResponses.taskMonitoring) {
+    await page.route('**/api/routes/task/monitoring', async (route) => {
+      const monitoringPayload = customResponses.taskMonitoring || mockTaskMonitoringResponse;
+      await route.fulfill({ json: monitoringPayload });
+    });
+  }
+
+  if (enableResultMocks || customResponses.visualizationRun || customResponses.visualizationResult) {
+    await page.route('**/api/routes/workflow/visualization', async (route) => {
+      const runPayload = customResponses.visualizationRun || mockVisualizationRunResponse;
+      await route.fulfill({ json: runPayload });
+    });
+
+    await page.route('**/api/routes/workflow/visualization/result', async (route) => {
+      const resultPayload = customResponses.visualizationResult || mockVisualizationResultResponse;
+      await route.fulfill({ json: resultPayload });
+    });
+  }
+
   // Mock workflow save/update endpoints (respond with success)
   await page.route('**/api/routes/workflow/*', async (route) => {
     if (route.request().method() === 'POST' || route.request().method() === 'PUT') {
@@ -304,5 +488,11 @@ export async function clearWorkflowRoutes(page) {
   await page.unroute('**/api/routes/datatable/load_data');
   await page.unroute('**/api/routes/files/data/*');
   await page.unroute('**/api/routes/files/columns');
+  await page.unroute('**/api/routes/workflow/results');
+  await page.unroute('**/api/routes/workflow/result');
+  await page.unroute('**/api/routes/task/*/execution-manifest');
+  await page.unroute('**/api/routes/task/monitoring');
+  await page.unroute('**/api/routes/workflow/visualization');
+  await page.unroute('**/api/routes/workflow/visualization/result');
   await page.unroute('**/api/routes/workflow/*');
 }

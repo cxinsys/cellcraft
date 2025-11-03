@@ -142,6 +142,18 @@ export class WorkflowPage {
       return node;
     }
 
+    if (nodeType === 'ResultFiles') {
+      const node = this.page.locator('#node-13.drawflow-node');
+      await node.waitFor({ state: 'attached', timeout: 5000 });
+      return node;
+    }
+
+    if (nodeType === 'Visualization') {
+      const node = this.page.locator('#node-14.drawflow-node');
+      await node.waitFor({ state: 'attached', timeout: 5000 });
+      return node;
+    }
+
     // Fallback: DOM-based search for other nodes
     const nodes = await this.page.locator('.drawflow-node').all();
 
@@ -590,17 +602,30 @@ export class WorkflowPage {
     await this.waitForMessage(message, 15000);
   }
 
-  async getJobRowByTitle(jobTitle) {
-    const row = this.jobTableRows.filter({
+  async getJobRowByTitle(jobTitle, pluginSubstring = null, typeSubstring = null) {
+    let rowLocator = this.jobTableRows.filter({
       has: this.page.locator('td:nth-child(2)', { hasText: jobTitle }),
-    }).first();
+    });
 
+    if (pluginSubstring) {
+      rowLocator = rowLocator.filter({
+        has: this.page.locator('td:nth-child(3)', { hasText: pluginSubstring }),
+      });
+    }
+
+    if (typeSubstring) {
+      rowLocator = rowLocator.filter({
+        has: this.page.locator('td:nth-child(4)', { hasText: typeSubstring }),
+      });
+    }
+
+    const row = rowLocator.first();
     await row.waitFor({ state: 'visible', timeout: 20000 });
     return row;
   }
 
-  async openJobContextMenuForTitle(jobTitle) {
-    const row = await this.getJobRowByTitle(jobTitle);
+  async openJobContextMenuForTitle(jobTitle, { pluginSubstring = null, typeSubstring = null } = {}) {
+    const row = await this.getJobRowByTitle(jobTitle, pluginSubstring, typeSubstring);
     await row.click({ button: 'right' });
     await this.jobContextMenu.waitFor({ state: 'visible', timeout: 5000 });
   }

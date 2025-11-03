@@ -1,5 +1,6 @@
 // frontend/tests/e2e/workflow-configuration.spec.js
 import { test, expect } from './fixtures/auth.js'; // 인증 fixture 사용
+import { readFile } from 'fs/promises';
 import { ProjectsPage } from './pages/ProjectsPage.js';
 import { WorkflowPage } from './pages/WorkflowPage.js';
 import { FilesPage } from './pages/FilesPage.js';
@@ -10,10 +11,13 @@ import { ScatterPlotModal } from './pages/modals/ScatterPlotModal.js';
 import { LogsModal } from './pages/modals/LogsModal.js';
 import { DagModal } from './pages/modals/DagModal.js';
 import { CompileCheckModal } from './pages/modals/CompileCheckModal.js';
+import { ResultFilesModal } from './pages/modals/ResultFilesModal.js';
+import { VisualizationModal } from './pages/modals/VisualizationModal.js';
 import {
   inputFileNodeExists,
   getNodeFileAssignment,
   getWorkflowMetadata,
+  getDrawflowConnections,
 } from './utils/workflow.js';
 
 function generateUniqueFileName(baseFileName) {
@@ -54,6 +58,8 @@ test.describe('Workflow Configuration Tests', () => {
   let logsModal;
   let dagModal;
   let compileCheckModal;
+  let resultFilesModal;
+  let visualizationModal;
 
   // Track uploaded files for cleanup
   const uploadedFiles = [];
@@ -80,6 +86,8 @@ test.describe('Workflow Configuration Tests', () => {
     logsModal = new LogsModal(page);
     dagModal = new DagModal(page);
     compileCheckModal = new CompileCheckModal(page);
+    resultFilesModal = new ResultFilesModal(page);
+    visualizationModal = new VisualizationModal(page);
 
     // Setup API mocking for deterministic tests
     // Commenting out for now to use real backend, uncomment when needed
@@ -164,6 +172,292 @@ test.describe('Workflow Configuration Tests', () => {
     await projectsPage.verifyPageLoaded();
   });
 
+  test('Priority 9: Should visualize TENET results with GRNViz', async ({ page }) => {
+    test.setTimeout(300000);
+    test.info().annotations.push({
+      type: 'priority',
+      description: 'Priority 9 - Result visualization validation with GRNViz',
+    });
+
+    await test.step('Open prepared SUCCESS workflow', async () => {
+      await projectsPage.verifyWorkflowExists('SUCCESS');
+      await projectsPage.openWorkflow('SUCCESS');
+      await workflowPage.verifyPageLoaded();
+      await workflowPage.waitForNodesReady(5, 15000);
+    });
+
+    const workflowTitle = await workflowPage.getWorkflowTitle();
+    expect(workflowTitle).toContain('SUCCESS');
+
+    await test.step('Validate existing SUCCESS job in monitoring panel', async () => {
+      await workflowPage.openJobTable();
+      await workflowPage.waitForJobRows(1, 60000);
+      const entries = await workflowPage.getJobTableEntries();
+      const pluginMatcher = 'TENET';
+      const typeMatcher = 'Analysis';
+      const matchingJobs = entries
+        .filter((entry) => entry.name === workflowTitle)
+        .filter((entry) => (entry.plugin ?? '').includes(pluginMatcher))
+        .filter((entry) => (entry.type ?? '').includes(typeMatcher));
+
+      expect(matchingJobs.length).toBeGreaterThan(0);
+
+      matchingJobs.sort((a, b) => b.startTimestamp - a.startTimestamp);
+      const latestMatchingJob = matchingJobs[0];
+      expect(latestMatchingJob.status?.toUpperCase?.()).toBe('SUCCESS');
+
+      await page.evaluate(({ job, pluginText, typeText }) => {
+        window.__latestSuccessJob = {
+          name: job.name,
+          plugin: job.plugin,
+          type: job.type,
+          pluginMatcher: pluginText,
+          typeMatcher: typeText,
+        };
+      }, {
+        job: latestMatchingJob,
+        pluginText: pluginMatcher,
+        typeText: typeMatcher,
+      });
+
+      await workflowPage.closeJobTable();
+    });
+
+    await test.step('Inspect ResultFiles modal, select downloads, and verify sections', async () => {
+      await workflowPage.openNodeModal('ResultFiles');
+      await resultFilesModal.verifyModalOpen();
+      await resultFilesModal.waitForPrimarySection(20000);
+      await resultFilesModal.waitForIntermediateSection(20000);
+      expect(await resultFilesModal.isPrimarySectionVisible()).toBeTruthy();
+      expect(await resultFilesModal.isIntermediateSectionVisible()).toBeTruthy();
+
+      const primaryFiles = await resultFilesModal.getPrimaryFileNames();
+      const intermediateFiles = await resultFilesModal.getIntermediateFileNames();
+      expect(primaryFiles.length + intermediateFiles.length).toBeGreaterThan(1);
+
+      const selectionTargets = primaryFiles.slice(0, 2).map((name) => ({ name, type: 'primary' }));
+      if (selectionTargets.length < 2) {
+        throw new Error('Expected at least two primary files to download');
+      }
+
+      console.log('Primary files found:', primaryFiles);
+      console.log('Intermediate files found:', intermediateFiles);
+      console.log('Selection targets:', selectionTargets);
+
+      const downloadRequests = [];
+      const requestListener = async (request) => {
+        if (
+          request.url().includes('/routes/workflow/result') &&
+          request.method() === 'POST'
+        ) {
+          try {
+            const payload = await request.postDataJSON();
+            downloadRequests.push({ url: request.url(), payload });
+          } catch (error) {
+            console.log('Failed to read download request payload:', error);
+          }
+        }
+      };
+      page.on('request', requestListener);
+
+      const downloads = [];
+      for (const target of selectionTargets) {
+        const downloadPromise = page.waitForEvent('download', { timeout: 10000 });
+        await resultFilesModal.clickPrimaryFileDownloadButton(target.name);
+        downloads.push(await downloadPromise);
+      }
+
+      const downloadedNames = await Promise.all(
+        downloads.map(async (dl) => dl.suggestedFilename())
+      );
+      const normalizeFilename = (name) => {
+        if (!name) return '';
+        return name.replace(/ \(\d+\)\./, '.').trim();
+      };
+      const normalizedDownloadedNames = downloadedNames.map((name) => normalizeFilename(name));
+      console.log('Downloaded filenames:', downloadedNames);
+      console.log('Normalized filenames:', normalizedDownloadedNames);
+      console.log('Download request payloads:', downloadRequests);
+
+      for (const target of selectionTargets) {
+        expect(
+          normalizedDownloadedNames.some((filename) => filename.endsWith(target.name))
+        ).toBeTruthy();
+      }
+
+      for (const dl of downloads) {
+        try {
+          const filePath = await dl.path();
+          let preview = '<binary>'; // default placeholder
+          if (filePath) {
+            const content = await readFile(filePath, 'utf-8').catch(() => null);
+            if (content !== null) {
+              preview = content.substring(0, 200);
+            }
+          }
+          console.log('Downloaded file detail:', {
+            suggestedFilename: dl.suggestedFilename(),
+            path: await dl.path(),
+            preview,
+          });
+        } catch (error) {
+          console.log('Failed to inspect downloaded file:', error);
+        }
+      }
+
+      page.off('request', requestListener);
+
+      await Promise.all(downloads.map((dl) => dl.delete().catch(() => {})));
+    });
+
+    await test.step('Download execution manifest and validate sections', async () => {
+      await workflowPage.openJobTable();
+      await workflowPage.waitForJobRows(1, 60000);
+
+      const latestJobContext = await page.evaluate(() => window.__latestSuccessJob || null);
+      if (!latestJobContext) {
+        throw new Error('Latest success job context not found for manifest download');
+      }
+
+      const manifestDownloadPromise = page.waitForEvent('download');
+      await workflowPage.openJobContextMenuForTitle(latestJobContext.name, {
+        pluginSubstring: latestJobContext.pluginMatcher,
+        typeSubstring: latestJobContext.typeMatcher,
+      });
+      await workflowPage.selectJobContextOption('Download manifest');
+
+      const manifestDownload = await manifestDownloadPromise;
+      const manifestPath = await manifestDownload.path();
+      const manifestContent = await readFile(manifestPath, 'utf-8');
+      const manifestJson = JSON.parse(manifestContent);
+
+      expect(manifestJson).toHaveProperty('manifest_info');
+      expect(manifestJson).toHaveProperty('task_metadata');
+      expect(manifestJson).toHaveProperty('plugin_metadata');
+      expect(manifestJson).toHaveProperty('workflow_metadata');
+      expect(manifestJson).toHaveProperty('execution_files');
+
+      await manifestDownload.delete().catch(() => {});
+      await workflowPage.closeJobTable();
+    });
+
+    await test.step('Execute GRNViz visualization and validate Plotly rendering', async () => {
+      await workflowPage.openNodeModal('Visualization');
+
+      if (!(await visualizationModal.isConfigurationMode())) {
+        await visualizationModal.waitForPluginSelection();
+        await visualizationModal.selectPluginByName('GRNViz');
+        await expect(visualizationModal.visualizationItems.first()).toBeVisible();
+
+        let visualizationName = 'Bar plot';
+        const barPlotCount = await visualizationModal.visualizationItems
+          .filter({ hasText: 'Bar plot' })
+          .count();
+
+        if (barPlotCount === 0) {
+          const firstVisualizationText = (await visualizationModal.visualizationItems
+            .first()
+            .textContent())?.trim();
+
+          if (!firstVisualizationText) {
+            throw new Error('No visualization scripts available for GRNViz plugin');
+          }
+
+          visualizationName = firstVisualizationText;
+        }
+
+        await visualizationModal.selectVisualizationByName(visualizationName);
+        await visualizationModal.proceedToConfiguration();
+      }
+
+      expect(await visualizationModal.getSelectedPluginLabel()).toContain('GRNViz');
+      const selectedVisualizationLabel = await visualizationModal.getSelectedVisualizationLabel();
+      expect(selectedVisualizationLabel.length).toBeGreaterThan(0);
+
+      const inputParameters = await visualizationModal.getInputFileParameterNames();
+      for (const parameterName of inputParameters) {
+        const normalizedName = parameterName.trim().toLowerCase();
+
+        if (normalizedName === 'input') {
+          await visualizationModal.selectInputFileOption(parameterName, 'FdrOutdegree.txt');
+          await expect
+            .poll(async () => await visualizationModal.getSelectedInputFile(parameterName))
+            .toBe('FdrOutdegree.txt');
+        } else if (normalizedName.includes('expression')) {
+          await visualizationModal.selectInputFileOption(parameterName, 'expression.csv');
+          await expect
+            .poll(async () => await visualizationModal.getSelectedInputFile(parameterName))
+            .toBe('expression.csv');
+        } else if (normalizedName.includes('trajectory')) {
+          await visualizationModal.selectInputFileOption(parameterName, 'trajectory.txt');
+          await expect
+            .poll(async () => await visualizationModal.getSelectedInputFile(parameterName))
+            .toBe('trajectory.txt');
+        } else {
+          await expect
+            .poll(async () => (await visualizationModal.getAvailableOptionsForParameter(parameterName)).length > 0, {
+              message: `Waiting for options to load for parameter ${parameterName}`,
+            })
+            .toBeTruthy();
+
+          const options = await visualizationModal.getAvailableOptionsForParameter(parameterName);
+          const firstNonEmpty = options.find((opt) => opt.trim() !== '' && opt.trim() !== 'Select File');
+          if (!firstNonEmpty) {
+            throw new Error(`No selectable option available for parameter ${parameterName}`);
+          }
+          await visualizationModal.selectInputFileOption(parameterName, firstNonEmpty.trim());
+          await expect
+            .poll(async () => await visualizationModal.getSelectedInputFile(parameterName))
+            .toBe(firstNonEmpty.trim());
+        }
+      }
+
+      expect(await visualizationModal.isApplyButtonEnabled()).toBeTruthy();
+
+      const runResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/routes/workflow/visualization') &&
+          resp.request().method() === 'POST',
+        { timeout: 60000 }
+      );
+
+      const resultResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/routes/workflow/visualization/result') &&
+          resp.request().method() === 'POST',
+        { timeout: 60000 }
+      );
+
+      await visualizationModal.clickExecuteVisualization();
+
+      const runResponse = await runResponsePromise;
+      const runPayload = await runResponse.json().catch(() => ({}));
+      if (Object.prototype.hasOwnProperty.call(runPayload, 'success')) {
+        expect(runPayload.success).toBeTruthy();
+      }
+
+      const resultResponse = await resultResponsePromise;
+      const resultPayload = await resultResponse.json().catch(() => ({}));
+      if (Object.prototype.hasOwnProperty.call(resultPayload, 'success')) {
+        expect(resultPayload.success).toBeTruthy();
+      }
+      if (Array.isArray(resultPayload.data)) {
+        expect(resultPayload.data.length).toBeGreaterThan(0);
+      }
+
+      await visualizationModal.waitForPlotly();
+      if ((await visualizationModal.getApplyButtonText()).includes('Show Visualization')) {
+        await visualizationModal.clickShowVisualization();
+        await visualizationModal.waitForPlotly();
+      }
+      expect(await visualizationModal.isPlotlyVisible()).toBeTruthy();
+
+      const plotDownload = await visualizationModal.downloadPlotImage();
+      const plotFilename = plotDownload.suggestedFilename();
+      expect(plotFilename).toMatch(/\.png$/i);
+      await plotDownload.delete().catch(() => {});
+    });
+  });
   test.afterEach(async ({ page }) => {
     // Clean up uploaded files (only those uploaded by this test)
     if (uploadedFiles.length > 0) {
