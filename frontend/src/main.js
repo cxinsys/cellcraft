@@ -11,10 +11,12 @@ require("../css/animation.css");
 Vue.config.productionTip = false;
 
 /* eslint-disable no-new */
-new Vue({
+const app = new Vue({
   el: "#app",
   router,
   store,
   components: { App },
   template: "<App/>",
 });
+
+window.app = app;
