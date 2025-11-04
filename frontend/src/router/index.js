@@ -9,10 +9,6 @@ export default new Router({
   routes: [
     {
       path: "/",
-      redirect: "/main",
-    },
-    {
-      path: "/main",
       component: () => import("@/views/MainPage.vue"),
     },
     {
