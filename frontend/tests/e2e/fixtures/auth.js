@@ -10,33 +10,72 @@ const credentials = {
 };
 
 /**
+ * Check if JWT token is expired
+ * @param {string} authFilePath - Path to auth file
+ * @returns {Promise<boolean>} True if token is valid, false if expired or invalid
+ */
+async function isTokenValid(authFilePath) {
+  try {
+    const authData = JSON.parse(await fs.readFile(authFilePath, 'utf-8'));
+    const authCookie = authData.cookies?.find(c => c.name === 'scap_auth');
+
+    if (!authCookie) {
+      console.log('No scap_auth cookie found');
+      return false;
+    }
+
+    // Check if token is expired (with 10 minute buffer)
+    const expiresTimestamp = authCookie.expires;
+    const nowTimestamp = Date.now() / 1000;
+    const bufferSeconds = 600; // 10 minutes (increased for test stability)
+
+    if (expiresTimestamp <= nowTimestamp + bufferSeconds) {
+      console.log(`Token expired or expiring soon (expires: ${new Date(expiresTimestamp * 1000).toISOString()})`);
+      return false;
+    }
+
+    console.log(`Token is valid (expires: ${new Date(expiresTimestamp * 1000).toISOString()})`);
+    return true;
+  } catch (error) {
+    console.log('Failed to validate token:', error.message);
+    return false;
+  }
+}
+
+/**
  * Authentication fixture that manages login session state
  * - Logs in once per worker and stores session in .auth/test-user.json
- * - Reuses stored session for subsequent tests
+ * - Reuses stored session for subsequent tests if token is valid
+ * - Automatically re-authenticates if token is expired
  * - Supports environment variable overrides for credentials
  */
 export const test = base.extend({
   storageState: async ({ browser, baseURL }, use) => {
-    let firstAttemptFailed = false;
+    let needsAuthentication = true;
+
+    // Check if auth file exists and token is valid
     try {
       await fs.stat(authFile);
-    } catch {
-      firstAttemptFailed = true;
-    }
-
-    if (!firstAttemptFailed) {
-      console.log('Reusing existing authentication state');
-      await use(authFile);
-
-      try {
-        await fs.stat(authFile);
-      } catch {
-        firstAttemptFailed = true;
+      if (await isTokenValid(authFile)) {
+        console.log('Reusing existing authentication state');
+        needsAuthentication = false;
+        await use(authFile);
+        return;
+      } else {
+        console.log('Token expired, re-authenticating...');
+        await fs.unlink(authFile).catch(() => {});
       }
+    } catch {
+      console.log('No existing authentication state found');
     }
 
-    if (firstAttemptFailed) {
+    if (needsAuthentication) {
       console.log('Authenticating user...');
+
+      // Ensure .auth directory exists
+      const authDir = path.dirname(authFile);
+      await fs.mkdir(authDir, { recursive: true });
+
       const context = await browser.newContext({ baseURL });
       const page = await context.newPage();
 

@@ -40,17 +40,19 @@ export class FilesPage {
   /**
    * Verify a file exists in the file list
    * @param {string} fileName - Name of the file to verify
+   * @param {number} timeout - Timeout in milliseconds (default: 15000)
    */
-  async verifyFileExists(fileName) {
-    await verifyFileInList(this.page, fileName, { shouldExist: true });
+  async verifyFileExists(fileName, timeout = 15000) {
+    await verifyFileInList(this.page, fileName, { shouldExist: true, timeout });
   }
 
   /**
    * Verify a file does not exist in the file list
    * @param {string} fileName - Name of the file to verify
+   * @param {number} timeout - Timeout in milliseconds (default: 15000)
    */
-  async verifyFileNotExists(fileName) {
-    await verifyFileInList(this.page, fileName, { shouldExist: false });
+  async verifyFileNotExists(fileName, timeout = 15000) {
+    await verifyFileInList(this.page, fileName, { shouldExist: false, timeout });
   }
 
   /**
