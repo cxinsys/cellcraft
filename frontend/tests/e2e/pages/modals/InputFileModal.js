@@ -98,15 +98,19 @@ export class InputFileModal {
    * @returns {Promise<Array<string>>} Array of file names
    */
   async getFiles() {
-    const files = await this.fileItems.all();
-    const fileNames = [];
+    const fileNamesLocator = this.fileItems.locator('.folder__name');
 
-    for (const file of files) {
-      const name = await file.locator('.folder__name').textContent();
-      fileNames.push(name?.trim());
-    }
+    // Wait for at least one file name to be visible before collecting all
+    await fileNamesLocator.first().waitFor({ state: 'visible', timeout: 10000 });
 
-    return fileNames;
+    // Use evaluateAll for better performance and reliability
+    const items = await fileNamesLocator.evaluateAll((elements) =>
+      elements
+        .map((el) => el.textContent?.trim())
+        .filter((name) => name && name.length > 0)
+    );
+
+    return items;
   }
 
   /**

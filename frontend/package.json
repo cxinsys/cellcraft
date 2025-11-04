@@ -15,6 +15,11 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
+    "test:e2e:workflows": "playwright test workflows/",
+    "test:e2e:workflows:file": "playwright test workflows/01-file-assignment",
+    "test:e2e:workflows:config": "playwright test workflows/02-data-display workflows/03-scatter-plot workflows/04-algorithm-config",
+    "test:e2e:workflows:execution": "playwright test workflows/05-workflow-execution",
+    "test:e2e:workflows:viz": "playwright test workflows/06-result-visualization",
     "test:all": "npm run test:unit && npm run test:e2e"
   },
   "dependencies": {

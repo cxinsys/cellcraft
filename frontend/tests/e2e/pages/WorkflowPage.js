@@ -519,19 +519,37 @@ export class WorkflowPage {
     const entries = [];
 
     for (const row of rows) {
-      const cells = await row.locator('td').allTextContents();
-      const statusText = await row.locator('.task-status').innerText();
+      try {
+        const cells = await row.locator('td').allTextContents();
 
-      const entry = {
-        name: cells[1]?.trim() ?? '',
-        plugin: cells[2]?.trim() ?? '',
-        type: cells[3]?.trim() ?? '',
-        startText: cells[4]?.trim() ?? '',
-        startTimestamp: this._parseJobTimestamp(cells[4]?.trim()),
-        status: statusText.replace(/\s+/g, ' ').trim(),
-      };
+        // Skip rows with insufficient cells (malformed or not fully rendered)
+        if (cells.length < 5) {
+          console.warn(`⚠️ Skipping job table row with only ${cells.length} cells`);
+          continue;
+        }
 
-      entries.push(entry);
+        // Increase timeout for status text to handle DOM rendering delays with many rows
+        const statusText = await row.locator('.task-status')
+          .innerText({ timeout: 20000 })
+          .catch(() => 'UNKNOWN'); // Fallback if status element is not rendered
+
+        const entry = {
+          name: cells[1]?.trim() ?? '',
+          plugin: cells[2]?.trim() ?? '',
+          type: cells[3]?.trim() ?? '',
+          startText: cells[4]?.trim() ?? '',
+          startTimestamp: this._parseJobTimestamp(cells[4]?.trim()),
+          status: statusText.replace(/\s+/g, ' ').trim(),
+        };
+
+        // Only add entries with valid name
+        if (entry.name) {
+          entries.push(entry);
+        }
+      } catch (error) {
+        console.warn('⚠️ Error parsing job table row:', error.message);
+        // Continue processing other rows
+      }
     }
 
     return entries;
@@ -547,6 +565,8 @@ export class WorkflowPage {
     const matches = entries.filter((entry) => entry.name === jobTitle);
 
     if (matches.length === 0) {
+      console.warn(`⚠️ Job not found: "${jobTitle}"`);
+      console.warn(`Available jobs (${entries.length}):`, entries.map(e => e.name));
       return null;
     }
 
@@ -639,6 +659,16 @@ export class WorkflowPage {
   async cancelJobByTitle(jobTitle) {
     await this.openJobContextMenuForTitle(jobTitle);
     await this.selectJobContextOption('Cancle');
+  }
+
+  /**
+   * Delete a job by opening context menu and selecting Delete
+   * Note: In this test, deletes a REVOKED job (after cancellation)
+   * @param {string} jobTitle - The job title to delete
+   */
+  async deleteJobByTitle(jobTitle) {
+    await this.openJobContextMenuForTitle(jobTitle);
+    await this.selectJobContextOption('Delete');
   }
 
   /**

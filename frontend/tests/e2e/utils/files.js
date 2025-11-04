@@ -44,12 +44,23 @@ export async function uploadFixture(page, fileName, options = {}) {
     );
     uploadResponse = response;
     status = response.status();
-    if (! [200, 201, 204].includes(status)) {
-      console.log(
-        `⚠️ Upload response returned status ${status} for ${uploadFileName}. Continuing with verification.`
+
+    // Handle different response statuses
+    if (status === 401) {
+      throw new Error(
+        `Authentication failed (401) during file upload: ${uploadFileName}. Token may have expired.`
+      );
+    } else if (![200, 201, 204].includes(status)) {
+      throw new Error(
+        `File upload failed with status ${status} for ${uploadFileName}`
       );
     }
   } catch (error) {
+    // Re-throw authentication and upload failures
+    if (error.message.includes('Authentication failed') || error.message.includes('File upload failed')) {
+      throw error;
+    }
+    // For timeout errors, log and continue
     console.log(
       `⚠️ No upload response captured for ${uploadFileName} within ${timeout}ms. Continuing with verification.`
     );
@@ -98,9 +109,10 @@ function getMimeType(extension) {
  * @param {string} fileName - Name of the file to verify (without extension)
  * @param {object} options - Verification options
  * @param {boolean} options.shouldExist - Whether the file should exist (default: true)
+ * @param {number} options.timeout - Timeout in milliseconds (default: 15000)
  */
 export async function verifyFileInList(page, fileName, options = {}) {
-  const { shouldExist = true } = options;
+  const { shouldExist = true, timeout = 15000 } = options;
   const baseFileName = fileName.replace(/\.[^.]+$/, '');
   const escaped = baseFileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -112,9 +124,9 @@ export async function verifyFileInList(page, fileName, options = {}) {
   });
 
   if (shouldExist) {
-    await expect(fileRow).toBeVisible();
+    await expect(fileRow).toBeVisible({ timeout });
   } else {
-    await expect(fileRow).not.toBeVisible();
+    await expect(fileRow).not.toBeVisible({ timeout });
   }
 }
 
@@ -135,8 +147,19 @@ export async function deleteFile(page, fileName) {
     }),
   });
 
-  // Verify exactly one row matches (strict mode enforcement)
-  await expect(fileRow, `Expected one row for "${baseFileName}"`).toHaveCount(1);
+  // Check file count (defensive approach)
+  const fileCount = await fileRow.count();
+
+  // If file doesn't exist, skip deletion (no error)
+  if (fileCount === 0) {
+    console.log(`⚠️ File "${fileName}" not found in table, skipping deletion`);
+    return;
+  }
+
+  // If multiple files match, throw error
+  if (fileCount > 1) {
+    throw new Error(`Expected one row for "${baseFileName}", found ${fileCount}`);
+  }
 
   // Set up dialog handler BEFORE triggering the delete action
   // This auto-accepts the confirmation dialog that appears

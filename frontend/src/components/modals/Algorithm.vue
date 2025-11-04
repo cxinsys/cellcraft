@@ -540,29 +540,29 @@ export default {
         let file_name = null; // file_name 초기값 설정
         let selected_file = null; // 드롭다운에서 선택된 파일
 
-        if (item.type === 'inputFile' || item.type === 'optionalInputFile') {
-          // inputFile 타입의 경우
+        if (item.type === 'inputFile') {
+          // inputFile 타입의 경우만 자동 매칭
           const matchingConnection = currentNodeConnection.find(connection => {
             if (!connection.data || !connection.data.file) return false;
-            
+
             // 1. 확장자 기반 매칭 (우선순위)
             if (item.fileExtension && connection.data.file.includes(item.fileExtension)) {
               return true;
             }
-            
+
             // 2. InputFile의 title 기반 매칭 (기존 로직)
             if (connection.class === 'InputFile' && connection.data.title && item.defaultValue) {
-              return connection.data.title.includes(item.defaultValue) || 
+              return connection.data.title.includes(item.defaultValue) ||
                      item.defaultValue.includes(connection.data.title) ||
                      connection.data.file.includes(item.defaultValue);
             }
-            
+
             // 3. DataTable, ScatterPlot의 확장자 매칭
-            if ((connection.class === 'DataTable' || connection.class === 'ScatterPlot') && 
+            if ((connection.class === 'DataTable' || connection.class === 'ScatterPlot') &&
                 item.fileExtension && connection.data.file.includes(item.fileExtension)) {
               return true;
             }
-            
+
             return false;
           });
 
@@ -577,6 +577,12 @@ export default {
               node_class: matchingConnection.class
             };
           }
+        } else if (item.type === 'optionalInputFile') {
+          // optionalInputFile의 경우 자동 매칭하지 않음
+          // 사용자가 명시적으로 선택해야 함
+          activate = false;
+          file_name = null;
+          selected_file = null;
         } else if (item.type === 'outputFile') {
           // 모든 출력 파일을 활성화 (ResultFiles는 다중 파일 처리 가능)
           activate = true;

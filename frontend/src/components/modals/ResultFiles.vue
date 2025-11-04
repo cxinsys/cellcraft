@@ -8,6 +8,16 @@
                         :disabled="allFiles.length === 0">
                         {{ allSelected ? 'Deselect All' : 'Select All' }}
                     </button>
+                    <button
+                        :class="['action__button', setupSuccess ? 'action__button--success' : 'action__button--primary']"
+                        @click="setFiles"
+                        :disabled="selectedFiles.length === 0">
+                        {{ setupSuccess ? '✓ Files Set Up' : 'Set up Files' }}
+                    </button>
+                    <button class="action__button action__button--download" @click="downloadSelectedFiles"
+                        :disabled="selectedFiles.length === 0" v-if="selectedFiles.length > 1">
+                        Download Selected ({{ selectedFiles.length }})
+                    </button>
                 </div>
             </div>
 
@@ -112,22 +122,13 @@
                         <span v-else-if="selectedIntermediateFiles.length > 0" class="selection__breakdown">
                             ({{ selectedIntermediateFiles.length }} intermediate)
                         </span>
+                        <span v-if="hasBeenSetup" class="setup-success-message" style="margin-left: 0.75rem;">
+                            ✓ {{ configuredFilesCount }} file{{ configuredFilesCount !== 1 ? 's' : '' }} configured for workflow
+                        </span>
                     </span>
                     <span v-else-if="allFiles.length > 0">
                         No files selected
                     </span>
-                </div>
-
-                <div class="files__footer-actions">
-                    <button class="action__button action__button--primary" @click="setFiles"
-                        :disabled="selectedFiles.length === 0">
-                        Set up Files
-                    </button>
-
-                    <button class="action__button action__button--download" @click="downloadSelectedFiles"
-                        :disabled="selectedFiles.length === 0" v-if="selectedFiles.length > 1">
-                        Download Selected ({{ selectedFiles.length }})
-                    </button>
                 </div>
             </div>
         </div>
@@ -149,6 +150,9 @@ export default {
             selectedIntermediateFiles: [],
             isSetup: false,
             showIntermediateFiles: false,
+            setupSuccess: false,
+            setupSuccessTimeout: null,
+            hasBeenSetup: false,
         };
     },
     async mounted() {
@@ -177,6 +181,11 @@ export default {
         },
         hasMultipleSelected() {
             return this.selectedFiles.length > 1;
+        },
+        // Vuex store에 저장된 실제 설정된 파일 개수
+        configuredFilesCount() {
+            const storedFiles = this.$store.getters.getSelectedWorkflowFiles(this.nodeId);
+            return storedFiles ? storedFiles.length : 0;
         }
     },
     methods: {
@@ -241,6 +250,7 @@ export default {
                 );
 
                 this.isSetup = selectedFileNames.length > 0;
+                this.hasBeenSetup = selectedFileNames.length > 0;
             } else {
                 // Handle legacy single file format
                 const existingFile = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
@@ -252,6 +262,7 @@ export default {
                         this.selectedIntermediateFiles = [existingFile];
                     }
                     this.isSetup = true;
+                    this.hasBeenSetup = true;
                 } else {
                     // Auto-select based on node title if available
                     const current_node = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
@@ -265,7 +276,8 @@ export default {
                         } else {
                             this.selectedIntermediateFiles = [matchingFile.name];
                         }
-                        this.setFiles(); // Auto-setup for backward compatibility
+                        this.isSetup = true;
+                        this.hasBeenSetup = true;
                     }
                 }
             }
@@ -402,6 +414,16 @@ export default {
             this.$store.commit('shareWorkflowFiles', this.nodeId);
 
             this.isSetup = true;
+            this.hasBeenSetup = true;
+
+            // Show success state
+            if (this.setupSuccessTimeout) {
+                clearTimeout(this.setupSuccessTimeout);
+            }
+            this.setupSuccess = true;
+            this.setupSuccessTimeout = setTimeout(() => {
+                this.setupSuccess = false;
+            }, 3000);
         },
 
         formatFileSize(bytes) {
@@ -411,6 +433,11 @@ export default {
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         },
+    },
+    beforeDestroy() {
+        if (this.setupSuccessTimeout) {
+            clearTimeout(this.setupSuccessTimeout);
+        }
     }
 };
 </script>
@@ -554,6 +581,8 @@ export default {
 .files__actions {
     display: flex;
     gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 .files__list {
@@ -712,10 +741,7 @@ export default {
     border-top: 1px solid #e5e5e5;
     padding-top: 1rem;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
     flex-shrink: 0;
     margin-top: auto;
 }
@@ -723,12 +749,6 @@ export default {
 .files__selection-info {
     font-size: 0.9rem;
     color: #666;
-}
-
-.files__footer-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
 }
 
 .action__button {
@@ -806,5 +826,33 @@ export default {
 
 .files__list::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
+}
+
+/* Success state styles */
+.action__button--success {
+    background: #28a745 !important;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.action__button--success:hover:not(:disabled) {
+    background: #218838 !important;
+}
+
+.setup-success-message {
+    color: #28a745;
+    font-weight: 600;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 </style>
