@@ -177,8 +177,63 @@ class MyTask(Task):
             except Exception as e:
                 logger.warning(f"Error unregistering container for task {task_id}: {e}")
 
+def wait_for_file_ready(file_path: str, timeout: int = 10, check_interval: float = 0.1) -> bool:
+    """
+    Wait for a file to be completely written and synced from Docker container.
+
+    Args:
+        file_path: Path to the target file
+        timeout: Maximum time to wait in seconds (default: 10)
+        check_interval: Time between checks in seconds (default: 0.1)
+
+    Returns:
+        True if file is ready and stable, False if timeout occurred
+    """
+    start_time = time.time()
+    last_size = -1
+    stable_count = 0
+
+    logger.info(f"Waiting for file to be ready: {file_path}")
+
+    while time.time() - start_time < timeout:
+        if not Path(file_path).exists():
+            time.sleep(check_interval)
+            continue
+
+        try:
+            current_size = Path(file_path).stat().st_size
+
+            # File size is stable when it remains the same for 3 consecutive checks
+            if current_size == last_size and current_size > 0:
+                stable_count += 1
+                if stable_count >= 3:
+                    elapsed = time.time() - start_time
+                    logger.info(f"File ready after {elapsed:.2f}s: {file_path} ({current_size} bytes)")
+                    return True
+            else:
+                stable_count = 0
+
+            last_size = current_size
+            time.sleep(check_interval)
+        except OSError as e:
+            # Handle race condition where file exists but stat fails
+            logger.debug(f"Temporary error checking file: {e}")
+            time.sleep(check_interval)
+
+    # Timeout occurred, but check one last time if file exists
+    file_exists = Path(file_path).exists()
+    elapsed = time.time() - start_time
+
+    if file_exists:
+        logger.warning(f"File exists but may not be stable after {elapsed:.2f}s: {file_path}")
+    else:
+        logger.error(f"File not found after {elapsed:.2f}s: {file_path}")
+
+    return file_exists
+
+
 @shared_task(bind=True, base=MyTask, name="workflow_task:process_data_task")
-def process_data_task(self, username: str, snakefile_path: str, selected_plugin: str, 
+def process_data_task(self, username: str, snakefile_path: str, selected_plugin: str,
                       targets: list, user_id: int, workflow_id: int, algorithm_id: int, plugin_name: str, task_type: str, **kwargs):
     try:
         task_id = self.request.id
@@ -200,14 +255,14 @@ def process_data_task(self, username: str, snakefile_path: str, selected_plugin:
             self.update_state(state="FAILURE", meta={"error": error_message})
             raise RuntimeError(error_message)
 
-        # 타겟 파일 존재 여부 확인
+        # 타겟 파일 존재 여부 확인 (Docker volume sync 대기)
         missing_targets = []
         for target in targets:
-            if not Path(target).exists():
+            if not wait_for_file_ready(target, timeout=10):
                 missing_targets.append(target)
 
         if missing_targets:
-            error_message = f"Target(s) not produced: {missing_targets}"
+            error_message = f"Target(s) not produced or not synced from container: {missing_targets}"
             print(error_message)
             self.update_state(state="FAILURE", meta={"error": error_message})
             raise RuntimeError(error_message)

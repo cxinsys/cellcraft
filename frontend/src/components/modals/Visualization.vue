@@ -185,6 +185,7 @@ export default {
             showFailure: false,
             showSuccess: false,
             eventSources: {},
+            resultPath: null,  // Store actual result filename from backend
 
             // Error Handling
             errorState: {
@@ -286,6 +287,12 @@ export default {
                     this.selectedScript = current_node.data.selectedScript;
                     this.selectedVisualizationParams = current_node.data.selectedVisualizationParams || [];
                     this.selectedVisualizationTitle = current_node.data.selectedVisualizationTitle || this.selectedScript.name;
+
+                    // Restore result path from backend if available
+                    if (current_node.data.resultPath) {
+                        this.resultPath = current_node.data.resultPath;
+                        console.log('Restored result_path from saved data:', this.resultPath);
+                    }
 
                     // Load available files and restore configuration
                     await this.loadAvailableFiles();
@@ -611,8 +618,15 @@ export default {
 
         async handleExecuteOrVisualize() {
             if (this.taskStatus === 'SUCCESS' && !this.hasParametersChanged) {
-                // Show visualization
-                this.renderPlot();
+                // Check if visualization data is already loaded
+                if (this.plotlyData) {
+                    // Data exists, just render
+                    this.renderPlot();
+                } else {
+                    // Data not loaded yet (handleTaskSuccess failed), retry loading
+                    console.log('Visualization data not loaded, retrying...');
+                    await this.loadVisualizationResult();
+                }
             } else {
                 // Execute visualization
                 await this.runVisualization();
@@ -665,6 +679,9 @@ export default {
                 }
 
                 if (workflow_data.data.message === "Visualization result already exists" || workflow_data.data.cached) {
+                    // Store the actual result path from backend
+                    this.resultPath = workflow_data.data.result_path;
+
                     const workflowResult = {
                         id: this.workflowId,
                         algorithm_id: this.nodeId,  // Use visualization node ID for cached results
@@ -683,6 +700,11 @@ export default {
                     this.hasParametersChanged = false;
                     this.storeOriginalParameterValues();
                 } else if (workflow_data.data.task_id) {
+                    // Store the actual result path from backend for later use
+                    if (workflow_data.data.result_path) {
+                        this.resultPath = workflow_data.data.result_path;
+                        console.log('Saved result_path from backend:', this.resultPath);
+                    }
                     this.createEventSource(workflow_data.data.task_id);
                 } else {
                     throw new Error('No task ID received from visualization service');
@@ -772,13 +794,13 @@ export default {
             }
         },
 
-        async handleTaskSuccess(task_id) {
+        async loadVisualizationResult() {
             try {
-                this.taskStatus = 'SUCCESS';
-                this.showSuccess = true;
-                this.hasParametersChanged = false;
-                this.storeOriginalParameterValues();
                 this.clearError(); // Clear any previous errors
+
+                // Show loading message for result retrieval
+                this.loadingStates.execution = true;
+                this.loadingMessage = 'Loading visualization results...';
 
                 // Fetch and render visualization result
                 const connectionAlgorithmNode = this.$store.getters.getAlgorithmNodeConnectedToInput(this.nodeId);
@@ -791,9 +813,15 @@ export default {
                 const workflowResult = {
                     id: this.workflowId,
                     algorithm_id: this.nodeId,  // Use visualization node ID for result retrieval
-                    filename: `${this.selectedVisualizationTitle}.json`,
+                    filename: this.resultPath || `${this.selectedVisualizationTitle}.json`,
                 };
 
+                console.log('Fetching visualization result:', workflowResult);
+                if (this.resultPath) {
+                    console.log('Using exact result_path from backend:', this.resultPath);
+                } else {
+                    console.log('Warning: resultPath not set, using fallback filename');
+                }
                 const response = await getVisualizationResult(workflowResult);
 
                 if (!response.data) {
@@ -803,21 +831,51 @@ export default {
                 this.plotlyData = response.data;
                 this.renderPlot();
 
+                console.log('Visualization loaded and rendered successfully');
+
+            } catch (error) {
+                // Enhanced error handling with user-friendly message
+                const isFileNotFoundError = error.response?.status === 400 &&
+                    (error.response?.data?.detail?.includes('No such file or directory') ||
+                     error.response?.data?.detail?.includes('File not found or empty'));
+
+                this.handleError(error, {
+                    operation: 'load_visualization',
+                    message: isFileNotFoundError
+                        ? 'Visualization file is still being prepared. Please wait a moment and click "Show Visualization" again.'
+                        : 'Failed to load visualization result',
+                    userMessage: isFileNotFoundError
+                        ? 'The visualization is being prepared. Please wait a moment and try again.'
+                        : 'Unable to load visualization. Please try reopening the visualization panel.',
+                    showRetryHint: isFileNotFoundError
+                });
+
+                throw error; // Re-throw to let caller handle
+            } finally {
+                this.loadingStates.execution = false;
+                this.loadingMessage = '';
+            }
+        },
+
+        async handleTaskSuccess() {
+            try {
+                this.taskStatus = 'SUCCESS';
+                this.showSuccess = true;
+                this.hasParametersChanged = false;
+                this.storeOriginalParameterValues();
+
+                // Load visualization result using extracted method
+                await this.loadVisualizationResult();
+
                 console.log('Visualization completed successfully');
 
             } catch (error) {
-                this.handleError(error, {
-                    operation: 'handle_task_success',
-                    task_id: task_id,
-                    message: 'Failed to load visualization result after successful task completion'
-                });
-
                 // Keep success state but show error for result loading
+                console.log('Initial visualization load failed, will retry on Show Visualization click');
                 this.taskStatus = 'SUCCESS';
                 this.showSuccess = true;
             } finally {
                 this.on_progress = false;
-                this.loadingStates.execution = false;
                 // Critical: Save the task status to persist it
                 this.saveNodeData();
             }
@@ -961,6 +1019,7 @@ export default {
                 selectedVisualizationParams: this.selectedVisualizationParams,
                 selectedVisualizationTitle: this.selectedVisualizationTitle,
                 taskStatus: this.taskStatus,
+                resultPath: this.resultPath,  // Store actual result filename from backend
             };
             const nodeId = this.nodeId;
             this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });

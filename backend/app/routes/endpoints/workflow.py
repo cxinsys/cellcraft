@@ -5,6 +5,7 @@ import os
 import shutil
 import json
 import logging
+import time
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.common.utils.plugin_utils import verify_dependencies, get_plugin_path
@@ -755,15 +756,15 @@ def checkVisualizationResult(WorkflowResult: WorkflowResult, current_user: model
     # Check if this is a visualization node result (algorithm_id is actually a visualization node ID)
     # For visualization nodes, use visualization_{id} path instead of algorithm_{id}
     PATH_COMPILE_RESULT = f'./user/{current_user.username}/workflow_{WorkflowResult.id}/visualization_{WorkflowResult.algorithm_id}/results'
-    
+
     # If visualization path doesn't exist, try algorithm path for backward compatibility
     if not os.path.exists(PATH_COMPILE_RESULT):
         PATH_COMPILE_RESULT = f'./user/{current_user.username}/workflow_{WorkflowResult.id}/algorithm_{WorkflowResult.algorithm_id}/results'
-    
+
     file_list = os.listdir(PATH_COMPILE_RESULT)
     # print(file_list)
     FILE_NAME = WorkflowResult.filename
-    
+
     for item_file in file_list:
         if FILE_NAME == item_file:
             FILE_NAME = item_file
@@ -772,16 +773,47 @@ def checkVisualizationResult(WorkflowResult: WorkflowResult, current_user: model
     FILE_PATH = os.path.join(PATH_COMPILE_RESULT, FILE_NAME)
     # print(FILE_PATH)
 
-    try:
-        with open(FILE_PATH, "r") as f:
-            plotly_data = json.load(f)
-        return JSONResponse(content=plotly_data)
-        
-    except Exception as e:
-        raise HTTPException(
+    # Retry logic for handling Docker volume sync delays
+    max_retries = 3
+    retry_delay = 0.5  # 500ms between retries
+
+    for attempt in range(max_retries):
+        try:
+            # Verify file exists and has content
+            if os.path.exists(FILE_PATH) and os.path.getsize(FILE_PATH) > 0:
+                with open(FILE_PATH, "r") as f:
+                    plotly_data = json.load(f)
+
+                # Log if retry was needed
+                if attempt > 0:
+                    logger.warning(f"Visualization file ready after {attempt} retry(ies): {FILE_PATH}")
+
+                return JSONResponse(content=plotly_data)
+            else:
+                # File doesn't exist or is empty
+                if attempt < max_retries - 1:
+                    logger.info(f"Visualization file not ready, retry {attempt + 1}/{max_retries}: {FILE_PATH}")
+                    time.sleep(retry_delay)
+                else:
+                    raise FileNotFoundError(f"File not found or empty: {FILE_PATH}")
+
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            if attempt < max_retries - 1:
+                logger.info(f"Error reading visualization file, retry {attempt + 1}/{max_retries}: {str(e)}")
+                time.sleep(retry_delay)
+            else:
+                logger.error(f"Failed to read visualization file after {max_retries} attempts: {FILE_PATH}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=str(e),
+                )
+        except Exception as e:
+            # Unexpected error, don't retry
+            logger.error(f"Unexpected error reading visualization file: {str(e)}")
+            raise HTTPException(
                 status_code=400,
                 detail=str(e),
-                )
+            )
 
 #save workflow node modal data
 @router.post("/node/save")
