@@ -90,7 +90,7 @@
     </div>
 
     <!-- DAG Progress 모달 -->
-    <DAGVisualization 
+    <DAGVisualization
       v-if="showDAGModal && selectedDAGTaskId"
       :visible="showDAGModal"
       :taskId="selectedDAGTaskId"
@@ -98,6 +98,14 @@
       :taskStatus="selectedDAGTaskStatus"
       @close="closeDAGModal"
     />
+
+    <!-- Task 취소 로딩 오버레이 -->
+    <div v-if="isCancellingTask" class="loading-overlay">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Cancelling task...</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -222,6 +230,7 @@ export default {
       showDAGModal: false,
       selectedDAGTaskId: null,
       selectedDAGTaskName: null,
+      isCancellingTask: false,
     };
   },
   async mounted() {
@@ -710,12 +719,16 @@ export default {
     },
     async cancelTask(task_id) {
       try {
+        this.isCancellingTask = true;
         const revoke_task = await revokeTask(task_id);
         console.log(revoke_task);
         this.toggleTask();
         this.setMessage("success", "Cancel task successfully!");
       } catch (error) {
         console.error(error);
+        this.setMessage("error", "Failed to cancel task");
+      } finally {
+        this.isCancellingTask = false;
       }
     },
     async confirmDelete(task_id) {
@@ -1676,6 +1689,56 @@ export default {
 
 .log-file-content::-webkit-scrollbar-thumb:hover {
   background: #4a6378;
+}
+
+/* Task 취소 로딩 오버레이 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10001;
+  backdrop-filter: blur(5px);
+}
+
+.loading-spinner {
+  text-align: center;
+  background: #2c3e50;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-spinner p {
+  color: #ecf0f1;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 /* @media (prefers-color-scheme: dark) {
