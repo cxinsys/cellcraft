@@ -79,7 +79,7 @@
                   <div v-else-if="parameter.name === 'clusters'" class="parameter__dropdown--checkbox"
                     @click="activateClusters" :class="{ isactive: dropdownIsActive }">
                     Select Clusters
-                    <ul class="parameter__dropdown--menu">
+                    <ul class="parameter__dropdown--menu" @click.stop>
                       <li v-for="(column, index) in clusters" :key="index">
                         <label>
                           <input type="checkbox" :name="column" @change="clusterToggle($event, parameter, column)"

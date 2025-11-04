@@ -1,0 +1,6 @@
+# Playwright Authentication State
+.auth/
+
+# Playwright Reports and Results
+playwright-report/
+test-results/

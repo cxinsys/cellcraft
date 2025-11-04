@@ -8,9 +8,9 @@
       <div class="signup-box">
         <SignupForm></SignupForm>
       </div>
-      <footer class="signup-footer">
+      <!-- <footer class="signup-footer">
         <div class="copyright__txt">© 2025 CellCraft. All rights reserved</div>
-      </footer>
+      </footer> -->
     </div>
   </div>
 </template>

@@ -345,14 +345,20 @@ export default {
             if (this.selectedFiles.length === 0) return;
 
             try {
-                if (this.selectedFiles.length === 1) {
+                // Cache computed properties to prevent reactivity issues during async operations
+                const allFilesList = this.allFiles || [];
+                const selectedFilesList = this.selectedFiles || [];
+
+                if (selectedFilesList.length === 1) {
                     // Single file download
-                    const file = this.fileList.find(f => f.name === this.selectedFiles[0]);
-                    await this.downloadIndividualFile(file);
+                    const file = allFilesList.find(f => f.name === selectedFilesList[0]);
+                    if (file) {
+                        await this.downloadIndividualFile(file);
+                    }
                 } else {
                     // Multiple files download (batch)
-                    for (const fileName of this.selectedFiles) {
-                        const file = this.fileList.find(f => f.name === fileName);
+                    for (const fileName of selectedFilesList) {
+                        const file = allFilesList.find(f => f.name === fileName);
                         if (file) {
                             await this.downloadIndividualFile(file);
                             // Add small delay between downloads to prevent overwhelming the server

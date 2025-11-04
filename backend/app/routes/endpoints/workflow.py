@@ -740,8 +740,9 @@ def checkResult(WorkflowResult: WorkflowResult, current_user: models.User = Depe
     FILE_NAME = WorkflowResult.filename
     
     for item_file in file_list:
-        if FILE_NAME in item_file:
+        if FILE_NAME == item_file:
             FILE_NAME = item_file
+            break
     # print(FILE_NAME)
     FILE_PATH = os.path.join(PATH_COMPILE_RESULT, FILE_NAME)
     # print(FILE_PATH)
@@ -764,8 +765,9 @@ def checkVisualizationResult(WorkflowResult: WorkflowResult, current_user: model
     FILE_NAME = WorkflowResult.filename
     
     for item_file in file_list:
-        if FILE_NAME in item_file:
+        if FILE_NAME == item_file:
             FILE_NAME = item_file
+            break
     # print(FILE_NAME)
     FILE_PATH = os.path.join(PATH_COMPILE_RESULT, FILE_NAME)
     # print(FILE_PATH)

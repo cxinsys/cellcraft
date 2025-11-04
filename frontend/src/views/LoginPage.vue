@@ -23,9 +23,9 @@
           >
         </div> -->
       </div>
-      <footer class="login-footer">
+      <!-- <footer class="login-footer">
         <div class="copyright__txt">© 2025 CellCraft. All rights reserved</div>
-      </footer>
+      </footer> -->
     </div>
   </div>
 </template>
