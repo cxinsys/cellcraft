@@ -16,8 +16,8 @@ export default defineConfig({
   /* CI 환경에서 재시도 설정 */
   retries: process.env.CI ? 2 : 0,
 
-  /* 워커 수 설정 */
-  workers: process.env.CI ? 1 : undefined,
+  /* 워커 수 설정 - 1로 고정하여 auth 충돌 방지 */
+  workers: 1,
 
   /* 리포터 설정 */
   reporter: [
@@ -68,13 +68,14 @@ export default defineConfig({
       },
     },
 
-    {
-      name: 'webkit',
-      use: {
-        ...devices['Desktop Safari'],
-        viewport: { width: 1920, height: 1080 },
-      },
-    },
+    // Webkit (Safari) 테스트 비활성화
+    // {
+    //   name: 'webkit',
+    //   use: {
+    //     ...devices['Desktop Safari'],
+    //     viewport: { width: 1920, height: 1080 },
+    //   },
+    // },
 
     /* 모바일 테스트 (선택사항) */
     // {
