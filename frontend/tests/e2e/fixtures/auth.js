@@ -76,7 +76,10 @@ export const test = base.extend({
       const authDir = path.dirname(authFile);
       await fs.mkdir(authDir, { recursive: true });
 
-      const context = await browser.newContext({ baseURL });
+      // Use baseURL from fixture parameter, fallback to environment variable
+      const context = await browser.newContext({
+        baseURL: baseURL || process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080'
+      });
       const page = await context.newPage();
 
       await page.goto('/login');

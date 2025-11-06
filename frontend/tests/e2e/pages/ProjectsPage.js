@@ -45,9 +45,12 @@ export class ProjectsPage {
 
     // Scope the plugin item search to within the modal only
     // This prevents accidentally clicking elements behind the modal (e.g., header links)
-    const pluginItem = this.pluginSelectModal.locator('.plugin-item', {
-      has: this.page.locator(`.plugin-name:has-text("${pluginName}")`),
-    });
+    // Use exact text matching to avoid partial matches (e.g., "TENET" vs "FastTENET")
+    const pluginItem = this.pluginSelectModal
+      .locator('.plugin-item')
+      .filter({
+        has: this.page.locator('.plugin-name').getByText(pluginName, { exact: true })
+      });
 
     await pluginItem.click();
 
