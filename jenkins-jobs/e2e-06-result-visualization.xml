@@ -1,0 +1,140 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>CellCraft E2E Test - Result Visualization Node Test (06-result-visualization.spec.js)</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>UPTIME_KUMA_PUSH_URL</name>
+          <description>Uptime Kuma Push Monitor URL for Result Visualization Test</description>
+          <defaultValue>http://uptime-kuma:3001/api/push/BBO3dijbOt</defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>PLAYWRIGHT_BASE_URL</name>
+          <description>Base URL for E2E tests</description>
+          <defaultValue>https://cellcraft.app</defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers>
+    <hudson.triggers.TimerTrigger>
+      <spec>50 * * * *</spec>
+    </hudson.triggers.TimerTrigger>
+  </triggers>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+echo "========================================="
+echo "Starting E2E Test - Result Visualization..."
+echo "Base URL: $PLAYWRIGHT_BASE_URL"
+echo "Note: This test requires a pre-existing SUCCESS workflow"
+echo "========================================="
+
+# Jenkins 컨테이너 내부에서 작업 디렉토리 생성
+E2E_WORK_DIR="/tmp/e2e-06-$$"
+E2E_AUTH_DIR="/jenkins-home/e2e-auth"
+
+mkdir -p "$E2E_WORK_DIR"
+mkdir -p "$E2E_AUTH_DIR"
+
+# 필요한 파일들 복사
+cp -r /workspace/frontend/tests "$E2E_WORK_DIR/tests"
+cp /workspace/frontend/playwright.config.js "$E2E_WORK_DIR/"
+cp /workspace/frontend/package.json "$E2E_WORK_DIR/"
+
+# 복사된 .auth 디렉토리 삭제하고 영구 디렉토리로 심볼릭 링크 생성
+rm -rf "$E2E_WORK_DIR/tests/e2e/.auth"
+ln -s "$E2E_AUTH_DIR" "$E2E_WORK_DIR/tests/e2e/.auth"
+
+cd "$E2E_WORK_DIR"
+
+# Playwright 설치 (첫 실행 시만 필요, 이후에는 캐시됨)
+if [ ! -d "node_modules/@playwright" ]; then
+  npm install @playwright/test
+fi
+
+# E2E 테스트 실행 - Result Visualization Test
+export PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL:-http://cellcraft-frontend-1:8080}"
+export PLAYWRIGHT_SKIP_WEBSERVER='true'
+export PLAYWRIGHT_HEADLESS='true'
+
+npx playwright test \
+  tests/e2e/workflows/06-result-visualization.spec.js \
+  --reporter=junit \
+  --reporter=html \
+  --project=chromium
+
+TEST_EXIT_CODE=$?
+
+# 테스트 결과를 Jenkins workspace로 복사
+mkdir -p "$WORKSPACE/test-results"
+cp -r test-results/* "$WORKSPACE/test-results/" 2>/dev/null || true
+cp -r playwright-report "$WORKSPACE/" 2>/dev/null || true
+
+# 임시 디렉토리 정리
+cd /
+rm -rf "$E2E_WORK_DIR"
+
+# Uptime Kuma 알림
+if [ -n "$UPTIME_KUMA_PUSH_URL" ] &amp;&amp; [ "$UPTIME_KUMA_PUSH_URL" != "http://uptime-kuma:3001/api/push/YOUR_KEY_06" ]; then
+  if [ $TEST_EXIT_CODE -eq 0 ]; then
+    echo "========================================="
+    echo "Result Visualization Test Passed!"
+    echo "========================================="
+    curl -s "${UPTIME_KUMA_PUSH_URL}?status=up&amp;msg=Result%20Visualization%20Test%20Passed" || true
+  else
+    echo "========================================="
+    echo "Result Visualization Test Failed!"
+    echo "========================================="
+    curl -s "${UPTIME_KUMA_PUSH_URL}?status=down&amp;msg=Result%20Visualization%20Test%20Failed" || true
+  fi
+fi
+
+exit $TEST_EXIT_CODE
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <htmlpublisher.HtmlPublisher>
+      <reportTargets>
+        <htmlpublisher.HtmlPublisherTarget>
+          <reportName>Playwright Report</reportName>
+          <reportDir>playwright-report</reportDir>
+          <reportFiles>index.html</reportFiles>
+          <alwaysLinkToLastBuild>false</alwaysLinkToLastBuild>
+          <keepAll>true</keepAll>
+          <allowMissing>true</allowMissing>
+          <wrapperName>htmlpublisher-wrapper.html</wrapperName>
+        </htmlpublisher.HtmlPublisherTarget>
+      </reportTargets>
+    </htmlpublisher.HtmlPublisher>
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>test-results/*, playwright-report/**/*</artifacts>
+      <allowEmptyArchive>true</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper/>
+    <hudson.plugins.ws__cleanup.PreBuildCleanup>
+      <deleteDirs>false</deleteDirs>
+      <cleanupParameter></cleanupParameter>
+      <externalDelete></externalDelete>
+    </hudson.plugins.ws__cleanup.PreBuildCleanup>
+  </buildWrappers>
+</project>
