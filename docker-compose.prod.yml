@@ -17,7 +17,7 @@ services:
   backend:
     environment:
       - TZ=Asia/Seoul
-      - CONDA_DEFAULT_ENV=snakemake
+      - CONDA_DEFAULT_ENV=cellcraft-test
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -25,7 +25,7 @@ services:
       - POSTGRES_PORT=5432
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     ports:
       - "8000:8000"
     volumes:
@@ -70,7 +70,7 @@ services:
 
   celery:
     environment:
-      - CONDA_DEFAULT_ENV=snakemake
+      - CONDA_DEFAULT_ENV=cellcraft-test
       - C_FORCE_ROOT=true
       - TZ=Asia/Seoul
       - POSTGRES_DB=${POSTGRES_DB}
@@ -81,7 +81,7 @@ services:
     ipc: host
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev.celery
+      dockerfile: Dockerfile.celery.prod
     volumes:
       - ./backend:/app
       - /var/run/docker.sock:/var/run/docker.sock
@@ -96,5 +96,55 @@ services:
         condition: service_healthy
     restart: always
 
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: cellcraft_jenkins
+    restart: always
+    environment:
+      - TZ=Asia/Seoul
+      # Initial setup wizard enabled for first-time configuration
+      # Remove this line after completing initial setup for faster restarts
+    ports:
+      - "9090:8080"  # Jenkins UI (accessible at localhost:9090)
+      - "50000:50000"  # Jenkins agent
+    expose:
+      - "8080"   # Jenkins UI (internal access)
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./backend:/workspace/backend:ro
+      - ./frontend:/workspace/frontend:ro
+      - ./tests:/workspace/tests:ro
+    depends_on:
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_started
+    networks:
+      - default
+    user: root  # Required for Docker socket access
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: cellcraft_uptime_kuma
+    restart: always
+    environment:
+      - TZ=Asia/Seoul
+    ports:
+      - "3001:3001"  # Uptime Kuma UI (accessible at localhost:3001)
+    expose:
+      - "3001"  # Uptime Kuma UI (internal access)
+    volumes:
+      - uptime_kuma_data:/app/data
+    depends_on:
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_started
+    networks:
+      - default
+
 volumes:
   postgres_data:
+  jenkins_data:
+  uptime_kuma_data:

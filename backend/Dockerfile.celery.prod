@@ -1,0 +1,67 @@
+# Multi-platform build arguments
+ARG TARGETPLATFORM=linux/amd64
+ARG BUILDPLATFORM=linux/amd64
+
+# Build stage - 컴파일 도구 및 개발 의존성 설치
+FROM --platform=$BUILDPLATFORM python:3.10-slim AS builder
+
+# 필수 빌드 도구 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    curl \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Micromamba 설치 (플랫폼별 아키텍처 자동 감지)
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
+
+RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
+    case $PLATFORM in \
+        "linux/amd64")  MICROMAMBA_ARCH=linux-64  ;; \
+        "linux/arm64")  MICROMAMBA_ARCH=linux-aarch64  ;; \
+        *) MICROMAMBA_ARCH=linux-64 ;; \
+    esac && \
+    echo "Installing micromamba for $MICROMAMBA_ARCH" && \
+    curl -L "https://micromamba.snakepit.net/api/micromamba/$MICROMAMBA_ARCH/latest" | \
+    tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba
+
+# Conda 테스트 환경 구성 (테스트 의존성 포함)
+COPY environment-test.yml ./
+RUN micromamba create -y -n cellcraft-test -f environment-test.yml
+
+# Runtime stage - 최소 런타임 환경
+FROM python:3.10-slim
+
+# 런타임 패키지만 설치 (Java 의존성 제거)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    jq \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Micromamba와 환경을 빌드 스테이지에서 복사
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
+COPY --from=builder /usr/local/bin/micromamba /usr/local/bin/micromamba
+COPY --from=builder /opt/micromamba /opt/micromamba
+
+# Micromamba 테스트 환경 PATH 등록
+ENV PATH=/opt/micromamba/envs/cellcraft-test/bin:$PATH
+ENV CONDA_DEFAULT_ENV=cellcraft-test
+
+
+# 작업 디렉토리 설정 및 코드 복사
+WORKDIR /app
+COPY . .
+
+# Initialize git submodules on container startup
+RUN if [ -f .gitmodules ]; then \
+    git config --global --add safe.directory /app && \
+    git submodule update --init --recursive plugin/official || true; \
+    fi
+
+# Celery 실행 (Micromamba cellcraft-test env 내 python 사용)
+CMD ["/opt/micromamba/envs/cellcraft-test/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "-n", "worker@%h", "--loglevel=info", "-E", "-Q", "workflow_task,plugin_task"]
