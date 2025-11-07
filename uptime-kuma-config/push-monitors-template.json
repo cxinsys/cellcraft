@@ -1,0 +1,109 @@
+{
+  "monitors": [
+    {
+      "name": "Backend Unit Tests",
+      "type": "push",
+      "interval": 2100,
+      "upsideDown": false,
+      "tags": ["tests", "backend", "unit"],
+      "description": "Backend pytest 유닛 테스트 결과 모니터링 (Jenkins Job 실행: 30분마다)",
+      "notes": "Jenkins Job: cellcraft-backend-unit-test\nSchedule: H/30 * * * * (30분마다)\nHeartbeat: 35분 (2100초)\nPush URL은 생성 후 Jenkins Job 파라미터에 설정 필요"
+    },
+    {
+      "name": "Frontend Unit Tests",
+      "type": "push",
+      "interval": 2100,
+      "upsideDown": false,
+      "tags": ["tests", "frontend", "unit"],
+      "description": "Frontend Vitest 유닛 테스트 결과 모니터링 (Jenkins Job 실행: 30분마다)",
+      "notes": "Jenkins Job: cellcraft-frontend-unit-test\nSchedule: 15,45 * * * * (매시 15분, 45분)\nHeartbeat: 35분 (2100초)\nPush URL은 생성 후 Jenkins Job 파라미터에 설정 필요"
+    },
+    {
+      "name": "E2E Integration Tests",
+      "type": "push",
+      "interval": 7500,
+      "upsideDown": false,
+      "tags": ["tests", "e2e", "integration"],
+      "description": "Playwright E2E 통합 테스트 결과 모니터링 (Jenkins Job 실행: 2시간마다)",
+      "notes": "Jenkins Job: cellcraft-e2e-test\nSchedule: H H/2 * * * (2시간마다)\nHeartbeat: 125분 (7500초)\nPush URL은 생성 후 Jenkins Job 파라미터에 설정 필요"
+    },
+    {
+      "name": "Docker Environment",
+      "type": "push",
+      "interval": 15000,
+      "upsideDown": false,
+      "tags": ["infrastructure", "docker", "health"],
+      "description": "Docker 컨테이너 헬스 체크 모니터링 (Jenkins Job 실행: 4시간마다)",
+      "notes": "Jenkins Job: cellcraft-docker-health-check\nSchedule: H H/4 * * * (4시간마다)\nHeartbeat: 250분 (15000초)\nPush URL은 생성 후 Jenkins Job 파라미터에 설정 필요"
+    }
+  ],
+  "push_monitor_workflow": {
+    "description": "Push 모니터 워크플로우 설명",
+    "steps": [
+      "1. Uptime Kuma에서 Push 모니터 생성",
+      "2. 생성된 Push URL 복사 (예: http://uptime-kuma:3001/api/push/abc123xyz)",
+      "3. Jenkins Job 파라미터 'UPTIME_KUMA_PUSH_URL'에 Push URL 설정",
+      "4. Jenkins Job 실행 시 성공/실패 상태를 Uptime Kuma에 전송",
+      "5. Uptime Kuma Dashboard에서 실시간 상태 확인"
+    ],
+    "push_url_format": "http://uptime-kuma:3001/api/push/[PUSH_KEY]?status=[up|down]&msg=[MESSAGE]&ping=[RESPONSE_TIME]",
+    "status_values": {
+      "up": "서비스 정상 (테스트 성공)",
+      "down": "서비스 중단 (테스트 실패)"
+    },
+    "example_curl_commands": {
+      "success": "curl -s \"http://uptime-kuma:3001/api/push/YOUR_KEY?status=up&msg=Tests%20Passed&ping=1234\"",
+      "failure": "curl -s \"http://uptime-kuma:3001/api/push/YOUR_KEY?status=down&msg=Tests%20Failed\"",
+      "with_ping": "curl -s \"http://uptime-kuma:3001/api/push/YOUR_KEY?status=up&msg=OK&ping=1500\""
+    }
+  },
+  "heartbeat_interval_calculation": {
+    "description": "Heartbeat 간격 계산 방법",
+    "formula": "Heartbeat = Job 실행 주기 + 여유 시간 (약 5-10분)",
+    "examples": [
+      {
+        "job_schedule": "H/30 * * * * (30분마다)",
+        "heartbeat_seconds": 2100,
+        "heartbeat_minutes": 35,
+        "reason": "30분 + 5분 여유 = 35분"
+      },
+      {
+        "job_schedule": "H H/2 * * * (2시간마다)",
+        "heartbeat_seconds": 7500,
+        "heartbeat_minutes": 125,
+        "reason": "120분 + 5분 여유 = 125분"
+      },
+      {
+        "job_schedule": "H H/4 * * * (4시간마다)",
+        "heartbeat_seconds": 15000,
+        "heartbeat_minutes": 250,
+        "reason": "240분 + 10분 여유 = 250분"
+      }
+    ]
+  },
+  "usage_notes": [
+    "이 파일은 Push 모니터 설정의 참고 템플릿입니다.",
+    "실제 생성은 Uptime Kuma 웹 UI 또는 API를 통해 수행하세요.",
+    "",
+    "필드 설명:",
+    "  - name: 모니터 이름 (고유해야 함)",
+    "  - type: 'push' 고정",
+    "  - interval: Heartbeat 간격 (초 단위)",
+    "  - upsideDown: 반전 모드 (일반적으로 false)",
+    "  - tags: 태그 배열 (분류용)",
+    "  - description: 모니터 설명",
+    "  - notes: 추가 메모 (선택 사항)",
+    "",
+    "Push 모니터 특징:",
+    "  - 외부 시스템(Jenkins)에서 상태를 푸시",
+    "  - Heartbeat 간격 내에 Push가 없으면 'Down' 상태로 전환",
+    "  - status=up: 정상, status=down: 비정상",
+    "  - msg 파라미터로 상세 메시지 전달 가능",
+    "  - ping 파라미터로 응답 시간 전달 가능 (선택)",
+    "",
+    "보안 고려사항:",
+    "  - Push URL의 key는 외부 노출 주의",
+    "  - 내부 네트워크(Docker network)에서만 접근 권장",
+    "  - 필요 시 Nginx에서 외부 접근 제한"
+  ]
+}

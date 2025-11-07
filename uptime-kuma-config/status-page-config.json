@@ -1,0 +1,176 @@
+{
+  "status_page": {
+    "title": "CellCraft System Status",
+    "slug": "status",
+    "description": "Real-time status and automated testing results for CellCraft platform",
+    "theme": "auto",
+    "published": true,
+    "showTags": true,
+    "domainNameList": [],
+    "googleAnalyticsId": "",
+    "customCSS": "",
+    "footerText": "© 2024 CellCraft | [Main Site](https://cellcraft.app)",
+    "showPoweredBy": true,
+    "icon": "/icon.svg",
+    "publicGroupList": [
+      {
+        "name": "Production Services",
+        "weight": 1,
+        "monitorList": [
+          {
+            "id": "monitor-cellcraft-main",
+            "name": "CellCraft Main",
+            "sendUrl": true
+          },
+          {
+            "id": "monitor-backend-api",
+            "name": "Backend API Health",
+            "sendUrl": true
+          }
+        ]
+      },
+      {
+        "name": "Automated Tests",
+        "weight": 2,
+        "monitorList": [
+          {
+            "id": "monitor-backend-tests",
+            "name": "Backend Unit Tests",
+            "sendUrl": false
+          },
+          {
+            "id": "monitor-frontend-tests",
+            "name": "Frontend Unit Tests",
+            "sendUrl": false
+          },
+          {
+            "id": "monitor-e2e-tests",
+            "name": "E2E Integration Tests",
+            "sendUrl": false
+          }
+        ]
+      },
+      {
+        "name": "Infrastructure",
+        "weight": 3,
+        "monitorList": [
+          {
+            "id": "monitor-docker-health",
+            "name": "Docker Environment",
+            "sendUrl": false
+          }
+        ]
+      }
+    ],
+    "incident": {
+      "enableIncidentHistory": true,
+      "style": "primary",
+      "title": "Past Incidents",
+      "content": ""
+    }
+  },
+  "configuration_guide": {
+    "description": "Status Page 설정 가이드",
+    "access_urls": {
+      "development": "http://localhost:3001/status/status",
+      "production": "https://status.cellcraft.app/status"
+    },
+    "customization_options": {
+      "theme": {
+        "auto": "시스템 설정 자동 감지 (다크/라이트 모드)",
+        "light": "라이트 모드 고정",
+        "dark": "다크 모드 고정"
+      },
+      "showTags": {
+        "true": "모니터 태그 표시",
+        "false": "모니터 태그 숨김"
+      },
+      "showPoweredBy": {
+        "true": "Uptime Kuma 브랜딩 표시",
+        "false": "브랜딩 숨김"
+      },
+      "sendUrl": {
+        "true": "모니터 URL 공개 표시",
+        "false": "URL 숨김 (보안)"
+      }
+    },
+    "monitor_groups": {
+      "description": "모니터를 그룹으로 분류하여 표시",
+      "production_services": [
+        "CellCraft Main - 메인 웹사이트",
+        "Backend API Health - API 헬스 체크"
+      ],
+      "automated_tests": [
+        "Backend Unit Tests - 백엔드 유닛 테스트",
+        "Frontend Unit Tests - 프론트엔드 유닛 테스트",
+        "E2E Integration Tests - E2E 통합 테스트"
+      ],
+      "infrastructure": [
+        "Docker Environment - Docker 컨테이너 헬스"
+      ]
+    }
+  },
+  "custom_css_examples": {
+    "description": "Custom CSS로 Status Page 스타일 커스터마이징",
+    "examples": {
+      "custom_header": "/* Custom header style */\n.status-page-header {\n  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n  color: white;\n  padding: 2rem;\n  border-radius: 8px;\n  margin-bottom: 2rem;\n}",
+      "custom_monitor_card": "/* Custom monitor card */\n.monitor-card {\n  border-radius: 8px;\n  box-shadow: 0 2px 4px rgba(0,0,0,0.1);\n  transition: transform 0.2s;\n}\n.monitor-card:hover {\n  transform: translateY(-2px);\n}",
+      "custom_footer": "/* Custom footer */\n.status-page-footer {\n  text-align: center;\n  padding: 1rem;\n  border-top: 1px solid #e0e0e0;\n  margin-top: 2rem;\n}"
+    }
+  },
+  "seo_configuration": {
+    "description": "SEO 최적화 설정",
+    "meta_tags": {
+      "title": "CellCraft System Status",
+      "description": "Real-time system status and uptime monitoring for CellCraft platform. Check current status of our services and automated tests.",
+      "keywords": "cellcraft, status, uptime, monitoring, system health",
+      "og_title": "CellCraft System Status",
+      "og_description": "Real-time status and monitoring for CellCraft platform",
+      "og_image": "https://status.cellcraft.app/og-image.png",
+      "twitter_card": "summary_large_image"
+    }
+  },
+  "incident_management": {
+    "description": "장애 및 이벤트 관리",
+    "workflow": [
+      "1. 장애 발생 시 Uptime Kuma에서 자동 감지",
+      "2. Status Page에 자동으로 'Down' 상태 표시",
+      "3. 관리자가 Incident 생성하여 상세 정보 제공",
+      "4. 복구 후 Incident 종료 및 Post-mortem 작성"
+    ],
+    "incident_template": {
+      "title": "Backend API Outage - 2024-11-05",
+      "content": "**Issue**: Backend API was experiencing intermittent failures.\n\n**Impact**: Some users experienced errors when accessing the platform.\n\n**Root Cause**: Database connection pool exhaustion.\n\n**Resolution**: Increased connection pool size and optimized query performance.\n\n**Timeline**:\n- 14:30 - Issue detected\n- 14:35 - Investigation started\n- 14:50 - Root cause identified\n- 15:10 - Fix deployed\n- 15:20 - Service fully restored",
+      "status": "resolved",
+      "createdDate": "2024-11-05T14:30:00Z",
+      "resolvedDate": "2024-11-05T15:20:00Z"
+    }
+  },
+  "usage_notes": [
+    "이 파일은 Status Page 설정의 참고 템플릿입니다.",
+    "Status Page 생성은 Uptime Kuma 웹 UI를 통해서만 가능합니다.",
+    "API를 통한 Status Page 자동 생성은 현재 지원되지 않습니다.",
+    "",
+    "Status Page 생성 단계:",
+    "  1. Uptime Kuma 로그인",
+    "  2. 좌측 메뉴에서 'Status Pages' 클릭",
+    "  3. 'Add New Status Page' 버튼 클릭",
+    "  4. 이 템플릿을 참고하여 설정 입력",
+    "  5. 모니터 선택 및 그룹 구성",
+    "  6. 'Save' 클릭",
+    "",
+    "접근 URL:",
+    "  - 개발: http://localhost:3001/status/status",
+    "  - 프로덕션: https://status.cellcraft.app/status",
+    "",
+    "보안 고려사항:",
+    "  - Production Services는 URL 표시 (sendUrl: true)",
+    "  - Automated Tests와 Infrastructure는 URL 숨김 (sendUrl: false)",
+    "  - 민감한 정보는 Custom CSS나 Footer에 포함하지 않기",
+    "",
+    "성능 최적화:",
+    "  - 모니터 수가 많을 경우 그룹으로 분류",
+    "  - Custom CSS는 최소화하여 로딩 속도 유지",
+    "  - Google Analytics는 선택적으로 사용"
+  ]
+}
