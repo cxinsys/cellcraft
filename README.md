@@ -36,7 +36,22 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
    git clone --recurse-submodules https://github.com/cxinsys/cellcraft.git
    ```
 
-2. Start the application:
+2. (Optional) Verify GHCR image accessibility:
+
+   Before installation, we recommend running the GHCR access verification script to check if GitHub Container Registry images are accessible. This is especially recommended if you want to use dedicated pre-built images from GHCR:
+
+   ```bash
+   ./test-ghcr-check.sh
+   ```
+
+   This script will:
+   - Check if GHCR images are available locally
+   - Verify remote GHCR accessibility
+   - Allow you to pre-download required images if desired
+
+   If GHCR is not accessible, the installation scripts will automatically fall back to building images locally.
+
+3. Start the application:
 
    **For GPU-enabled installation:**
    ```bash
@@ -62,13 +77,62 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
    cd ../../.. && docker compose -f docker-compose.cpu.local.yml up --build
    ```
 
-3. Access the application at [http://localhost:8080](http://localhost:8080).
+4. Access the application at [http://localhost:8080](http://localhost:8080).
 
-4. Check the installation status:
+5. Check the installation status:
 
    ```bash
    ./check-installation.sh
    ```
+
+## Troubleshooting
+
+### Submodule Branch Mismatch After Installation
+
+If you have already installed CellCraft using docker compose but the plugin submodule is pointing to the wrong branch, follow these steps to fix it:
+
+1. Switch to the correct submodule branch:
+
+   **For GPU-enabled installation:**
+   ```bash
+   cd backend/plugin/official
+   git switch release/plugins-v1.0
+   cd ../../..
+   ```
+
+   **For CPU-only installation:**
+   ```bash
+   cd backend/plugin/official
+   git switch release/plugins-v1.0-cpu
+   cd ../../..
+   ```
+
+2. Stop the services and remove volumes to clear old plugin data:
+
+   ```bash
+   docker compose -f docker-compose.gpu.local.yml down -v  # For GPU
+   # OR
+   docker compose -f docker-compose.cpu.local.yml down -v  # For CPU
+   ```
+
+3. Restart the services:
+
+   **For GPU-enabled setup:**
+   ```bash
+   docker compose -f docker-compose.gpu.local.yml up --build
+   ```
+
+   **For CPU-only setup:**
+   ```bash
+   docker compose -f docker-compose.cpu.local.yml up --build
+   ```
+
+This process ensures that:
+- Plugin metadata is properly initialized in the database
+- Plugin Docker images are correctly pulled from GHCR
+- All plugin configurations are synchronized with the correct version
+
+---
 
 ## Tutorials
 
