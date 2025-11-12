@@ -86,20 +86,51 @@ EOF
 }
 
 # Check GHCR image availability
+# Strategy: Local-first checking for instant startup when images are cached
+# 1. Check if all images exist locally → return 0 (will run without pulling)
+# 2. If some missing → check remote accessibility → return 0 (will pull missing images)
+# 3. If remote inaccessible → return 1 (fallback to local build)
 check_ghcr_availability() {
     log_header "GHCR Image Availability Check"
-    
-    # Test images for GPU mode
-    local images=("frontend:v1.0.0" "backend-gpu:v1.0.0" "celery-gpu:v1.0.0")
-    
-    # Test with the smallest image (frontend)
+
+    # Test images for GPU mode with full repository path
+    local images=(
+        "ghcr.io/cxinsys/cellcraft/frontend:v1.0.0"
+        "ghcr.io/cxinsys/cellcraft/backend-gpu:v1.0.0"
+        "ghcr.io/cxinsys/cellcraft/celery-gpu:v1.0.0"
+    )
+
+    # First, check if all images exist locally (using docker inspect)
+    # This is very fast and allows instant deployment when images are cached
+    log_step "Checking for locally available GHCR images"
+    local all_local=true
+    local missing_count=0
+
+    for image in "${images[@]}"; do
+        if docker inspect "${image}" >/dev/null 2>&1; then
+            log_success "Found locally: ${image}"
+        else
+            all_local=false
+            ((missing_count++))
+        fi
+    done
+
+    # If all images are available locally, use them immediately without pulling
+    if [[ "$all_local" == "true" ]]; then
+        log_success "All GHCR images available locally (${#images[@]}/${#images[@]})"
+        log_info "Deployment will use local images without pulling (instant startup)"
+        return 0
+    fi
+
+    log_info "Missing ${missing_count}/${#images[@]} images locally"
+
+    # If not all local, check remote accessibility before attempting to use GHCR strategy
     local test_image="ghcr.io/cxinsys/cellcraft/frontend:v1.0.0"
-    
-    log_step "Testing GHCR accessibility with: $test_image"
-    
-    # Check if image manifest is accessible (faster than pull)
+    log_step "Testing GHCR remote accessibility with: $test_image"
+
     if timeout 30 docker manifest inspect "$test_image" >/dev/null 2>&1; then
-        log_success "GHCR images are accessible"
+        log_success "GHCR images are accessible (remote)"
+        log_info "Deployment will pull missing ${missing_count} images from GHCR"
         return 0
     else
         log_warning "GHCR access failed (network/auth issue)"

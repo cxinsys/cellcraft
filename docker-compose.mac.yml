@@ -1,0 +1,206 @@
+version: "3.8"
+
+# =============================================================================
+# Mac Apple Silicon (M1/M2/M3/M4) 최적화 Docker Compose 설정
+# =============================================================================
+#
+# 사용법:
+#   1. 환경 변수 설정 (선택):
+#      source .env.mac
+#
+#   2. 빌드 및 실행:
+#      docker compose -f docker-compose.mac.yml up -d --build
+#
+#   3. 자동화 스크립트 사용 (권장):
+#      ./scripts/mac-setup.sh
+#
+# 특징:
+#   - ARM64 네이티브 빌드로 Rosetta 오류 방지
+#   - Mac 최적화 환경 변수 및 Volume mount 설정
+#   - Docker Desktop VM 오버헤드 최소화
+#
+# =============================================================================
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.local
+      platforms:
+        - linux/arm64
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Seoul
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    platform: linux/arm64
+    # Mac 최적화: Volume mount 성능 개선
+    volumes: []
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.improved
+      platforms:
+        - linux/arm64
+      args:
+        # 핵심: ARM64 플랫폼 명시로 Conda 패키지 아키텍처 문제 해결
+        TARGETPLATFORM: linux/arm64
+        BUILDPLATFORM: linux/arm64
+    environment:
+      - TZ=Asia/Seoul
+      - CONDA_DEFAULT_ENV=snakemake
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - CPU_ONLY=true
+      # Mac 환경 최적화 변수
+      - DOCKER_DEFAULT_PLATFORM=linux/arm64
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mac 최적화: delegated 플래그로 Volume mount 성능 향상
+      - ./backend:/app:delegated
+      # Override official plugin directory as read-only
+      - ./backend/plugin/official:/app/plugin/official:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    platform: linux/arm64
+    # Mac 최적화: 리소스 제한 설정 (Docker Desktop VM 고려)
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
+
+  db:
+    image: postgres:15
+    platform: linux/arm64
+    environment:
+      - TZ=Asia/Seoul
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      # Mac 최적화: 명명된 볼륨 사용으로 성능 향상
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # Mac 최적화: DB 리소스 제한
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  rabbitmq:
+    image: "rabbitmq:management"
+    platform: linux/arm64
+    environment:
+      - TZ=Asia/Seoul
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    volumes:
+      # Mac 최적화: 명명된 볼륨 사용
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    networks:
+      - app-network
+    # Mac 최적화: RabbitMQ 리소스 제한
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.improved.celery
+      platforms:
+        - linux/arm64
+      args:
+        # 핵심: ARM64 플랫폼 명시로 Conda 패키지 아키텍처 문제 해결
+        TARGETPLATFORM: linux/arm64
+        BUILDPLATFORM: linux/arm64
+    environment:
+      - CONDA_DEFAULT_ENV=snakemake
+      - C_FORCE_ROOT=true
+      - TZ=Asia/Seoul
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - CPU_ONLY=true
+      # Mac 환경 최적화 변수
+      - DOCKER_DEFAULT_PLATFORM=linux/arm64
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mac 최적화: delegated 플래그로 Volume mount 성능 향상
+      - ./backend:/app:delegated
+      # Override official plugin directory as read-only
+      - ./backend/plugin/official:/app/plugin/official:ro
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    platform: linux/arm64
+    # Mac 최적화: Celery worker 리소스 제한
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
