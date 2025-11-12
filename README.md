@@ -9,6 +9,16 @@
 - **Official Plugins Repository**: Contains version information and source code for all officially supported CellCraft plugins
 - **Plugin Templates Repository**: Provides development resources and templates for creating custom local plugins
 
+### Container Images
+
+Pre-built Docker images are available on GitHub Container Registry (GHCR) for faster deployment:
+
+[**Frontend**](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Ffrontend) • [**Backend-CPU**](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fbackend-cpu) • [**Backend-GPU**](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fbackend-gpu) • [**Celery-CPU**](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fcelery-cpu) • [**Celery-GPU**](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fcelery-gpu)
+
+- **Multi-platform support**: All CPU images support AMD64 and ARM64 architectures
+- **GPU images**: AMD64 only, optimized for NVIDIA CUDA
+- **Version**: Current stable release is v1.0.0
+
 ## Overview
 
 **CellCraft** is a web-based application for reconstructing **gene regulatory networks (GRNs)** from single-cell RNA sequencing (scRNA-seq) data. It features an intuitive visual interface that integrates seven GRN inference tools—including **TENET** and **FastTENET**, developed by our research team—through modular plugin integration. 
@@ -28,6 +38,90 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
 
 ---
 
+## GHCR Image Management
+
+CellCraft provides **pre-built Docker images** hosted on GitHub Container Registry (GHCR) for faster deployment. The `test-ghcr-check.sh` script helps you manage these images efficiently.
+
+### Available Container Images
+
+| Image | Description | Platforms | GHCR Package | Latest Version |
+|-------|-------------|-----------|--------------|----------------|
+| **frontend** | Vue.js frontend application | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Ffrontend) | v1.0.0 |
+| **backend-cpu** | FastAPI backend (CPU-only) | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fbackend-cpu) | v1.0.0 |
+| **backend-gpu** | FastAPI backend (GPU-enabled) | AMD64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fbackend-gpu) | v1.0.0 |
+| **celery-cpu** | Celery worker (CPU-only) | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fcelery-cpu) | v1.0.0 |
+| **celery-gpu** | Celery worker (GPU-enabled) | AMD64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fcelery-gpu) | v1.0.0 |
+
+**Quick Pull Commands:**
+
+For CPU mode (all 3 images):
+```bash
+docker pull ghcr.io/cxinsys/cellcraft/frontend:v1.0.0
+docker pull ghcr.io/cxinsys/cellcraft/backend-cpu:v1.0.0
+docker pull ghcr.io/cxinsys/cellcraft/celery-cpu:v1.0.0
+```
+
+For GPU mode (all 3 images):
+```bash
+docker pull ghcr.io/cxinsys/cellcraft/frontend:v1.0.0
+docker pull ghcr.io/cxinsys/cellcraft/backend-gpu:v1.0.0
+docker pull ghcr.io/cxinsys/cellcraft/celery-gpu:v1.0.0
+```
+
+**Note:** The `test-ghcr-check.sh` script can automate this process for you with a simple interactive menu.
+
+### Image Management Tool
+
+The GHCR image checker provides both **interactive menu** and **command-line options** for managing CellCraft images:
+
+**Interactive Mode:**
+```bash
+./test-ghcr-check.sh
+```
+
+This launches an interactive menu with the following options:
+- Check CPU mode images (frontend, backend-cpu, celery-cpu)
+- Check GPU mode images (frontend, backend-gpu, celery-gpu)
+- Check all images (both CPU and GPU)
+- Download CPU mode images
+- Download GPU mode images
+
+**Command-Line Options:**
+```bash
+./test-ghcr-check.sh --cpu         # Check and optionally download CPU images
+./test-ghcr-check.sh --gpu         # Check and optionally download GPU images
+./test-ghcr-check.sh --check-only  # Check all images without downloading
+./test-ghcr-check.sh --help        # Show usage information
+```
+
+### Image Status Indicators
+
+The script displays clear status for each image:
+- ✅ **LOCAL**: Image exists locally (instant startup, no download needed)
+- ⚠️ **REMOTE**: Image available remotely (will be downloaded when needed)
+- ❌ **MISSING**: Image not accessible (will fall back to local build)
+
+### Pre-downloading Images
+
+Pre-downloading images is recommended for:
+- **Faster first-time deployment** (no wait during startup)
+- **Offline environments** (download once, deploy anytime)
+- **Network-constrained setups** (download during off-peak hours)
+
+The script intelligently skips images that already exist locally and provides detailed download statistics.
+
+### Smart Image Detection
+
+Both `run-cpu-mode.sh` and `run-gpu-mode.sh` implement **local-first checking**:
+1. Check if all required images exist locally
+2. If all local → **instant startup** without pulling
+3. If some missing → check remote accessibility → pull only missing images
+4. If remote inaccessible → automatically fall back to local build
+
+This ensures the fastest possible deployment while maintaining reliability.
+
+---
+
 ## Getting Started
 
 1. Clone the repository:
@@ -36,20 +130,32 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
    git clone --recurse-submodules https://github.com/cxinsys/cellcraft.git
    ```
 
-2. (Optional) Verify GHCR image accessibility:
+2. (Optional) Manage GHCR images:
 
-   Before installation, we recommend running the GHCR access verification script to check if GitHub Container Registry images are accessible. This is especially recommended if you want to use dedicated pre-built images from GHCR:
+   Before installation, you can optionally **check and pre-download** required Docker images from GitHub Container Registry (GHCR). This step is recommended for faster deployment and offline environments.
 
+   **Interactive mode (recommended for first-time users):**
    ```bash
    ./test-ghcr-check.sh
    ```
 
-   This script will:
-   - Check if GHCR images are available locally
-   - Verify remote GHCR accessibility
-   - Allow you to pre-download required images if desired
+   Select from the menu:
+   - Option 1 or 2: Check image availability for CPU or GPU mode
+   - Option 4 or 5: Pre-download images for your preferred mode
 
-   If GHCR is not accessible, the installation scripts will automatically fall back to building images locally.
+   **Command-line mode (for automation):**
+   ```bash
+   ./test-ghcr-check.sh --cpu  # For CPU-only mode
+   ./test-ghcr-check.sh --gpu  # For GPU-enabled mode
+   ```
+
+   **What this script does:**
+   - ✅ Checks if images exist locally (instant deployment if available)
+   - ⚠️ Verifies remote GHCR accessibility (download if needed)
+   - 📥 Optionally pre-downloads images based on your deployment mode
+   - 📊 Provides detailed status and download statistics
+
+   **Note:** If you skip this step or if GHCR is not accessible, the installation scripts will automatically fall back to building images locally. Pre-downloading images is simply an optimization for faster deployment.
 
 3. Start the application:
 
@@ -165,6 +271,65 @@ To help you get started with CellCraft, we have prepared step-by-step tutorial v
 ---
 
 ## Platform-Specific Considerations
+
+### Mac Apple Silicon Support
+
+CellCraft provides **optimized support** for Mac Apple Silicon (M1/M2/M3/M4) with native ARM64 builds.
+
+#### Quick Start for Mac Users
+
+**Using the Mac-optimized Docker Compose:**
+```bash
+docker compose -f docker-compose.mac.yml up -d --build
+```
+
+**Or use the automated setup script:**
+```bash
+./scripts/mac-setup.sh
+```
+
+#### Mac-Specific Optimizations
+
+The `docker-compose.mac.yml` configuration includes several optimizations for Mac Apple Silicon:
+
+**Architecture Optimizations:**
+- Native ARM64 builds (no Rosetta translation required)
+- Platform-specific build arguments (`TARGETPLATFORM=linux/arm64`)
+- Conda package compatibility fixes for ARM64 architecture
+
+**Performance Optimizations:**
+- Named volumes for PostgreSQL and RabbitMQ (improved I/O performance)
+- Delegated volume mount strategy (`./backend:/app:delegated`)
+- Resource limits tailored for Docker Desktop VM on Mac
+- Minimal volume mounts to reduce overhead
+
+**Environment Variables:**
+- `DOCKER_DEFAULT_PLATFORM=linux/arm64` - Ensures ARM64 image selection
+- `OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` - Resolves macOS fork safety issues
+- `CPU_ONLY=true` - Mac deployment uses CPU-only mode (GPU not supported)
+
+#### Resource Allocation
+
+The Mac configuration includes optimized resource limits:
+
+| Service | CPU Limit | Memory Limit | CPU Reservation | Memory Reservation |
+|---------|-----------|--------------|-----------------|-------------------|
+| Backend | 4 cores | 4 GB | 2 cores | 2 GB |
+| Celery | 2 cores | 2 GB | 1 core | 1 GB |
+| PostgreSQL | 2 cores | 2 GB | 1 core | 1 GB |
+| RabbitMQ | 1 core | 1 GB | 0.5 cores | 512 MB |
+
+**Note:** Adjust these limits in `docker-compose.mac.yml` based on your Mac's available resources.
+
+#### Known Limitations
+
+- **GPU support**: Not available on Mac (uses CPU-only mode)
+- **Custom local plugins**: Not currently supported (use official plugins instead)
+- **Docker Desktop required**: Native Docker engine not available on macOS
+
+For detailed Mac setup instructions, see `docs/MAC_SETUP.md`.
+
+---
 
 ### Plugin Compatibility
 
