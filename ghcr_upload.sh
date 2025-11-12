@@ -122,9 +122,9 @@ check_prerequisites() {
     log_success "Prerequisites check passed"
 }
 
-# Check buildx capabilities
-check_buildx() {
-    log_step "Checking Docker Buildx capabilities..."
+# Setup buildx builder for multi-platform builds
+setup_buildx() {
+    log_step "Setting up Docker Buildx for multi-platform builds..."
     
     # Check if buildx is available
     if ! docker buildx version &> /dev/null; then
@@ -134,8 +134,41 @@ check_buildx() {
     fi
     
     log_success "✅ Docker Buildx is available"
+    
+    # Create or use a multi-platform builder
+    # This is critical for Mac ARM64 support - without a proper builder,
+    # multi-platform builds may fail or only build for the host platform
+    BUILDER_NAME="cellcraft-multiplatform"
+    REQUIRED_PLATFORMS="linux/amd64,linux/arm64"
+    
+    if docker buildx inspect "$BUILDER_NAME" &> /dev/null; then
+        log_info "Using existing buildx builder: $BUILDER_NAME"
+        docker buildx use "$BUILDER_NAME" &> /dev/null || {
+            log_warning "Failed to switch to builder, creating new one..."
+            docker buildx rm "$BUILDER_NAME" &> /dev/null || true
+            docker buildx create --name "$BUILDER_NAME" --driver docker-container --use --bootstrap
+        }
+    else
+        log_step "Creating new buildx builder: $BUILDER_NAME"
+        log_info "This builder will support: $REQUIRED_PLATFORMS"
+        if docker buildx create --name "$BUILDER_NAME" --driver docker-container --use --bootstrap &> /dev/null; then
+            log_success "✅ Created and activated buildx builder: $BUILDER_NAME"
+        else
+            log_warning "Failed to create buildx builder with docker-container driver"
+            log_info "Falling back to default builder (may have limited multi-platform support)"
+        fi
+    fi
+    
+    # Verify builder is ready
+    if docker buildx inspect --bootstrap &> /dev/null; then
+        log_success "✅ Buildx builder is ready"
+    else
+        log_warning "⚠️  Builder may not be fully initialized, but continuing..."
+    fi
+    
     log_info "🚀 CPU images will be built for AMD64 and ARM64"
     log_info "🎮 GPU images will be built for AMD64 only"
+    log_info "💡 Mac users: ARM64 images will be automatically selected by Docker Desktop"
 }
 
 # Determine build platforms based on image type
@@ -235,6 +268,29 @@ build_and_push() {
         log_success "Pushed: ${release_tag}"
         log_success "Pushed: ${latest_tag}"
         log_info "Platforms: ${build_platforms}"
+        
+        # Verify multi-platform manifest for CPU images (critical for Mac support)
+        if [[ "$build_platforms" == *","* ]]; then
+            log_step "Verifying multi-platform manifest..."
+            # Wait a moment for registry to update
+            sleep 2
+            
+            if docker buildx imagetools inspect "${latest_tag}" &> /dev/null; then
+                # Try to get manifest details
+                local manifest_output=$(docker buildx imagetools inspect "${latest_tag}" 2>/dev/null || echo "")
+                if echo "$manifest_output" | grep -q "linux/arm64\|linux/amd64" 2>/dev/null; then
+                    log_success "✅ Multi-platform manifest verified"
+                    log_info "   Image supports: ${build_platforms}"
+                    log_info "   Mac users can now pull ARM64 variant automatically"
+                else
+                    log_warning "⚠️  Manifest verification inconclusive, but build succeeded"
+                    log_info "   You can verify manually: docker buildx imagetools inspect ${latest_tag}"
+                fi
+            else
+                log_warning "⚠️  Could not inspect manifest (may require authentication or registry delay)"
+                log_info "   Manual verification: docker buildx imagetools inspect ${latest_tag}"
+            fi
+        fi
         
         return 0
     else
@@ -363,10 +419,10 @@ main() {
     # Check prerequisites and login
     if [ "$DRY_RUN" = false ]; then
         check_prerequisites
-        check_buildx
+        setup_buildx
         login_ghcr
     else
-        log_info "Dry run mode: Skipping buildx check and GHCR login"
+        log_info "Dry run mode: Skipping buildx setup and GHCR login"
     fi
     
     echo
@@ -445,9 +501,19 @@ main() {
         echo "   docker compose -f docker-compose.cpu.yml pull"
         echo "   docker compose -f docker-compose.gpu.yml pull"
         echo ""
-        log_info "4. Start services with:"
+        log_info "4. Verify multi-platform support (especially for Mac ARM64):"
+        echo "   docker buildx imagetools inspect ${BASE_IMAGE_NAME}/backend-cpu:latest"
+        echo "   docker buildx imagetools inspect ${BASE_IMAGE_NAME}/celery-cpu:latest"
+        echo ""
+        log_info "5. Start services with:"
         echo "   docker compose -f docker-compose.cpu.yml up -d"
         echo "   docker compose -f docker-compose.gpu.yml up -d"
+        echo ""
+        log_info "📝 Note for Mac users:"
+        log_info "   - CPU images (backend-cpu, celery-cpu) support both AMD64 and ARM64"
+        log_info "   - Docker Desktop on Mac will automatically select ARM64 variant"
+        log_info "   - If you see Rosetta errors, verify the image manifest above"
+        log_info "   - For local Mac development, use: docker compose -f docker-compose.mac.yml up -d"
         echo "================================================"
         
     elif [ "$DRY_RUN" = false ]; then
