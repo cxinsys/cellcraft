@@ -328,9 +328,27 @@ clean_containers() {
     fi
 }
 
+# Detect if running on Mac
+detect_mac() {
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        # Check if it's Apple Silicon (ARM64)
+        if [[ "$(uname -m)" == "arm64" ]]; then
+            echo "mac-arm64"
+        else
+            echo "mac-intel"
+        fi
+    else
+        echo "other"
+    fi
+}
+
 # Build and launch containers with smart strategy
 launch_containers() {
     log_header "Smart Container Launch"
+    
+    # Detect platform
+    local platform_type
+    platform_type=$(detect_mac)
     
     # Determine deployment strategy
     local strategy
@@ -339,7 +357,13 @@ launch_containers() {
     local compose_file
     local docker_args=""
     
-    if [[ "$strategy" == "ghcr" ]]; then
+    # On Mac ARM64 with GHCR strategy, use docker-compose.cpu.yml
+    # Docker Compose will automatically select ARM64 variant from multi-platform manifest
+    if [[ "$platform_type" == "mac-arm64" && "$strategy" == "ghcr" ]]; then
+        compose_file="${COMPOSE_FILE_GHCR}"
+        log_info "Using GHCR images on Mac ARM64"
+        log_info "Docker will automatically pull ARM64 variant (no Rosetta needed)"
+    elif [[ "$strategy" == "ghcr" ]]; then
         compose_file="${COMPOSE_FILE_GHCR}"
         log_info "Using GHCR images: docker compose up -d"
     else
