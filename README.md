@@ -282,53 +282,6 @@ CellCraft provides **optimized support** for Mac Apple Silicon (M1/M2/M3/M4) wit
 ```bash
 docker compose -f docker-compose.mac.yml up -d --build
 ```
-
-**Or use the automated setup script:**
-```bash
-./scripts/mac-setup.sh
-```
-
-#### Mac-Specific Optimizations
-
-The `docker-compose.mac.yml` configuration includes several optimizations for Mac Apple Silicon:
-
-**Architecture Optimizations:**
-- Native ARM64 builds (no Rosetta translation required)
-- Platform-specific build arguments (`TARGETPLATFORM=linux/arm64`)
-- Conda package compatibility fixes for ARM64 architecture
-
-**Performance Optimizations:**
-- Named volumes for PostgreSQL and RabbitMQ (improved I/O performance)
-- Delegated volume mount strategy (`./backend:/app:delegated`)
-- Resource limits tailored for Docker Desktop VM on Mac
-- Minimal volume mounts to reduce overhead
-
-**Environment Variables:**
-- `DOCKER_DEFAULT_PLATFORM=linux/arm64` - Ensures ARM64 image selection
-- `OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` - Resolves macOS fork safety issues
-- `CPU_ONLY=true` - Mac deployment uses CPU-only mode (GPU not supported)
-
-#### Resource Allocation
-
-The Mac configuration includes optimized resource limits:
-
-| Service | CPU Limit | Memory Limit | CPU Reservation | Memory Reservation |
-|---------|-----------|--------------|-----------------|-------------------|
-| Backend | 4 cores | 4 GB | 2 cores | 2 GB |
-| Celery | 2 cores | 2 GB | 1 core | 1 GB |
-| PostgreSQL | 2 cores | 2 GB | 1 core | 1 GB |
-| RabbitMQ | 1 core | 1 GB | 0.5 cores | 512 MB |
-
-**Note:** Adjust these limits in `docker-compose.mac.yml` based on your Mac's available resources.
-
-#### Known Limitations
-
-- **GPU support**: Not available on Mac (uses CPU-only mode)
-- **Custom local plugins**: Not currently supported (use official plugins instead)
-- **Docker Desktop required**: Native Docker engine not available on macOS
-
-For detailed Mac setup instructions, see `docs/MAC_SETUP.md`.
-
 ---
 
 ### Plugin Compatibility
