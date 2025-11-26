@@ -1,7 +1,7 @@
 <template>
   <div class="layout">
     <div class="logo-component">
-      <router-link class="logo" to="/main" v-if="!isWorkflowPage">
+      <router-link class="logo" to="/" v-if="!isWorkflowPage">
         <img class="logo__img" src="@/assets/cellcraft_logo.png" />
         <!-- <p class="logo__text">CELLCRAFT</p> -->
       </router-link>
