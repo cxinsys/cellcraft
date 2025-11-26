@@ -42,7 +42,7 @@
     >
       <div class="footer__content">
         <div class="copyright__txt">© 2025 CellCraft. All rights reserved</div>
-        <div class="version__info">v1.0.2 | release/v1.0.2</div>
+        <div class="version__info">v1.0.3 | release/v1.0.3</div>
       </div>
     </footer>
   </div>
