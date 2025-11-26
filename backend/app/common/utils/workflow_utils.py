@@ -5,6 +5,7 @@ import scanpy as sc
 import numpy as np
 import logging
 import json
+import gc
 from typing import Dict, List, Optional, Tuple, Any
 from app.common.utils.error_utils import SnakefileGenerationError
 
@@ -80,32 +81,39 @@ def load_tab_file(file_path: str):
     try:
         if file_extension == '.h5ad':
             logger.debug(f"Loading H5AD file: {file_path}")
-            adata = sc.read_h5ad(file_path)
-            # 기본 데이터프레임으로 adata.obs 사용
-            df = adata.obs.copy()
-            
-            # X_umap이 있는 경우에만 추가
-            if 'X_umap' in adata.obsm:
-                umap_df = pd.DataFrame(adata.obsm['X_umap'], columns=['X', 'Y'], index=adata.obs.index)
-                df = pd.concat([df, umap_df], axis=1)
-            # X_pca가 있는 경우 대체 사용
-            elif 'X_pca' in adata.obsm:
-                pca_df = pd.DataFrame(adata.obsm['X_pca'][:, :2], columns=['X', 'Y'], index=adata.obs.index)
-                df = pd.concat([df, pca_df], axis=1)
-            # 둘 다 없는 경우 raw 데이터에서 처음 두 컬럼 사용
-            else:
-                # 데이터가 1차원인 경우 처리
-                if adata.X.shape[1] == 1:
-                    raw_df = pd.DataFrame({
-                        'X': adata.X[:, 0],
-                        'Y': np.zeros(adata.X.shape[0])  # Y값을 0으로 설정
-                    }, index=adata.obs.index)
+            # 메모리 누수 방지를 위해 adata를 명시적으로 해제
+            adata = None
+            try:
+                adata = sc.read_h5ad(file_path)
+                # 기본 데이터프레임으로 adata.obs 사용 (.copy()로 참조 끊기)
+                df = adata.obs.copy()
+
+                # X_umap이 있는 경우에만 추가
+                if 'X_umap' in adata.obsm:
+                    umap_df = pd.DataFrame(adata.obsm['X_umap'], columns=['X', 'Y'], index=adata.obs.index)
+                    df = pd.concat([df, umap_df], axis=1)
+                # X_pca가 있는 경우 대체 사용
+                elif 'X_pca' in adata.obsm:
+                    pca_df = pd.DataFrame(adata.obsm['X_pca'][:, :2], columns=['X', 'Y'], index=adata.obs.index)
+                    df = pd.concat([df, pca_df], axis=1)
+                # 둘 다 없는 경우 raw 데이터에서 처음 두 컬럼 사용
                 else:
-                    raw_df = pd.DataFrame(adata.X[:, :2], columns=['X', 'Y'], index=adata.obs.index)
-                df = pd.concat([df, raw_df], axis=1)
-            
-            logger.debug(f"Successfully loaded H5AD file with {df.shape[0]} observations")
-            return df
+                    # 데이터가 1차원인 경우 처리
+                    if adata.X.shape[1] == 1:
+                        raw_df = pd.DataFrame({
+                            'X': adata.X[:, 0],
+                            'Y': np.zeros(adata.X.shape[0])  # Y값을 0으로 설정
+                        }, index=adata.obs.index)
+                    else:
+                        raw_df = pd.DataFrame(adata.X[:, :2], columns=['X', 'Y'], index=adata.obs.index)
+                    df = pd.concat([df, raw_df], axis=1)
+
+                logger.debug(f"Successfully loaded H5AD file with {df.shape[0]} observations")
+                return df
+            finally:
+                if adata is not None:
+                    del adata
+                gc.collect()
         else:
             # Determine the separator based on the file extension
             sep = ',' if file_extension == '.csv' else '\t'

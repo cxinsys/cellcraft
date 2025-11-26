@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import MultipleResultsFound
 from app.database import models
-from app.database.conn import get_new_engine_and_session
+from app.database.conn import get_db_session
 from app.database.crud import crud_plugin
 import logging
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetime, algorithm_id: str = None, plugin_name: str = None, task_type: str = None, plugin_image_uri: str = None, plugin_id: int = None):
     """
     Start a new task with optional plugin_id for enhanced plugin tracking.
-    
+
     Args:
         user_id: User ID
         task_id: Celery task ID
@@ -23,12 +23,11 @@ def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetim
         plugin_image_uri: Plugin image URI
         plugin_id: Plugin ID for foreign key relationship (optional)
     """
-    db = get_new_engine_and_session()
-    try:
+    with get_db_session() as db:
         # If plugin_id is not provided but plugin_name is, try to find the plugin_id
         if plugin_id is None and plugin_name:
             plugin_id = find_plugin_id_by_name(db, plugin_name)
-        
+
         db_task = models.Task(
             user_id=user_id,
             task_id=task_id,
@@ -42,38 +41,26 @@ def start_task(user_id: int, task_id: str, workflow_id: int, start_time: datetim
             plugin_id=plugin_id
         )
         db.add(db_task)
-        db.commit()
-        db.refresh(db_task)
-        
+        # commit은 context manager가 자동 처리
+
         if plugin_id:
             logger.info(f"Task {task_id} started with plugin_id {plugin_id}")
         else:
             logger.info(f"Task {task_id} started without plugin_id (legacy mode)")
-            
-    except Exception as e:
-        db.rollback()
-        raise e
-    finally:
-        db.close()
 
 def end_task(user_id: int, task_id: str, end_time: datetime, status: str):
-    db = get_new_engine_and_session()
-    try:
-        task = db.query(models.Task).filter(models.Task.task_id == task_id, models.Task.user_id == user_id).one()
-        task.end_time = end_time
-        task.status = status
-        db.commit()
-        db.refresh(task)
-    except MultipleResultsFound:
-        # 여러 개의 결과가 발견되었을 때의 처리를 합니다.
-        # 예를 들어, 첫 번째 결과를 사용하거나, 오류 메시지를 출력하거나, 데이터를 정리하는 등의 작업을 수행할 수 있습니다.
-        task = db.query(models.Task).filter(models.Task.task_id == task_id, models.Task.user_id == user_id).first()
-        # 첫 번째 결과를 사용하기로 결정했으면 위와 같이 .first()를 사용하여 첫 번째 결과를 가져올 수 있습니다.
-    except Exception as e:
-        db.rollback()
-        raise e
-    finally:
-        db.close()
+    with get_db_session() as db:
+        try:
+            task = db.query(models.Task).filter(models.Task.task_id == task_id, models.Task.user_id == user_id).one()
+            task.end_time = end_time
+            task.status = status
+            # commit은 context manager가 자동 처리
+        except MultipleResultsFound:
+            # 여러 개의 결과가 발견되었을 때의 처리를 합니다.
+            # 예를 들어, 첫 번째 결과를 사용하거나, 오류 메시지를 출력하거나, 데이터를 정리하는 등의 작업을 수행할 수 있습니다.
+            task = db.query(models.Task).filter(models.Task.task_id == task_id, models.Task.user_id == user_id).first()
+            # 첫 번째 결과를 사용하기로 결정했으면 위와 같이 .first()를 사용하여 첫 번째 결과를 가져올 수 있습니다.
+            # Note: 원래 코드에서도 MultipleResultsFound 케이스에서는 업데이트하지 않음 (데이터 품질 이슈로 별도 처리 필요)
 
 def get_user_task(db: Session, id: int):
     return db.query(models.Task).filter(models.Task.user_id == id).all()
@@ -112,33 +99,25 @@ def delete_user_task(db: Session, user_id: int, task_id: str):
 def record_plugin_image_uri(task_id: str, plugin_image_uri: str, user_id: int = None):
     """
     Record plugin image URI for an existing task.
-    
+
     Args:
         task_id: Task ID to update
         plugin_image_uri: The plugin image URI used for execution
         user_id: Optional user ID for additional filtering
     """
-    db = get_new_engine_and_session()
-    try:
+    with get_db_session() as db:
         # Build query filters
         filters = [models.Task.task_id == task_id]
         if user_id:
             filters.append(models.Task.user_id == user_id)
-        
+
         task = db.query(models.Task).filter(*filters).first()
         if task:
             task.plugin_image_uri = plugin_image_uri
-            db.commit()
-            db.refresh(task)
+            # commit은 context manager가 자동 처리
             logger.info(f"Updated plugin_image_uri for task {task_id}: {plugin_image_uri}")
         else:
             logger.warning(f"Task not found for plugin_image_uri update: {task_id}")
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to record plugin_image_uri for task {task_id}: {e}")
-        raise e
-    finally:
-        db.close()
 
 def find_plugin_id_by_name(db: Session, plugin_name: str) -> int:
     """

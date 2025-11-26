@@ -9,7 +9,7 @@ from app.common.config import settings
 from app.common.utils.celery_utils import create_celery
 from app.common.utils.docker_utils import container_manager
 from app.database import models
-from app.database.conn import engine, initialize_plugins_from_csv, get_new_engine_and_session
+from app.database.conn import engine, initialize_plugins_from_csv, get_db_session
 from celery.signals import worker_shutting_down
 import docker
 # GitHub Registry Client removed - no authentication needed
@@ -170,65 +170,66 @@ async def startup_event():
 
 async def check_and_pull_official_plugin_images():
     """Check and pull official plugin Docker images"""
+    client = None  # Docker 클라이언트 누수 방지를 위해 초기화
     try:
-        db = get_new_engine_and_session()
-    except Exception as e:
-        print(f"   ❌ Failed to get database connection: {e}")
-        return  # Don't raise, just return to allow server to continue
-    
-    try:
-        client = docker.from_env()
-        
-        # Get all official plugins from database
-        plugins = db.query(models.Plugin).filter_by(source="official").all()
-        
-        # Filter out GPU-only plugins when in CPU-only mode
-        cpu_only = os.getenv("CPU_ONLY", "false").lower() == "true"
-        if cpu_only:
-            gpu_only_plugins = {"FastSCODE", "FastTENET"}
-            filtered_plugins = [p for p in plugins if p.name not in gpu_only_plugins]
-            if len(filtered_plugins) != len(plugins):
-                print(f"   CPU-only mode: Filtered out {len(plugins) - len(filtered_plugins)} GPU-only plugins")
-            plugins = filtered_plugins
-            print(f"   Found {len(plugins)} CPU-compatible plugins to check")
-        else:
-            print(f"   Found {len(plugins)} official plugins to check")
-        
-        for plugin in plugins:
-            try:
-                # Generate simple image URI without registry client
-                plugin_name_lower = plugin.name.lower()
-                version = plugin.version or "latest"
-                image_uri = f"ghcr.io/cxinsys/cellcraft-{plugin_name_lower}:{version}"
-                
-                # Check if image exists locally
+        with get_db_session() as db:
+            client = docker.from_env()
+
+            # Get all official plugins from database
+            plugins = db.query(models.Plugin).filter_by(source="official").all()
+
+            # Filter out GPU-only plugins when in CPU-only mode
+            cpu_only = os.getenv("CPU_ONLY", "false").lower() == "true"
+            if cpu_only:
+                gpu_only_plugins = {"FastSCODE", "FastTENET"}
+                filtered_plugins = [p for p in plugins if p.name not in gpu_only_plugins]
+                if len(filtered_plugins) != len(plugins):
+                    print(f"   CPU-only mode: Filtered out {len(plugins) - len(filtered_plugins)} GPU-only plugins")
+                plugins = filtered_plugins
+                print(f"   Found {len(plugins)} CPU-compatible plugins to check")
+            else:
+                print(f"   Found {len(plugins)} official plugins to check")
+
+            for plugin in plugins:
                 try:
-                    client.images.get(image_uri)
-                    print(f"   ✓ Image {image_uri} already exists locally")
-                except docker.errors.ImageNotFound:
-                    # Try to pull from registry (will use Docker's credential helper if configured)
-                    print(f"   ⬇ Pulling {image_uri}...")
+                    # Generate simple image URI without registry client
+                    plugin_name_lower = plugin.name.lower()
+                    version = plugin.version or "latest"
+                    image_uri = f"ghcr.io/cxinsys/cellcraft-{plugin_name_lower}:{version}"
+
+                    # Check if image exists locally
                     try:
-                        client.images.pull(image_uri)
-                        print(f"   ✓ Successfully pulled {image_uri}")
-                    except docker.errors.APIError as e:
-                        error_msg = str(e).lower()
-                        if "not found" in error_msg or "404" in error_msg:
-                            print(f"   ⚠ Image {image_uri} not found in registry")
-                        elif "unauthorized" in error_msg or "401" in error_msg:
-                            print(f"   ⚠ Cannot access {image_uri} (authentication may be required)")
-                        else:
-                            print(f"   ⚠ Failed to pull {image_uri}: {e}")
-                    except Exception as e:
-                        print(f"   ⚠ Could not pull {image_uri}: {e}")
-                
-            except Exception as e:
-                print(f"   ⚠ Error processing plugin {plugin.name}: {e}")
-                continue
-                
+                        client.images.get(image_uri)
+                        print(f"   ✓ Image {image_uri} already exists locally")
+                    except docker.errors.ImageNotFound:
+                        # Try to pull from registry (will use Docker's credential helper if configured)
+                        print(f"   ⬇ Pulling {image_uri}...")
+                        try:
+                            client.images.pull(image_uri)
+                            print(f"   ✓ Successfully pulled {image_uri}")
+                        except docker.errors.APIError as e:
+                            error_msg = str(e).lower()
+                            if "not found" in error_msg or "404" in error_msg:
+                                print(f"   ⚠ Image {image_uri} not found in registry")
+                            elif "unauthorized" in error_msg or "401" in error_msg:
+                                print(f"   ⚠ Cannot access {image_uri} (authentication may be required)")
+                            else:
+                                print(f"   ⚠ Failed to pull {image_uri}: {e}")
+                        except Exception as e:
+                            print(f"   ⚠ Could not pull {image_uri}: {e}")
+
+                except Exception as e:
+                    print(f"   ⚠ Error processing plugin {plugin.name}: {e}")
+                    continue
+
     except docker.errors.DockerException as e:
         print(f"   ⚠ Docker not available: {e}")
     except Exception as e:
         print(f"   ⚠ Error checking/pulling images: {e}")
     finally:
-        db.close()
+        # Docker 클라이언트 연결 해제 - TCP 소켓 누수 방지
+        if client:
+            try:
+                client.close()
+            except Exception:
+                pass

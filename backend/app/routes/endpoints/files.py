@@ -9,6 +9,8 @@ import os
 import pandas as pd
 import scanpy as sc
 import json
+import gc
+import asyncio
 
 from app.routes import dep
 from app.database.crud import crud_file
@@ -250,15 +252,25 @@ def user_file_convert(
 
         # Check if file exists, if not, continue
         if not os.path.isfile(output_filepath):
-            # Read the h5ad file
-            adata = sc.read_h5ad(input_filepath)
+            # 메모리 누수 방지를 위해 adata를 명시적으로 해제
+            adata = None
+            try:
+                # Read the h5ad file
+                adata = sc.read_h5ad(input_filepath)
 
-            # Process and combine data to form the desired dataframe structure
-            df = pd.concat([adata.obs, pd.DataFrame(adata.obsm['X_umap'], columns=['X', 'Y'], index=adata.obs.index)], axis=1)
+                # Process and combine data to form the desired dataframe structure
+                df = pd.concat([
+                    adata.obs.copy(),
+                    pd.DataFrame(adata.obsm['X_umap'], columns=['X', 'Y'], index=adata.obs.index)
+                ], axis=1)
 
-            # Save the dataframe to a specific folder
-            df.to_csv(output_filepath, index=False)
-            return {'file_name': output_filename}
+                # Save the dataframe to a specific folder
+                df.to_csv(output_filepath, index=False)
+                return {'file_name': output_filename}
+            finally:
+                if adata is not None:
+                    del adata
+                gc.collect()
         else:
             return {'file_name': output_filename}
             
@@ -299,11 +311,18 @@ def h5ad_columns (
         input_filename = fileInfo.file_name
         input_filepath = f"{folder_path}/data/{input_filename}"
 
-        adata = sc.read_h5ad(input_filepath)
-        adata.obs = organize_column_dtypes(adata.obs)
-        anno_columns = get_annotation_columns(adata.obs)
-        pseudo_columns = get_pseudotime_columns(adata.obs)
-        return {'anno_columns': anno_columns, 'pseudo_columns': pseudo_columns}
+        # 메모리 누수 방지를 위해 adata를 명시적으로 해제
+        adata = None
+        try:
+            adata = sc.read_h5ad(input_filepath)
+            adata.obs = organize_column_dtypes(adata.obs)
+            anno_columns = get_annotation_columns(adata.obs)
+            pseudo_columns = get_pseudotime_columns(adata.obs)
+            return {'anno_columns': anno_columns, 'pseudo_columns': pseudo_columns}
+        finally:
+            if adata is not None:
+                del adata
+            gc.collect()
     else:
         raise HTTPException(
                 status_code=400,
@@ -323,11 +342,17 @@ def h5ad_cluster (
         input_filename = fileInfo.file_name
         input_filepath = f"{folder_path}/data/{input_filename}"
 
-        adata = sc.read_h5ad(input_filepath)
-        adata.obs = organize_column_dtypes(adata.obs)
-        clusters = map(str, adata.obs[fileInfo.anno_column].value_counts().index)
-        # print(clusters)
-        return {'clusters': list(clusters)}
+        # 메모리 누수 방지를 위해 adata를 명시적으로 해제
+        adata = None
+        try:
+            adata = sc.read_h5ad(input_filepath)
+            adata.obs = organize_column_dtypes(adata.obs)
+            clusters = map(str, adata.obs[fileInfo.anno_column].value_counts().index)
+            return {'clusters': list(clusters)}
+        finally:
+            if adata is not None:
+                del adata
+            gc.collect()
     else:
         raise HTTPException(
                 status_code=400,
@@ -454,7 +479,9 @@ async def download_data_file(
         )
 
     if filename.endswith('.h5ad'):
-        df = load_tab_file(file_path)
+        # asyncio.to_thread()를 사용하여 blocking I/O를 별도 스레드에서 실행
+        # 이벤트 루프 블로킹 방지
+        df = await asyncio.to_thread(load_tab_file, file_path)
         return df.to_dict(orient="records")
     return FileResponse(file_path, filename=filename)
 
