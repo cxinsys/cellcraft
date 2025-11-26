@@ -263,12 +263,75 @@ class ContainerManager:
         return f"plugin-{plugin_name.lower()}-task-{task_id[:8]}-{timestamp}"
     
     def get_status(self) -> dict:
-        """컨테이너 매니저 상태 조회"""
+        """컨테이너 매니저 상태 조회 (모니터링용)"""
         with self._lock:
             return {
                 "tracked_tasks": len(self._task_containers),
+                "cleanup_in_progress_count": len(self._cleanup_in_progress),
                 "task_container_mapping": dict(self._task_containers),
-                "container_task_mapping": dict(self._container_tasks)
+                "container_task_mapping": dict(self._container_tasks),
+                "cleanup_in_progress": list(self._cleanup_in_progress)
+            }
+
+    def cleanup_stale_mappings(self) -> dict:
+        """
+        Stale 매핑 정리 - 관리자 API에서 수동 호출
+        실제로 존재하지 않는 컨테이너에 대한 매핑을 제거합니다.
+        """
+        cleaned = {"task_containers": 0, "cleanup_set": 0, "errors": []}
+
+        try:
+            running_containers = {c.id for c in self.docker_client.containers.list(all=True)}
+        except Exception as e:
+            return {"error": str(e), "task_containers": 0, "cleanup_set": 0}
+
+        with self._lock:
+            # 존재하지 않는 컨테이너 매핑 제거
+            stale_tasks = [
+                task_id for task_id, container_id in self._task_containers.items()
+                if container_id not in running_containers
+            ]
+            for task_id in stale_tasks:
+                try:
+                    container_id = self._task_containers.pop(task_id, None)
+                    if container_id:
+                        self._container_tasks.pop(container_id, None)
+                        self._cleanup_in_progress.discard(container_id)
+                    cleaned["task_containers"] += 1
+                    print(f"Cleaned stale mapping: Task {task_id}")
+                except Exception as e:
+                    cleaned["errors"].append(f"Task {task_id}: {str(e)}")
+
+            # cleanup_in_progress에서 존재하지 않는 컨테이너 제거
+            stale_cleanup = [
+                cid for cid in self._cleanup_in_progress
+                if cid not in running_containers
+            ]
+            for cid in stale_cleanup:
+                self._cleanup_in_progress.discard(cid)
+                cleaned["cleanup_set"] += 1
+                print(f"Cleaned stale cleanup marker: {cid}")
+
+        return cleaned
+
+    def force_clear_all_mappings(self) -> dict:
+        """
+        모든 매핑 강제 정리 (비상용)
+        주의: 실행 중인 작업의 추적이 불가능해질 수 있습니다.
+        """
+        with self._lock:
+            task_count = len(self._task_containers)
+            cleanup_count = len(self._cleanup_in_progress)
+
+            self._task_containers.clear()
+            self._container_tasks.clear()
+            self._cleanup_in_progress.clear()
+
+            print(f"Force cleared all mappings: {task_count} tasks, {cleanup_count} cleanup markers")
+
+            return {
+                "cleared_tasks": task_count,
+                "cleared_cleanup_markers": cleanup_count
             }
 
 # 전역 컨테이너 매니저 인스턴스
