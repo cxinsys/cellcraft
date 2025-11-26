@@ -110,36 +110,38 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
     """
     container = None
     container_name = None
-    
+    client = None  # Docker 클라이언트 누수 방지를 위해 초기화
+
     try:
         client = docker.from_env()
         
         # 플러그인 타입에 따라 이미지 이름 결정
-        from app.database.conn import get_new_engine_and_session
+        from app.database.conn import get_db_session
         from app.common.utils.github_registry_client import GitHubRegistryClient
-        
-        db = get_new_engine_and_session()
-        try:
+
+        # 세션 내에서 필요한 값 추출 (세션 닫힌 후에도 사용 가능)
+        plugin_source = None
+        with get_db_session() as db:
             plugin = db.query(models.Plugin).filter_by(name=plugin_name).first()
-            
+
             if plugin and plugin.source == "official":
                 # Official 플러그인: 서버 시작 시 pull된 GitHub Container Registry 이미지 사용
+                plugin_source = plugin.source
                 registry = GitHubRegistryClient()
                 image_name = registry.get_image_uri(plugin_name.lower(), plugin.version)
                 print(f"Using pre-pulled official plugin image: {image_name}")
             else:
                 # Local 플러그인: 기존 로컬 빌드 이미지 사용
+                plugin_source = plugin.source if plugin else None
                 image_name = f'plugin-{plugin_name.lower()}'
                 print(f"Using local plugin image: {image_name}")
-        finally:
-            db.close()
-        
+
         # 최종 이미지 존재 여부 확인
         try:
             client.images.get(image_name)
         except docker.errors.ImageNotFound:
             # 플러그인 타입에 따라 다른 에러 메시지 제공
-            if plugin and plugin.source == "official":
+            if plugin_source == "official":
                 error_msg = (f"Official plugin image '{image_name}' not found. "
                            f"Please restart the server to pull official plugin images from GitHub Container Registry.")
             else:
@@ -355,6 +357,13 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
                     print(f"Container cleanup error: {e}")
             except Exception as cleanup_error:
                 print(f"Container cleanup error: {cleanup_error}")
+
+        # Docker 클라이언트 연결 해제 - TCP 소켓 누수 방지
+        if client:
+            try:
+                client.close()
+            except Exception:
+                pass
 
 def snakemakeProcess(targets, snakefile_path, plugin_name, task_id=None):
     """기존 snakemakeProcess 함수는 유지하되, 내부에서 exec_in_plugin를 호출하도록 수정"""

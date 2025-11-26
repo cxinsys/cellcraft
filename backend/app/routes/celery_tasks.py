@@ -51,12 +51,11 @@ class MyTask(Task):
         if plugin_name:
             try:
                 from app.common.utils.plugin_utils import generate_plugin_image_uri
-                from app.database.conn import get_new_engine_and_session
+                from app.database.conn import get_db_session
                 from app.database import models
-                
+
                 # Get plugin information from database
-                db = get_new_engine_and_session()
-                try:
+                with get_db_session() as db:
                     plugin = db.query(models.Plugin).filter_by(name=plugin_name).first()
                     if plugin:
                         source = plugin.source
@@ -67,9 +66,7 @@ class MyTask(Task):
                         source = "local"  # Default to local if not found
                         version = None
                         print(f'Plugin {plugin_name} not found in database, using defaults')
-                finally:
-                    db.close()
-                
+
                 plugin_image_uri = generate_plugin_image_uri(plugin_name, source, version)
                 print(f'Generated plugin_image_uri: {plugin_image_uri}')
             except Exception as e:

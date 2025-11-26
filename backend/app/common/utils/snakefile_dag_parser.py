@@ -119,11 +119,30 @@ class DAGCache:
         """가장 오래된 캐시 엔트리 제거"""
         if not self._access_times:
             return
-            
+
         oldest_key = min(self._access_times.keys(), key=lambda k: self._access_times[k])
         self._remove_key(oldest_key)
         logger.debug(f"Evicted oldest cache entry: {oldest_key}")
-    
+
+    def _evict_batch(self, count: int = 10) -> int:
+        """
+        여러 캐시 엔트리를 한 번에 제거 (메모리 압박 시 효율적 정리)
+
+        Args:
+            count: 제거할 엔트리 수 (기본값: 10)
+
+        Returns:
+            int: 실제로 제거된 엔트리 수
+        """
+        evicted = 0
+        for _ in range(min(count, len(self._access_times))):
+            if self._access_times:
+                self._evict_oldest()
+                evicted += 1
+        if evicted > 0:
+            logger.debug(f"Batch evicted {evicted} cache entries")
+        return evicted
+
     def clear(self) -> None:
         """전체 캐시 초기화"""
         with self._lock:
@@ -131,14 +150,31 @@ class DAGCache:
             self._access_times.clear()
             self._file_mtimes.clear()
             logger.info("DAG cache cleared")
-    
+
+    def clear_all(self) -> int:
+        """
+        전체 캐시 정리 (관리자용) - 제거된 엔트리 수 반환
+
+        Returns:
+            int: 정리된 캐시 엔트리 수
+        """
+        with self._lock:
+            count = len(self._cache)
+            self._cache.clear()
+            self._access_times.clear()
+            self._file_mtimes.clear()
+            logger.info(f"DAG cache cleared: {count} entries removed")
+            return count
+
     def get_stats(self) -> Dict[str, Any]:
         """캐시 통계 반환"""
         with self._lock:
             return {
                 "size": len(self._cache),
                 "max_size": self.max_size,
-                "ttl_seconds": self.ttl_seconds
+                "ttl_seconds": self.ttl_seconds,
+                "file_mtimes_count": len(self._file_mtimes),
+                "access_times_count": len(self._access_times)
             }
 
 # 전역 캐시 인스턴스

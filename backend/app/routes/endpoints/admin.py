@@ -11,6 +11,7 @@ from app.database.crud import crud_admin
 from app.database import models
 from app.common.utils.plugin_sync_manager import PluginSyncManager
 from app.common.utils.plugin_version_validator import PluginVersionValidator
+from app.common.utils.docker_utils import container_manager
 
 logger = logging.getLogger(__name__)
 
@@ -285,7 +286,7 @@ def get_system_stats():
     # Docker 클라이언트 연결
     client = docker.DockerClient(base_url='unix://var/run/docker.sock')
 
-    try:
+    try:  # 메모리 누수 방지를 위한 try/finally 패턴
         containers = client.containers.list()
         print("현재 실행 중인 컨테이너 목록:")
         
@@ -428,6 +429,12 @@ def get_system_stats():
         return {'message': "Docker 데몬에 연결할 수 없습니다."}
     except Exception as e:
         return {'message': f"시스템 정보 조회 중 오류 발생: {str(e)}"}
+    finally:
+        # Docker 클라이언트 연결 해제 - TCP 소켓 누수 방지
+        try:
+            client.close()
+        except Exception:
+            pass
 
 @router.put("/users/{user_id}", response_model=Any)
 def update_user(
@@ -650,16 +657,105 @@ def quick_consistency_check(
     """Quick consistency check (returns boolean only)"""
     if not current_user.is_superuser:
         raise HTTPException(status_code=403, detail="Access denied: Admins only")
-    
+
     try:
         validator = PluginVersionValidator()
         consistent = validator.quick_check()
-        
+
         return {
             "consistent": consistent,
             "message": "All components are in sync" if consistent else "Inconsistencies detected"
         }
-        
+
     except Exception as e:
         logger.error(f"Quick consistency check failed: {e}")
         raise HTTPException(status_code=500, detail=f"Check failed: {str(e)}")
+
+
+# =============================================================================
+# Container Manager API Endpoints (메모리 누수 방지)
+# =============================================================================
+
+@router.get("/container-manager/status")
+def get_container_manager_status(
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """
+    Container Manager 상태 조회
+
+    Returns:
+        - tracked_tasks: 추적 중인 작업 수
+        - cleanup_in_progress_count: 정리 중인 컨테이너 수
+        - task_container_mapping: 작업-컨테이너 매핑
+        - container_task_mapping: 컨테이너-작업 매핑
+        - cleanup_in_progress: 정리 중인 컨테이너 ID 목록
+    """
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+
+    try:
+        status = container_manager.get_status()
+        return status
+    except Exception as e:
+        logger.error(f"Failed to get container manager status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
+
+
+@router.post("/container-manager/cleanup")
+def cleanup_container_manager(
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """
+    Container Manager stale 매핑 수동 정리
+
+    실제로 존재하지 않는 Docker 컨테이너에 대한 매핑을 정리합니다.
+    이 작업은 장시간 운영 후 메모리 누수 방지를 위해 주기적으로 수행할 수 있습니다.
+
+    Returns:
+        - task_containers: 정리된 작업-컨테이너 매핑 수
+        - cleanup_set: 정리된 cleanup_in_progress 항목 수
+        - errors: 발생한 오류 목록 (있는 경우)
+    """
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+
+    try:
+        result = container_manager.cleanup_stale_mappings()
+
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        logger.info(f"Container manager cleanup completed: {result}")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Container manager cleanup failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+
+
+@router.post("/container-manager/force-clear")
+def force_clear_container_manager(
+    current_user: models.User = Depends(dep.get_current_active_user),
+):
+    """
+    Container Manager 모든 매핑 강제 정리 (비상용)
+
+    WARNING: 이 작업은 모든 매핑을 즉시 삭제합니다.
+    실행 중인 작업의 추적이 불가능해질 수 있으므로,
+    시스템 재시작 전이나 비상 상황에서만 사용하세요.
+
+    Returns:
+        - cleared_tasks: 삭제된 작업-컨테이너 매핑 수
+        - cleared_cleanup_markers: 삭제된 cleanup 마커 수
+    """
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Access denied: Admins only")
+
+    try:
+        result = container_manager.force_clear_all_mappings()
+        logger.warning(f"Container manager force cleared: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Container manager force clear failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Force clear failed: {str(e)}")

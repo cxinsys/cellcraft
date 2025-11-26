@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import scanpy as sc
 import pandas as pd
 import numpy as np
+import gc
 
 # 사용자가 업로드하는 h5ad object에는 전체 gene과 cell이 모두 포함된 h5ad object를 업로드 하도록 하고
 # cell에 대해서는 사용자가 웹상에서 마우스 클릭을 통해서 관심 있는 부분을 subset 할 수 있게 구현하는 것이
@@ -17,12 +18,22 @@ class InvalidPseudotimeError(Exception):
 def convert_h5ad_to_df(input_filepath):
     '''
     h5ad 파일을 csv 파일로 변환합니다.
+    메모리 누수 방지를 위해 AnnData 객체를 명시적으로 해제합니다.
     '''
-
-    adata = sc.read_h5ad(input_filepath)
-    # Process and combine data to form the desired dataframe structure
-    df = pd.concat([adata.obs, pd.DataFrame(adata.obsm['X_umap'], columns=['X', 'Y'], index=adata.obs.index)], axis=1)
-    return df
+    adata = None
+    try:
+        adata = sc.read_h5ad(input_filepath)
+        # Process and combine data to form the desired dataframe structure
+        # .copy()를 사용하여 adata 참조를 끊음
+        df = pd.concat([
+            adata.obs.copy(),
+            pd.DataFrame(adata.obsm['X_umap'], columns=['X', 'Y'], index=adata.obs.index)
+        ], axis=1)
+        return df
+    finally:
+        if adata is not None:
+            del adata
+        gc.collect()
 
 def organize_column_dtypes(data_frame):
     '''

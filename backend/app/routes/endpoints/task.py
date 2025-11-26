@@ -29,20 +29,42 @@ router = APIRouter()
 @router.get("/info/{task_id}")
 async def get_task_status(task_id: str) -> dict:
     """
-    Return the status of the submitted Task
+    Return the status of the submitted Task.
+    SSE 연결은 1시간 타임아웃 및 정리 로직이 적용됩니다.
     """
     async def event_generator():
-        while True:
-            if task_id:
-                task = get_task_info(task_id)
-                if task['task_status'] == 'SUCCESS' or task['task_status'] == 'FAILURE' or task['task_status'] == 'REVOKED' or task['task_status'] == 'RETRY':
-                    yield f"{task['task_status']}"
+        timeout = 3600  # 1시간 타임아웃 (메모리 누수 방지)
+        start_time = time.time()
+        try:
+            while True:
+                # 타임아웃 체크
+                if time.time() - start_time > timeout:
+                    print(f"SSE timeout reached for task {task_id}")
+                    yield f"TIMEOUT"
                     break
-                print(task['task_status'])
-                yield f"{task['task_status']}"
-                await asyncio.sleep(5)
-            else:
-                break
+
+                if task_id:
+                    task = get_task_info(task_id)
+                    task_status = task.get('task_status', 'UNKNOWN')
+
+                    if task_status in ['SUCCESS', 'FAILURE', 'REVOKED', 'RETRY']:
+                        yield f"{task_status}"
+                        break
+
+                    print(f"Task {task_id} status: {task_status}")
+                    yield f"{task_status}"
+                    await asyncio.sleep(5)
+                else:
+                    break
+        except asyncio.CancelledError:
+            # 클라이언트 연결 끊김 처리
+            print(f"SSE connection cancelled for task {task_id}")
+        except Exception as e:
+            print(f"SSE error for task {task_id}: {e}")
+        finally:
+            # 정리 로직 - 리소스 해제
+            print(f"SSE generator cleanup for task {task_id}")
+
     return EventSourceResponse(event_generator())
 
 @router.get("/monitoring", response_model=List[TaskMonitoringItem])
@@ -220,19 +242,20 @@ def get_container_status(
     """
     Get current container status for debugging
     """
+    client = None  # Docker 클라이언트 누수 방지를 위해 초기화
     try:
         import docker
         client = docker.from_env()
-        
+
         # 실행 중인 플러그인 컨테이너 조회
         containers = client.containers.list(
             filters={"label": "container.type=plugin-execution"}
         )
-        
+
         container_info = []
         for container in containers:
             labels = container.labels
-            
+
             # 환경변수에서 CELERY_TASK_ID 찾기
             env_task_id = "unknown"
             env_vars = container.attrs.get('Config', {}).get('Env', [])
@@ -240,7 +263,7 @@ def get_container_status(
                 if env.startswith('CELERY_TASK_ID='):
                     env_task_id = env.split('=', 1)[1]
                     break
-            
+
             container_info.append({
                 "id": container.id[:12],
                 "name": container.name,
@@ -251,24 +274,31 @@ def get_container_status(
                 "created": str(container.attrs["Created"]),
                 "is_tracked": container.id in container_manager._container_tasks
             })
-        
+
         # 컨테이너 매니저 상태 추가
         manager_status = container_manager.get_status()
-        
+
         return {
             "running_containers": len(container_info),
             "containers": container_info,
             "container_manager": manager_status,
             "orphaned_containers": [
-                c for c in container_info 
+                c for c in container_info
                 if not c["is_tracked"] and c["task_id_label"] != "unknown"
             ]
         }
-        
+
     except Exception as e:
         return {
             "error": f"Failed to get container status: {str(e)}"
         }
+    finally:
+        # Docker 클라이언트 연결 해제 - TCP 소켓 누수 방지
+        if client:
+            try:
+                client.close()
+            except Exception:
+                pass
 
 @router.get("/logs/{task_id}")
 def get_task_logs(

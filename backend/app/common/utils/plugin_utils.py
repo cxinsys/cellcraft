@@ -1513,6 +1513,7 @@ def build_plugin_docker_image(plugin_path: str, plugin_name: str) -> dict:
             'image_tag': str
         }
     """
+    client = None  # Docker 클라이언트 누수 방지를 위해 초기화
     try:
         client = docker.from_env()
         client.ping()  # Docker 데몬 연결 확인
@@ -1669,6 +1670,13 @@ def build_plugin_docker_image(plugin_path: str, plugin_name: str) -> dict:
             'log_file': log_file,
             'image_tag': image_tag
         }
+    finally:
+        # Docker 클라이언트 연결 해제 - TCP 소켓 누수 방지
+        if client:
+            try:
+                client.close()
+            except Exception:
+                pass
 
 def generate_base_image_section(use_gpu=True):
     """Base image section generation"""
@@ -2164,10 +2172,11 @@ def check_plugin_docker_image(plugin_name: str) -> bool:
     Returns:
         bool: Docker 이미지 존재 여부
     """
+    client = None  # Docker 클라이언트 누수 방지를 위해 초기화
     try:
         client = docker.from_env()
         image_tag = f"plugin-{plugin_name.lower()}"
-        
+
         # 이미지 존재 여부 확인
         try:
             client.images.get(image_tag)
@@ -2177,10 +2186,17 @@ def check_plugin_docker_image(plugin_name: str) -> bool:
         except Exception as e:
             print(f"Error checking Docker image: {str(e)}")
             return False
-            
+
     except Exception as e:
         print(f"Failed to connect to Docker daemon: {str(e)}")
         return False
+    finally:
+        # Docker 클라이언트 연결 해제 - TCP 소켓 누수 방지
+        if client:
+            try:
+                client.close()
+            except Exception:
+                pass
 
 def generate_plugin_image_uri(plugin_name: str, source: str, version: Optional[str] = None) -> str:
     """
