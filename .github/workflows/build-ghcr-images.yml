@@ -63,7 +63,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.CELLCRAFT_GHCR }}
 
       # 이미지 태그 결정 로직
       - name: Determine image tags
