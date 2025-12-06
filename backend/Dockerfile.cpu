@@ -1,11 +1,14 @@
+# syntax=docker/dockerfile:1.4
+
 # Multi-platform build arguments
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
+# - Automatically set by Docker buildx for multi-platform builds
+# - Explicitly passed by docker-compose for platform-specific builds
+# - Defaults to linux/amd64 for standard docker build (fallback)
+ARG TARGETPLATFORM=linux/amd64
 
 # Build stage - 컴파일 도구 및 개발 의존성 설치
-# CRITICAL FIX: Use TARGETPLATFORM instead of BUILDPLATFORM to ensure
-# all binaries (Python, conda packages) match the target architecture
-FROM --platform=$TARGETPLATFORM python:3.10-slim AS builder
+# CRITICAL: Use TARGETPLATFORM to ensure binaries match target architecture
+FROM --platform=${TARGETPLATFORM:-linux/amd64} python:3.10-slim AS builder
 ARG TARGETPLATFORM
 
 # 필수 빌드 도구 설치
@@ -39,7 +42,7 @@ RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
     export CONDA_SUBDIR=$CONDA_SUBDIR
 
 # Conda 환경 구성 (CPU 전용 환경 파일 사용 + 플랫폼별 패키지)
-COPY environment.cpu.yml ./
+COPY environment.yml ./
 RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
     case $PLATFORM in \
         "linux/amd64")  export CONDA_SUBDIR=linux-64 ;; \
@@ -48,10 +51,10 @@ RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
     esac && \
     echo "Creating conda environment with CONDA_SUBDIR=$CONDA_SUBDIR" && \
     micromamba config set channel_priority flexible && \
-    CONDA_SUBDIR=$CONDA_SUBDIR micromamba create -y -n snakemake -f environment.cpu.yml --platform $CONDA_SUBDIR || \
+    CONDA_SUBDIR=$CONDA_SUBDIR micromamba create -y -n snakemake -f environment.yml --platform $CONDA_SUBDIR || \
     (echo "Retrying with relaxed dependencies..." && \
      CONDA_SUBDIR=$CONDA_SUBDIR micromamba create -y -n snakemake python=3.10 -c conda-forge -c bioconda && \
-     CONDA_SUBDIR=$CONDA_SUBDIR micromamba install -y -n snakemake -f environment.cpu.yml --freeze-installed || true)
+     CONDA_SUBDIR=$CONDA_SUBDIR micromamba install -y -n snakemake -f environment.yml --freeze-installed || true)
 
 # Runtime stage - 최소 런타임 환경
 FROM python:3.10-slim
@@ -79,13 +82,8 @@ ENV CONDA_DEFAULT_ENV=snakemake
 WORKDIR /app
 COPY . .
 
-# Initialize git submodules with CPU-only branch
-RUN if [ -f .gitmodules ]; then \
-    git config --global --add safe.directory /app && \
-    git submodule update --init --recursive plugin/official && \
-    cd plugin/official && \
-    git checkout release/plugins-v1.0-cpu || git checkout -b release/plugins-v1.0-cpu origin/release/plugins-v1.0-cpu; \
-    fi
+# Note: Git submodules are managed on the host and mounted via volumes
+# This ensures proper branch synchronization between host and container
 
 # FastAPI 서버 실행 (Micromamba env 내 python 사용)
 EXPOSE 8000

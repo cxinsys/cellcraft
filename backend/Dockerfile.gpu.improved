@@ -41,8 +41,8 @@ RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
     tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba && \
     export CONDA_SUBDIR=$CONDA_SUBDIR
 
-# Conda 환경 구성 (개선된 환경 파일 사용 + 플랫폼별 패키지)
-COPY environment.improved.yml ./
+# Conda 환경 구성 (CPU 전용 환경 파일 사용 + 플랫폼별 패키지)
+COPY environment.yml ./
 RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
     case $PLATFORM in \
         "linux/amd64")  export CONDA_SUBDIR=linux-64 ;; \
@@ -51,10 +51,10 @@ RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
     esac && \
     echo "Creating conda environment with CONDA_SUBDIR=$CONDA_SUBDIR" && \
     micromamba config set channel_priority flexible && \
-    CONDA_SUBDIR=$CONDA_SUBDIR micromamba create -y -n snakemake -f environment.improved.yml --platform $CONDA_SUBDIR || \
+    CONDA_SUBDIR=$CONDA_SUBDIR micromamba create -y -n snakemake -f environment.yml --platform $CONDA_SUBDIR || \
     (echo "Retrying with relaxed dependencies..." && \
      CONDA_SUBDIR=$CONDA_SUBDIR micromamba create -y -n snakemake python=3.10 -c conda-forge -c bioconda && \
-     CONDA_SUBDIR=$CONDA_SUBDIR micromamba install -y -n snakemake -f environment.improved.yml --freeze-installed || true)
+     CONDA_SUBDIR=$CONDA_SUBDIR micromamba install -y -n snakemake -f environment.yml --freeze-installed || true)
 
 # Runtime stage - 최소 런타임 환경
 FROM python:3.10-slim

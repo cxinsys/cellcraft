@@ -27,8 +27,8 @@ ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
 RUN curl -L https://micromamba.snakepit.net/api/micromamba/linux-64/latest | tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba
 
 # Conda 환경 구성
-COPY environment.yml ./
-RUN micromamba create -y -n snakemake -f environment.yml
+COPY environment.legacy.yml ./
+RUN micromamba create -y -n snakemake -f environment.legacy.yml
 
 # Micromamba 환경 PATH 등록
 ENV PATH=/opt/micromamba/envs/snakemake/bin:$PATH

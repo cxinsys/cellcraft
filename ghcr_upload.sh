@@ -5,9 +5,9 @@
 #
 # Images to be uploaded:
 # 1. Frontend: frontend/Dockerfile.local -> ghcr.io/cxinsys/cellcraft/frontend
-# 2. Backend CPU: backend/Dockerfile.improved -> ghcr.io/cxinsys/cellcraft/backend-cpu  
+# 2. Backend CPU: backend/Dockerfile.cpu -> ghcr.io/cxinsys/cellcraft/backend-cpu  
 # 3. Backend GPU: backend/Dockerfile -> ghcr.io/cxinsys/cellcraft/backend-gpu
-# 4. Celery CPU: backend/Dockerfile.improved.celery -> ghcr.io/cxinsys/cellcraft/celery-cpu
+# 4. Celery CPU: backend/Dockerfile.cpu.celery -> ghcr.io/cxinsys/cellcraft/celery-cpu
 # 5. Celery GPU: backend/Dockerfile.celery -> ghcr.io/cxinsys/cellcraft/celery-gpu
 
 set -e
@@ -67,7 +67,7 @@ show_image_details() {
     echo "   - Platform: All (CPU/GPU compatible)"
     echo ""
     echo "2. Backend CPU (FastAPI)"
-    echo "   - Dockerfile: backend/Dockerfile.improved"
+    echo "   - Dockerfile: backend/Dockerfile.cpu"
     echo "   - Image: ${BASE_IMAGE_NAME}/backend-cpu"
     echo "   - Platform: CPU only"
     echo ""
@@ -77,7 +77,7 @@ show_image_details() {
     echo "   - Platform: GPU enabled"
     echo ""
     echo "4. Celery CPU (Task Worker)"
-    echo "   - Dockerfile: backend/Dockerfile.improved.celery"
+    echo "   - Dockerfile: backend/Dockerfile.cpu.celery"
     echo "   - Image: ${BASE_IMAGE_NAME}/celery-cpu"
     echo "   - Platform: CPU only"
     echo ""
@@ -391,9 +391,9 @@ main() {
     # Define images to build (context:dockerfile:imagename:platform)
     declare -A IMAGES
     IMAGES["frontend"]="frontend:Dockerfile.local:frontend:all"
-    IMAGES["backend-cpu"]="backend:Dockerfile.improved:backend-cpu:cpu"
+    IMAGES["backend-cpu"]="backend:Dockerfile.cpu:backend-cpu:cpu"
     IMAGES["backend-gpu"]="backend:Dockerfile:backend-gpu:gpu"
-    IMAGES["celery-cpu"]="backend:Dockerfile.improved.celery:celery-cpu:cpu"
+    IMAGES["celery-cpu"]="backend:Dockerfile.cpu.celery:celery-cpu:cpu"
     IMAGES["celery-gpu"]="backend:Dockerfile.celery:celery-gpu:gpu"
     
     # Parse images to build

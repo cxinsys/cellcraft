@@ -44,7 +44,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.improved
+      dockerfile: Dockerfile.cpu
       platforms:
         - linux/arm64
       args:
@@ -150,7 +150,7 @@ services:
   celery:
     build:
       context: ./backend
-      dockerfile: Dockerfile.improved.celery
+      dockerfile: Dockerfile.cpu.celery
       platforms:
         - linux/arm64
       args:

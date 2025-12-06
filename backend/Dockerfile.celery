@@ -28,8 +28,8 @@ RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
     tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba
 
 # Conda 환경 구성 (jpype1 제거된 환경 파일 사용)
-COPY environment.yml ./
-RUN micromamba create -y -n snakemake -f environment.yml
+COPY environment.legacy.yml ./
+RUN micromamba create -y -n snakemake -f environment.legacy.yml
 
 # Runtime stage - 최소 런타임 환경
 FROM python:3.10-slim
