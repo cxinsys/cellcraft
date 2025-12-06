@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   frontend:
-    image: ghcr.io/cxinsys/cellcraft/frontend:v1.0.0
+    image: ghcr.io/cxinsys/cellcraft/frontend:latest
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -14,7 +14,7 @@ services:
       - app-network
 
   backend:
-    image: ghcr.io/cxinsys/cellcraft/backend-gpu:v1.0.0
+    image: ghcr.io/cxinsys/cellcraft/backend-gpu:latest
     environment:
       - TZ=Asia/Seoul
       - CONDA_DEFAULT_ENV=snakemake
@@ -75,7 +75,7 @@ services:
       - app-network
 
   celery:
-    image: ghcr.io/cxinsys/cellcraft/celery-gpu:v1.0.0
+    image: ghcr.io/cxinsys/cellcraft/celery-gpu:latest
     environment:
       - CONDA_DEFAULT_ENV=snakemake
       - C_FORCE_ROOT=true

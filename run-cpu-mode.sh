@@ -118,10 +118,11 @@ check_ghcr_availability() {
     log_header "GHCR Image Availability Check"
 
     # Test images for CPU mode with full repository path
+    # Use 'latest' tag to always get the most recent multi-platform builds from GitHub Actions
     local images=(
-        "ghcr.io/cxinsys/cellcraft/frontend:v1.0.0"
-        "ghcr.io/cxinsys/cellcraft/backend-cpu:v1.0.0"
-        "ghcr.io/cxinsys/cellcraft/celery-cpu:v1.0.0"
+        "ghcr.io/cxinsys/cellcraft/frontend:latest"
+        "ghcr.io/cxinsys/cellcraft/backend-cpu:latest"
+        "ghcr.io/cxinsys/cellcraft/celery-cpu:latest"
     )
 
     # First, check if all images exist locally (using docker inspect)
@@ -149,7 +150,7 @@ check_ghcr_availability() {
     log_info "Missing ${missing_count}/${#images[@]} images locally"
 
     # If not all local, check remote accessibility before attempting to use GHCR strategy
-    local test_image="ghcr.io/cxinsys/cellcraft/frontend:v1.0.0"
+    local test_image="ghcr.io/cxinsys/cellcraft/frontend:latest"
     log_step "Testing GHCR remote accessibility with: $test_image"
 
     if timeout 30 docker manifest inspect "$test_image" >/dev/null 2>&1; then

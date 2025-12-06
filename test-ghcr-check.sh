@@ -33,12 +33,13 @@ log_error() { echo -e "${RED}❌ $1${NC}"; }
 log_header() { echo -e "\n${CYAN}🚀 $1${NC}\n"; }
 
 # Image definitions (using simple arrays instead of associative for compatibility)
-readonly CPU_FRONTEND="ghcr.io/cxinsys/cellcraft/frontend:v1.0.0"
-readonly CPU_BACKEND="ghcr.io/cxinsys/cellcraft/backend-cpu:v1.0.0"
-readonly CPU_CELERY="ghcr.io/cxinsys/cellcraft/celery-cpu:v1.0.0"
-readonly GPU_FRONTEND="ghcr.io/cxinsys/cellcraft/frontend:v1.0.0"
-readonly GPU_BACKEND="ghcr.io/cxinsys/cellcraft/backend-gpu:v1.0.0"
-readonly GPU_CELERY="ghcr.io/cxinsys/cellcraft/celery-gpu:v1.0.0"
+# Use 'latest' tag to always get the most recent multi-platform builds from GitHub Actions
+readonly CPU_FRONTEND="ghcr.io/cxinsys/cellcraft/frontend:latest"
+readonly CPU_BACKEND="ghcr.io/cxinsys/cellcraft/backend-cpu:latest"
+readonly CPU_CELERY="ghcr.io/cxinsys/cellcraft/celery-cpu:latest"
+readonly GPU_FRONTEND="ghcr.io/cxinsys/cellcraft/frontend:latest"
+readonly GPU_BACKEND="ghcr.io/cxinsys/cellcraft/backend-gpu:latest"
+readonly GPU_CELERY="ghcr.io/cxinsys/cellcraft/celery-gpu:latest"
 
 # Check if a single image exists locally
 check_image_local() {
