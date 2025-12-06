@@ -1,5 +1,9 @@
 version: "3.8"
 
+# AMD64 CPU-only local build configuration
+# Use this on: Intel/AMD x86_64 Macs, Linux servers, Windows
+# Usage: docker-compose -f docker-compose.cpu.amd64.yml up --build
+
 services:
   frontend:
     build:
@@ -18,7 +22,12 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.improved
+      # Pass TARGETPLATFORM to Dockerfile ARG
+      args:
+        TARGETPLATFORM: linux/amd64
+    # Explicitly set platform for AMD64 builds
+    platform: linux/amd64
     environment:
       - TZ=Asia/Seoul
       - CONDA_DEFAULT_ENV=snakemake
@@ -27,6 +36,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      - CPU_ONLY=true
     ports:
       - "8000:8000"
     volumes:
@@ -81,7 +91,12 @@ services:
   celery:
     build:
       context: ./backend
-      dockerfile: Dockerfile.celery
+      dockerfile: Dockerfile.improved.celery
+      # Pass TARGETPLATFORM to Dockerfile ARG
+      args:
+        TARGETPLATFORM: linux/amd64
+    # Explicitly set platform for AMD64 builds
+    platform: linux/amd64
     environment:
       - CONDA_DEFAULT_ENV=snakemake
       - C_FORCE_ROOT=true
@@ -91,6 +106,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      - CPU_ONLY=true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # Mount entire backend for Docker-in-Docker compatibility
@@ -102,13 +118,6 @@ services:
         condition: service_started
       db:
         condition: service_healthy
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: "${GPU_COUNT:-all}"
-              capabilities: [gpu]
     restart: unless-stopped
     networks:
       - app-network
