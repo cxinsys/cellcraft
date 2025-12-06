@@ -3,7 +3,9 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
 # Build stage - 컴파일 도구 및 개발 의존성 설치
-FROM --platform=$BUILDPLATFORM python:3.10-slim AS builder
+# CRITICAL FIX: Use TARGETPLATFORM instead of BUILDPLATFORM to ensure
+# all binaries (Python, conda packages) match the target architecture
+FROM --platform=$TARGETPLATFORM python:3.10-slim AS builder
 ARG TARGETPLATFORM
 
 # 필수 빌드 도구 설치
