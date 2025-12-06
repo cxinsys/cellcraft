@@ -22,19 +22,16 @@ on:
         type: boolean
         default: true
 
-  # 2. main 브랜치에 push 시 자동 실행
+  # 2. main 브랜치에 push 시 자동 실행 & 3. 버전 태그 생성 시 자동 실행
   push:
     branches:
       - main
+    tags:
+      - 'v*.*.*'
     paths:
       - 'frontend/**'
       - 'backend/**'
       - '.github/workflows/build-ghcr-images.yml'
-
-  # 3. 버전 태그 생성 시 자동 실행 (예: v1.0.1)
-  push:
-    tags:
-      - 'v*.*.*'
 
   # 4. Pull Request 시 빌드 테스트 (push는 안함)
   pull_request:
