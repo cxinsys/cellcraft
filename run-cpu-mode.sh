@@ -20,7 +20,8 @@ readonly NC='\033[0m' # No Color
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PLUGIN_DIR="${SCRIPT_DIR}/backend/plugin/official"
 readonly COMPOSE_FILE_GHCR="${SCRIPT_DIR}/docker-compose.cpu.yml"
-readonly COMPOSE_FILE_LOCAL="${SCRIPT_DIR}/docker-compose.cpu.local.yml"
+readonly COMPOSE_FILE_ARM64="${SCRIPT_DIR}/docker-compose.cpu.arm64.yml"
+readonly COMPOSE_FILE_AMD64="${SCRIPT_DIR}/docker-compose.cpu.amd64.yml"
 readonly CHECK_SCRIPT="${SCRIPT_DIR}/check-installation.sh"
 readonly CPU_BRANCH="release/plugins-v1.0-cpu"
 readonly VERSION_FILE="${PLUGIN_DIR}/version.json"
@@ -29,6 +30,7 @@ readonly VERSION_FILE="${PLUGIN_DIR}/version.json"
 CLEAN_CONTAINERS=false
 FORCE_REBUILD=false
 SKIP_VERIFICATION=false
+PLATFORM=""  # Will be set by user selection or --platform flag
 
 # Backup variables
 ORIGINAL_BRANCH=""
@@ -60,22 +62,29 @@ Usage: $0 [OPTIONS]
 Launch CellCraft in CPU-only mode with automatic plugin branch switching.
 
 OPTIONS:
-    --clean     Clean existing containers before launching
-    --build     Force rebuild of all containers
-    --help      Show this help message
-    --skip-verify  Skip final installation verification
+    --platform [arm64|amd64]  Specify platform (arm64 for Apple Silicon, amd64 for Intel/AMD)
+    --clean                   Clean existing containers before launching
+    --build                   Force rebuild of all containers
+    --help                    Show this help message
+    --skip-verify             Skip final installation verification
 
 EXAMPLES:
-    $0                    # Basic launch
-    $0 --clean            # Clean containers first
-    $0 --build            # Force rebuild
-    $0 --clean --build    # Clean and rebuild
+    $0                          # Interactive platform selection
+    $0 --platform arm64         # macOS Apple Silicon
+    $0 --platform amd64         # macOS Intel / Linux / Windows
+    $0 --clean --build          # Clean and rebuild
+    $0 --platform amd64 --build # Specify platform and force rebuild
+
+PLATFORMS:
+    arm64   - macOS Apple Silicon (M1/M2/M3), ARM64 Linux
+    amd64   - macOS Intel, Linux x86_64, Windows
 
 This script will:
-1. Switch plugin submodule to CPU-compatible branch
-2. Launch Docker Compose with CPU-only configuration
-3. Verify installation success
-4. Provide access URLs
+1. Select platform (interactive or via --platform flag)
+2. Switch plugin submodule to CPU-compatible branch
+3. Launch Docker Compose with CPU-only configuration
+4. Verify installation success
+5. Provide access URLs
 
 EOF
 }
@@ -84,6 +93,25 @@ EOF
 parse_arguments() {
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --platform)
+                if [[ -z "$2" || "$2" == --* ]]; then
+                    log_error "--platform requires an argument (arm64 or amd64)"
+                    print_usage
+                    exit 1
+                fi
+                case "$2" in
+                    arm64|amd64)
+                        PLATFORM="$2"
+                        shift 2
+                        ;;
+                    *)
+                        log_error "Invalid platform: $2"
+                        log_error "Supported platforms: arm64, amd64"
+                        print_usage
+                        exit 1
+                        ;;
+                esac
+                ;;
             --clean)
                 CLEAN_CONTAINERS=true
                 shift
@@ -174,10 +202,63 @@ determine_compose_strategy() {
     fi
 }
 
+# Select platform interactively
+select_platform() {
+    log_header "Platform Selection"
+
+    # Auto-detect platform and suggest default
+    local detected=$(detect_mac)
+    local default_choice
+    local detected_name
+
+    case "$detected" in
+        "mac-arm64")
+            default_choice=1
+            detected_name="macOS Apple Silicon (ARM64)"
+            ;;
+        "mac-intel")
+            default_choice=2
+            detected_name="macOS Intel (AMD64)"
+            ;;
+        "other")
+            default_choice=2
+            detected_name="Linux/Windows (AMD64)"
+            ;;
+    esac
+
+    echo -e "${BLUE}Select your platform:${NC}"
+    echo "  1) macOS Apple Silicon (ARM64)"
+    echo "  2) macOS Intel / Linux / Windows (AMD64)"
+    echo ""
+    echo -e "${CYAN}Detected: ${detected_name}${NC}"
+    echo -e "${YELLOW}Suggested: Option ${default_choice}${NC}"
+    echo ""
+
+    local choice
+    read -p "Enter choice [1-2] (default: ${default_choice}): " choice
+    choice=${choice:-$default_choice}
+
+    case "$choice" in
+        1)
+            PLATFORM="arm64"
+            log_success "Selected: ARM64 platform"
+            ;;
+        2)
+            PLATFORM="amd64"
+            log_success "Selected: AMD64 platform"
+            ;;
+        *)
+            log_error "Invalid choice: $choice"
+            log_error "Please enter 1 or 2"
+            exit 1
+            ;;
+    esac
+}
+
 # Check prerequisites
 check_prerequisites() {
     log_header "Prerequisites Check"
-    
+
     # Check if we're in the correct directory
     if [[ ! -f "${COMPOSE_FILE_GHCR}" ]]; then
         log_error "docker-compose.cpu.yml not found in current directory"
@@ -185,14 +266,23 @@ check_prerequisites() {
         exit 1
     fi
     log_success "Found docker-compose.cpu.yml"
-    
-    # Check local compose file
-    if [[ ! -f "${COMPOSE_FILE_LOCAL}" ]]; then
-        log_error "docker-compose.cpu.local.yml not found in current directory"
-        log_error "Please ensure all compose files are present"
+
+    # Check platform-specific compose file
+    local compose_file_local
+    if [[ "$PLATFORM" == "arm64" ]]; then
+        compose_file_local="${COMPOSE_FILE_ARM64}"
+    else
+        compose_file_local="${COMPOSE_FILE_AMD64}"
+    fi
+
+    if [[ ! -f "${compose_file_local}" ]]; then
+        log_error "$(basename ${compose_file_local}) not found in current directory"
+        log_error "Please ensure platform-specific compose files are present"
+        log_error "Available files:"
+        ls -1 docker-compose.*.yml 2>/dev/null || echo "  None found"
         exit 1
     fi
-    log_success "Found docker-compose.cpu.local.yml"
+    log_success "Found $(basename ${compose_file_local})"
     
     # Check if plugin directory exists
     if [[ ! -d "${PLUGIN_DIR}" ]]; then
@@ -321,18 +411,26 @@ restore_git_state() {
 clean_containers() {
     if [[ "${CLEAN_CONTAINERS}" == "true" ]]; then
         log_header "Container Cleanup"
-        
-        log_step "Stopping existing containers (trying both compose files)"
+
+        # Get platform-specific compose file
+        local compose_file_local
+        if [[ "$PLATFORM" == "arm64" ]]; then
+            compose_file_local="${COMPOSE_FILE_ARM64}"
+        else
+            compose_file_local="${COMPOSE_FILE_AMD64}"
+        fi
+
+        log_step "Stopping existing containers (trying all compose files)"
         docker compose -f "${COMPOSE_FILE_GHCR}" down 2>/dev/null || true
-        docker compose -f "${COMPOSE_FILE_LOCAL}" down 2>/dev/null || {
+        docker compose -f "${compose_file_local}" down 2>/dev/null || {
             log_warning "Some containers may not have been running"
         }
-        
+
         log_step "Removing unused images and volumes"
         docker system prune -f || {
             log_warning "System prune completed with warnings"
         }
-        
+
         log_success "Container cleanup completed"
     fi
 }
@@ -354,34 +452,32 @@ detect_mac() {
 # Build and launch containers with smart strategy
 launch_containers() {
     log_header "Smart Container Launch"
-    
-    # Detect platform
-    local platform_type
-    platform_type=$(detect_mac)
-    
+
     # Determine deployment strategy
     local strategy
     strategy=$(determine_compose_strategy)
-    
+
     local compose_file
     local docker_args=""
-    
-    # On Mac ARM64 with GHCR strategy, use docker-compose.cpu.yml
-    # Docker Compose will automatically select ARM64 variant from multi-platform manifest
-    if [[ "$platform_type" == "mac-arm64" && "$strategy" == "ghcr" ]]; then
-        compose_file="${COMPOSE_FILE_GHCR}"
-        log_info "Using GHCR images on Mac ARM64"
-        log_info "Docker will automatically pull ARM64 variant (no Rosetta needed)"
-    elif [[ "$strategy" == "ghcr" ]]; then
+
+    # Select compose file based on strategy and platform
+    if [[ "$strategy" == "ghcr" ]]; then
         compose_file="${COMPOSE_FILE_GHCR}"
         log_info "Using GHCR images: docker compose up -d"
+        log_info "Platform: ${PLATFORM} (Docker will pull correct variant)"
     else
-        compose_file="${COMPOSE_FILE_LOCAL}"
+        # Local build - use platform-specific compose file
+        if [[ "$PLATFORM" == "arm64" ]]; then
+            compose_file="${COMPOSE_FILE_ARM64}"
+        else
+            compose_file="${COMPOSE_FILE_AMD64}"
+        fi
         docker_args="--build"
-        log_info "Using local build: docker compose up -d --build"
+        log_info "Using local build for ${PLATFORM}: docker compose up -d --build"
     fi
-    
+
     log_step "Compose file: $(basename "$compose_file")"
+    log_step "Platform: ${PLATFORM}"
     
     # Handle force rebuild option
     if [[ "${FORCE_REBUILD}" == "true" ]]; then
@@ -543,17 +639,26 @@ trap cleanup_handler INT TERM
 # Main execution
 main() {
     print_header
-    
+
     # Parse command line arguments
     parse_arguments "$@"
-    
+
+    # Platform selection (interactive if not specified via flag)
+    if [[ -z "${PLATFORM}" ]]; then
+        select_platform
+    else
+        log_info "Platform: ${PLATFORM} (from --platform flag)"
+    fi
+
     # Display configuration
+    echo ""
     echo -e "${BLUE}Configuration:${NC}"
+    echo -e "  Platform: ${PLATFORM}"
     echo -e "  Clean containers: ${CLEAN_CONTAINERS}"
     echo -e "  Force rebuild: ${FORCE_REBUILD}"
     echo -e "  Skip verification: ${SKIP_VERIFICATION}"
     echo ""
-    
+
     # Execute main workflow
     check_prerequisites
     backup_git_state
@@ -562,7 +667,7 @@ main() {
     launch_containers
     verify_installation
     show_final_status
-    
+
     log_success "CPU-only mode launch completed successfully!"
 }
 
