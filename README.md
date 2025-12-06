@@ -17,7 +17,7 @@ Pre-built Docker images are available on GitHub Container Registry (GHCR) for fa
 
 - **Multi-platform support**: All CPU images support AMD64 and ARM64 architectures
 - **GPU images**: AMD64 only, optimized for NVIDIA CUDA
-- **Version**: Current stable release is v1.0.0
+- **Version**: Uses `latest` tag for most recent multi-platform builds
 
 ## Overview
 
@@ -46,29 +46,29 @@ CellCraft provides **pre-built Docker images** hosted on GitHub Container Regist
 
 | Image | Description | Platforms | GHCR Package | Latest Version |
 |-------|-------------|-----------|--------------|----------------|
-| **frontend** | Vue.js frontend application | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Ffrontend) | v1.0.0 |
-| **backend-cpu** | FastAPI backend (CPU-only) | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fbackend-cpu) | v1.0.0 |
-| **backend-gpu** | FastAPI backend (GPU-enabled) | AMD64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fbackend-gpu) | v1.0.0 |
-| **celery-cpu** | Celery worker (CPU-only) | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fcelery-cpu) | v1.0.0 |
-| **celery-gpu** | Celery worker (GPU-enabled) | AMD64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fcelery-gpu) | v1.0.0 |
+| **frontend** | Vue.js frontend application | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Ffrontend) | latest |
+| **backend-cpu** | FastAPI backend (CPU-only) | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fbackend-cpu) | latest |
+| **backend-gpu** | FastAPI backend (GPU-enabled) | AMD64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fbackend-gpu) | latest |
+| **celery-cpu** | Celery worker (CPU-only) | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fcelery-cpu) | latest |
+| **celery-gpu** | Celery worker (GPU-enabled) | AMD64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fcelery-gpu) | latest |
 
 **Quick Pull Commands:**
 
 For CPU mode (all 3 images):
 ```bash
-docker pull ghcr.io/cxinsys/cellcraft/frontend:v1.0.0
-docker pull ghcr.io/cxinsys/cellcraft/backend-cpu:v1.0.0
-docker pull ghcr.io/cxinsys/cellcraft/celery-cpu:v1.0.0
+docker pull ghcr.io/cxinsys/cellcraft/frontend:latest
+docker pull ghcr.io/cxinsys/cellcraft/backend-cpu:latest
+docker pull ghcr.io/cxinsys/cellcraft/celery-cpu:latest
 ```
 
 For GPU mode (all 3 images):
 ```bash
-docker pull ghcr.io/cxinsys/cellcraft/frontend:v1.0.0
-docker pull ghcr.io/cxinsys/cellcraft/backend-gpu:v1.0.0
-docker pull ghcr.io/cxinsys/cellcraft/celery-gpu:v1.0.0
+docker pull ghcr.io/cxinsys/cellcraft/frontend:latest
+docker pull ghcr.io/cxinsys/cellcraft/backend-gpu:latest
+docker pull ghcr.io/cxinsys/cellcraft/celery-gpu:latest
 ```
 
-**Note:** The `test-ghcr-check.sh` script can automate this process for you with a simple interactive menu.
+**Note:** The `test-ghcr-check.sh` script uses the `latest` tag to always pull the most recent multi-platform builds from GitHub Actions. This ensures you get the newest stable images automatically.
 
 ### Image Management Tool
 
@@ -170,17 +170,23 @@ This ensures the fastest possible deployment while maintaining reliability.
    ```
 
    **If the scripts fail to execute, use these manual commands:**
-   
-   For GPU-enabled setup:
+
+   For GPU-enabled setup (AMD64 Linux with NVIDIA GPU):
    ```bash
    cd backend/plugin/official && git switch release/plugins-v1.0
-   cd ../../.. && docker compose -f docker-compose.gpu.local.yml up --build
+   cd ../../.. && docker compose -f docker-compose.gpu.amd64.yml up --build
    ```
 
-   For CPU-only setup:
+   For CPU-only setup (AMD64 - Intel/AMD):
    ```bash
    cd backend/plugin/official && git switch release/plugins-v1.0-cpu
-   cd ../../.. && docker compose -f docker-compose.cpu.local.yml up --build
+   cd ../../.. && docker compose -f docker-compose.cpu.amd64.yml up --build
+   ```
+
+   For CPU-only setup (ARM64 - Apple Silicon/ARM Linux):
+   ```bash
+   cd backend/plugin/official && git switch release/plugins-v1.0-cpu
+   cd ../../.. && docker compose -f docker-compose.cpu.arm64.yml up --build
    ```
 
 4. Access the application at [http://localhost:8080](http://localhost:8080).
@@ -216,21 +222,29 @@ If you have already installed CellCraft using docker compose but the plugin subm
 2. Stop the services and remove volumes to clear old plugin data:
 
    ```bash
-   docker compose -f docker-compose.gpu.local.yml down -v  # For GPU
-   # OR
-   docker compose -f docker-compose.cpu.local.yml down -v  # For CPU
+   # For GPU (AMD64)
+   docker compose -f docker-compose.gpu.amd64.yml down -v
+   # For CPU (AMD64)
+   docker compose -f docker-compose.cpu.amd64.yml down -v
+   # For CPU (ARM64 - Apple Silicon/ARM Linux)
+   docker compose -f docker-compose.cpu.arm64.yml down -v
    ```
 
 3. Restart the services:
 
-   **For GPU-enabled setup:**
+   **For GPU-enabled setup (AMD64):**
    ```bash
-   docker compose -f docker-compose.gpu.local.yml up --build
+   docker compose -f docker-compose.gpu.amd64.yml up --build
    ```
 
-   **For CPU-only setup:**
+   **For CPU-only setup (AMD64):**
    ```bash
-   docker compose -f docker-compose.cpu.local.yml up --build
+   docker compose -f docker-compose.cpu.amd64.yml up --build
+   ```
+
+   **For CPU-only setup (ARM64):**
+   ```bash
+   docker compose -f docker-compose.cpu.arm64.yml up --build
    ```
 
 This process ensures that:
@@ -278,9 +292,9 @@ CellCraft provides **optimized support** for Mac Apple Silicon (M1/M2/M3/M4) wit
 
 #### Quick Start for Mac Users
 
-**Using the Mac-optimized Docker Compose:**
+**Using the ARM64-optimized Docker Compose:**
 ```bash
-docker compose -f docker-compose.mac.yml up -d --build
+docker compose -f docker-compose.cpu.arm64.yml up -d --build
 ```
 ---
 
