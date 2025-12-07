@@ -131,7 +131,35 @@ This ensures the fastest possible deployment while maintaining reliability.
    cd cellcraft
    ```
 
-2. (Optional) Manage GHCR images:
+2. Configure plugin submodule for your installation mode:
+
+   The plugin submodule must be set to the correct branch before starting.
+
+   **Check current submodule branch:**
+   ```bash
+   cd backend/plugin/official
+   git branch --show-current
+   ```
+
+   Expected branches:
+   - `release/plugins-v1.0` for GPU-enabled installation
+   - `release/plugins-v1.0-cpu` for CPU-only installation
+
+   **For GPU-enabled installation:**
+   ```bash
+   git switch release/plugins-v1.0
+   cd ../../..
+   ```
+
+   **For CPU-only installation:**
+   ```bash
+   git switch release/plugins-v1.0-cpu
+   cd ../../..
+   ```
+
+   > **Note:** This step is required before first-time installation. The automated scripts (`run-gpu-mode.sh`, `run-cpu-mode.sh`) will handle this automatically, but manual configuration is needed if using docker compose directly.
+
+3. (Optional) Manage GHCR images:
 
    Before installation, you can optionally **check and pre-download** required Docker images from GitHub Container Registry (GHCR). This step is recommended for faster deployment and offline environments.
 
@@ -158,45 +186,75 @@ This ensures the fastest possible deployment while maintaining reliability.
 
    **Note:** If you skip this step or if GHCR is not accessible, the installation scripts will automatically fall back to building images locally. Pre-downloading images is simply an optimization for faster deployment.
 
-3. Start the application:
+4. Start the application:
 
-   **For GPU-enabled installation:**
+   **Option A: Using automated scripts (recommended)**
+
+   For GPU-enabled installation:
    ```bash
    ./run-gpu-mode.sh
    ```
 
-   **For CPU-only installation:**
+   For CPU-only installation:
    ```bash
    ./run-cpu-mode.sh
    ```
 
-   **If the scripts fail to execute, use these manual commands:**
+   **Option B: Using docker compose directly**
 
-   For GPU-enabled setup (AMD64 Linux with NVIDIA GPU):
+   For GPU-enabled setup (AMD64 with NVIDIA GPU):
    ```bash
-   cd backend/plugin/official && git switch release/plugins-v1.0
-   cd ../../.. && docker compose -f docker-compose.gpu.amd64.yml up --build
+   docker compose -f docker-compose.gpu.amd64.yml up --build
    ```
 
-   For CPU-only setup (AMD64 - Intel/AMD):
+   For CPU-only setup (AMD64):
    ```bash
-   cd backend/plugin/official && git switch release/plugins-v1.0-cpu
-   cd ../../.. && docker compose -f docker-compose.cpu.amd64.yml up --build
+   docker compose -f docker-compose.cpu.amd64.yml up --build
    ```
 
-   For CPU-only setup (ARM64 - Apple Silicon/ARM Linux):
+   For CPU-only setup (ARM64):
    ```bash
-   cd backend/plugin/official && git switch release/plugins-v1.0-cpu
-   cd ../../.. && docker compose -f docker-compose.cpu.arm64.yml up --build
+   docker compose -f docker-compose.cpu.arm64.yml up --build
    ```
 
-4. Access the application at [http://localhost:8080](http://localhost:8080).
+5. Access the application at [http://localhost:8080](http://localhost:8080).
 
-5. Check the installation status:
+6. Check the installation status:
 
    ```bash
    ./check-installation.sh
    ```
+
+   This script validates the following:
+
+   **Container Status**: Verifies all 5 required services are running (frontend, backend, db, rabbitmq, celery)
+   ```bash
+   # Manual check
+   docker ps --format 'table {{.Names}}\t{{.Status}}' | grep cellcraft
+   ```
+
+   **HTTP Connectivity**: Tests Frontend (port 8080) and Backend API (port 8000)
+   ```bash
+   # Manual check
+   curl -sf http://localhost:8080 && echo "Frontend OK"
+   curl -sf http://localhost:8000/docs && echo "Backend OK"
+   ```
+
+   **Plugin Registry**: Verifies all expected plugins are registered
+   ```bash
+   # Manual check - view backend logs
+   docker compose -f [compose-file] logs backend
+   ```
+
+   If you see `Initializing plugins from CSV...` in the logs but the server startup message (e.g., `Uvicorn running on http://0.0.0.0:8000`) has not appeared yet, the backend is still loading plugins.
+
+   For **Windows/macOS** users: You can also verify plugin images in **Docker Desktop > Images** section.
+
+   > **Note:** On first startup, please wait **10-15 minutes** for all plugins to be fully configured. The backend service needs time to initialize and pull plugin images.
+
+   Expected plugins:
+   - **CPU mode (6 plugins)**: GENIE3, GRNBoost2, GRNViz, LEAP, Scribe, TENET
+   - **GPU mode (8 plugins)**: Above 6 + FastSCODE, FastTENET
 
 ## Troubleshooting
 
