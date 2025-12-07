@@ -54,7 +54,7 @@ select_mode() {
             ;;
     esac
 
-    info "Checking ${MODE^^} mode installation"
+    info "Checking $(echo "$MODE" | tr '[:lower:]' '[:upper:]') mode installation"
 }
 
 # Check container status
@@ -99,7 +99,7 @@ check_connectivity() {
 
 # Verify plugins
 verify_plugins() {
-    info "Verifying plugins for ${MODE^^} mode..."
+    info "Verifying plugins for $(echo "$MODE" | tr '[:lower:]' '[:upper:]') mode..."
 
     local expected_plugins
     if [[ "$MODE" == "cpu" ]]; then
@@ -108,11 +108,12 @@ verify_plugins() {
         expected_plugins=("${GPU_PLUGINS[@]}")
     fi
 
-    local response
-    response=$(curl -sf --connect-timeout "$TIMEOUT" http://localhost:8000/api/plugin/list 2>/dev/null)
+    # Docker 이미지 목록 조회
+    local images
+    images=$(docker images --format '{{.Repository}}' 2>/dev/null)
 
-    if [[ -z "$response" ]]; then
-        fail "Cannot access plugin registry"
+    if [[ -z "$images" ]]; then
+        fail "Cannot retrieve Docker images"
         return
     fi
 
@@ -120,7 +121,11 @@ verify_plugins() {
     local missing_plugins=()
 
     for plugin in "${expected_plugins[@]}"; do
-        if echo "$response" | grep -qi "\"name\"[[:space:]]*:[[:space:]]*\"${plugin}\""; then
+        # 플러그인 이름을 소문자로 변환하여 이미지 검색
+        local plugin_lower
+        plugin_lower=$(echo "$plugin" | tr '[:upper:]' '[:lower:]')
+
+        if echo "$images" | grep -qi "cellcraft-${plugin_lower}"; then
             ((found_count++))
         else
             missing_plugins+=("$plugin")
@@ -128,11 +133,11 @@ verify_plugins() {
     done
 
     if [[ $found_count -eq ${#expected_plugins[@]} ]]; then
-        pass "All ${#expected_plugins[@]} plugins registered"
+        pass "All ${#expected_plugins[@]} plugin images found"
     else
-        fail "Found $found_count/${#expected_plugins[@]} expected plugins"
+        fail "Found $found_count/${#expected_plugins[@]} expected plugin images"
         if [[ ${#missing_plugins[@]} -gt 0 ]]; then
-            warn "Missing plugins: ${missing_plugins[*]}"
+            warn "Missing plugin images: ${missing_plugins[*]}"
         fi
     fi
 }
@@ -143,7 +148,7 @@ print_summary() {
     echo -e "${CYAN}================================================${NC}"
     echo -e "${CYAN}                    SUMMARY${NC}"
     echo -e "${CYAN}================================================${NC}"
-    echo -e "Mode:   ${CYAN}${MODE^^}${NC}"
+    echo -e "Mode:   ${CYAN}$(echo "$MODE" | tr '[:lower:]' '[:upper:]')${NC}"
     echo -e "Passed: ${GREEN}${PASSED}${NC}"
     echo -e "Failed: ${RED}${FAILED}${NC}"
     echo ""
