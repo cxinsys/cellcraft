@@ -25,8 +25,16 @@ on:
         description: 'Build celery-gpu image (amd64 only)'
         type: boolean
         default: true
+      build_frontend:
+        description: 'Build frontend image'
+        type: boolean
+        default: true
       no_cache_cpu:
         description: 'Build CPU images without cache (use when Dockerfile structure changes)'
+        type: boolean
+        default: false
+      no_cache_frontend:
+        description: 'Build frontend image without cache'
         type: boolean
         default: false
 
@@ -38,6 +46,7 @@ on:
       - 'v*.*.*'
     paths:
       - 'backend/**'
+      - 'frontend/**'
       - '.github/workflows/build-ghcr-images.yml'
 
   # 4. Pull Request 시 빌드 테스트 (push는 안함)
@@ -46,6 +55,7 @@ on:
       - main
     paths:
       - 'backend/**'
+      - 'frontend/**'
 
 env:
   REGISTRY: ghcr.io
@@ -173,6 +183,26 @@ jobs:
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
             VERSION=${{ steps.meta.outputs.version }}
 
+      # Frontend 이미지 빌드
+      - name: Build and push Frontend
+        if: |
+          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_frontend == 'true')
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.local
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/frontend:${{ steps.meta.outputs.version }}
+            ${{ env.IMAGE_PREFIX }}/frontend:latest
+          no-cache: ${{ github.event.inputs.no_cache_frontend == 'true' }}
+          cache-from: ${{ github.event.inputs.no_cache_frontend != 'true' && 'type=gha,scope=frontend-v1' || '' }}
+          cache-to: type=gha,mode=max,scope=frontend-v1
+          build-args: |
+            BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            VERSION=${{ steps.meta.outputs.version }}
+
       # 빌드 결과 요약
       - name: Build summary
         run: |
@@ -189,6 +219,12 @@ jobs:
             echo "- Enabled (v2 scope)" >> $GITHUB_STEP_SUMMARY
           fi
           echo "**GPU Images Cache:** Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "**Frontend Cache:**" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event.inputs.no_cache_frontend }}" == "true" ]]; then
+            echo "- Disabled (fresh build)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Enabled (v1 scope)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**CPU Images built (linux/amd64, linux/arm64):**" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_backend_cpu }}" == "true" ]]; then
@@ -204,4 +240,9 @@ jobs:
           fi
           if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_celery_gpu }}" == "true" ]]; then
             echo "- ✅ Celery GPU" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Frontend Image built (linux/amd64, linux/arm64):**" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_frontend }}" == "true" ]]; then
+            echo "- ✅ Frontend" >> $GITHUB_STEP_SUMMARY
           fi
