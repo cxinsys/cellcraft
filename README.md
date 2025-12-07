@@ -128,6 +128,7 @@ This ensures the fastest possible deployment while maintaining reliability.
 
    ```bash
    git clone --recurse-submodules https://github.com/cxinsys/cellcraft.git
+   cd cellcraft
    ```
 
 2. (Optional) Manage GHCR images:
@@ -161,12 +162,12 @@ This ensures the fastest possible deployment while maintaining reliability.
 
    **For GPU-enabled installation:**
    ```bash
-   cd cellcraft && ./run-gpu-mode.sh
+   ./run-gpu-mode.sh
    ```
 
    **For CPU-only installation:**
    ```bash
-   cd cellcraft && ./run-cpu-mode.sh
+   ./run-cpu-mode.sh
    ```
 
    **If the scripts fail to execute, use these manual commands:**
@@ -234,17 +235,17 @@ If you have already installed CellCraft using docker compose but the plugin subm
 
    **For GPU-enabled setup (AMD64):**
    ```bash
-   docker compose -f docker-compose.gpu.amd64.yml up --build
+   docker compose -f docker-compose.gpu.amd64.yml up -d --build
    ```
 
    **For CPU-only setup (AMD64):**
    ```bash
-   docker compose -f docker-compose.cpu.amd64.yml up --build
+   docker compose -f docker-compose.cpu.amd64.yml up -d --build
    ```
 
    **For CPU-only setup (ARM64):**
    ```bash
-   docker compose -f docker-compose.cpu.arm64.yml up --build
+   docker compose -f docker-compose.cpu.arm64.yml up -d --build
    ```
 
 This process ensures that:
