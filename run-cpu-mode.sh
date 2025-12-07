@@ -36,6 +36,9 @@ PLATFORM=""  # Will be set by user selection or --platform flag
 ORIGINAL_BRANCH=""
 ORIGINAL_COMMIT=""
 
+# Runtime variables
+USED_COMPOSE_FILE=""
+
 # Functions for colored output
 log_info() { echo -e "${BLUE}ℹ️  $1${NC}" >&2; }
 log_success() { echo -e "${GREEN}✅ $1${NC}" >&2; }
@@ -476,6 +479,9 @@ launch_containers() {
         log_info "Using local build for ${PLATFORM}: docker compose up -d --build"
     fi
 
+    # Store for use in show_final_status
+    USED_COMPOSE_FILE="$(basename "$compose_file")"
+
     log_step "Compose file: $(basename "$compose_file")"
     log_step "Platform: ${PLATFORM}"
     
@@ -604,9 +610,9 @@ show_final_status() {
     echo -e "  • ${CYAN}RabbitMQ Management:${NC} http://localhost:15672 (guest/guest)"
     echo ""
     echo -e "${BLUE}🔧 Management Commands:${NC}"
-    echo -e "  • View logs: ${CYAN}docker compose -f [compose-file] logs${NC}"
-    echo -e "  • Stop services: ${CYAN}docker compose -f [compose-file] down${NC}"
-    echo -e "  • Restart services: ${CYAN}docker compose -f [compose-file] restart${NC}"
+    echo -e "  • View logs: ${CYAN}docker compose -f ${USED_COMPOSE_FILE} logs${NC}"
+    echo -e "  • Stop services: ${CYAN}docker compose -f ${USED_COMPOSE_FILE} down${NC}"
+    echo -e "  • Restart services: ${CYAN}docker compose -f ${USED_COMPOSE_FILE} restart${NC}"
     echo ""
     echo -e "${BLUE}📊 Current Configuration:${NC}"
     echo -e "  • Mode: CPU-Only (GPU plugins excluded)"
