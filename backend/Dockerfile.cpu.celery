@@ -1,14 +1,19 @@
 # syntax=docker/dockerfile:1.4
 
-# Multi-platform build arguments
-# - Automatically set by Docker buildx for multi-platform builds
-# - Explicitly passed by docker-compose for platform-specific builds
-# - Defaults to linux/amd64 for standard docker build (fallback)
-ARG TARGETPLATFORM=linux/amd64
+# =============================================================================
+# Multi-platform Build Support
+# =============================================================================
+# TARGETPLATFORM is automatically injected by Docker buildx during multi-platform builds.
+# For docker-compose local builds, it can be passed via build args.
+# When not specified, buildx automatically selects the correct platform.
+# =============================================================================
 
 # Build stage - 컴파일 도구 및 개발 의존성 설치
-# CRITICAL: Use TARGETPLATFORM to ensure binaries match target architecture
-FROM --platform=${TARGETPLATFORM:-linux/amd64} python:3.10-slim AS builder
+# Note: Omitting --platform lets buildx automatically select the correct platform
+# for multi-platform builds (linux/amd64, linux/arm64)
+FROM python:3.10-slim AS builder
+
+# TARGETPLATFORM is auto-injected by buildx, declare to use within stage
 ARG TARGETPLATFORM
 
 # 필수 빌드 도구 설치
@@ -23,7 +28,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV MAMBA_ROOT_PREFIX=/opt/micromamba
 ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
 
-RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
+# Detect platform: use TARGETPLATFORM if set, otherwise detect from system
+RUN PLATFORM=${TARGETPLATFORM:-$(uname -m | sed 's/x86_64/linux\/amd64/' | sed 's/aarch64/linux\/arm64/')} && \
     case $PLATFORM in \
         "linux/amd64")  \
             MICROMAMBA_ARCH=linux-64 && \
@@ -43,7 +49,7 @@ RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
 
 # Conda 환경 구성 (CPU 전용 환경 파일 사용 + 플랫폼별 패키지)
 COPY environment.yml ./
-RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
+RUN PLATFORM=${TARGETPLATFORM:-$(uname -m | sed 's/x86_64/linux\/amd64/' | sed 's/aarch64/linux\/arm64/')} && \
     case $PLATFORM in \
         "linux/amd64")  export CONDA_SUBDIR=linux-64 ;; \
         "linux/arm64")  export CONDA_SUBDIR=linux-aarch64 ;; \
@@ -57,6 +63,8 @@ RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
      CONDA_SUBDIR=$CONDA_SUBDIR micromamba install -y -n snakemake -f environment.yml --freeze-installed || true)
 
 # Runtime stage - 최소 런타임 환경
+# Note: buildx automatically selects the matching platform for this FROM
+# This ensures builder and runtime stages use the same architecture
 FROM python:3.10-slim
 
 # 런타임 패키지만 설치 (Java 의존성 제거)
