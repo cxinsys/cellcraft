@@ -123,17 +123,17 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
 
    For GPU-enabled setup (AMD64 with NVIDIA GPU):
    ```bash
-   docker compose -f docker-compose.gpu.amd64.yml up --build
+   docker compose -f docker-compose.gpu.amd64.yml up -d --build
    ```
 
    For CPU-only setup (AMD64):
    ```bash
-   docker compose -f docker-compose.cpu.amd64.yml up --build
+   docker compose -f docker-compose.cpu.amd64.yml up -d --build
    ```
 
    For CPU-only setup (ARM64):
    ```bash
-   docker compose -f docker-compose.cpu.arm64.yml up --build
+   docker compose -f docker-compose.cpu.arm64.yml up -d --build
    ```
 
 5. Access the application at [http://localhost:8080](http://localhost:8080).
