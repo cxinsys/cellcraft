@@ -93,8 +93,9 @@ EOF
 # 1. Check if all images exist locally → return 0 (will run without pulling)
 # 2. If some missing → check remote accessibility → return 0 (will pull missing images)
 # 3. If remote inaccessible → return 1 (fallback to local build)
+# Note: All log output goes to stderr to avoid polluting stdout when called in subshell
 check_ghcr_availability() {
-    log_header "GHCR Image Availability Check"
+    log_header "GHCR Image Availability Check" >&2
 
     # Test images for GPU mode with full repository path
     # Use 'latest' tag to always get the most recent multi-platform builds from GitHub Actions
@@ -106,13 +107,13 @@ check_ghcr_availability() {
 
     # First, check if all images exist locally (using docker inspect)
     # This is very fast and allows instant deployment when images are cached
-    log_step "Checking for locally available GHCR images"
+    log_step "Checking for locally available GHCR images" >&2
     local all_local=true
     local missing_count=0
 
     for image in "${images[@]}"; do
         if docker inspect "${image}" >/dev/null 2>&1; then
-            log_success "Found locally: ${image}"
+            log_success "Found locally: ${image}" >&2
         else
             all_local=false
             ((missing_count++))
@@ -121,34 +122,35 @@ check_ghcr_availability() {
 
     # If all images are available locally, use them immediately without pulling
     if [[ "$all_local" == "true" ]]; then
-        log_success "All GHCR images available locally (${#images[@]}/${#images[@]})"
-        log_info "Deployment will use local images without pulling (instant startup)"
+        log_success "All GHCR images available locally (${#images[@]}/${#images[@]})" >&2
+        log_info "Deployment will use local images without pulling (instant startup)" >&2
         return 0
     fi
 
-    log_info "Missing ${missing_count}/${#images[@]} images locally"
+    log_info "Missing ${missing_count}/${#images[@]} images locally" >&2
 
     # If not all local, check remote accessibility before attempting to use GHCR strategy
     local test_image="ghcr.io/cxinsys/cellcraft/frontend:latest"
-    log_step "Testing GHCR remote accessibility with: $test_image"
+    log_step "Testing GHCR remote accessibility with: $test_image" >&2
 
     if timeout 30 docker manifest inspect "$test_image" >/dev/null 2>&1; then
-        log_success "GHCR images are accessible (remote)"
-        log_info "Deployment will pull missing ${missing_count} images from GHCR"
+        log_success "GHCR images are accessible (remote)" >&2
+        log_info "Deployment will pull missing ${missing_count} images from GHCR" >&2
         return 0
     else
-        log_warning "GHCR access failed (network/auth issue)"
+        log_warning "GHCR access failed (network/auth issue)" >&2
         return 1
     fi
 }
 
 # Determine compose strategy
+# Note: Log output goes to stderr, only strategy name goes to stdout
 determine_compose_strategy() {
     if check_ghcr_availability; then
-        log_success "Strategy: GHCR images (fast deployment)"
+        log_success "Strategy: GHCR images (fast deployment)" >&2
         echo "ghcr"
     else
-        log_warning "Strategy: Local build (slower but reliable)"
+        log_warning "Strategy: Local build (slower but reliable)" >&2
         echo "local"
     fi
 }
