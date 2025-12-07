@@ -23,7 +23,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.gpu.improved
+      dockerfile: Dockerfile.gpu
       # Pass TARGETPLATFORM to Dockerfile ARG
       args:
         TARGETPLATFORM: linux/amd64
@@ -92,7 +92,7 @@ services:
   celery:
     build:
       context: ./backend
-      dockerfile: Dockerfile.gpu.improved.celery
+      dockerfile: Dockerfile.gpu.celery
       # Pass TARGETPLATFORM to Dockerfile ARG
       args:
         TARGETPLATFORM: linux/amd64

@@ -20,7 +20,7 @@ readonly NC='\033[0m' # No Color
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PLUGIN_DIR="${SCRIPT_DIR}/backend/plugin/official"
 readonly COMPOSE_FILE_GHCR="${SCRIPT_DIR}/docker-compose.gpu.yml"
-readonly COMPOSE_FILE_LOCAL="${SCRIPT_DIR}/docker-compose.gpu.local.yml"
+readonly COMPOSE_FILE_LOCAL="${SCRIPT_DIR}/docker-compose.gpu.amd64.yml"
 readonly CHECK_SCRIPT="${SCRIPT_DIR}/check-installation.sh"
 readonly GPU_BRANCH="release/plugins-v1.0"
 readonly VERSION_FILE="${PLUGIN_DIR}/version.json"
@@ -193,11 +193,11 @@ check_prerequisites() {
     
     # Check local compose file
     if [[ ! -f "${COMPOSE_FILE_LOCAL}" ]]; then
-        log_error "docker-compose.gpu.local.yml not found in current directory"
+        log_error "docker-compose.gpu.amd64.yml not found in current directory"
         log_error "Please ensure all compose files are present"
         exit 1
     fi
-    log_success "Found docker-compose.gpu.local.yml"
+    log_success "Found docker-compose.gpu.amd64.yml"
     
     # Check if plugin directory exists
     if [[ ! -d "${PLUGIN_DIR}" ]]; then
