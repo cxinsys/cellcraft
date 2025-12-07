@@ -169,6 +169,12 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
 
    For **Windows/macOS** users: You can also verify plugin images in **Docker Desktop > Images** section.
 
+   **Using command line:**
+   ```bash
+   # List all plugin images
+   docker images | grep -E "(tenet|fasttenet|fastscode|genie3|grnboost2|leap|scribe|grnviz)"
+   ```
+
    > **Note:** On first startup, please wait **10-15 minutes** for all plugins to be fully configured. The backend service needs time to initialize and pull plugin images.
 
    Expected plugins:
