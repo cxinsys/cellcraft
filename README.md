@@ -135,13 +135,18 @@ This ensures the fastest possible deployment while maintaining reliability.
 
    The plugin submodule must be set to the correct branch before starting.
 
-   **Check current submodule branch:**
+   **Check current submodule status:**
    ```bash
    cd backend/plugin/official
-   git branch --show-current
+   git status
    ```
 
-   Expected branches:
+   Interpret the output:
+   - `On branch release/plugins-v1.0` → Ready for GPU mode
+   - `On branch release/plugins-v1.0-cpu` → Ready for CPU mode
+   - `HEAD detached at ...` → Switch to your desired branch below
+
+   Target branches:
    - `release/plugins-v1.0` for GPU-enabled installation
    - `release/plugins-v1.0-cpu` for CPU-only installation
 
