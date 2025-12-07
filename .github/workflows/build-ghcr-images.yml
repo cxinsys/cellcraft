@@ -9,14 +9,26 @@ on:
         description: 'Image tag version (e.g., v1.0.1)'
         required: true
         default: 'latest'
-      build_backend:
+      build_backend_cpu:
         description: 'Build backend-cpu image'
         type: boolean
         default: true
-      build_celery:
+      build_celery_cpu:
         description: 'Build celery-cpu image'
         type: boolean
         default: true
+      build_backend_gpu:
+        description: 'Build backend-gpu image (amd64 only)'
+        type: boolean
+        default: true
+      build_celery_gpu:
+        description: 'Build celery-gpu image (amd64 only)'
+        type: boolean
+        default: true
+      no_cache_cpu:
+        description: 'Build CPU images without cache (use when Dockerfile structure changes)'
+        type: boolean
+        default: false
 
   # 2. main 브랜치에 push 시 자동 실행 & 3. 버전 태그 생성 시 자동 실행
   push:
@@ -84,7 +96,7 @@ jobs:
       # Backend CPU 이미지 빌드
       - name: Build and push Backend CPU
         if: |
-          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_backend == 'true')
+          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_backend_cpu == 'true')
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -94,8 +106,10 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/backend-cpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/backend-cpu:latest
-          cache-from: type=gha,scope=backend-cpu
-          cache-to: type=gha,mode=max,scope=backend-cpu
+          # Cache scope changed to v2 to invalidate old broken cache
+          no-cache: ${{ github.event.inputs.no_cache_cpu == 'true' }}
+          cache-from: ${{ github.event.inputs.no_cache_cpu != 'true' && 'type=gha,scope=backend-cpu-v2' || '' }}
+          cache-to: type=gha,mode=max,scope=backend-cpu-v2
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
             VERSION=${{ steps.meta.outputs.version }}
@@ -103,7 +117,7 @@ jobs:
       # Celery CPU 이미지 빌드
       - name: Build and push Celery CPU
         if: |
-          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_celery == 'true')
+          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_celery_cpu == 'true')
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -113,8 +127,48 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/celery-cpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/celery-cpu:latest
-          cache-from: type=gha,scope=celery-cpu
-          cache-to: type=gha,mode=max,scope=celery-cpu
+          # Cache scope changed to v2 to invalidate old broken cache
+          no-cache: ${{ github.event.inputs.no_cache_cpu == 'true' }}
+          cache-from: ${{ github.event.inputs.no_cache_cpu != 'true' && 'type=gha,scope=celery-cpu-v2' || '' }}
+          cache-to: type=gha,mode=max,scope=celery-cpu-v2
+          build-args: |
+            BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            VERSION=${{ steps.meta.outputs.version }}
+
+      # Backend GPU 이미지 빌드 (amd64 only)
+      - name: Build and push Backend GPU
+        if: |
+          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_backend_gpu == 'true')
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.gpu
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/backend-gpu:${{ steps.meta.outputs.version }}
+            ${{ env.IMAGE_PREFIX }}/backend-gpu:latest
+          cache-from: type=gha,scope=backend-gpu
+          cache-to: type=gha,mode=max,scope=backend-gpu
+          build-args: |
+            BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            VERSION=${{ steps.meta.outputs.version }}
+
+      # Celery GPU 이미지 빌드 (amd64 only)
+      - name: Build and push Celery GPU
+        if: |
+          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_celery_gpu == 'true')
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.gpu.celery
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/celery-gpu:${{ steps.meta.outputs.version }}
+            ${{ env.IMAGE_PREFIX }}/celery-gpu:latest
+          cache-from: type=gha,scope=celery-gpu
+          cache-to: type=gha,mode=max,scope=celery-gpu
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
             VERSION=${{ steps.meta.outputs.version }}
@@ -128,12 +182,26 @@ jobs:
           echo "**Version:** ${{ steps.meta.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ steps.meta.outputs.sha_short }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Images built:**" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_backend }}" == "true" ]]; then
+          echo "**CPU Images Cache:**" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event.inputs.no_cache_cpu }}" == "true" ]]; then
+            echo "- Disabled (fresh build)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Enabled (v2 scope)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "**GPU Images Cache:** Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**CPU Images built (linux/amd64, linux/arm64):**" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_backend_cpu }}" == "true" ]]; then
             echo "- ✅ Backend CPU" >> $GITHUB_STEP_SUMMARY
           fi
-          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_celery }}" == "true" ]]; then
+          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_celery_cpu }}" == "true" ]]; then
             echo "- ✅ Celery CPU" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Platforms:** linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
+          echo "**GPU Images built (linux/amd64 only):**" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_backend_gpu }}" == "true" ]]; then
+            echo "- ✅ Backend GPU" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_celery_gpu }}" == "true" ]]; then
+            echo "- ✅ Celery GPU" >> $GITHUB_STEP_SUMMARY
+          fi
