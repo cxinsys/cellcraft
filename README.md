@@ -165,7 +165,7 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
    docker compose -f [compose-file] logs backend
    ```
 
-   If you see `Initializing plugins from CSV...` in the logs but the server startup message (e.g., `Uvicorn running on http://0.0.0.0:8000`) has not appeared yet, the backend is still loading plugins.
+   If you see `4. Docker Images Check...` in the logs but the server startup message (e.g., `Uvicorn running on http://0.0.0.0:8000`) has not appeared yet, the backend is still loading plugins.
 
    For **Windows/macOS** users: You can also verify plugin images in **Docker Desktop > Images** section.
 
