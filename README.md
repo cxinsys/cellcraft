@@ -78,8 +78,6 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
    cd ../../..
    ```
 
-   > **Note:** This step is required before first-time installation. The automated scripts (`run-gpu-mode.sh`, `run-cpu-mode.sh`) will handle this automatically, but manual configuration is needed if using docker compose directly.
-
 3. (Optional) Manage GHCR images:
 
    Before installation, you can optionally **check and pre-download** required Docker images from GitHub Container Registry (GHCR). This step is recommended for faster deployment and offline environments.
