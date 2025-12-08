@@ -1155,13 +1155,14 @@ class SnakemakeRuleStatusTracker:
             logger.debug(f"Error checking execution evidence for rule {rule.get('id', 'unknown')}: {e}")
             return False
     
-    def _check_logs_exist_direct(self, rule: Dict[str, Any]) -> bool:
+    def _check_logs_exist_direct(self, rule: Dict[str, Any], task_id: Optional[str] = None) -> bool:
         """
         로그 파일을 절대 경로로 직접 확인
-        
+
         Args:
             rule: 룰 정보 딕셔너리
-            
+            task_id: 특정 task의 아카이브된 로그를 확인할 때 사용 (선택적)
+
         Returns:
             로그 파일이 존재하면 True, 없으면 False
         """
@@ -1169,33 +1170,44 @@ class SnakemakeRuleStatusTracker:
             rule_id = rule.get('id', '')
             if not rule_id:
                 return False
-            
+
             # 워크플로우 디렉토리에서 로그 파일 직접 검색
             workflow_dir = os.path.dirname(self.workflow_path) if self.workflow_path else None
             if not workflow_dir:
                 return False
-                
-            logs_dir = os.path.join(workflow_dir, 'logs')
-            
-            if not os.path.exists(logs_dir):
-                return False
-            
+
             # 여러 패턴으로 로그 파일 검색
             patterns = [
                 f"{rule_id}.stdout",
-                f"{rule_id}.stderr", 
+                f"{rule_id}.stderr",
                 f"{rule_id}.log"
             ]
-            
+
+            # task_id가 제공되면 아카이브된 로그 먼저 확인
+            if task_id:
+                archived_logs_dir = os.path.join(workflow_dir, 'executions', task_id, 'logs')
+                if os.path.exists(archived_logs_dir):
+                    for pattern in patterns:
+                        log_path = os.path.join(archived_logs_dir, pattern)
+                        if os.path.exists(log_path) and os.path.getsize(log_path) > 0:
+                            logger.debug(f"Found archived log file for rule {rule_id}: {log_path}")
+                            return True
+
+            # 현재 로그 디렉토리 확인 (fallback)
+            logs_dir = os.path.join(workflow_dir, 'logs')
+
+            if not os.path.exists(logs_dir):
+                return False
+
             for pattern in patterns:
                 log_path = os.path.join(logs_dir, pattern)
                 if os.path.exists(log_path) and os.path.getsize(log_path) > 0:
                     logger.debug(f"Found log file for rule {rule_id}: {log_path}")
                     return True
-            
+
             logger.debug(f"No log files found for rule {rule_id} in {logs_dir}")
             return False
-            
+
         except Exception as e:
             logger.debug(f"Error checking direct logs for rule {rule.get('id', 'unknown')}: {e}")
             return False

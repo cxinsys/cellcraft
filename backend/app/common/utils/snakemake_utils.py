@@ -306,7 +306,20 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
                 "container_name": container_name
             })
         )
-        
+
+        # 실행 로그를 task_id별 디렉토리에 아카이브
+        if task_id:
+            from app.common.utils.log_archive_utils import archive_execution_logs
+            archive_result = archive_execution_logs(
+                snakefile_dir=snakefile_dir,
+                task_id=task_id,
+                include_meta=True
+            )
+            if archive_result["success"]:
+                print(f"Logs archived to: {archive_result['archived_path']}")
+            else:
+                print(f"Warning: Log archival failed: {archive_result.get('error', 'Unknown error')}")
+
         # 로그 파일 읽기
         stdout = ""
         stderr = ""

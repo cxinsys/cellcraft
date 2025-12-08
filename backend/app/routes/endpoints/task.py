@@ -323,11 +323,13 @@ def get_task_logs(
             raise HTTPException(status_code=403, detail="Access denied")
 
         # 로그 폴더 경로 구성 (centralized utility 사용)
+        # task_id를 전달하여 아카이브된 로그가 있으면 해당 경로 사용
         logs_folder_path = construct_logs_path(
             username=current_user.username,
             workflow_id=task.workflow_id,
             algorithm_id=task.algorithm_id,
-            task_type=task.task_type
+            task_type=task.task_type,
+            task_id=task.task_id
         )
 
         # 보안 검증: path traversal 방지
@@ -409,11 +411,13 @@ def export_task_logs_json(
             raise HTTPException(status_code=403, detail="Access denied")
 
         # 로그 폴더 경로 구성
+        # task_id를 전달하여 아카이브된 로그가 있으면 해당 경로 사용
         logs_folder_path = construct_logs_path(
             username=current_user.username,
             workflow_id=task.workflow_id,
             algorithm_id=task.algorithm_id,
-            task_type=task.task_type
+            task_type=task.task_type,
+            task_id=task.task_id
         )
 
         # 보안 검증
@@ -497,11 +501,13 @@ def export_task_log_txt(
             raise HTTPException(status_code=403, detail="Access denied")
 
         # 로그 폴더 경로 구성
+        # task_id를 전달하여 아카이브된 로그가 있으면 해당 경로 사용
         logs_folder_path = construct_logs_path(
             username=current_user.username,
             workflow_id=task.workflow_id,
             algorithm_id=task.algorithm_id,
-            task_type=task.task_type
+            task_type=task.task_type,
+            task_id=task.task_id
         )
 
         # 보안 검증: 폴더 경로
@@ -993,20 +999,37 @@ async def get_rule_logs(
         
         if not target_rule:
             raise HTTPException(status_code=404, detail=f"Rule '{rule_name}' not found")
-        
+
+        # 아카이브된 로그 경로 확인을 위한 기본 경로 구성
+        if task.task_type == 'visualization':
+            base_task_folder = f"user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}"
+        else:
+            base_task_folder = f"user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}"
+
+        archived_logs_folder = os.path.join(base_task_folder, "executions", task.task_id, "logs")
+        use_archived_logs = os.path.exists(archived_logs_folder)
+
         # 로그 파일들 읽기
         rule_logs = {}
         for log_type, log_path in target_rule['log_paths'].items():
-            if os.path.exists(log_path):
+            # 아카이브된 로그가 있으면 해당 경로로 변환
+            actual_log_path = log_path
+            if use_archived_logs:
+                log_filename = os.path.basename(log_path)
+                archived_log_path = os.path.join(archived_logs_folder, log_filename)
+                if os.path.exists(archived_log_path):
+                    actual_log_path = archived_log_path
+
+            if os.path.exists(actual_log_path):
                 try:
-                    with open(log_path, 'r', encoding='utf-8') as f:
+                    with open(actual_log_path, 'r', encoding='utf-8') as f:
                         content = f.read()
-                    
+
                     # 파일 정보 포함
-                    file_stat = os.stat(log_path)
+                    file_stat = os.stat(actual_log_path)
                     rule_logs[log_type] = {
                         "content": content,
-                        "file_path": log_path,
+                        "file_path": actual_log_path,
                         "size": file_stat.st_size,
                         "modified_time": file_stat.st_mtime,
                         "exists": True
@@ -1014,7 +1037,7 @@ async def get_rule_logs(
                 except Exception as e:
                     rule_logs[log_type] = {
                         "content": f"Error reading file: {str(e)}",
-                        "file_path": log_path,
+                        "file_path": actual_log_path,
                         "size": 0,
                         "modified_time": 0,
                         "exists": True,
@@ -1023,7 +1046,7 @@ async def get_rule_logs(
             else:
                 rule_logs[log_type] = {
                     "content": "",
-                    "file_path": log_path,
+                    "file_path": actual_log_path,
                     "size": 0,
                     "modified_time": 0,
                     "exists": False
@@ -1166,8 +1189,13 @@ def get_execution_manifest(
             task_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/visualization_{task.algorithm_id}"
         else:
             task_folder_path = f"./user/{current_user.username}/workflow_{task.workflow_id}/algorithm_{task.algorithm_id}"
-        
-        logs_folder_path = os.path.join(task_folder_path, "logs")
+
+        # 아카이브된 로그가 있으면 해당 경로 사용 (task_id별 분리된 로그)
+        archived_logs_folder_path = os.path.join(task_folder_path, "executions", task.task_id, "logs")
+        if os.path.exists(archived_logs_folder_path):
+            logs_folder_path = archived_logs_folder_path
+        else:
+            logs_folder_path = os.path.join(task_folder_path, "logs")
         
         # Execution manifest 데이터 구성
         manifest_data = {
@@ -1276,7 +1304,13 @@ def get_execution_manifest(
                 }
         
         # meta.yml 파일 내용 포함 (있는 경우)
-        meta_yml_path = os.path.join(task_folder_path, "meta.yml")
+        # 아카이브된 로그를 사용하는 경우 아카이브된 meta.yml도 확인
+        archived_meta_yml_path = os.path.join(task_folder_path, "executions", task.task_id, "meta.yml")
+        if os.path.exists(archived_meta_yml_path):
+            meta_yml_path = archived_meta_yml_path
+        else:
+            meta_yml_path = os.path.join(task_folder_path, "meta.yml")
+
         if os.path.exists(meta_yml_path):
             try:
                 with open(meta_yml_path, 'r', encoding='utf-8') as f:

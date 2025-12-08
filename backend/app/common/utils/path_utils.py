@@ -35,7 +35,8 @@ def construct_logs_path(
     workflow_id: int,
     algorithm_id: str,
     task_type: str,
-    base_path: Optional[str] = None
+    base_path: Optional[str] = None,
+    task_id: Optional[str] = None
 ) -> str:
     """
     Construct logs directory path for a task.
@@ -43,12 +44,16 @@ def construct_logs_path(
     Creates a standardized path to task logs based on user, workflow,
     and task identifiers. Supports different task types (compile, visualization).
 
+    If task_id is provided, checks for archived logs in executions/{task_id}/logs
+    first, falling back to the current logs directory for backward compatibility.
+
     Args:
         username: User's username
         workflow_id: Workflow database ID
         algorithm_id: Algorithm or visualization ID
         task_type: Task type ('visualization' or other)
         base_path: Optional base path override (for testing)
+        task_id: Optional task ID to look for archived logs
 
     Returns:
         str: Path to logs directory
@@ -58,6 +63,8 @@ def construct_logs_path(
         './user/user1/workflow_123/algorithm_algo_1/logs'
         >>> construct_logs_path("user1", 123, "viz_1", "visualization")
         './user/user1/workflow_123/visualization_viz_1/logs'
+        >>> construct_logs_path("user1", 123, "algo_1", "compile", task_id="task-abc")
+        './user/user1/workflow_123/algorithm_algo_1/executions/task-abc/logs'
 
     Security:
         Does NOT validate path safety. Use is_safe_path() to verify.
@@ -65,10 +72,20 @@ def construct_logs_path(
     if base_path is None:
         base_path = get_logs_base_path()
 
+    # Determine base algorithm/visualization directory
     if task_type == 'visualization':
-        return f"{base_path}/{username}/workflow_{workflow_id}/visualization_{algorithm_id}/logs"
+        algo_base = f"{base_path}/{username}/workflow_{workflow_id}/visualization_{algorithm_id}"
     else:
-        return f"{base_path}/{username}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs"
+        algo_base = f"{base_path}/{username}/workflow_{workflow_id}/algorithm_{algorithm_id}"
+
+    # Check archived path first if task_id provided
+    if task_id:
+        archived_path = f"{algo_base}/executions/{task_id}/logs"
+        if os.path.exists(archived_path):
+            return archived_path
+
+    # Fallback to original path (backward compatibility)
+    return f"{algo_base}/logs"
 
 
 def is_safe_path(path: str, base_dir: str) -> bool:
