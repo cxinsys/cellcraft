@@ -121,20 +121,25 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
 
         # 세션 내에서 필요한 값 추출 (세션 닫힌 후에도 사용 가능)
         plugin_source = None
+        use_gpu = False  # GPU 사용 여부 (기본값: False)
         with get_db_session() as db:
             plugin = db.query(models.Plugin).filter_by(name=plugin_name).first()
 
             if plugin and plugin.source == "official":
                 # Official 플러그인: 서버 시작 시 pull된 GitHub Container Registry 이미지 사용
                 plugin_source = plugin.source
+                use_gpu = plugin.use_gpu or False  # GPU 사용 여부 조회
                 registry = GitHubRegistryClient()
                 image_name = registry.get_image_uri(plugin_name.lower(), plugin.version)
                 print(f"Using pre-pulled official plugin image: {image_name}")
+                print(f"Plugin GPU requirement: {use_gpu}")
             else:
                 # Local 플러그인: 기존 로컬 빌드 이미지 사용
                 plugin_source = plugin.source if plugin else None
+                use_gpu = plugin.use_gpu if plugin else False  # GPU 사용 여부 조회
                 image_name = f'plugin-{plugin_name.lower()}'
                 print(f"Using local plugin image: {image_name}")
+                print(f"Plugin GPU requirement: {use_gpu}")
 
         # 최종 이미지 존재 여부 확인
         try:
@@ -226,7 +231,21 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
                 'container.type': 'plugin-execution'
             }  # 라벨로 메타데이터 추가
         }
-        
+
+        # GPU 설정 추가 (플러그인이 GPU를 필요로 하는 경우)
+        if use_gpu:
+            try:
+                container_config['device_requests'] = [
+                    docker.types.DeviceRequest(
+                        count=-1,  # 모든 GPU 사용
+                        capabilities=[['gpu']]
+                    )
+                ]
+                print(f"GPU enabled for plugin container: {plugin_name}")
+            except Exception as gpu_config_error:
+                print(f"Warning: Failed to configure GPU for {plugin_name}: {gpu_config_error}")
+                print("Container will run without GPU support")
+
         # Task마다 새로운 컨테이너 생성
         print(f"Starting new container with image: {image_name}")
         print(f"Container name: {container_name}")
