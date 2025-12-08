@@ -83,7 +83,7 @@ class TestSubmoduleInitialization:
         Expected Plugins (6 official):
         - TENET
         - GENIE3
-        - GRNBOOST2
+        - GRNBoost2
         - LEAP
         - Scribe
         - GRNViz

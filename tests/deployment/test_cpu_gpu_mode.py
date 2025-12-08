@@ -221,7 +221,7 @@ class TestGPUMode:
         This test is skipped on macOS (GPU not supported).
 
         GPU Mode Plugins (8 total):
-        - All CPU plugins (6): GRNBOOST2, LEAP, TENET, GENIE3, GRNViz, Scribe
+        - All CPU plugins (6): GRNBoost2, LEAP, TENET, GENIE3, GRNViz, Scribe
         - GPU-only plugins (2): FastTENET, FastSCODE
 
         Success Criteria:

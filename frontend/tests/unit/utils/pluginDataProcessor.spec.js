@@ -71,7 +71,7 @@ describe('pluginDataProcessor', () => {
     it('should handle plugin with SUCCESS build status', () => {
       const plugin = {
         id: 1,
-        name: 'GRNBOOST2',
+        name: 'GRNBoost2',
         users: [],
         latest_build: {
           task_id: 'task-789',

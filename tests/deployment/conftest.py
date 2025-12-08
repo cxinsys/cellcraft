@@ -205,7 +205,7 @@ def platform_constraints(platform_info: Dict[str, any]) -> Dict[str, any]:
         expected_gpu_plugins = 0  # GPU not supported
     else:
         # Linux/WSL2: All plugins supported
-        expected_cpu_plugins = 6  # CPU mode: GRNBOOST2, LEAP, TENET, GENIE3, GRNViz, Scribe
+        expected_cpu_plugins = 6  # CPU mode: GRNBoost2, LEAP, TENET, GENIE3, GRNViz, Scribe
         expected_gpu_plugins = 8 if supports_gpu else 0
 
     # Maximum startup times (baseline * multiplier)

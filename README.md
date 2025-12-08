@@ -29,7 +29,7 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
 ## Key Features
 
 - **Visual Workflow Programming**: Configure and execute complex GRN analyses through an intuitive drag-and-drop interface designed for workflow-based programming.
-- **Seven Integrated GRN Tools**: Built-in support for **TENET**, **FastTENET**, **FastSCODE**, **GENIE3**, **GRNBOOST2**, **LEAP**, **Scribe**, and visualization tools, with continuous expansion of capabilities.
+- **Seven Integrated GRN Tools**: Built-in support for **TENET**, **FastTENET**, **FastSCODE**, **GENIE3**, **GRNBoost2**, **LEAP**, **Scribe**, and visualization tools, with continuous expansion of capabilities.
 - **Interactive Visualizations**: Explore regulatory relationships and analysis results through dynamic, interactive visualizations that make complex data interpretable.
 - **Reproducibility & Onboarding**: Comprehensive tutorials, example datasets, and sample input files guide users through each step from data preparation to network interpretation.
 - **Scalable Workflows**: Support for both rapid proof-of-concept analyses and extensive multi-stage studies through an integrated toolchain.
@@ -373,7 +373,7 @@ docker compose -f docker-compose.cpu.arm64.yml up -d --build
 **Official Plugins**
 - ✅ Fully supported on all platforms (Windows, Linux, macOS)
 - Pre-configured and tested for cross-platform compatibility
-- Includes: TENET, FastTENET, GENIE3, GRNBOOST2, LEAP, Scribe, and GRNViz
+- Includes: TENET, FastTENET, GENIE3, GRNBoost2, LEAP, Scribe, and GRNViz
 
 **Custom Local Plugins**
 - ✅ Supported on Windows and Linux
