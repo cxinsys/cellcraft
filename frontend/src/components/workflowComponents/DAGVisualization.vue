@@ -53,69 +53,6 @@
           </div>
         </div>
 
-        <!-- Side Panel -->
-        <div class="dag-sidebar" v-if="selectedNode">
-          <div class="node-details">
-            <h4>{{ selectedNode.label }} Details</h4>
-
-            <div class="detail-section">
-              <div class="detail-label">Status:</div>
-              <div class="detail-content">
-                <span class="status-badge" :class="'status-' + (nodeStatuses[selectedNode.id] || 'pending')">
-                  {{ nodeStatuses[selectedNode.id] || 'pending' }}
-                </span>
-              </div>
-            </div>
-
-            <div class="detail-section" v-if="selectedNode.description">
-              <div class="detail-label">Description:</div>
-              <div class="detail-content">{{ selectedNode.description }}</div>
-            </div>
-
-            <div class="detail-section" v-if="selectedNode.inputs && selectedNode.inputs.length">
-              <div class="detail-label">Input Files:</div>
-              <div class="detail-content">
-                <div v-for="input in selectedNode.inputs" :key="input" class="file-item">
-                  • {{ getFileName(input) }}
-                </div>
-              </div>
-            </div>
-
-            <div class="detail-section" v-if="selectedNode.outputs && selectedNode.outputs.length">
-              <div class="detail-label">Output Files:</div>
-              <div class="detail-content">
-                <div v-for="output in selectedNode.outputs" :key="output" class="file-item">
-                  • {{ getFileName(output) }}
-                </div>
-              </div>
-            </div>
-
-            <div class="detail-section" v-if="selectedNode.params && selectedNode.params.length">
-              <div class="detail-label">Parameters:</div>
-              <div class="detail-content">
-                <div v-for="param in selectedNode.params" :key="param" class="param-item">
-                  • {{ param }}
-                </div>
-              </div>
-            </div>
-
-            <div class="detail-section" v-if="selectedNode.script">
-              <div class="detail-label">Script:</div>
-              <div class="detail-content script-content">
-                {{ selectedNode.script }}
-              </div>
-            </div>
-
-            <div class="detail-actions">
-              <button @click="showRuleLogs" class="action-btn">
-                📋 View Logs
-              </button>
-              <button @click="selectedNode = null" class="action-btn secondary">
-                ✖ Close Details
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- Status Legend -->
@@ -143,7 +80,7 @@
 <script>
 import Plotly from 'plotly.js-dist-min';
 import HierarchicalLayout from '@/utils/HierarchicalLayout';
-import { getDAGStructure, getRuleStatuses, getRuleLogs } from '@/api';
+import { getDAGStructure, getRuleStatuses } from '@/api';
 
 export default {
   name: 'DAGVisualization',
@@ -177,7 +114,6 @@ export default {
       // 시각화 상태
       isLoading: false,
       errorMessage: '',
-      selectedNode: null,
 
       // 레이아웃 설정 (고정값)
       currentDirection: 'LR',  // Left to Right로 고정
@@ -198,15 +134,19 @@ export default {
     visible(newValue) {
       console.log('DAGVisualization visible changed:', newValue, 'taskId:', this.taskId);
       if (newValue && this.taskId) {
-        this.loadDAGData();
-      } else {
-        this.selectedNode = null;
+        // v-if로 인해 DOM이 렌더링되기 전에 watcher가 실행될 수 있음
+        // $nextTick으로 DOM 렌더링 완료 후 데이터 로드
+        this.$nextTick(() => {
+          this.loadDAGData();
+        });
       }
     },
     taskId(newValue) {
       console.log('DAGVisualization taskId changed:', newValue, 'visible:', this.visible);
       if (this.visible && newValue) {
-        this.loadDAGData();
+        this.$nextTick(() => {
+          this.loadDAGData();
+        });
       }
     },
     taskStatus(newValue) {
@@ -221,9 +161,10 @@ export default {
     console.log('DAGVisualization mounted - visible:', this.visible, 'taskId:', this.taskId, 'taskStatus:', this.taskStatus);
     // 컴포넌트가 마운트된 시점에 visible=true이고 taskId가 있으면 데이터 로드
     if (this.visible && this.taskId) {
-      this.loadDAGData();
-      // 추가로 refreshStatus 함수를 한 번 더 실행
-      this.refreshStatus();
+      // $nextTick으로 DOM이 완전히 준비된 후 데이터 로드
+      this.$nextTick(() => {
+        this.loadDAGData();
+      });
     }
   },
   methods: {
@@ -254,10 +195,12 @@ export default {
         // 상태 정보도 함께 로드
         await this.updateRuleStatuses();
 
-        // DAG 시각화 렌더링
-        await this.renderDAG();
-
+        // 로딩 상태 해제 (렌더링 전에 해제하여 CSS가 플롯에 영향을 주지 않도록)
         this.isLoading = false;
+
+        // DOM 업데이트 대기 후 DAG 시각화 렌더링
+        await this.$nextTick();
+        await this.renderDAG();
       } catch (error) {
         console.error('Failed to load DAG data:', error);
         if (error.response) {
@@ -318,7 +261,24 @@ export default {
      * DAG 시각화 렌더링
      */
     async renderDAG() {
-      if (!this.dagData || !this.$refs.dagPlot) return;
+      if (!this.dagData) {
+        console.warn('renderDAG: dagData is not available');
+        return;
+      }
+
+      // DOM이 준비될 때까지 대기
+      await this.$nextTick();
+
+      if (!this.$refs.dagPlot) {
+        console.warn('renderDAG: dagPlot ref is not available, retrying...');
+        // 한 번 더 시도
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await this.$nextTick();
+        if (!this.$refs.dagPlot) {
+          console.error('renderDAG: dagPlot ref is still not available after retry');
+          return;
+        }
+      }
 
       const { nodes, edges } = this.dagData;
 
@@ -372,6 +332,12 @@ export default {
 
       // 이벤트 리스너 설정
       this.setupPlotlyEvents();
+
+      // 컨테이너 크기에 맞게 플롯 리사이즈 (모달이 완전히 표시된 후)
+      await this.$nextTick();
+      if (this.$refs.dagPlot) {
+        Plotly.Plots.resize(this.$refs.dagPlot);
+      }
     },
 
     /**
@@ -511,26 +477,64 @@ export default {
     },
 
     /**
-     * 호버 텍스트 생성
+     * 노드 타입에 따른 동적 설명 생성
+     */
+    getTypeDescription(nodeType) {
+      const typeDescriptions = {
+        'input_processing': 'Data input and preprocessing',
+        'output': 'Result output generation',
+        'analysis': 'Data analysis step',
+        'network_analysis': 'Network reconstruction and analysis',
+        'preprocessing': 'Data filtering and cleaning',
+        'visualization': 'Result visualization',
+        'process': 'Processing step'
+      };
+      return typeDescriptions[nodeType] || 'Processing step';
+    },
+
+    /**
+     * 호버 텍스트 생성 (동적 정보 표시)
      */
     createHoverText(node) {
       const status = this.nodeStatuses[node.id] || 'pending';
       let hoverText = `<b>${node.label}</b><br>`;
       hoverText += `Status: <b>${status.toUpperCase()}</b><br>`;
 
-      if (node.description) {
-        hoverText += `${node.description}<br>`;
+      // 노드 타입 기반 동적 설명
+      if (node.type) {
+        hoverText += `<i>${this.getTypeDescription(node.type)}</i><br>`;
       }
 
+      hoverText += '<br>';
+
+      // Input 파일명 표시 (최대 3개)
       if (node.inputs && node.inputs.length > 0) {
-        hoverText += `Inputs: ${node.inputs.length} files<br>`;
+        hoverText += `<b>Inputs:</b><br>`;
+        const displayInputs = node.inputs.slice(0, 3);
+        displayInputs.forEach(input => {
+          hoverText += `  • ${this.getFileName(input)}<br>`;
+        });
+        if (node.inputs.length > 3) {
+          hoverText += `  <i>+${node.inputs.length - 3} more</i><br>`;
+        }
       }
 
+      // Output 파일명 표시 (최대 3개)
       if (node.outputs && node.outputs.length > 0) {
-        hoverText += `Outputs: ${node.outputs.length} files<br>`;
+        hoverText += `<b>Outputs:</b><br>`;
+        const displayOutputs = node.outputs.slice(0, 3);
+        displayOutputs.forEach(output => {
+          hoverText += `  • ${this.getFileName(output)}<br>`;
+        });
+        if (node.outputs.length > 3) {
+          hoverText += `  <i>+${node.outputs.length - 3} more</i><br>`;
+        }
       }
 
-      hoverText += '<br><i>Click for details</i>';
+      // 스크립트 정보 표시
+      if (node.script) {
+        hoverText += `<b>Script:</b> ${node.script}<br>`;
+      }
 
       return hoverText;
     },
@@ -539,61 +543,8 @@ export default {
      * Plotly 이벤트 설정
      */
     setupPlotlyEvents() {
-      const plotElement = this.$refs.dagPlot;
-
-      // 노드 클릭 이벤트
-      plotElement.on('plotly_click', (data) => {
-        if (data.points[0] && data.points[0].data.name === 'nodes') {
-          const nodeIndex = data.points[0].pointIndex;
-          this.handleNodeClick(nodeIndex);
-        }
-      });
-
-      // 더블클릭으로 뷰 리셋
-      plotElement.on('plotly_doubleclick', () => {
-        this.resetView();
-      });
-    },
-
-    /**
-     * 노드 클릭 처리
-     */
-    handleNodeClick(nodeIndex) {
-      if (this.dagData && this.dagData.nodes) {
-        this.selectedNode = this.dagData.nodes[nodeIndex];
-        this.highlightConnectedNodes(nodeIndex);
-      }
-    },
-
-    /**
-     * 연결된 노드 하이라이트
-     */
-    highlightConnectedNodes(nodeIndex) {
-      if (!this.dagData) return;
-
-      const selectedNodeId = this.dagData.nodes[nodeIndex].id;
-      const connected = new Set([nodeIndex]);
-
-      // 연결된 노드 찾기
-      this.dagData.edges.forEach(edge => {
-        if (edge.source === selectedNodeId) {
-          const targetIndex = this.dagData.nodes.findIndex(n => n.id === edge.target);
-          if (targetIndex !== -1) connected.add(targetIndex);
-        }
-        if (edge.target === selectedNodeId) {
-          const sourceIndex = this.dagData.nodes.findIndex(n => n.id === edge.source);
-          if (sourceIndex !== -1) connected.add(sourceIndex);
-        }
-      });
-
-      // 불투명도 조정
-      const opacity = this.dagData.nodes.map((_, idx) =>
-        connected.has(idx) ? 1 : 0.3
-      );
-
-      Plotly.restyle(this.$refs.dagPlot, {
-        'marker.opacity': [opacity]
-      }, [2]); // nodes trace index
+      // 현재는 hover만 사용하므로 추가 이벤트 설정 없음
+      // Plotly의 기본 hover 동작 사용
     },
 
     /**
@@ -647,40 +598,6 @@ export default {
           height: 1080,
           filename: `dag-${this.taskName}-${Date.now()}`
         });
-      }
-    },
-
-
-    /**
-     * 뷰 리셋
-     */
-    resetView() {
-      this.selectedNode = null;
-
-      if (this.dagData && this.$refs.dagPlot) {
-        const opacity = new Array(this.dagData.nodes.length).fill(1);
-        Plotly.restyle(this.$refs.dagPlot, {
-          'marker.opacity': [opacity]
-        }, [2]);
-      }
-    },
-
-    /**
-     * Rule 로그 보기
-     */
-    async showRuleLogs() {
-      if (!this.selectedNode || !this.taskId) return;
-
-      try {
-        const response = await getRuleLogs(this.taskId, this.selectedNode.id);
-
-        // 로그 데이터를 별도 모달이나 탭에서 표시
-        console.log('Rule logs:', response.data);
-        // TODO: 로그 뷰어 모달 구현
-      } catch (error) {
-        console.error('Failed to load rule logs:', error);
-        // 사용자 친화적인 오류 메시지 표시
-        alert('Failed to load rule logs. Please try again.');
       }
     },
 
@@ -893,119 +810,6 @@ export default {
   cursor: pointer;
 }
 
-/* 사이드바 스타일 */
-.dag-sidebar {
-  width: 280px;
-  border-left: 1px solid #576574;
-  background-color: #2c3e50;
-  overflow-y: auto;
-}
-
-.node-details {
-  padding: 16px;
-}
-
-.node-details h4 {
-  margin: 0 0 16px 0;
-  color: #ecf0f1;
-  border-bottom: 2px solid #576574;
-  padding-bottom: 8px;
-}
-
-.detail-section {
-  margin-bottom: 15px;
-}
-
-.detail-label {
-  font-weight: bold;
-  color: #ecf0f1;
-  margin-bottom: 5px;
-}
-
-.detail-content {
-  color: #bdc3c7;
-  line-height: 1.4;
-}
-
-.status-badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8em;
-  font-weight: bold;
-  text-transform: uppercase;
-}
-
-.status-pending {
-  background-color: #9E9E9E;
-  color: white;
-}
-
-.status-running {
-  background-color: #2196F3;
-  color: white;
-}
-
-.status-success {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.status-failed {
-  background-color: #F44336;
-  color: white;
-}
-
-.file-item,
-.param-item {
-  padding: 2px 0;
-  font-family: monospace;
-  font-size: 0.9em;
-}
-
-.script-content {
-  background-color: #1e2833;
-  padding: 10px;
-  border-radius: 8px;
-  font-family: monospace;
-  font-size: 0.8em;
-  max-height: 100px;
-  overflow-y: auto;
-  color: #ecf0f1;
-}
-
-.detail-actions {
-  margin-top: 20px;
-  display: flex;
-  gap: 10px;
-}
-
-.action-btn {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9em;
-  transition: background-color 0.2s;
-}
-
-.action-btn:not(.secondary) {
-  background: #2196F3;
-  color: white;
-}
-
-.action-btn:not(.secondary):hover {
-  background: #1976D2;
-}
-
-.action-btn.secondary {
-  background: #576574;
-  color: #ecf0f1;
-}
-
-.action-btn.secondary:hover {
-  background: #495A68;
-}
-
 /* 푸터 스타일 */
 .dag-footer {
   padding: 12px 16px;
@@ -1070,11 +874,6 @@ export default {
 
   .dag-body {
     flex-direction: column;
-  }
-
-  .dag-sidebar {
-    width: 100%;
-    max-height: 200px;
   }
 
   .dag-controls {
