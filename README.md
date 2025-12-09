@@ -249,7 +249,7 @@ Before installing CellCraft, please verify your system meets the following requi
    > - During this phase, the web interface at `http://localhost:8080` **will be accessible**, but **backend API features are unavailable**
    > - Features like **sign-up, login, and workflow execution will not work** until plugin initialization completes
    > - Wait until you see `Uvicorn running on http://0.0.0.0:8000` in the logs before using the application
-   > - If you see `4. Docker Images Check...` in the logs, the backend is still downloading plugin images
+   > - When you see `4. Docker Images Check...` in the logs, you can monitor the real-time download progress of each plugin image (e.g., `⬇ Pulling ghcr.io/cxinsys/cellcraft-fastscode:1.0... Downloading: 58.3%`)
 
    For **Windows/macOS** users: You can also verify plugin images in **Docker Desktop > Images** section.
 
