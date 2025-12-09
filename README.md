@@ -1,6 +1,6 @@
 <img src="https://github.com/cxinsys/cellcraft/blob/807998fda59e15e185ea9d2835ff7b81a884460f/frontend/src/assets/cellcraft_logo_text.png"/>
 
-[Demo website](https://cellcraft.app) • [Status page(Demo website)](https://status.cellcraft.app/) • [Docs](https://cellcraft.gitbook.io/cellcraft-docs)
+[Demo website](https://cellcraft.app) • [Status page(Demo website)](https://status.cellcraft.app/) • [Docs](https://cellcraft.gitbook.io/cellcraft-docs) • [YouTube](https://www.youtube.com/@CellCraft-cislab)
 
 ### Plugin Resources
 
@@ -66,7 +66,7 @@ Before installing CellCraft, please verify your system meets the following requi
 
 ## Getting Started
 
-0. **Install Prerequisites**:
+0. Install Prerequisites:
 
    Before starting, ensure you have the following tools installed on your system.
 
@@ -342,4 +342,3 @@ For more detailed information, see our documentation:
 - **Features**
   - [Execution Manifest](docs/features/execution-manifest/README.md) - Workflow reproducibility and debugging
 
-📺 **Video Tutorials**: [CellCraft YouTube Channel](https://www.youtube.com/@CellCraft-cislab)
