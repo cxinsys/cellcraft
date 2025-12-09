@@ -1265,6 +1265,7 @@ export default {
     height: 100%;
     color: #999;
     font-style: italic;
+    background-color: #ffffff;
 }
 
 .plugin-list,
