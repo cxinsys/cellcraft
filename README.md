@@ -1,6 +1,6 @@
 <img src="https://github.com/cxinsys/cellcraft/blob/807998fda59e15e185ea9d2835ff7b81a884460f/frontend/src/assets/cellcraft_logo_text.png"/>
 
-[Demo website](https://cellcraft.app) • [Status page(Demo website)](https://status.cellcraft.app/) • [Docs](https://cellcraft.gitbook.io/cellcraft-docs)
+[Demo website](https://cellcraft.app) • [Status page(Demo website)](https://status.cellcraft.app/) • [Docs](https://cellcraft.gitbook.io/cellcraft-docs) • [YouTube](https://www.youtube.com/@CellCraft-cislab)
 
 ### Plugin Resources
 
@@ -38,7 +38,84 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
 
 ---
 
+## System Requirements
+
+Before installing CellCraft, please verify your system meets the following requirements:
+
+| Component | Minimum | Recommended |
+| :--- | :--- | :--- |
+| CPU | 4 cores | 8+ cores |
+| RAM | 8 GB | 16+ GB |
+| Storage | 70 GB | 100+ GB |
+| OS | Ubuntu 20.04 LTS, Windows 10/11, macOS 10.15 Catalina | Ubuntu 22.04 LTS |
+| OS Kernel | 6.8.0 | 6.8.0+ |
+| glibc | 2.39 | 2.39+ |
+| Docker | 20.10.0 | 24.0.0+ |
+| Docker Compose | v2.0.0 | v2.20.0+ |
+| NVIDIA Driver | 535.171.04 (GPU only) | 535.171.04+ |
+| CUDA | 12.1 (GPU only) | 12.2+ |
+
+**Additional Notes**:
+- For GPU-enabled installation, use `./run-gpu-mode.sh`
+- For CPU-only installation, use `./run-cpu-mode.sh`
+- Docker Desktop (latest version) is required
+- Git with submodule support is required
+- Modern web browser (Chrome, Firefox, Edge, or Safari) is required
+
+---
+
 ## Getting Started
+
+0. Install Prerequisites:
+
+   Before starting, ensure you have the following tools installed on your system.
+
+   **Git Installation:**
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get update && sudo apt-get install -y git
+
+   # macOS (using Homebrew)
+   brew install git
+
+   # Windows: Download from https://git-scm.com/download/win
+   ```
+
+   **Docker Installation:**
+   ```bash
+   # Ubuntu/Debian - Install Docker Engine
+   sudo apt-get update
+   sudo apt-get install -y ca-certificates curl gnupg
+   sudo install -m 0755 -d /etc/apt/keyrings
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+   sudo chmod a+r /etc/apt/keyrings/docker.gpg
+   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+   sudo apt-get update
+   sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+   # Add current user to docker group (logout/login required)
+   sudo usermod -aG docker $USER
+
+   # macOS/Windows: Install Docker Desktop from https://www.docker.com/products/docker-desktop
+   ```
+
+   **NVIDIA Container Toolkit (GPU users only):**
+   ```bash
+   # Ubuntu/Debian - Required for GPU-enabled installation
+   curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+   curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+   sudo apt-get update
+   sudo apt-get install -y nvidia-container-toolkit
+   sudo nvidia-ctk runtime configure --runtime=docker
+   sudo systemctl restart docker
+
+   # Verify GPU access in Docker
+   docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
+   ```
+
+   > **Note**: After installing Docker, you may need to log out and log back in for group changes to take effect. For Windows/macOS, Docker Desktop includes Docker Compose by default.
 
 1. Clone the repository:
 
@@ -58,17 +135,17 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
    ```
 
    Interpret the output:
-   - `On branch release/plugins-v1.0` → Ready for GPU mode
+   - `On branch release/plugins-v1.1` → Ready for GPU mode
    - `On branch release/plugins-v1.0-cpu` → Ready for CPU mode
    - `HEAD detached at ...` → Switch to your desired branch below
 
    Target branches:
-   - `release/plugins-v1.0` for GPU-enabled installation
+   - `release/plugins-v1.1` for GPU-enabled installation
    - `release/plugins-v1.0-cpu` for CPU-only installation
 
    **For GPU-enabled installation:**
    ```bash
-   git switch release/plugins-v1.0
+   git switch release/plugins-v1.1
    cd ../../..
    ```
 
@@ -159,13 +236,20 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
    curl -sf http://localhost:8000/docs && echo "Backend OK"
    ```
 
-   **Plugin Registry**: Verifies all expected plugins are registered
+   **Plugin Initialization**: On first startup, the backend downloads plugin Docker images. Monitor the progress with:
    ```bash
-   # Manual check - view backend logs
-   docker compose -f [compose-file] logs backend
+   # Watch plugin download progress in real-time
+   docker compose -f docker-compose.gpu.amd64.yml logs -f backend   # For GPU mode
+   docker compose -f docker-compose.cpu.amd64.yml logs -f backend   # For CPU mode (AMD64)
+   docker compose -f docker-compose.cpu.arm64.yml logs -f backend   # For CPU mode (ARM64)
    ```
 
-   If you see `4. Docker Images Check...` in the logs but the server startup message (e.g., `Uvicorn running on http://0.0.0.0:8000`) has not appeared yet, the backend is still loading plugins.
+   > **Important - Plugin Download Phase:**
+   > - Plugin download takes approximately **10-15 minutes** depending on your network speed
+   > - During this phase, the web interface at `http://localhost:8080` **will be accessible**, but **backend API features are unavailable**
+   > - Features like **sign-up, login, and workflow execution will not work** until plugin initialization completes
+   > - Wait until you see `Uvicorn running on http://0.0.0.0:8000` in the logs before using the application
+   > - When you see `4. Docker Images Check...` in the logs, you can monitor the real-time download progress of each plugin image (e.g., `⬇ Pulling ghcr.io/cxinsys/cellcraft-fastscode:1.0... Downloading: 58.3%`)
 
    For **Windows/macOS** users: You can also verify plugin images in **Docker Desktop > Images** section.
 
@@ -175,249 +259,86 @@ Built to **lower technical barriers** in GRN analysis, CellCraft enables researc
    docker images | grep -E "(tenet|fasttenet|fastscode|genie3|grnboost2|leap|scribe|grnviz)"
    ```
 
-   > **Note:** On first startup, please wait **10-15 minutes** for all plugins to be fully configured. The backend service needs time to initialize and pull plugin images.
-
    Expected plugins:
    - **CPU mode (6 plugins)**: GENIE3, GRNBoost2, GRNViz, LEAP, Scribe, TENET
    - **GPU mode (8 plugins)**: Above 6 + FastSCODE, FastTENET
 
 ---
 
-## GHCR Image Management
+## Stopping and Cleaning Up
 
-CellCraft provides **pre-built Docker images** hosted on GitHub Container Registry (GHCR) for faster deployment. The `test-ghcr-check.sh` script helps you manage these images efficiently.
+### Stop Services
 
-### Available Container Images
+To stop all CellCraft services while preserving your data:
 
-| Image | Description | Platforms | GHCR Package | Latest Version |
-|-------|-------------|-----------|--------------|----------------|
-| **frontend** | Vue.js frontend application | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Ffrontend) | latest |
-| **backend-cpu** | FastAPI backend (CPU-only) | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fbackend-cpu) | latest |
-| **backend-gpu** | FastAPI backend (GPU-enabled) | AMD64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fbackend-gpu) | latest |
-| **celery-cpu** | Celery worker (CPU-only) | AMD64, ARM64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fcelery-cpu) | latest |
-| **celery-gpu** | Celery worker (GPU-enabled) | AMD64 | [View Package](https://github.com/cxinsys/cellcraft/pkgs/container/cellcraft%2Fcelery-gpu) | latest |
-
-**Quick Pull Commands:**
-
-For CPU mode (all 3 images):
 ```bash
-docker pull ghcr.io/cxinsys/cellcraft/frontend:latest
-docker pull ghcr.io/cxinsys/cellcraft/backend-cpu:latest
-docker pull ghcr.io/cxinsys/cellcraft/celery-cpu:latest
+# For GPU mode
+docker compose -f docker-compose.gpu.amd64.yml down
+
+# For CPU mode (AMD64)
+docker compose -f docker-compose.cpu.amd64.yml down
+
+# For CPU mode (ARM64)
+docker compose -f docker-compose.cpu.arm64.yml down
 ```
 
-For GPU mode (all 3 images):
+### Stop Services and Delete All Data
+
+To stop services and **remove all data** (database, uploaded files, etc.):
+
 ```bash
-docker pull ghcr.io/cxinsys/cellcraft/frontend:latest
-docker pull ghcr.io/cxinsys/cellcraft/backend-gpu:latest
-docker pull ghcr.io/cxinsys/cellcraft/celery-gpu:latest
+# For GPU mode (WARNING: This deletes all data!)
+docker compose -f docker-compose.gpu.amd64.yml down -v
+
+# For CPU mode (AMD64)
+docker compose -f docker-compose.cpu.amd64.yml down -v
+
+# For CPU mode (ARM64)
+docker compose -f docker-compose.cpu.arm64.yml down -v
 ```
 
-**Note:** The `test-ghcr-check.sh` script uses the `latest` tag to always pull the most recent multi-platform builds from GitHub Actions. This ensures you get the newest stable images automatically.
+> **Warning**: The `-v` flag removes all Docker volumes, including your database and uploaded files. Use this only when you want a fresh start.
 
-### Image Management Tool
+### Remove Docker Images
 
-The GHCR image checker provides both **interactive menu** and **command-line options** for managing CellCraft images:
+To free up disk space by removing CellCraft Docker images:
 
-**Interactive Mode:**
 ```bash
-./test-ghcr-check.sh
+# List all CellCraft-related images
+docker images | grep cellcraft
+
+# Remove specific image (replace with actual repository:tag)
+docker rmi ghcr.io/cxinsys/cellcraft/frontend:latest
+docker rmi ghcr.io/cxinsys/cellcraft/backend-cpu:latest
+docker rmi ghcr.io/cxinsys/cellcraft/celery-cpu:latest
+
+# Or remove all CellCraft images at once
+docker images | grep cellcraft | awk '{print $1":"$2}' | xargs docker rmi
 ```
 
-This launches an interactive menu with the following options:
-- Check CPU mode images (frontend, backend-cpu, celery-cpu)
-- Check GPU mode images (frontend, backend-gpu, celery-gpu)
-- Check all images (both CPU and GPU)
-- Download CPU mode images
-- Download GPU mode images
-
-**Command-Line Options:**
+To remove plugin images:
 ```bash
-./test-ghcr-check.sh --cpu         # Check and optionally download CPU images
-./test-ghcr-check.sh --gpu         # Check and optionally download GPU images
-./test-ghcr-check.sh --check-only  # Check all images without downloading
-./test-ghcr-check.sh --help        # Show usage information
+# List plugin images
+docker images | grep -E "(tenet|fasttenet|fastscode|genie3|grnboost2|leap|scribe|grnviz)"
+
+# Remove all plugin images
+docker images | grep -E "(tenet|fasttenet|fastscode|genie3|grnboost2|leap|scribe|grnviz)" | awk '{print $1":"$2}' | xargs docker rmi
 ```
-
-### Image Status Indicators
-
-The script displays clear status for each image:
-- ✅ **LOCAL**: Image exists locally (instant startup, no download needed)
-- ⚠️ **REMOTE**: Image available remotely (will be downloaded when needed)
-- ❌ **MISSING**: Image not accessible (will fall back to local build)
-
-### Pre-downloading Images
-
-Pre-downloading images is recommended for:
-- **Faster first-time deployment** (no wait during startup)
-- **Offline environments** (download once, deploy anytime)
-- **Network-constrained setups** (download during off-peak hours)
-
-The script intelligently skips images that already exist locally and provides detailed download statistics.
-
-### Smart Image Detection
-
-Both `run-cpu-mode.sh` and `run-gpu-mode.sh` implement **local-first checking**:
-1. Check if all required images exist locally
-2. If all local → **instant startup** without pulling
-3. If some missing → check remote accessibility → pull only missing images
-4. If remote inaccessible → automatically fall back to local build
-
-This ensures the fastest possible deployment while maintaining reliability.
 
 ---
 
-## Troubleshooting
+## Additional Resources
 
-### Submodule Branch Mismatch After Installation
+For more detailed information, see our documentation:
 
-If you have already installed CellCraft using docker compose but the plugin submodule is pointing to the wrong branch, follow these steps to fix it:
+- **Installation & Deployment**
+  - [GHCR Image Management](docs/installation/GHCR_IMAGE_MANAGEMENT.md) - Pre-built Docker images and management tools
+  - [Troubleshooting](docs/installation/TROUBLESHOOTING.md) - Common issues and solutions
 
-1. Switch to the correct submodule branch:
+- **User Guides**
+  - [Tutorials](docs/guides/TUTORIALS.md) - Step-by-step video guides
+  - [Platform-Specific Guide](docs/guides/PLATFORM_SPECIFIC.md) - macOS, Windows, Linux specific notes
 
-   **For GPU-enabled installation:**
-   ```bash
-   cd backend/plugin/official
-   git switch release/plugins-v1.0
-   cd ../../..
-   ```
+- **Features**
+  - [Execution Manifest](docs/features/execution-manifest/README.md) - Workflow reproducibility and debugging
 
-   **For CPU-only installation:**
-   ```bash
-   cd backend/plugin/official
-   git switch release/plugins-v1.0-cpu
-   cd ../../..
-   ```
-
-2. Stop the services and remove volumes to clear old plugin data:
-
-   ```bash
-   # For GPU (AMD64)
-   docker compose -f docker-compose.gpu.amd64.yml down -v
-   # For CPU (AMD64)
-   docker compose -f docker-compose.cpu.amd64.yml down -v
-   # For CPU (ARM64 - Apple Silicon/ARM Linux)
-   docker compose -f docker-compose.cpu.arm64.yml down -v
-   ```
-
-3. Restart the services:
-
-   **For GPU-enabled setup (AMD64):**
-   ```bash
-   docker compose -f docker-compose.gpu.amd64.yml up -d --build
-   ```
-
-   **For CPU-only setup (AMD64):**
-   ```bash
-   docker compose -f docker-compose.cpu.amd64.yml up -d --build
-   ```
-
-   **For CPU-only setup (ARM64):**
-   ```bash
-   docker compose -f docker-compose.cpu.arm64.yml up -d --build
-   ```
-
-This process ensures that:
-- Plugin metadata is properly initialized in the database
-- Plugin Docker images are correctly pulled from GHCR
-- All plugin configurations are synchronized with the correct version
-
----
-
-## Tutorials
-
-To help you get started with CellCraft, we have prepared step-by-step tutorial videos. These tutorials cover everything from setting up your environment to performing **GRN analysis**.
-
-📺 **Watch our tutorial series on YouTube**: [CellCraft Tutorial Playlist](https://www.youtube.com/@CellCraft-cislab)
-
-### What You Will Learn:
-
-1. **Exploring the Main Page** - An overview of the main page and its key contents.
-
-   ![Exploring the Main Page](https://files.gitbook.com/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FjRZEd1fcjAhaS66UWnMw%2Fuploads%2FHl6XamxlUoSXKnEElLbY%2Ftuto_main.gif?alt=media&token=d2fd5fb3-af62-4816-980d-57f708994087)
-
-2. **Managing Data** - How to organize and manage data for analysis.
-
-   ![Managing Data](https://files.gitbook.com/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FjRZEd1fcjAhaS66UWnMw%2Fuploads%2Fe45wYiVaIBFnkeWyfSSq%2Ftuto_DataUpload.gif?alt=media&token=87adc0b1-1053-4b65-8540-a67efb5584ce)
-
-3. **Configuring the Workflow** - Setting up the workflow before executing tasks.
-
-   ![Configuring the Workflow](https://files.gitbook.com/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FjRZEd1fcjAhaS66UWnMw%2Fuploads%2FKkQzRTvRyK7HkJxm2atX%2Ftuto_lasso.gif?alt=media&token=eb804547-f2fd-4e36-bdec-4ef30f3e7350)
-
-4. **Executing the Task** - Running tasks and monitoring their progress.
-
-   ![Executing the Task](https://files.gitbook.com/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FjRZEd1fcjAhaS66UWnMw%2Fuploads%2Fe91usDzgphuq4hI0QQuE%2Ftuto_executeTask.gif?alt=media&token=34d65e28-8f6c-4b3d-86e4-e2f0884a2302)
-
-5. **Analyzing the Results** - Interpreting and analyzing data based on output files.
-
-   ![Analyzing the Results](https://files.gitbook.com/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FjRZEd1fcjAhaS66UWnMw%2Fuploads%2FbDyVupxC3auhlGNOsWdG%2Ftuto_barplot.gif?alt=media&token=3956a66e-fb0c-418a-ab2b-91c558b4ed93)
-
----
-
-## Platform-Specific Considerations
-
-### Mac Apple Silicon Support
-
-CellCraft provides **optimized support** for Mac Apple Silicon (M1/M2/M3/M4) with native ARM64 builds.
-
-#### Quick Start for Mac Users
-
-**Using the ARM64-optimized Docker Compose:**
-```bash
-docker compose -f docker-compose.cpu.arm64.yml up -d --build
-```
----
-
-### Plugin Compatibility
-
-**Official Plugins**
-- ✅ Fully supported on all platforms (Windows, Linux, macOS)
-- Pre-configured and tested for cross-platform compatibility
-- Includes: TENET, FastTENET, GENIE3, GRNBoost2, LEAP, Scribe, and GRNViz
-
-**Custom Local Plugins**
-- ✅ Supported on Windows and Linux
-- ❌ Not currently supported on macOS (planned for future updates)
-- Allows users to create and integrate custom GRN analysis plugins
-
-### System Requirements
-
-Before installing CellCraft, please verify your system meets the following requirements:
-
-| Component | Minimum | Recommended |
-| :--- | :--- | :--- |
-| CPU | 4 cores | 8+ cores |
-| RAM | 8 GB | 16+ GB |
-| Storage | 70 GB | 100+ GB |
-| OS | Ubuntu 20.04 LTS, Window 10/11, macOS 10.15 Catalina | Ubuntu 22.04 LTS |
-| OS Kernel | 6.8.0 | 6.8.0+ |
-| glibc | 2.3.9 | 2.3.9+ |
-| Docker | 20.10.0 | 24.0.0+ |
-| Docker Compose | v2.0.0 | v2.20.0+ |
-| NVIDIA Driver | 535.171.04 | 535.171.04+ |
-| CUDA | 12.1 | 12.2+ |
-
-**Additional Notes**:
-- For GPU-enabled installation, use `./run-gpu-mode.sh`
-- For CPU-only installation, use `./run-cpu-mode.sh`
-- Docker Desktop (latest version) is required
-- Git with submodule support is required
-- Modern web browser (Chrome, Firefox, Edge, or Safari) is required
-
-### Important Notes
-
-**For macOS Users**
-- Currently, only official plugins are available on macOS
-- Custom local plugin development is limited to Windows and Linux environments
-- We recommend using the comprehensive set of official plugins for your GRN analysis needs
-- Full macOS support for custom plugins is planned for future releases
-
-**Performance Considerations**
-- GPU acceleration significantly improves performance for large-scale analyses
-- CPU-only mode is suitable for smaller datasets and testing
-- Always check your Docker resource allocations to ensure optimal performance
-
-**Future Updates**
-- macOS support for custom local plugins is under active development
-- Additional official plugins will be added regularly
-- Performance optimizations for all platforms are ongoing

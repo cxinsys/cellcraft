@@ -107,37 +107,45 @@ class PluginSyncManager:
     def sync_plugins_to_database(self) -> Dict[str, any]:
         """
         Synchronize plugins.csv to database
-        
+
         Returns:
             Dict containing sync results
+
+        Note:
+            Plugin versions are now managed per-plugin via plugins.csv.
+            Each plugin has its own version (e.g., GENIE3: 1.0, FastTENET: 1.1).
+            The version.json "version" field represents the plugin bundle version,
+            NOT individual plugin versions.
         """
         try:
             # Check if plugins.csv exists
             if not self.plugins_csv_path.exists():
                 raise FileNotFoundError(f"plugins.csv not found at {self.plugins_csv_path}")
-            
+
             # Use existing function to initialize plugins
+            # This properly reads individual plugin versions from plugins.csv
             initialize_plugins_from_csv(str(self.plugins_csv_path))
-            
-            # Get version info from file
+
+            # Get version info from file (for bundle version tracking only)
             version_info = {}
             version_file = self.official_plugin_path / "version.json"
             if version_file.exists():
                 with open(version_file, 'r') as f:
                     version_info = json.load(f)
-            
+
             current_branch = version_info.get("branch", "release/plugins-v1.0")
-            version = self.extract_version_from_branch(current_branch)
-            
-            # Update version for all official plugins
-            self.update_plugin_versions(version)
-            
+            bundle_version = self.extract_version_from_branch(current_branch)
+
+            # NOTE: Do NOT call update_plugin_versions() here!
+            # Individual plugin versions are already set correctly from plugins.csv
+            # update_plugin_versions() would incorrectly overwrite all plugins with the bundle version
+
             return {
                 "success": True,
                 "branch": current_branch,
-                "version": version,
+                "bundle_version": bundle_version,
                 "version_info": version_info,
-                "message": f"Successfully synced plugins with version {version}"
+                "message": f"Successfully synced plugins from CSV (bundle: {bundle_version})"
             }
             
         except Exception as e:
@@ -149,29 +157,39 @@ class PluginSyncManager:
     
     def update_plugin_versions(self, version: str) -> None:
         """
-        Update version field for all official plugins in database
-        
+        DEPRECATED: Do not use this method.
+
+        This method incorrectly overwrites individual plugin versions with a single
+        bundle version. Each plugin has its own version defined in plugins.csv
+        (e.g., GENIE3: 1.0, FastTENET: 1.1), and this method would overwrite
+        all of them with the bundle version from version.json.
+
+        Plugin versions should ONLY be updated via:
+        1. Editing plugins.csv with correct individual versions
+        2. Running initialize_plugins_from_csv() which respects per-plugin versions
+
         Args:
-            version: Version string to set for all official plugins
+            version: Version string (IGNORED - method is deprecated)
+
+        Warning:
+            This method is kept for backward compatibility but logs a warning
+            and does nothing. It will be removed in a future version.
         """
-        db = SessionLocal()
-        try:
-            # Update all official plugins
-            official_plugins = db.query(models.Plugin).filter_by(source="official").all()
-            
-            for plugin in official_plugins:
-                plugin.version = version
-                logger.info(f"Updated {plugin.name} to version {version}")
-            
-            db.commit()
-            logger.info(f"Updated {len(official_plugins)} official plugins to version {version}")
-            
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Failed to update plugin versions: {e}")
-            raise
-        finally:
-            db.close()
+        logger.warning(
+            "DEPRECATED: update_plugin_versions() is deprecated and does nothing. "
+            "Plugin versions are now managed per-plugin via plugins.csv. "
+            "Do not call this method - it would incorrectly overwrite individual versions."
+        )
+        # DO NOT update versions - each plugin has its own version from plugins.csv
+        # The following code is intentionally disabled:
+        # db = SessionLocal()
+        # try:
+        #     official_plugins = db.query(models.Plugin).filter_by(source="official").all()
+        #     for plugin in official_plugins:
+        #         plugin.version = version  # BAD: overwrites individual versions!
+        #     db.commit()
+        # finally:
+        #     db.close()
     
     def get_sync_status(self) -> Dict[str, any]:
         """

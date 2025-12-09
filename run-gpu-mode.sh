@@ -22,7 +22,7 @@ readonly PLUGIN_DIR="${SCRIPT_DIR}/backend/plugin/official"
 readonly COMPOSE_FILE_GHCR="${SCRIPT_DIR}/docker-compose.gpu.yml"
 readonly COMPOSE_FILE_LOCAL="${SCRIPT_DIR}/docker-compose.gpu.amd64.yml"
 readonly CHECK_SCRIPT="${SCRIPT_DIR}/check-installation.sh"
-readonly GPU_BRANCH="release/plugins-v1.0"
+readonly GPU_BRANCH="release/plugins-v1.1"
 readonly VERSION_FILE="${PLUGIN_DIR}/version.json"
 
 # Script options
@@ -289,38 +289,128 @@ backup_git_state() {
     cd "${SCRIPT_DIR}"
 }
 
-# Switch to GPU branch
+# Get current submodule branch info
+get_current_submodule_info() {
+    cd "${PLUGIN_DIR}"
+
+    local current_branch=""
+    local current_commit=""
+
+    # Get current branch or commit
+    if current_branch=$(git symbolic-ref --short HEAD 2>/dev/null); then
+        echo "branch:${current_branch}"
+    else
+        current_commit=$(git rev-parse --short HEAD 2>/dev/null)
+        echo "commit:${current_commit}"
+    fi
+
+    cd "${SCRIPT_DIR}"
+}
+
+# Switch to GPU branch with user confirmation
 switch_to_gpu_branch() {
     log_header "Plugin Branch Configuration"
-    
+
     cd "${PLUGIN_DIR}"
-    
+
     # Fetch latest changes
     log_step "Fetching latest changes"
     git fetch origin || {
         log_warning "Failed to fetch from remote, continuing with local branches"
     }
-    
-    # Check if GPU branch exists
+
+    # Get current submodule state
+    local current_info
+    current_info=$(get_current_submodule_info)
+    local current_type="${current_info%%:*}"
+    local current_value="${current_info#*:}"
+
+    # Display current submodule information
+    log_header "Current Plugin Submodule Information"
+    if [[ "$current_type" == "branch" ]]; then
+        log_info "Current branch: ${current_value}"
+    else
+        log_info "Current state: detached HEAD at commit ${current_value}"
+    fi
+
+    # Display version.json info if available
+    if [[ -f "${VERSION_FILE}" ]] && command -v jq &> /dev/null && jq -e . "${VERSION_FILE}" >/dev/null 2>&1; then
+        local version_info
+        version_info=$(jq -r '.version // "unknown"' "${VERSION_FILE}")
+        local branch_info
+        branch_info=$(jq -r '.branch // "unknown"' "${VERSION_FILE}")
+        log_info "Version file info - Branch: ${branch_info}, Version: ${version_info}"
+    fi
+
+    echo ""
+    log_info "Recommended branch for GPU mode: ${CYAN}${GPU_BRANCH}${NC}"
+    echo ""
+
+    # Check if already on recommended branch
+    if [[ "$current_type" == "branch" && "$current_value" == "$GPU_BRANCH" ]]; then
+        log_success "Already on recommended branch: ${GPU_BRANCH}"
+        log_info "Proceeding with current branch..."
+        cd "${SCRIPT_DIR}"
+        return 0
+    fi
+
+    # Check if GPU branch exists in remote
     if ! git show-ref --verify --quiet "refs/remotes/origin/${GPU_BRANCH}"; then
         log_error "GPU branch '${GPU_BRANCH}' not found in remote"
         log_error "Available branches:"
         git branch -r | head -10
         exit 1
     fi
-    
-    # Switch to GPU branch
-    log_step "Switching to GPU-compatible branch: ${GPU_BRANCH}"
-    if git checkout "${GPU_BRANCH}" 2>/dev/null; then
-        log_success "Successfully switched to ${GPU_BRANCH}"
-    elif git checkout -b "${GPU_BRANCH}" "origin/${GPU_BRANCH}" 2>/dev/null; then
-        log_success "Created and switched to ${GPU_BRANCH}"
+
+    # Ask user for confirmation to switch branch
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}⚠️  Current branch differs from recommended branch${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    if [[ "$current_type" == "branch" ]]; then
+        echo -e "  Current:     ${RED}${current_value}${NC}"
     else
-        log_error "Failed to switch to ${GPU_BRANCH}"
-        restore_git_state
-        exit 1
+        echo -e "  Current:     ${RED}detached HEAD (${current_value})${NC}"
     fi
-    
+    echo -e "  Recommended: ${GREEN}${GPU_BRANCH}${NC}"
+    echo ""
+
+    local user_choice
+    read -p "Do you want to switch to the recommended branch? [y/N]: " user_choice
+    user_choice=${user_choice:-N}
+
+    case "$user_choice" in
+        [Yy]|[Yy][Ee][Ss])
+            log_step "Switching to GPU-compatible branch: ${GPU_BRANCH}"
+            if git checkout "${GPU_BRANCH}" 2>/dev/null; then
+                log_success "Successfully switched to ${GPU_BRANCH}"
+            elif git checkout -b "${GPU_BRANCH}" "origin/${GPU_BRANCH}" 2>/dev/null; then
+                log_success "Created and switched to ${GPU_BRANCH}"
+            else
+                log_error "Failed to switch to ${GPU_BRANCH}"
+                restore_git_state
+                exit 1
+            fi
+            ;;
+        *)
+            log_warning "Keeping current branch/commit: ${current_value}"
+            log_warning "Note: Some GPU plugins may not work correctly with this branch"
+            echo ""
+            read -p "Continue with current branch? [y/N]: " continue_choice
+            continue_choice=${continue_choice:-N}
+            case "$continue_choice" in
+                [Yy]|[Yy][Ee][Ss])
+                    log_info "Proceeding with current branch..."
+                    ;;
+                *)
+                    log_info "Aborting launch..."
+                    cd "${SCRIPT_DIR}"
+                    exit 0
+                    ;;
+            esac
+            ;;
+    esac
+
     # Verify version.json exists
     if [[ -f "${VERSION_FILE}" ]]; then
         log_success "Version configuration file found"
@@ -335,7 +425,7 @@ switch_to_gpu_branch() {
     else
         log_warning "Version configuration file not found, but continuing"
     fi
-    
+
     cd "${SCRIPT_DIR}"
 }
 
