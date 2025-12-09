@@ -635,7 +635,7 @@ def switch_plugin_branch(
             return {
                 "message": f"Successfully switched to branch {branch} and synchronized database",
                 "branch": branch,
-                "version": sync_result.get("version"),
+                "bundle_version": sync_result.get("bundle_version"),
                 "sync_result": sync_result
             }
         else:
