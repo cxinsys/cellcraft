@@ -66,11 +66,11 @@ Before installing CellCraft, please verify your system meets the following requi
 
 ## Getting Started
 
-0. Install Prerequisites:
+**0. Install Prerequisites:**
 
    Before starting, ensure you have the following tools installed on your system.
 
-   **Git Installation:**
+   Git Installation:
    ```bash
    # Ubuntu/Debian
    sudo apt-get update && sudo apt-get install -y git
@@ -81,7 +81,7 @@ Before installing CellCraft, please verify your system meets the following requi
    # Windows: Download from https://git-scm.com/download/win
    ```
 
-   **Docker Installation:**
+   Docker Installation:
    ```bash
    # Ubuntu/Debian - Install Docker Engine
    sudo apt-get update
@@ -99,7 +99,7 @@ Before installing CellCraft, please verify your system meets the following requi
    # macOS/Windows: Install Docker Desktop from https://www.docker.com/products/docker-desktop
    ```
 
-   **NVIDIA Container Toolkit (GPU users only):**
+   NVIDIA Container Toolkit (GPU users only):
    ```bash
    # Ubuntu/Debian - Required for GPU-enabled installation
    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
@@ -117,18 +117,18 @@ Before installing CellCraft, please verify your system meets the following requi
 
    > **Note**: After installing Docker, you may need to log out and log back in for group changes to take effect. For Windows/macOS, Docker Desktop includes Docker Compose by default.
 
-1. Clone the repository:
+**1. Clone the repository:**
 
    ```bash
    git clone --recurse-submodules https://github.com/cxinsys/cellcraft.git
    cd cellcraft
    ```
 
-2. Configure plugin submodule for your installation mode:
+**2. Configure plugin submodule for your installation mode:**
 
    The plugin submodule must be set to the correct branch before starting.
 
-   **Check current submodule status:**
+   Check current submodule status:
    ```bash
    cd backend/plugin/official
    git status
@@ -143,23 +143,23 @@ Before installing CellCraft, please verify your system meets the following requi
    - `release/plugins-v1.1` for GPU-enabled installation
    - `release/plugins-v1.0-cpu` for CPU-only installation
 
-   **For GPU-enabled installation:**
+   For GPU-enabled installation:
    ```bash
    git switch release/plugins-v1.1
    cd ../../..
    ```
 
-   **For CPU-only installation:**
+   For CPU-only installation:
    ```bash
    git switch release/plugins-v1.0-cpu
    cd ../../..
    ```
 
-3. (Optional) Manage GHCR images:
+**3. (Optional) Manage GHCR images:**
 
    Before installation, you can optionally **check and pre-download** required Docker images from GitHub Container Registry (GHCR). This step is recommended for faster deployment and offline environments.
 
-   **Interactive mode (recommended for first-time users):**
+   Interactive mode (recommended):
    ```bash
    ./test-ghcr-check.sh
    ```
@@ -168,23 +168,23 @@ Before installing CellCraft, please verify your system meets the following requi
    - Option 1 or 2: Check image availability for CPU or GPU mode
    - Option 4 or 5: Pre-download images for your preferred mode
 
-   **Command-line mode (for automation):**
+   Command-line mode (for automation):
    ```bash
    ./test-ghcr-check.sh --cpu  # For CPU-only mode
    ./test-ghcr-check.sh --gpu  # For GPU-enabled mode
    ```
 
-   **What this script does:**
-   - ✅ Checks if images exist locally (instant deployment if available)
-   - ⚠️ Verifies remote GHCR accessibility (download if needed)
-   - 📥 Optionally pre-downloads images based on your deployment mode
-   - 📊 Provides detailed status and download statistics
+   What this script does:
+   - Checks if images exist locally (instant deployment if available)
+   - Verifies remote GHCR accessibility (download if needed)
+   - Optionally pre-downloads images based on your deployment mode
+   - Provides detailed status and download statistics
 
    **Note:** If you skip this step or if GHCR is not accessible, the installation scripts will automatically fall back to building images locally. Pre-downloading images is simply an optimization for faster deployment.
 
-4. Start the application:
+**4. Start the application:**
 
-   **Option A: Using automated scripts (recommended)**
+   Option A: Using automated scripts (recommended)
 
    For GPU-enabled installation:
    ```bash
@@ -196,7 +196,7 @@ Before installing CellCraft, please verify your system meets the following requi
    ./run-cpu-mode.sh
    ```
 
-   **Option B: Using docker compose directly**
+   Option B: Using docker compose directly
 
    For GPU-enabled setup (AMD64 with NVIDIA GPU):
    ```bash
@@ -213,9 +213,9 @@ Before installing CellCraft, please verify your system meets the following requi
    docker compose -f docker-compose.cpu.arm64.yml up -d --build
    ```
 
-5. Access the application at [http://localhost:8080](http://localhost:8080).
+**5. Access the application at [http://localhost:8080](http://localhost:8080).**
 
-6. Check the installation status:
+**6. Check the installation status:**
 
    ```bash
    ./check-installation.sh
@@ -253,7 +253,7 @@ Before installing CellCraft, please verify your system meets the following requi
 
    For **Windows/macOS** users: You can also verify plugin images in **Docker Desktop > Images** section.
 
-   **Using command line:**
+   Using command line:
    ```bash
    # List all plugin images
    docker images | grep -E "(tenet|fasttenet|fastscode|genie3|grnboost2|leap|scribe|grnviz)"
