@@ -33,6 +33,10 @@ on:
         description: 'Build CPU images without cache (use when Dockerfile structure changes)'
         type: boolean
         default: false
+      no_cache_gpu:
+        description: 'Build GPU images without cache'
+        type: boolean
+        default: false
       no_cache_frontend:
         description: 'Build frontend image without cache'
         type: boolean
@@ -62,13 +66,25 @@ env:
   IMAGE_PREFIX: ghcr.io/cxinsys/cellcraft
 
 jobs:
-  build-and-push:
+  # Backend CPU 이미지 빌드 (병렬 Job 1)
+  build-backend-cpu:
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.build_backend_cpu == 'true'
     permissions:
       contents: read
       packages: write
-
     steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -87,26 +103,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.CELLCRAFT_GHCR }}
 
-      # 이미지 태그 결정 로직
       - name: Determine image tags
         id: meta
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # 수동 실행: 사용자 입력 태그 사용
             echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            # 태그 push: 태그 이름 사용 (v1.0.1 → v1.0.1)
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            # 기본: latest + 짧은 commit SHA
             echo "version=latest" >> $GITHUB_OUTPUT
           fi
-          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      # Backend CPU 이미지 빌드
       - name: Build and push Backend CPU
-        if: |
-          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_backend_cpu == 'true')
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -116,7 +124,6 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/backend-cpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/backend-cpu:latest
-          # Cache scope changed to v2 to invalidate old broken cache
           no-cache: ${{ github.event.inputs.no_cache_cpu == 'true' }}
           cache-from: ${{ github.event.inputs.no_cache_cpu != 'true' && 'type=gha,scope=backend-cpu-v2' || '' }}
           cache-to: type=gha,mode=max,scope=backend-cpu-v2
@@ -124,10 +131,55 @@ jobs:
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
             VERSION=${{ steps.meta.outputs.version }}
 
-      # Celery CPU 이미지 빌드
+  # Celery CPU 이미지 빌드 (병렬 Job 2)
+  build-celery-cpu:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.build_celery_cpu == 'true'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.CELLCRAFT_GHCR }}
+
+      - name: Determine image tags
+        id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and push Celery CPU
-        if: |
-          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_celery_cpu == 'true')
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -137,7 +189,6 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/celery-cpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/celery-cpu:latest
-          # Cache scope changed to v2 to invalidate old broken cache
           no-cache: ${{ github.event.inputs.no_cache_cpu == 'true' }}
           cache-from: ${{ github.event.inputs.no_cache_cpu != 'true' && 'type=gha,scope=celery-cpu-v2' || '' }}
           cache-to: type=gha,mode=max,scope=celery-cpu-v2
@@ -145,10 +196,52 @@ jobs:
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
             VERSION=${{ steps.meta.outputs.version }}
 
-      # Backend GPU 이미지 빌드 (amd64 only)
+  # Backend GPU 이미지 빌드 (병렬 Job 3)
+  build-backend-gpu:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.build_backend_gpu == 'true'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.CELLCRAFT_GHCR }}
+
+      - name: Determine image tags
+        id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and push Backend GPU
-        if: |
-          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_backend_gpu == 'true')
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -158,16 +251,59 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/backend-gpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/backend-gpu:latest
-          cache-from: type=gha,scope=backend-gpu
+          no-cache: ${{ github.event.inputs.no_cache_gpu == 'true' }}
+          cache-from: ${{ github.event.inputs.no_cache_gpu != 'true' && 'type=gha,scope=backend-gpu' || '' }}
           cache-to: type=gha,mode=max,scope=backend-gpu
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
             VERSION=${{ steps.meta.outputs.version }}
 
-      # Celery GPU 이미지 빌드 (amd64 only)
+  # Celery GPU 이미지 빌드 (병렬 Job 4)
+  build-celery-gpu:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.build_celery_gpu == 'true'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.CELLCRAFT_GHCR }}
+
+      - name: Determine image tags
+        id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and push Celery GPU
-        if: |
-          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_celery_gpu == 'true')
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -177,16 +313,62 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/celery-gpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/celery-gpu:latest
-          cache-from: type=gha,scope=celery-gpu
+          no-cache: ${{ github.event.inputs.no_cache_gpu == 'true' }}
+          cache-from: ${{ github.event.inputs.no_cache_gpu != 'true' && 'type=gha,scope=celery-gpu' || '' }}
           cache-to: type=gha,mode=max,scope=celery-gpu
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
             VERSION=${{ steps.meta.outputs.version }}
 
-      # Frontend 이미지 빌드
+  # Frontend 이미지 빌드 (병렬 Job 5)
+  build-frontend:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.build_frontend == 'true'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.CELLCRAFT_GHCR }}
+
+      - name: Determine image tags
+        id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and push Frontend
-        if: |
-          (github.event_name != 'workflow_dispatch' || github.event.inputs.build_frontend == 'true')
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
@@ -203,46 +385,35 @@ jobs:
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
             VERSION=${{ steps.meta.outputs.version }}
 
-      # 빌드 결과 요약
+  # 빌드 결과 요약 (모든 빌드 완료 후 실행)
+  build-summary:
+    needs: [build-backend-cpu, build-celery-cpu, build-backend-gpu, build-celery-gpu, build-frontend]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
       - name: Build summary
         run: |
           echo "### Build Summary :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.meta.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ steps.meta.outputs.sha_short }}" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Trigger** | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | ${{ github.event.inputs.image_tag || 'latest' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${GITHUB_SHA::7}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**CPU Images Cache:**" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.event.inputs.no_cache_cpu }}" == "true" ]]; then
-            echo "- Disabled (fresh build)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- Enabled (v2 scope)" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "**GPU Images Cache:** Enabled" >> $GITHUB_STEP_SUMMARY
-          echo "**Frontend Cache:**" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.event.inputs.no_cache_frontend }}" == "true" ]]; then
-            echo "- Disabled (fresh build)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- Enabled (v1 scope)" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "#### :package: CPU Images (linux/amd64, linux/arm64)" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | Status | Cache |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend CPU | ${{ needs.build-backend-cpu.result }} | ${{ github.event.inputs.no_cache_cpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Celery CPU | ${{ needs.build-celery-cpu.result }} | ${{ github.event.inputs.no_cache_cpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**CPU Images built (linux/amd64, linux/arm64):**" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_backend_cpu }}" == "true" ]]; then
-            echo "- ✅ Backend CPU" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_celery_cpu }}" == "true" ]]; then
-            echo "- ✅ Celery CPU" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "#### :video_game: GPU Images (linux/amd64 only)" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | Status | Cache |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend GPU | ${{ needs.build-backend-gpu.result }} | ${{ github.event.inputs.no_cache_gpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Celery GPU | ${{ needs.build-celery-gpu.result }} | ${{ github.event.inputs.no_cache_gpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**GPU Images built (linux/amd64 only):**" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_backend_gpu }}" == "true" ]]; then
-            echo "- ✅ Backend GPU" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_celery_gpu }}" == "true" ]]; then
-            echo "- ✅ Celery GPU" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Frontend Image built (linux/amd64, linux/arm64):**" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]] || [[ "${{ github.event.inputs.build_frontend }}" == "true" ]]; then
-            echo "- ✅ Frontend" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "#### :globe_with_meridians: Frontend (linux/amd64, linux/arm64)" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | Status | Cache |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ needs.build-frontend.result }} | ${{ github.event.inputs.no_cache_frontend == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
