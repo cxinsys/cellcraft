@@ -531,11 +531,6 @@ export default {
         }
       }
 
-      // 스크립트 정보 표시
-      if (node.script) {
-        hoverText += `<b>Script:</b> ${node.script}<br>`;
-      }
-
       return hoverText;
     },
 
