@@ -124,8 +124,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/backend-cpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/backend-cpu:latest
-          no-cache: ${{ github.event.inputs.no_cache_cpu == 'true' }}
-          cache-from: ${{ github.event.inputs.no_cache_cpu != 'true' && 'type=gha,scope=backend-cpu-v2' || '' }}
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.no_cache_cpu == 'true' }}
+          cache-from: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.no_cache_cpu != 'true') && 'type=gha,scope=backend-cpu-v2' || '' }}
           cache-to: type=gha,mode=max,scope=backend-cpu-v2
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -189,8 +189,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/celery-cpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/celery-cpu:latest
-          no-cache: ${{ github.event.inputs.no_cache_cpu == 'true' }}
-          cache-from: ${{ github.event.inputs.no_cache_cpu != 'true' && 'type=gha,scope=celery-cpu-v2' || '' }}
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.no_cache_cpu == 'true' }}
+          cache-from: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.no_cache_cpu != 'true') && 'type=gha,scope=celery-cpu-v2' || '' }}
           cache-to: type=gha,mode=max,scope=celery-cpu-v2
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -251,8 +251,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/backend-gpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/backend-gpu:latest
-          no-cache: ${{ github.event.inputs.no_cache_gpu == 'true' }}
-          cache-from: ${{ github.event.inputs.no_cache_gpu != 'true' && 'type=gha,scope=backend-gpu' || '' }}
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.no_cache_gpu == 'true' }}
+          cache-from: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.no_cache_gpu != 'true') && 'type=gha,scope=backend-gpu' || '' }}
           cache-to: type=gha,mode=max,scope=backend-gpu
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -313,8 +313,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/celery-gpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/celery-gpu:latest
-          no-cache: ${{ github.event.inputs.no_cache_gpu == 'true' }}
-          cache-from: ${{ github.event.inputs.no_cache_gpu != 'true' && 'type=gha,scope=celery-gpu' || '' }}
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.no_cache_gpu == 'true' }}
+          cache-from: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.no_cache_gpu != 'true') && 'type=gha,scope=celery-gpu' || '' }}
           cache-to: type=gha,mode=max,scope=celery-gpu
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -378,8 +378,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/frontend:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/frontend:latest
-          no-cache: ${{ github.event.inputs.no_cache_frontend == 'true' }}
-          cache-from: ${{ github.event.inputs.no_cache_frontend != 'true' && 'type=gha,scope=frontend-v1' || '' }}
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.no_cache_frontend == 'true' }}
+          cache-from: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.no_cache_frontend != 'true') && 'type=gha,scope=frontend-v1' || '' }}
           cache-to: type=gha,mode=max,scope=frontend-v1
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -389,10 +389,21 @@ jobs:
   build-summary:
     needs: [build-backend-cpu, build-celery-cpu, build-backend-gpu, build-celery-gpu, build-frontend]
     runs-on: ubuntu-latest
-    if: always()
+    if: ${{ always() && !cancelled() }}
     steps:
       - name: Build summary
         run: |
+          # 상태 이모지 함수
+          status_emoji() {
+            case "$1" in
+              success) echo "✅" ;;
+              failure) echo "❌" ;;
+              skipped) echo "⏭️" ;;
+              cancelled) echo "🚫" ;;
+              *) echo "❓" ;;
+            esac
+          }
+
           echo "### Build Summary :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
@@ -404,16 +415,16 @@ jobs:
           echo "#### :package: CPU Images (linux/amd64, linux/arm64)" >> $GITHUB_STEP_SUMMARY
           echo "| Image | Status | Cache |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend CPU | ${{ needs.build-backend-cpu.result }} | ${{ github.event.inputs.no_cache_cpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Celery CPU | ${{ needs.build-celery-cpu.result }} | ${{ github.event.inputs.no_cache_cpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend CPU | $(status_emoji '${{ needs.build-backend-cpu.result }}') ${{ needs.build-backend-cpu.result }} | ${{ github.event.inputs.no_cache_cpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Celery CPU | $(status_emoji '${{ needs.build-celery-cpu.result }}') ${{ needs.build-celery-cpu.result }} | ${{ github.event.inputs.no_cache_cpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "#### :video_game: GPU Images (linux/amd64 only)" >> $GITHUB_STEP_SUMMARY
           echo "| Image | Status | Cache |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend GPU | ${{ needs.build-backend-gpu.result }} | ${{ github.event.inputs.no_cache_gpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Celery GPU | ${{ needs.build-celery-gpu.result }} | ${{ github.event.inputs.no_cache_gpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend GPU | $(status_emoji '${{ needs.build-backend-gpu.result }}') ${{ needs.build-backend-gpu.result }} | ${{ github.event.inputs.no_cache_gpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Celery GPU | $(status_emoji '${{ needs.build-celery-gpu.result }}') ${{ needs.build-celery-gpu.result }} | ${{ github.event.inputs.no_cache_gpu == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "#### :globe_with_meridians: Frontend (linux/amd64, linux/arm64)" >> $GITHUB_STEP_SUMMARY
           echo "| Image | Status | Cache |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend | ${{ needs.build-frontend.result }} | ${{ github.event.inputs.no_cache_frontend == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | $(status_emoji '${{ needs.build-frontend.result }}') ${{ needs.build-frontend.result }} | ${{ github.event.inputs.no_cache_frontend == 'true' && 'Disabled' || 'Enabled' }} |" >> $GITHUB_STEP_SUMMARY
