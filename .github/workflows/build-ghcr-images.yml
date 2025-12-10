@@ -1,8 +1,7 @@
 name: Build and Push GHCR Multi-platform Images
 
-# 다양한 트리거 옵션
+# 수동 실행만 허용 (GitHub UI에서 버튼 클릭)
 on:
-  # 1. 수동 실행 (GitHub UI에서 버튼 클릭)
   workflow_dispatch:
     inputs:
       image_tag:
@@ -42,25 +41,6 @@ on:
         type: boolean
         default: false
 
-  # 2. main 브랜치에 push 시 자동 실행 & 3. 버전 태그 생성 시 자동 실행
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*'
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - '.github/workflows/build-ghcr-images.yml'
-
-  # 4. Pull Request 시 빌드 테스트 (push는 안함)
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/cxinsys/cellcraft
@@ -69,7 +49,7 @@ jobs:
   # Backend CPU 이미지 빌드 (병렬 Job 1)
   build-backend-cpu:
     runs-on: ubuntu-latest
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.build_backend_cpu == 'true'
+    if: github.event.inputs.build_backend_cpu == 'true'
     permissions:
       contents: read
       packages: write
@@ -106,13 +86,7 @@ jobs:
       - name: Determine image tags
         id: meta
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "version=latest" >> $GITHUB_OUTPUT
-          fi
+          echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
 
       - name: Build and push Backend CPU
         uses: docker/build-push-action@v5
@@ -120,12 +94,12 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile.cpu
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}/backend-cpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/backend-cpu:latest
-          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.no_cache_cpu == 'true' }}
-          cache-from: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.no_cache_cpu != 'true') && 'type=gha,scope=backend-cpu-v2' || '' }}
+          no-cache: ${{ github.event.inputs.no_cache_cpu == 'true' }}
+          cache-from: ${{ github.event.inputs.no_cache_cpu != 'true' && 'type=gha,scope=backend-cpu-v2' || '' }}
           cache-to: type=gha,mode=max,scope=backend-cpu-v2
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -134,7 +108,7 @@ jobs:
   # Celery CPU 이미지 빌드 (병렬 Job 2)
   build-celery-cpu:
     runs-on: ubuntu-latest
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.build_celery_cpu == 'true'
+    if: github.event.inputs.build_celery_cpu == 'true'
     permissions:
       contents: read
       packages: write
@@ -171,13 +145,7 @@ jobs:
       - name: Determine image tags
         id: meta
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "version=latest" >> $GITHUB_OUTPUT
-          fi
+          echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
 
       - name: Build and push Celery CPU
         uses: docker/build-push-action@v5
@@ -185,12 +153,12 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile.cpu.celery
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}/celery-cpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/celery-cpu:latest
-          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.no_cache_cpu == 'true' }}
-          cache-from: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.no_cache_cpu != 'true') && 'type=gha,scope=celery-cpu-v2' || '' }}
+          no-cache: ${{ github.event.inputs.no_cache_cpu == 'true' }}
+          cache-from: ${{ github.event.inputs.no_cache_cpu != 'true' && 'type=gha,scope=celery-cpu-v2' || '' }}
           cache-to: type=gha,mode=max,scope=celery-cpu-v2
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -199,7 +167,7 @@ jobs:
   # Backend GPU 이미지 빌드 (병렬 Job 3)
   build-backend-gpu:
     runs-on: ubuntu-latest
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.build_backend_gpu == 'true'
+    if: github.event.inputs.build_backend_gpu == 'true'
     permissions:
       contents: read
       packages: write
@@ -233,13 +201,7 @@ jobs:
       - name: Determine image tags
         id: meta
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "version=latest" >> $GITHUB_OUTPUT
-          fi
+          echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
 
       - name: Build and push Backend GPU
         uses: docker/build-push-action@v5
@@ -247,12 +209,12 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile.gpu
           platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}/backend-gpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/backend-gpu:latest
-          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.no_cache_gpu == 'true' }}
-          cache-from: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.no_cache_gpu != 'true') && 'type=gha,scope=backend-gpu' || '' }}
+          no-cache: ${{ github.event.inputs.no_cache_gpu == 'true' }}
+          cache-from: ${{ github.event.inputs.no_cache_gpu != 'true' && 'type=gha,scope=backend-gpu' || '' }}
           cache-to: type=gha,mode=max,scope=backend-gpu
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -261,7 +223,7 @@ jobs:
   # Celery GPU 이미지 빌드 (병렬 Job 4)
   build-celery-gpu:
     runs-on: ubuntu-latest
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.build_celery_gpu == 'true'
+    if: github.event.inputs.build_celery_gpu == 'true'
     permissions:
       contents: read
       packages: write
@@ -295,13 +257,7 @@ jobs:
       - name: Determine image tags
         id: meta
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "version=latest" >> $GITHUB_OUTPUT
-          fi
+          echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
 
       - name: Build and push Celery GPU
         uses: docker/build-push-action@v5
@@ -309,12 +265,12 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile.gpu.celery
           platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}/celery-gpu:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/celery-gpu:latest
-          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.no_cache_gpu == 'true' }}
-          cache-from: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.no_cache_gpu != 'true') && 'type=gha,scope=celery-gpu' || '' }}
+          no-cache: ${{ github.event.inputs.no_cache_gpu == 'true' }}
+          cache-from: ${{ github.event.inputs.no_cache_gpu != 'true' && 'type=gha,scope=celery-gpu' || '' }}
           cache-to: type=gha,mode=max,scope=celery-gpu
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -323,7 +279,7 @@ jobs:
   # Frontend 이미지 빌드 (병렬 Job 5)
   build-frontend:
     runs-on: ubuntu-latest
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.build_frontend == 'true'
+    if: github.event.inputs.build_frontend == 'true'
     permissions:
       contents: read
       packages: write
@@ -360,13 +316,7 @@ jobs:
       - name: Determine image tags
         id: meta
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "version=latest" >> $GITHUB_OUTPUT
-          fi
+          echo "version=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
 
       - name: Build and push Frontend
         uses: docker/build-push-action@v5
@@ -374,12 +324,12 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile.local
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}/frontend:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/frontend:latest
-          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.no_cache_frontend == 'true' }}
-          cache-from: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.no_cache_frontend != 'true') && 'type=gha,scope=frontend-v1' || '' }}
+          no-cache: ${{ github.event.inputs.no_cache_frontend == 'true' }}
+          cache-from: ${{ github.event.inputs.no_cache_frontend != 'true' && 'type=gha,scope=frontend-v1' || '' }}
           cache-to: type=gha,mode=max,scope=frontend-v1
           build-args: |
             BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
