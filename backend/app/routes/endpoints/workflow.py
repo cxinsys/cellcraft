@@ -523,10 +523,10 @@ def visualizeData(
             process_task = process_data_task.apply_async(
                 args=[current_user.username, final_snakefile_path, selected_plugin_name, target_list],
                 kwargs={
-                    'user_id': current_user.id, 
-                    'workflow_id': workflow_request.id, 
-                    'algorithm_id': algorithm_id, 
-                    'plugin_name': selected_plugin_name, 
+                    'user_id': current_user.id,
+                    'workflow_id': workflow_request.id,
+                    'algorithm_id': workflow_request.current_node_id,  # Use visualization node ID for correct log path
+                    'plugin_name': selected_plugin_name,
                     'task_type': 'visualization',
                     'cache_key': cache_key,
                     'cache_info': {
