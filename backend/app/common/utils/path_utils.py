@@ -47,6 +47,11 @@ def construct_logs_path(
     If task_id is provided, checks for archived logs in executions/{task_id}/logs
     first, falling back to the current logs directory for backward compatibility.
 
+    For visualization tasks, includes fallback logic to search other visualization_*
+    folders when the primary path doesn't exist. This handles legacy tasks where
+    algorithm_id was incorrectly stored (pointing to connected algorithm node
+    instead of the visualization node itself).
+
     Args:
         username: User's username
         workflow_id: Workflow database ID
@@ -84,8 +89,79 @@ def construct_logs_path(
         if os.path.exists(archived_path):
             return archived_path
 
-    # Fallback to original path (backward compatibility)
-    return f"{algo_base}/logs"
+    # Check default logs path
+    default_path = f"{algo_base}/logs"
+    if os.path.exists(default_path):
+        return default_path
+
+    # Fallback for legacy visualization tasks:
+    # Search other visualization_* folders for archived logs with matching task_id
+    # This handles cases where algorithm_id was incorrectly stored in legacy tasks
+    if task_type == 'visualization' and task_id:
+        found_path = _search_visualization_logs_fallback(
+            base_path, username, workflow_id, task_id
+        )
+        if found_path:
+            return found_path
+
+    # Return default path even if it doesn't exist (caller handles 404)
+    return default_path
+
+
+def _search_visualization_logs_fallback(
+    base_path: str,
+    username: str,
+    workflow_id: int,
+    task_id: str
+) -> Optional[str]:
+    """
+    Search for visualization logs in alternative folders.
+
+    This fallback handles legacy visualization tasks where algorithm_id
+    was incorrectly stored (pointing to connected algorithm node instead
+    of the visualization node itself).
+
+    Args:
+        base_path: Base path for user directories
+        username: User's username
+        workflow_id: Workflow database ID
+        task_id: Task ID to search for
+
+    Returns:
+        Optional[str]: Path to logs if found, None otherwise
+    """
+    workflow_base = f"{base_path}/{username}/workflow_{workflow_id}"
+
+    if not os.path.exists(workflow_base):
+        return None
+
+    try:
+        for folder in os.listdir(workflow_base):
+            if folder.startswith('visualization_'):
+                # Check archived logs path
+                candidate_archived = f"{workflow_base}/{folder}/executions/{task_id}/logs"
+                if os.path.exists(candidate_archived):
+                    return candidate_archived
+
+                # Check if current logs folder has run.log with matching task_id
+                candidate_current = f"{workflow_base}/{folder}/logs"
+                if os.path.exists(candidate_current):
+                    run_log_path = f"{candidate_current}/run.log"
+                    if os.path.exists(run_log_path):
+                        try:
+                            with open(run_log_path, 'r', encoding='utf-8') as f:
+                                # Read first few KB to check for task_id
+                                content = f.read(4096)
+                                if task_id in content:
+                                    return candidate_current
+                        except (IOError, OSError):
+                            # Skip files that can't be read
+                            pass
+    except (IOError, OSError):
+        # Directory listing failed
+        pass
+
+    return None
 
 
 def is_safe_path(path: str, base_dir: str) -> bool:
