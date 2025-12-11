@@ -760,10 +760,10 @@ export default {
         const isVisualizationTask = task?.task_type === "visualization" ||
                                     task?.plugin?.plugin_type === "visualization";
 
-        if (errorDetail === "Logs folder not found" && isVisualizationTask) {
+        if (isVisualizationTask) {
           this.setMessage(
             "error",
-            "Logs for this legacy visualization task are unavailable. They may have been overwritten by subsequent executions."
+            "Logs for this legacy visualization task are unavailable."
           );
         } else {
           this.setMessage("error", "Failed to load logs: " + error.message);
@@ -1317,6 +1317,7 @@ export default {
   background: rgba(0, 0, 0, 0.8);
   border-radius: 1rem;
   padding: 0 1rem;
+  z-index: 10000;
 }
 
 .message__status {
