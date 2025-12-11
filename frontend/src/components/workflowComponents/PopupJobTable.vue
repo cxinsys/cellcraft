@@ -19,7 +19,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(task, index) in taskList" :key="index" @click.right.prevent="RMouseClick($event, task)">
+          <tr v-for="(task, index) in sortedTaskList" :key="task.task_id || index" @click.right.prevent="RMouseClick($event, task)">
             <td>{{ index + 1 }}</td>
             <td>{{ formatTitle(task.workflow_title) }}</td>
             <td>{{ formatPluginInfo(task) }}</td>
@@ -78,6 +78,19 @@ export default {
       canDownloadManifest: false,
       isAnalysisTask: false
     };
+  },
+  computed: {
+    sortedTaskList() {
+      if (!this.taskList || this.taskList.length === 0) {
+        return [];
+      }
+      // Sort by start_time descending (newest first)
+      return [...this.taskList].sort((a, b) => {
+        const timeA = a.start_time ? new Date(a.start_time).getTime() : 0;
+        const timeB = b.start_time ? new Date(b.start_time).getTime() : 0;
+        return timeB - timeA;
+      });
+    }
   },
   created() {
     document.addEventListener('click', this.hideMenu);
