@@ -753,7 +753,21 @@ export default {
         this.setMessage("success", "Logs loaded successfully!");
       } catch (error) {
         console.error(error);
-        this.setMessage("error", "Failed to load logs: " + error.message);
+
+        // Check if this is a "Logs folder not found" error for visualization tasks
+        const errorDetail = error.response?.data?.detail || "";
+        const task = this.taskList.find(t => t.task_id === task_id);
+        const isVisualizationTask = task?.task_type === "visualization" ||
+                                    task?.plugin?.plugin_type === "visualization";
+
+        if (errorDetail === "Logs folder not found" && isVisualizationTask) {
+          this.setMessage(
+            "error",
+            "Logs for this legacy visualization task are unavailable. They may have been overwritten by subsequent executions."
+          );
+        } else {
+          this.setMessage("error", "Failed to load logs: " + error.message);
+        }
         this.showLogsModal = false;
       } finally {
         this.logsLoading = false;
