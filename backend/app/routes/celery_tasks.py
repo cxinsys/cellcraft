@@ -1,5 +1,5 @@
 from celery import shared_task, Task
-from datetime import datetime
+from datetime import datetime, timezone
 from celery.worker.request import Request
 import os
 from pathlib import Path
@@ -37,7 +37,7 @@ class MyTask(Task):
     Request = MyRequest  # Custom Request class 적용
 
     def before_start(self, task_id, args, kwargs):
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         print(f'Task {task_id} started at {start_time}')
         user_id = kwargs.get('user_id')
         workflow_id = kwargs.get('workflow_id')
@@ -75,7 +75,7 @@ class MyTask(Task):
         start_task(user_id, task_id, workflow_id, start_time, algorithm_id, plugin_name, task_type, plugin_image_uri, plugin_id)
 
     def on_success(self, retval, task_id: str, args, kwargs):
-        end_time = datetime.now()
+        end_time = datetime.now(timezone.utc)
         print(f'Task {task_id} completed at {end_time}, return value: {retval}')
         user_id = kwargs.get('user_id')
         end_task(user_id, task_id, end_time, status='SUCCESS')
@@ -111,7 +111,7 @@ class MyTask(Task):
     def on_failure(self, exc, task_id: str, args, kwargs, einfo):
         """Ensure the failure is logged and state is correctly updated."""
         logger.error(f"Task {task_id} failed due to {exc}")
-        end_time = datetime.now()
+        end_time = datetime.now(timezone.utc)
         print(f'Task {task_id} failed at {end_time}, error: {exc}')
         user_id = kwargs.get('user_id')
         end_task(user_id, task_id, end_time, status='FAILURE')
@@ -126,7 +126,7 @@ class MyTask(Task):
             logger.error(f"Error cleaning up container for failed task {task_id}: {cleanup_error}")
 
     def on_revoke(self, task_id: str, kwargs, terminated, signum, expired):
-        end_time = datetime.now()
+        end_time = datetime.now(timezone.utc)
         print(f'Task {task_id} revoked at {end_time}')
         print(f'Revoke details - terminated: {terminated}, signal: {signum}, expired: {expired}')
         
