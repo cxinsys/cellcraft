@@ -251,6 +251,26 @@ Before installing CellCraft, please verify your system meets the following requi
    > - Wait until you see `Uvicorn running on http://0.0.0.0:8000` in the logs before using the application
    > - When you see `4. Docker Images Check...` in the logs, you can monitor the real-time download progress of each plugin image (e.g., `⬇ Pulling ghcr.io/cxinsys/cellcraft-fastscode:1.0... Downloading: 58.3%`)
 
+   > **Troubleshooting - Plugin Docker Image Pull Failure (DNS/Network Error):**
+   >
+   > During backend startup, the process might stop while pulling plugin images with a `server misbehaving` or `dial tcp: lookup ...` error:
+   > ```
+   > backend-1  | ⚠ Failed to pull ghcr.io/cxinsys/cellcraft-fasttenet:1.1: 500 Server Error ...
+   > backend-1  | Internal Server Error ("failed to resolve reference ... dial tcp: lookup ghcr.io on 127.0.0.53:53: server misbehaving")
+   > ```
+   >
+   > This is a temporary network/DNS error. Restart the backend service to retry:
+   > ```bash
+   > # For GPU mode
+   > docker compose -f docker-compose.gpu.amd64.yml restart backend
+   >
+   > # For CPU mode (AMD64)
+   > docker compose -f docker-compose.cpu.amd64.yml restart backend
+   >
+   > # For CPU mode (ARM64)
+   > docker compose -f docker-compose.cpu.arm64.yml restart backend
+   > ```
+
    For **Windows/macOS** users: You can also verify plugin images in **Docker Desktop > Images** section.
 
    Using command line:
