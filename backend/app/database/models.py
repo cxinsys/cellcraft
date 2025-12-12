@@ -58,8 +58,8 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True)
     task_id = Column(String, nullable=False)
-    start_time = Column(DateTime, nullable=False)
-    end_time = Column(DateTime, nullable=True)
+    start_time = Column(DateTime(timezone=True), nullable=False)
+    end_time = Column(DateTime(timezone=True), nullable=True)
     status = Column(String, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"))
     workflow_id = Column(Integer, ForeignKey("workflows.id"))
