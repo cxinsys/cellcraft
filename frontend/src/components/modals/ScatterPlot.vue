@@ -44,9 +44,9 @@
         <img class="downloadPlot_button" src="@/assets/download.png" alt="Save Plot" @click="downloadPlot" />
       </div>
       <div class="options__item">
-        <button id="reset-button" @click="resetSelect">reset</button>
+        <button id="reset-button" @click="resetSelect">Reset</button>
         <button id="apply-button" @click="cellselect" :disabled="disableApplyButton">
-          {{ disableApplyButton ? "Select Applied" : "Select Apply " }}
+          {{ disableApplyButton ? "Selected" : "Select" }}
         </button>
       </div>
     </div>
