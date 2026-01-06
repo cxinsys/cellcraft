@@ -279,6 +279,18 @@ export default {
                     throw new Error(`Visualization node with ID ${this.nodeId} not found`);
                 }
 
+                // Algorithm의 현재 executionId와 저장된 executionId 비교
+                const algorithmNode = this.$store.getters.getAlgorithmNodeConnectedToInput(this.nodeId);
+                const currentExecutionId = algorithmNode?.data?.lastExecutionId;
+                const configuredExecutionId = current_node.data?.configuredForExecutionId;
+
+                // executionId가 다르면 상태 초기화 (Algorithm 재실행 감지)
+                if (currentExecutionId && configuredExecutionId && currentExecutionId !== configuredExecutionId) {
+                    console.info('Visualization: Algorithm re-executed, resetting state');
+                    await this.returnToPluginSelection();
+                    return;
+                }
+
                 // Check if node has previous selections
                 if (current_node.data.selectedVisualizationPlugin && current_node.data.selectedScript) {
                     // Restore previous state
@@ -296,6 +308,19 @@ export default {
 
                     // Load available files and restore configuration
                     await this.loadAvailableFiles();
+
+                    // Algorithm 재실행으로 인해 파일이 없어진 경우 상태 초기화
+                    const previouslySelectedFiles = this.inputFileParameters
+                        .filter(p => p.selectedFile)
+                        .map(p => p.selectedFile);
+
+                    if (previouslySelectedFiles.length > 0 && this.availableFiles.length === 0) {
+                        // 저장된 선택 파일이 있었는데 현재 가용 파일이 없음 - 상태 초기화
+                        console.info('Visualization: Available files no longer exist, resetting state');
+                        await this.returnToPluginSelection();
+                        return;
+                    }
+
                     this.storeOriginalParameterValues();
 
                     // Check if visualization was already executed
@@ -1009,6 +1034,10 @@ export default {
         },
 
         saveNodeData() {
+            // 연결된 Algorithm의 lastExecutionId 가져오기
+            const algorithmNode = this.$store.getters.getAlgorithmNodeConnectedToInput(this.nodeId);
+            const executionId = algorithmNode?.data?.lastExecutionId || null;
+
             const dataObject = {
                 selectedVisualizationPlugin: this.selectedVisualizationPlugin ? {
                     name: this.selectedVisualizationPlugin.name,
@@ -1020,6 +1049,7 @@ export default {
                 selectedVisualizationTitle: this.selectedVisualizationTitle,
                 taskStatus: this.taskStatus,
                 resultPath: this.resultPath,  // Store actual result filename from backend
+                configuredForExecutionId: executionId,  // Algorithm 재실행 감지용
             };
             const nodeId = this.nodeId;
             this.$store.commit("setWorkflowNodeDataObject", { nodeId, dataObject });

@@ -507,6 +507,15 @@ export default {
 
       if (data.algorithm_ids && Array.isArray(data.algorithm_ids)) {
         this.$store.commit('setRunningAlgorithmNodes', data.algorithm_ids);
+
+        // Algorithm 실행 시 lastExecutionId 설정 (연결된 노드들의 상태 초기화 판단용)
+        const executionId = Date.now().toString();
+        data.algorithm_ids.forEach(algorithmId => {
+          this.$store.commit('setWorkflowNodeDataObject', {
+            nodeId: algorithmId,
+            dataObject: { lastExecutionId: executionId }
+          });
+        });
       }
     },
     /**
