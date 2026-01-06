@@ -222,3 +222,227 @@ def get_archived_logs_dir(
         if logs_dir.exists():
             return logs_dir
     return None
+
+
+def setup_execution_logs_symlink(
+    snakefile_dir: Path,
+    task_id: str
+) -> Dict[str, Any]:
+    """
+    Set up logs/ as a symlink to executions/{task_id}/logs/ at task start.
+
+    This function creates the execution-specific logs directory and sets up
+    a symbolic link so that logs written to logs/ are actually stored in
+    executions/{task_id}/logs/. This ensures logs are preserved even if
+    the task is cancelled.
+
+    Args:
+        snakefile_dir: Directory containing the Snakefile (algorithm directory)
+        task_id: Unique task identifier for this execution
+
+    Returns:
+        Dict containing:
+            - success: bool indicating if setup was successful
+            - logs_path: Path to actual logs directory (executions/{task_id}/logs/)
+            - symlink_path: Path to symlink (logs/)
+            - error: Error message (if failed)
+
+    Examples:
+        >>> result = setup_execution_logs_symlink(Path("./user/john/workflow_1/algorithm_1"), "task-abc123")
+        >>> result['success']
+        True
+        >>> result['logs_path']
+        './user/john/workflow_1/algorithm_1/executions/task-abc123/logs'
+    """
+    result = {
+        "success": False,
+        "logs_path": None,
+        "symlink_path": None,
+        "error": None,
+        "timestamp": datetime.now().isoformat()
+    }
+
+    try:
+        snakefile_dir = Path(snakefile_dir)
+
+        # Create executions/{task_id}/logs directory (actual storage location)
+        executions_dir = snakefile_dir / "executions" / task_id
+        actual_logs_dir = executions_dir / "logs"
+        actual_logs_dir.mkdir(parents=True, exist_ok=True, mode=0o777)
+
+        # Path for the symlink
+        symlink_path = snakefile_dir / "logs"
+
+        # Remove existing logs/ if it exists (symlink or directory)
+        if symlink_path.exists() or symlink_path.is_symlink():
+            if symlink_path.is_symlink():
+                # Remove existing symlink
+                symlink_path.unlink()
+                print(f"Removed existing symlink: {symlink_path}")
+            elif symlink_path.is_dir():
+                # Remove existing directory (previous execution logs already archived)
+                shutil.rmtree(symlink_path)
+                print(f"Removed existing logs directory: {symlink_path}")
+            else:
+                # Remove file if somehow it's a file
+                symlink_path.unlink()
+                print(f"Removed existing logs file: {symlink_path}")
+
+        # Create symlink: logs/ -> executions/{task_id}/logs/
+        # Use relative path for portability
+        rel_target = os.path.relpath(actual_logs_dir, symlink_path.parent)
+        symlink_path.symlink_to(rel_target)
+
+        result["success"] = True
+        result["logs_path"] = str(actual_logs_dir)
+        result["symlink_path"] = str(symlink_path)
+
+        print(f"Created logs symlink: {symlink_path} -> {rel_target}")
+
+    except Exception as e:
+        result["error"] = str(e)
+        print(f"Failed to setup execution logs symlink: {e}")
+
+    return result
+
+
+def cleanup_task_results(
+    snakefile_dir: Path,
+    preserve_folder: bool = True
+) -> Dict[str, Any]:
+    """
+    Clean up results folder contents when a task is cancelled.
+
+    Removes all files inside the results/ folder while optionally
+    preserving the folder structure. Handles symlinks carefully to
+    preserve cache originals.
+
+    Args:
+        snakefile_dir: Directory containing the Snakefile (algorithm directory)
+        preserve_folder: If True, keep the results/ folder but delete contents.
+                        If False, delete the entire results/ folder.
+
+    Returns:
+        Dict containing:
+            - success: bool indicating if cleanup was successful
+            - files_removed: List of files that were removed
+            - symlinks_removed: List of symlinks that were removed
+            - error: Error message (if failed)
+
+    Examples:
+        >>> result = cleanup_task_results(Path("./user/john/workflow_1/algorithm_1"))
+        >>> result['success']
+        True
+        >>> result['files_removed']
+        ['output.h5ad', 'network.sif']
+    """
+    result = {
+        "success": False,
+        "files_removed": [],
+        "symlinks_removed": [],
+        "error": None,
+        "timestamp": datetime.now().isoformat()
+    }
+
+    try:
+        snakefile_dir = Path(snakefile_dir)
+        results_dir = snakefile_dir / "results"
+
+        if not results_dir.exists():
+            result["success"] = True
+            result["error"] = "Results directory does not exist (nothing to clean)"
+            return result
+
+        files_removed = []
+        symlinks_removed = []
+
+        # Iterate through all items in results directory
+        for item in results_dir.iterdir():
+            try:
+                if item.is_symlink():
+                    # Remove symlink only (preserve cache original)
+                    item.unlink()
+                    symlinks_removed.append(item.name)
+                    print(f"Removed symlink: {item}")
+                elif item.is_file():
+                    # Remove regular file
+                    item.unlink()
+                    files_removed.append(item.name)
+                    print(f"Removed file: {item}")
+                elif item.is_dir():
+                    # Remove subdirectory
+                    shutil.rmtree(item)
+                    files_removed.append(f"{item.name}/ (directory)")
+                    print(f"Removed directory: {item}")
+            except Exception as item_error:
+                print(f"Warning: Failed to remove {item}: {item_error}")
+
+        # Optionally remove the results folder itself
+        if not preserve_folder and results_dir.exists():
+            results_dir.rmdir()
+            print(f"Removed results directory: {results_dir}")
+
+        result["success"] = True
+        result["files_removed"] = files_removed
+        result["symlinks_removed"] = symlinks_removed
+
+        total_removed = len(files_removed) + len(symlinks_removed)
+        print(f"Cleaned up {total_removed} items from results directory")
+
+    except Exception as e:
+        result["error"] = str(e)
+        print(f"Failed to cleanup task results: {e}")
+
+    return result
+
+
+def copy_meta_to_execution(
+    snakefile_dir: Path,
+    task_id: str
+) -> Dict[str, Any]:
+    """
+    Copy meta.yml to executions/{task_id}/ directory.
+
+    This is called after task completion to archive the meta.yml file
+    alongside the logs in the execution-specific directory.
+
+    Args:
+        snakefile_dir: Directory containing the Snakefile (algorithm directory)
+        task_id: Unique task identifier for this execution
+
+    Returns:
+        Dict containing:
+            - success: bool indicating if copy was successful
+            - dest_path: Path to copied meta.yml
+            - error: Error message (if failed)
+    """
+    result = {
+        "success": False,
+        "dest_path": None,
+        "error": None
+    }
+
+    try:
+        snakefile_dir = Path(snakefile_dir)
+        meta_file = snakefile_dir / "meta.yml"
+
+        if not meta_file.exists():
+            result["error"] = "meta.yml does not exist"
+            return result
+
+        executions_dir = snakefile_dir / "executions" / task_id
+        if not executions_dir.exists():
+            executions_dir.mkdir(parents=True, exist_ok=True, mode=0o777)
+
+        dest_meta = executions_dir / "meta.yml"
+        shutil.copy2(meta_file, dest_meta)
+
+        result["success"] = True
+        result["dest_path"] = str(dest_meta)
+        print(f"Copied meta.yml to {dest_meta}")
+
+    except Exception as e:
+        result["error"] = str(e)
+        print(f"Failed to copy meta.yml: {e}")
+
+    return result

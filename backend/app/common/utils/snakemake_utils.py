@@ -162,6 +162,16 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         # 작업 디렉토리 설정
         workspace_path = Path(os.path.abspath(workspace_path))
         snakefile_dir = Path(os.path.dirname(snakefile_path))
+
+        # Set up logs symlink to executions/{task_id}/logs/ for log preservation
+        if task_id:
+            from app.common.utils.log_archive_utils import setup_execution_logs_symlink
+            symlink_result = setup_execution_logs_symlink(snakefile_dir, task_id)
+            if symlink_result["success"]:
+                print(f"Logs will be stored in: {symlink_result['logs_path']}")
+            else:
+                print(f"Warning: Failed to setup log symlink: {symlink_result.get('error')}")
+
         log_file = get_log_path(snakefile_path)
         
         # Snakefile 경로를 workspace 기준으로 수정
@@ -269,9 +279,10 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         wait_for_container_ready(container)
         print("Container is ready for execution")
         
-        # Snakemake 실행 명령어
+        # Snakemake 실행 명령어 (이전 실행에서 남은 lock 파일 먼저 해제)
         bash_cmd = (
             f"cd /workspace && "
+            f"snakemake --unlock --snakefile {container_snakefile_path} 2>/dev/null || true && "
             f"snakemake {' '.join(targets)} "
             f"--snakefile {container_snakefile_path} "
             "-j 1 --printshellcmds "
@@ -307,18 +318,18 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
             })
         )
 
-        # 실행 로그를 task_id별 디렉토리에 아카이브
+        # Copy meta.yml to executions/{task_id}/ directory
+        # (Logs are already in executions/{task_id}/logs/ via symlink)
         if task_id:
-            from app.common.utils.log_archive_utils import archive_execution_logs
-            archive_result = archive_execution_logs(
+            from app.common.utils.log_archive_utils import copy_meta_to_execution
+            meta_result = copy_meta_to_execution(
                 snakefile_dir=snakefile_dir,
-                task_id=task_id,
-                include_meta=True
+                task_id=task_id
             )
-            if archive_result["success"]:
-                print(f"Logs archived to: {archive_result['archived_path']}")
+            if meta_result["success"]:
+                print(f"Meta archived to: {meta_result['dest_path']}")
             else:
-                print(f"Warning: Log archival failed: {archive_result.get('error', 'Unknown error')}")
+                print(f"Warning: Meta archival failed: {meta_result.get('error', 'Unknown error')}")
 
         # 로그 파일 읽기
         stdout = ""
