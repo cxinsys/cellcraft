@@ -18,35 +18,54 @@ from typing import Dict, List, Tuple, Optional, Any
 logger = logging.getLogger(__name__)
 
 
-def generate_cache_key(plugin_name: str, script_name: str, params: Dict[str, Any], input_files: List[str]) -> str:
+def generate_cache_key(
+    plugin_name: str,
+    script_name: str,
+    params: Dict[str, Any],
+    input_files: List[str],
+    workflow_id: Optional[int] = None,
+    node_id: Optional[str] = None
+) -> str:
     """
-    Generate a unique cache key based on plugin, script, parameters, and input files.
-    
+    Generate a unique cache key based on plugin, script, parameters, input files,
+    and optionally workflow and node identifiers.
+
     Args:
         plugin_name: Name of the visualization plugin
         script_name: Name of the visualization script
         params: Dictionary of visualization parameters
         input_files: List of input file paths
-        
+        workflow_id: Optional workflow ID for workflow-scoped caching
+        node_id: Optional visualization node ID for node-scoped caching
+
     Returns:
         16-character hexadecimal cache key
     """
     try:
         # Normalize parameters for consistent hashing
         param_str = json.dumps(params, sort_keys=True, separators=(',', ':'))
-        
+
         # Use only basenames of files for consistency
         files_str = ''.join(sorted([os.path.basename(f) for f in input_files]))
-        
+
         # Combine all components
         combined = f"{plugin_name}_{script_name}_{param_str}_{files_str}"
-        
+
+        # Add workflow_id and node_id to hash if provided (for per-node cache isolation)
+        if workflow_id is not None:
+            combined = f"{combined}_wf{workflow_id}"
+        if node_id is not None and node_id != "":
+            combined = f"{combined}_node{node_id}"
+
         # Generate MD5 hash and take first 16 characters
         cache_key = hashlib.md5(combined.encode('utf-8')).hexdigest()[:16]
-        
-        logger.debug(f"Generated cache key: {cache_key} for plugin={plugin_name}, script={script_name}")
+
+        logger.debug(
+            f"Generated cache key: {cache_key} for plugin={plugin_name}, "
+            f"script={script_name}, workflow_id={workflow_id}, node_id={node_id}"
+        )
         return cache_key
-        
+
     except Exception as e:
         logger.error(f"Failed to generate cache key: {e}")
         # Fallback to timestamp-based key if hashing fails
