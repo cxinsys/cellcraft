@@ -215,6 +215,13 @@ Before installing CellCraft, please verify your system meets the following requi
 
 **5. Access the application at [http://localhost:8080](http://localhost:8080).**
 
+   > **Remote Access via SSH**: When accessing CellCraft on a remote Linux server, use SSH port forwarding to access the web interface from your local machine:
+   > ```bash
+   > ssh -L 8080:localhost:8080 -L 8000:localhost:8000 user@remote-server
+   > ```
+   > - Port 8080: Frontend web interface
+   > - Port 8000: Backend API
+
 **6. Check the installation status:**
 
    ```bash
