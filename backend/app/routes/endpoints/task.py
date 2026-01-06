@@ -172,39 +172,63 @@ def revoke_task(
                 container_manager.stop_container_by_name(container_name_pattern)
             except Exception as pattern_error:
                 print(f"Pattern-based container cleanup failed: {pattern_error}")
-        
-        # 5. 작업 상태 확인 및 DB 업데이트
+
+        # 5. Results 폴더 정리 (재실행 시 Snakemake 스킵 방지)
+        results_cleanup_success = False
+        try:
+            task_record = crud_task.get_task_by_task_id(db, task_id)
+            if task_record:
+                if task_record.task_type == 'visualization':
+                    task_folder = f"./user/{current_user.username}/workflow_{task_record.workflow_id}/visualization_{task_record.algorithm_id}"
+                else:
+                    task_folder = f"./user/{current_user.username}/workflow_{task_record.workflow_id}/algorithm_{task_record.algorithm_id}"
+
+                from app.common.utils.log_archive_utils import cleanup_task_results
+                cleanup_result = cleanup_task_results(Path(task_folder), preserve_folder=True)
+                results_cleanup_success = cleanup_result["success"]
+
+                if results_cleanup_success:
+                    print(f"Results cleanup completed: {len(cleanup_result.get('files_removed', []))} files removed")
+                else:
+                    print(f"Results cleanup failed: {cleanup_result.get('error')}")
+        except Exception as cleanup_error:
+            print(f"Results cleanup failed: {cleanup_error}")
+
+        # 6. 작업 상태 확인 및 DB 업데이트
         task = get_task_info(task_id)
         print(f"Task info after revoke: {task}")
 
         task_status = task.get("status")
         if task_status == 'REVOKED':
             return {
-                "message": "Task Revoked Successfully", 
+                "message": "Task Revoked Successfully",
                 "task_id": task_id,
-                "container_cleanup": container_cleanup_success
+                "container_cleanup": container_cleanup_success,
+                "results_cleanup": results_cleanup_success
             }
         else:
             # 태스크 상태를 'REVOKED'로 강제 업데이트
             crud_task.end_task(current_user.id, task_id, datetime.now(), 'REVOKED')
             print(f"Forced task status update to REVOKED for task {task_id}")
-            
+
             # 업데이트 후 다시 확인
             task = get_task_info(task_id)
             task_status = task.get("status")
-            
+
             if task_status == 'REVOKED':
                 return {
-                    "message": "Task Revoked Successfully (Forced Update)", 
+                    "message": "Task Revoked Successfully (Forced Update)",
                     "task_id": task_id,
-                    "container_cleanup": container_cleanup_success
+                    "container_cleanup": container_cleanup_success,
+                    "results_cleanup": results_cleanup_success
                 }
             else:
                 return {
-                    "message": "Task Revoke Completed with Warnings", 
+                    "message": "Task Revoke Completed with Warnings",
                     "task_id": task_id,
                     "warning": "Task status update may be delayed",
-                    "container_cleanup": container_cleanup_success
+                    "container_cleanup": container_cleanup_success,
+                    "results_cleanup": results_cleanup_success
                 }
     
     except Exception as e:
