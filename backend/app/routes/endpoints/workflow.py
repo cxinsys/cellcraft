@@ -19,7 +19,8 @@ from app.common.utils.error_utils import (
 )
 from app.common.utils.cache_utils import (
     generate_cache_key, check_cache_with_expiry, create_symbolic_link,
-    save_result_to_cache, maybe_cleanup_cache, update_cache_link_location
+    save_result_to_cache, maybe_cleanup_cache, update_cache_link_location,
+    remove_cache_by_visualization_path
 )
 from app.common.utils.workflow_utils import (
     extract_rule_block, extract_all_algorithms, extract_algorithm_data,
@@ -112,6 +113,13 @@ def compileWorkflow(
                     for vis_id in connected_vis_ids:
                         vis_path = Path(f"{user_path}workflow_{workflow.id}/visualization_{vis_id}")
                         if vis_path.exists():
+                            # 캐시 정리 먼저 수행 (symlink 삭제 전에 메타데이터 참조 필요)
+                            vis_relative_path = f"workflow_{workflow.id}/visualization_{vis_id}/results"
+                            cache_cleanup = remove_cache_by_visualization_path(user_path, vis_relative_path)
+                            if cache_cleanup.get("cache_files_removed"):
+                                logger.info(f"Cleaned up {len(cache_cleanup['cache_files_removed'])} cache files for visualization_{vis_id}")
+
+                            # 기존 결과 폴더 정리 (symlinks 및 파일)
                             vis_cleanup = cleanup_task_results(vis_path, preserve_folder=True)
                             if vis_cleanup["success"]:
                                 vis_files_count = len(vis_cleanup.get('files_removed', [])) + len(vis_cleanup.get('symlinks_removed', []))

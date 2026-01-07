@@ -528,24 +528,164 @@ def get_cache_statistics(user_path: str) -> Dict[str, Any]:
 def clear_all_cache(user_path: str) -> bool:
     """
     Clear all cache entries for a user. Use with caution.
-    
+
     Args:
         user_path: User's base directory path
-        
+
     Returns:
         True if successful, False otherwise
     """
     try:
         metadata_file = get_metadata_file_path(user_path)
         metadata = load_cache_metadata(metadata_file)
-        
+
         # Remove all cache entries
         for cache_key, entry in metadata['cache_entries'].items():
             remove_expired_cache_entry(user_path, cache_key, entry)
-            
+
         logger.info(f"Cleared all cache entries for user")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error clearing all cache: {e}")
         return False
+
+
+def remove_cache_by_visualization_path(
+    user_path: str,
+    visualization_relative_path: str
+) -> Dict[str, Any]:
+    """
+    Remove cache entries associated with a specific visualization path.
+
+    When a visualization folder is cleaned up (e.g., on algorithm re-execution),
+    this function finds and removes the associated cache entries.
+
+    IMPORTANT: Due to cache_key generation including workflow_id and node_id,
+    each visualization node has its own isolated cache. This means:
+    - Same node re-execution: same cache_key (safe to delete)
+    - Different nodes: different cache_key (won't be affected)
+
+    Args:
+        user_path: User's base directory path (e.g., "./user/username/")
+        visualization_relative_path: Relative path to visualization results
+                                    (e.g., "workflow_1/visualization_5/results")
+
+    Returns:
+        Dict containing:
+            - success: bool indicating if cleanup was successful
+            - cache_keys_removed: List of cache keys that were removed
+            - cache_files_removed: List of cache files that were deleted
+            - linked_locations_cleaned: Count of linked_locations entries removed
+            - error: Error message (if failed)
+            - warnings: List of non-critical issues encountered
+    """
+    result = {
+        "success": False,
+        "cache_keys_removed": [],
+        "cache_files_removed": [],
+        "linked_locations_cleaned": 0,
+        "error": None,
+        "warnings": []
+    }
+
+    try:
+        metadata_file = get_metadata_file_path(user_path)
+        cache_dir = get_cache_dir_path(user_path)
+
+        # Step 1: Check if metadata file exists
+        if not os.path.exists(metadata_file):
+            result["success"] = True
+            result["warnings"].append("No metadata file found - nothing to clean")
+            return result
+
+        # Step 2: File locking for concurrency protection
+        lock_file = metadata_file + ".lock"
+        lock = None
+
+        try:
+            from filelock import FileLock, Timeout
+            lock = FileLock(lock_file, timeout=10)
+            lock.acquire()
+        except ImportError:
+            result["warnings"].append("filelock not available, proceeding without lock")
+        except Exception as lock_error:
+            result["error"] = f"Could not acquire lock on metadata file: {lock_error}"
+            return result
+
+        try:
+            # Step 3: Load metadata
+            metadata = load_cache_metadata(metadata_file)
+
+            # Step 4: Find cache entries linked to the visualization path
+            # Normalize path (remove trailing slash for consistency)
+            search_path = visualization_relative_path.rstrip('/')
+
+            cache_keys_to_process = []
+            for cache_key, entry in metadata['cache_entries'].items():
+                linked_locations = entry.get('linked_locations', [])
+                for loc in linked_locations:
+                    # Check if the path is within the visualization folder
+                    normalized_loc = loc.rstrip('/')
+                    if normalized_loc.startswith(search_path + '/') or normalized_loc == search_path:
+                        cache_keys_to_process.append(cache_key)
+                        break
+
+            # Step 5: Process each cache entry
+            modified = False
+            for cache_key in cache_keys_to_process:
+                if cache_key not in metadata['cache_entries']:
+                    continue
+
+                entry = metadata['cache_entries'][cache_key]
+                linked_locations = entry.get('linked_locations', [])
+
+                # Remove linked_locations matching the path
+                original_count = len(linked_locations)
+                linked_locations = [
+                    loc for loc in linked_locations
+                    if not (loc.rstrip('/').startswith(search_path + '/') or loc.rstrip('/') == search_path)
+                ]
+
+                removed_count = original_count - len(linked_locations)
+                result["linked_locations_cleaned"] += removed_count
+
+                if len(linked_locations) == 0:
+                    # All links removed -> delete cache file and metadata entry
+                    cache_file = os.path.join(cache_dir, entry.get('file_path', ''))
+
+                    # Delete cache file
+                    if os.path.exists(cache_file):
+                        try:
+                            os.remove(cache_file)
+                            result["cache_files_removed"].append(cache_file)
+                            logger.info(f"Removed cache file: {cache_file}")
+                        except OSError as e:
+                            result["warnings"].append(f"Failed to remove cache file {cache_file}: {e}")
+
+                    # Delete metadata entry
+                    del metadata['cache_entries'][cache_key]
+                    result["cache_keys_removed"].append(cache_key)
+                    modified = True
+                    logger.info(f"Removed cache entry: {cache_key}")
+                else:
+                    # Some links remain -> just update linked_locations
+                    entry['linked_locations'] = linked_locations
+                    modified = True
+
+            # Step 6: Save modified metadata
+            if modified:
+                save_cache_metadata(metadata_file, metadata)
+
+            result["success"] = True
+
+        finally:
+            # Step 7: Release file lock
+            if lock and hasattr(lock, 'is_locked') and lock.is_locked:
+                lock.release()
+
+    except Exception as e:
+        logger.error(f"Error removing cache by visualization path: {e}")
+        result["error"] = str(e)
+
+    return result
