@@ -59,7 +59,8 @@
 
                 <div v-else-if="parameter.type === 'h5adParameter'" class="parameter__input">
                   <select v-if="parameter.name === 'cell group'" class="parameter__dropdown"
-                    v-model="parameter.defaultValue" @change="selectColumns($event)">
+                    v-model="parameter.defaultValue" @change="selectColumns($event)"
+                    :disabled="hasLassoSelection">
                     <option class="parameter__menu" disabled value="">
                       Select Cell Group
                     </option>
@@ -77,13 +78,15 @@
                     </option>
                   </select>
                   <div v-else-if="parameter.name === 'clusters'" class="parameter__dropdown--checkbox"
-                    @click="activateClusters" :class="{ isactive: dropdownIsActive }">
+                    @click="!hasLassoSelection && activateClusters()"
+                    :class="{ isactive: dropdownIsActive && !hasLassoSelection, disabled: hasLassoSelection }">
                     Select Clusters
                     <ul class="parameter__dropdown--menu" @click.stop>
                       <li v-for="(column, index) in clusters" :key="index">
                         <label>
                           <input type="checkbox" :name="column" @change="clusterToggle($event, parameter, column)"
-                            :checked="parameter.defaultValue && parameter.defaultValue.includes(column)" />{{
+                            :checked="parameter.defaultValue && parameter.defaultValue.includes(column)"
+                            :disabled="hasLassoSelection" />{{
                               column }}</label>
                       </li>
                     </ul>
@@ -238,6 +241,9 @@ export default {
               const clusters = await this.getCurrnetClusters(cellGroupParam.defaultValue);
               this.clusters = clusters;
             }
+
+            // ScatterPlot Lasso 선택 정보 기반 cell group 및 clusters 자동 설정
+            await this.applyAutoClusterSelection();
           }
         }
       }
@@ -343,6 +349,14 @@ export default {
     },
   },
   computed: {
+    // Lasso 선택 여부 확인 (cell group/clusters 비활성화용)
+    // lasso_file_path 존재 여부로 판단 (Group 미선택 시에도 Lasso 선택 감지)
+    hasLassoSelection() {
+      const scatterPlotNode = this.currentNodeConnection.find(
+        node => node.class === 'ScatterPlot' && node.data?.lasso_file_path
+      );
+      return !!scatterPlotNode?.data?.lasso_file_path;
+    },
     allParametersEmpty() {
       // selectedPluginRules를 순회하면서 모든 parameters가 비어 있는지 확인
       return this.selectedPluginRules.every(rule => rule.parameters.length === 0);
@@ -474,6 +488,15 @@ export default {
       if (selectedInputFile) {
         const clusters = await this.getCurrnetClusters(anno_column);
         this.clusters = clusters;
+
+        // cell group 변경 시 clusters 파라미터 초기화 (사용자가 직접 선택하도록)
+        const clustersParam = this.selectedPluginRules
+          .flatMap(rule => rule.parameters)
+          .find(param => param.name === 'clusters');
+
+        if (clustersParam) {
+          clustersParam.defaultValue = [];  // clusters 초기화
+        }
       }
     },
     async getCurrnetClusters(anno_column) {
@@ -637,6 +660,9 @@ export default {
           // h5ad 파일이 있으면 columns 로드
           if (this.selectedPluginInputOutput.some((item) => item.type === "inputFile" && item.fileExtension === ".h5ad")) {
             await this.loadColumns();
+
+            // ScatterPlot Lasso 선택 정보 기반 cell group 및 clusters 자동 설정
+            await this.applyAutoClusterSelection();
           }
         });
       }
@@ -750,6 +776,111 @@ export default {
       } else {
         // H5AD 파일이 필요하지 않은 플러그인일 수도 있으므로 경고만 출력
         console.warn("No H5AD input file found in plugin configuration.");
+      }
+    },
+    // cell group 및 clusters 자동 선택 (5가지 시나리오 처리)
+    // 시나리오 0 (최우선): Lasso Reset 감지 → 파라미터 초기화 후 시나리오 3 적용
+    // 시나리오 1a: Lasso 선택 + Group 선택 있음 → ScatterPlot Group 컬럼 + 선택된 셀의 클러스터만
+    // 시나리오 1b: Lasso 선택 + Group 미선택 → 첫 번째 annotation + 모든 클러스터
+    // 시나리오 2: Lasso 없음 + 저장된 값 있음 → 유지
+    // 시나리오 3: Lasso 없음 + 저장된 값 없음 → 첫 번째 annotation + 모든 클러스터
+    async applyAutoClusterSelection() {
+      // 0. 파라미터 찾기
+      const cellGroupParam = this.selectedPluginRules
+        .flatMap(rule => rule.parameters)
+        .find(param => param.name === 'cell group');
+
+      const clustersParam = this.selectedPluginRules
+        .flatMap(rule => rule.parameters)
+        .find(param => param.name === 'clusters');
+
+      // 파라미터가 없으면 종료
+      if (!cellGroupParam) return;
+
+      // 시나리오 0: Lasso Reset 감지 → 파라미터 초기화
+      const resetScatterPlotNode = this.currentNodeConnection.find(
+        node => node.class === 'ScatterPlot' && node.data?.lasso_reset === true
+      );
+
+      if (resetScatterPlotNode) {
+        // Reset 플래그 제거 (한 번만 처리)
+        const clearResetDataObject = { lasso_reset: false };
+        this.$store.commit("setWorkflowNodeDataObject", {
+          nodeId: resetScatterPlotNode.id,
+          dataObject: clearResetDataObject
+        });
+
+        // 파라미터 초기화 후 시나리오 3 적용 (첫 번째 annotation + 모든 클러스터)
+        if (this.annotations.length > 0) {
+          const firstAnnotation = this.annotations[0];
+          cellGroupParam.defaultValue = firstAnnotation;
+
+          const clusters = await this.getCurrnetClusters(firstAnnotation);
+          this.clusters = clusters;
+
+          if (clustersParam && clusters.length > 0) {
+            clustersParam.defaultValue = [...clusters];
+          }
+        }
+        return;
+      }
+
+      // Lasso 선택 여부 확인 (lasso_file_path 기반)
+      const scatterPlotNode = this.currentNodeConnection.find(
+        node => node.class === 'ScatterPlot' && node.data?.lasso_file_path
+      );
+
+      if (scatterPlotNode?.data?.lasso_file_path) {
+        // Lasso 선택 있음
+        const lassoClusterInfo = scatterPlotNode.data.lasso_cluster_info;
+
+        if (lassoClusterInfo?.column && lassoClusterInfo?.values?.length > 0 &&
+            this.annotations.includes(lassoClusterInfo.column)) {
+          // 시나리오 1a: Lasso 선택 + Group 선택 있음
+          cellGroupParam.defaultValue = lassoClusterInfo.column;
+
+          const clusters = await this.getCurrnetClusters(lassoClusterInfo.column);
+          this.clusters = clusters;
+
+          if (clustersParam) {
+            clustersParam.defaultValue = lassoClusterInfo.values.filter(v => this.clusters.includes(v));
+          }
+        } else {
+          // 시나리오 1b: Lasso 선택 + Group 미선택 → 첫 번째 annotation + 모든 클러스터
+          if (this.annotations.length > 0) {
+            const firstAnnotation = this.annotations[0];
+            cellGroupParam.defaultValue = firstAnnotation;
+
+            const clusters = await this.getCurrnetClusters(firstAnnotation);
+            this.clusters = clusters;
+
+            if (clustersParam && clusters.length > 0) {
+              clustersParam.defaultValue = [...clusters];
+            }
+          }
+        }
+        return;
+      }
+
+      // 시나리오 2: 저장된 값이 있으면 유지 (Lasso 없을 때만)
+      if (cellGroupParam.defaultValue && clustersParam?.defaultValue?.length > 0) {
+        // 저장된 cell group에 대한 clusters 로드
+        const clusters = await this.getCurrnetClusters(cellGroupParam.defaultValue);
+        this.clusters = clusters;
+        return;
+      }
+
+      // 시나리오 3: Lasso 선택 없음 + 저장된 값 없음 → 첫 번째 annotation + 모든 클러스터
+      if (this.annotations.length > 0 && !cellGroupParam.defaultValue) {
+        const firstAnnotation = this.annotations[0];
+        cellGroupParam.defaultValue = firstAnnotation;
+
+        const clusters = await this.getCurrnetClusters(firstAnnotation);
+        this.clusters = clusters;
+
+        if (clustersParam && clusters.length > 0) {
+          clustersParam.defaultValue = [...clusters];  // 초기 로드 시에만 모든 클러스터 선택
+        }
       }
     },
   },
@@ -1243,6 +1374,23 @@ export default {
   box-sizing: border-box;
 
   user-select: none;
+}
+
+.parameter__dropdown:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f5f5f5;
+}
+
+.parameter__dropdown--checkbox.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+  background-color: #f5f5f5;
+}
+
+.parameter__dropdown--checkbox.disabled input[type="checkbox"] {
+  cursor: not-allowed;
 }
 
 .parameter__dropdown--menu {
