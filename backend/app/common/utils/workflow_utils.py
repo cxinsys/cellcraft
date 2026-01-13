@@ -162,6 +162,80 @@ def extract_all_algorithms(workflow_info):
 
     return algorithms
 
+
+def find_connected_visualization_nodes(workflow_data: dict, algorithm_id) -> List[str]:
+    """
+    Find all Visualization node IDs connected to a given Algorithm node.
+
+    Traverses workflow graph from Algorithm node through ResultFiles to find
+    Visualization nodes.
+
+    Args:
+        workflow_data: The workflow data dictionary (drawflow.Home.data structure)
+        algorithm_id: The ID of the Algorithm node to start from
+
+    Returns:
+        List of Visualization node IDs connected to the Algorithm node
+    """
+    visualization_node_ids = []
+    algorithm_id_str = str(algorithm_id)
+
+    # Find the Algorithm node
+    algorithm_node = None
+    for key, node in workflow_data.items():
+        if str(node.get("id")) == algorithm_id_str and node.get("class") == "Algorithm":
+            algorithm_node = node
+            break
+
+    if not algorithm_node:
+        logger.warning(f"Algorithm node with ID {algorithm_id} not found")
+        return visualization_node_ids
+
+    # Get direct connections from Algorithm node outputs
+    outputs = algorithm_node.get("outputs", {})
+    connected_node_ids = []
+
+    for output_key, output_data in outputs.items():
+        connections = output_data.get("connections", [])
+        for connection in connections:
+            connected_node_id = connection.get("node")
+            if connected_node_id:
+                connected_node_ids.append(str(connected_node_id))
+
+    # Process connected nodes
+    for connected_id in connected_node_ids:
+        connected_node = workflow_data.get(connected_id)
+        if not connected_node:
+            continue
+
+        node_class = connected_node.get("class", "")
+
+        if node_class == "Visualization":
+            visualization_node_ids.append(connected_id)
+        elif node_class == "ResultFiles":
+            # Follow ResultFiles outputs to find Visualization nodes
+            rf_outputs = connected_node.get("outputs", {})
+            for rf_output_key, rf_output_data in rf_outputs.items():
+                rf_connections = rf_output_data.get("connections", [])
+                for rf_connection in rf_connections:
+                    rf_connected_id = rf_connection.get("node")
+                    if rf_connected_id:
+                        rf_connected_node = workflow_data.get(str(rf_connected_id))
+                        if rf_connected_node and rf_connected_node.get("class") == "Visualization":
+                            visualization_node_ids.append(str(rf_connected_id))
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_ids = []
+    for vid in visualization_node_ids:
+        if vid not in seen:
+            seen.add(vid)
+            unique_ids.append(vid)
+
+    logger.debug(f"Found {len(unique_ids)} Visualization nodes connected to Algorithm {algorithm_id}")
+    return unique_ids
+
+
 def extract_algorithm_data(workflow_info, algorithm_id):
     # 탐색하여 class가 "Algorithm"이고 id가 algorithm_id인 객체를 찾음
     for key, value in workflow_info.items():

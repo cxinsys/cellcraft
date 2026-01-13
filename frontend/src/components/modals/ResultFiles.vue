@@ -232,6 +232,27 @@ export default {
         },
 
         loadExistingSelection() {
+            // Algorithm의 현재 executionId와 저장된 executionId 비교
+            const algorithmNodeInfo = this.$store.getters.getWorkflowNodeInfo(this.algorithmId);
+            const currentExecutionId = algorithmNodeInfo?.data?.lastExecutionId;
+            const current_node = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
+            const configuredExecutionId = current_node?.data?.configuredForExecutionId;
+
+            // executionId가 다르면 상태 초기화 (Algorithm 재실행 감지)
+            if (currentExecutionId && configuredExecutionId && currentExecutionId !== configuredExecutionId) {
+                console.info('ResultFiles: Algorithm re-executed, resetting state');
+                this.$store.commit('setWorkflowFiles', { id: this.nodeId, files: [] });
+                this.$store.commit('setWorkflowNodeDataObject', {
+                    nodeId: this.nodeId,
+                    dataObject: { configuredForExecutionId: null }
+                });
+                this.selectedFinalFiles = [];
+                this.selectedIntermediateFiles = [];
+                this.isSetup = false;
+                this.hasBeenSetup = false;
+                return;
+            }
+
             // Check if this is already a multi-file node
             const existingFiles = this.$store.getters.getWorkflowNodeFilesInfo(this.nodeId);
 
@@ -241,16 +262,32 @@ export default {
                     .filter(f => f.selected)
                     .map(f => f.name);
 
-                // 선택된 파일들을 최종/중간 파일로 분류
-                this.selectedFinalFiles = selectedFileNames.filter(fileName =>
+                // 현재 파일 목록에 존재하는 선택된 파일들만 필터링
+                const validFinalFiles = selectedFileNames.filter(fileName =>
                     this.finalFileList.some(file => file.name === fileName)
                 );
-                this.selectedIntermediateFiles = selectedFileNames.filter(fileName =>
+                const validIntermediateFiles = selectedFileNames.filter(fileName =>
                     this.intermediateFileList.some(file => file.name === fileName)
                 );
 
-                this.isSetup = selectedFileNames.length > 0;
-                this.hasBeenSetup = selectedFileNames.length > 0;
+                // Algorithm 재실행으로 인해 저장된 파일이 없어진 경우 상태 초기화
+                const validFilesCount = validFinalFiles.length + validIntermediateFiles.length;
+                if (selectedFileNames.length > 0 && validFilesCount === 0) {
+                    // 모든 저장된 파일이 더 이상 존재하지 않음 - 상태 초기화
+                    console.info('ResultFiles: Stored files no longer exist, resetting state');
+                    this.$store.commit('setWorkflowFiles', { id: this.nodeId, files: [] });
+                    this.selectedFinalFiles = [];
+                    this.selectedIntermediateFiles = [];
+                    this.isSetup = false;
+                    this.hasBeenSetup = false;
+                    return;
+                }
+
+                this.selectedFinalFiles = validFinalFiles;
+                this.selectedIntermediateFiles = validIntermediateFiles;
+
+                this.isSetup = validFilesCount > 0;
+                this.hasBeenSetup = validFilesCount > 0;
             } else {
                 // Handle legacy single file format
                 const existingFile = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
@@ -397,6 +434,10 @@ export default {
         setFiles() {
             if (this.selectedFiles.length === 0) return;
 
+            // Algorithm의 lastExecutionId 가져오기
+            const algorithmNodeInfo = this.$store.getters.getWorkflowNodeInfo(this.algorithmId);
+            const executionId = algorithmNodeInfo?.data?.lastExecutionId || null;
+
             // Convert to multi-file format for Vuex store
             const filesData = this.allFiles.map(file => ({
                 name: file.name,
@@ -408,6 +449,12 @@ export default {
             this.$store.commit('setWorkflowFiles', {
                 id: this.nodeId,
                 files: filesData
+            });
+
+            // configuredForExecutionId 저장 (Algorithm 재실행 감지용)
+            this.$store.commit('setWorkflowNodeDataObject', {
+                nodeId: this.nodeId,
+                dataObject: { configuredForExecutionId: executionId }
             });
 
             // Share files with connected nodes

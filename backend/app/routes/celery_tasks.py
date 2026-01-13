@@ -115,7 +115,7 @@ class MyTask(Task):
         print(f'Task {task_id} failed at {end_time}, error: {exc}')
         user_id = kwargs.get('user_id')
         end_task(user_id, task_id, end_time, status='FAILURE')
-        
+
         # 작업 실패 시 관련 컨테이너 정리
         try:
             if container_manager.stop_task_container(task_id):
@@ -124,6 +124,35 @@ class MyTask(Task):
                 print(f"No container found or cleanup failed for task {task_id}")
         except Exception as cleanup_error:
             logger.error(f"Error cleaning up container for failed task {task_id}: {cleanup_error}")
+
+        # 작업 실패 시 results 폴더 정리 (재실행 시 Snakemake 스킵 방지)
+        try:
+            workflow_id = kwargs.get('workflow_id')
+            algorithm_id = kwargs.get('algorithm_id')
+            task_type = kwargs.get('task_type')
+
+            if user_id and workflow_id and algorithm_id:
+                from app.database.conn import get_db_session
+                from app.database import models
+                from pathlib import Path
+                from app.common.utils.log_archive_utils import cleanup_task_results
+
+                with get_db_session() as db:
+                    user = db.query(models.User).filter_by(id=user_id).first()
+                    if user:
+                        if task_type == 'visualization':
+                            task_folder = f"./user/{user.username}/workflow_{workflow_id}/visualization_{algorithm_id}"
+                        else:
+                            task_folder = f"./user/{user.username}/workflow_{workflow_id}/algorithm_{algorithm_id}"
+
+                        cleanup_result = cleanup_task_results(Path(task_folder), preserve_folder=True)
+                        if cleanup_result["success"]:
+                            files_count = len(cleanup_result.get('files_removed', [])) + len(cleanup_result.get('symlinks_removed', []))
+                            print(f"Results cleanup for failed task {task_id}: {files_count} items removed")
+                        else:
+                            print(f"Results cleanup warning for failed task {task_id}: {cleanup_result.get('error')}")
+        except Exception as results_cleanup_error:
+            logger.warning(f"Results cleanup failed for task {task_id}: {results_cleanup_error}")
 
     def on_revoke(self, task_id: str, kwargs, terminated, signum, expired):
         end_time = datetime.now(timezone.utc)
@@ -157,10 +186,23 @@ class MyTask(Task):
                         break
             
             print(f"Container cleanup completed for revoked task {task_id}")
-            
+
         except Exception as cleanup_error:
             logger.error(f"Error cleaning up container for revoked task {task_id}: {cleanup_error}")
             print(f"Container cleanup failed for task {task_id}: {cleanup_error}")
+
+        # Snakemake lock 파일 정리 (작업 취소 시 lock이 남아있을 수 있음)
+        try:
+            snakemake_lock_dir = Path("./").resolve() / ".snakemake" / "locks"
+            if snakemake_lock_dir.exists():
+                lock_files_removed = 0
+                for lock_file in snakemake_lock_dir.glob("*.lock"):
+                    lock_file.unlink()
+                    lock_files_removed += 1
+                if lock_files_removed > 0:
+                    print(f"Removed {lock_files_removed} Snakemake lock file(s) for revoked task {task_id}")
+        except Exception as lock_cleanup_error:
+            logger.warning(f"Snakemake lock cleanup failed for task {task_id}: {lock_cleanup_error}")
 
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
         print('----------------------------------------')

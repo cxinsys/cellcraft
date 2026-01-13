@@ -430,6 +430,26 @@ export default {
       const dataObject = {
         selectedCluster: this.selectedCluster
       };
+
+      // Lasso가 이미 적용된 상태라면 lasso_cluster_info도 업데이트
+      if (this.appliedSelectedIndices && this.appliedSelectedIndices.length > 0) {
+        if (this.selectedCluster !== null && !isNaN(this.selectedCluster)) {
+          // lines는 이미 필터링되어 선택된 셀들만 포함
+          // 모든 lines에서 새 Group 컬럼의 고유값 추출
+          const uniqueClusterValues = [...new Set(
+            this.lines.map(line => String(line[this.selectedCluster]))
+          )];
+
+          dataObject.lasso_cluster_info = {
+            column: this.keys[this.selectedCluster],
+            values: uniqueClusterValues
+          };
+        } else {
+          // Group이 None으로 선택된 경우
+          dataObject.lasso_cluster_info = null;
+        }
+      }
+
       this.$store.commit("setWorkflowNodeDataObject", { nodeId: this.nodeId, dataObject });
 
       this.updateChart();
@@ -519,8 +539,26 @@ export default {
           file_extension: "json",
         });
         console.log(selectIndicesInfo.data);
+
+        // 선택된 셀들의 클러스터 정보 추출 (lines 필터링 전에 수행)
+        let lassoClusterInfo = null;
+        if (this.selectedCluster !== null && this.selectedCluster !== undefined) {
+          // 처음 Apply 시점: 배열 인덱스 = 원본 인덱스이므로 직접 접근 가능
+          const uniqueClusterValues = [...new Set(
+            this.selectedIndices.map(index =>
+              String(this.lines[index][this.selectedCluster])
+            )
+          )];
+
+          lassoClusterInfo = {
+            column: this.keys[this.selectedCluster],  // 컬럼명 (예: "leiden")
+            values: uniqueClusterValues                // 고유값들 (예: ["0", "1", "2"])
+          };
+        }
+
         const dataObject = {
-          lasso_file_path: selectIndicesInfo.data.file_path
+          lasso_file_path: selectIndicesInfo.data.file_path,
+          lasso_cluster_info: lassoClusterInfo
         }
         this.$store.commit("setWorkflowNodeDataObject", { nodeId: this.nodeId, dataObject });
         this.appliedSelectedIndices = this.selectedIndices;
@@ -541,6 +579,16 @@ export default {
           file_extension: "json",
         });
         console.log(resetIndicesInfo);
+
+        // store에서 lasso 관련 데이터 제거 + reset 플래그 설정
+        // lasso_reset: true로 설정하면 연결된 Algorithm 노드가 파라미터를 초기화함
+        const dataObject = {
+          lasso_file_path: null,
+          lasso_cluster_info: null,
+          lasso_reset: true
+        };
+        this.$store.commit("setWorkflowNodeDataObject", { nodeId: this.nodeId, dataObject });
+
         this.appliedSelectedIndices = null;
         this.selectedIndices = [];
         this.disableApplyButton = false;
