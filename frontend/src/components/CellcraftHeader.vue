@@ -136,7 +136,7 @@ a {
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: left;
+  justify-content: flex-start;
   /* transform: translateY(3px); */
 }
 
@@ -145,7 +145,7 @@ a {
   height: 2.25rem;
   display: flex;
   align-items: center;
-  justify-content: left;
+  justify-content: flex-start;
 }
 
 .logo__img {
@@ -256,7 +256,7 @@ a {
   width: 25%;
   height: 100%;
   display: flex;
-  justify-content: right;
+  justify-content: flex-end;
   align-items: center;
   /* transform: translateY(3px); */
 }
