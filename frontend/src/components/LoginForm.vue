@@ -1,7 +1,7 @@
 <template>
   <div class="login-layout">
     <header class="login-header">
-      <h1 class="header-text">Sign in to Cellcraft</h1>
+      <h1 class="header-text">Sign in to CellCraft</h1>
     </header>
     <form class="login-form" @submit.prevent="submitForm">
       <div class="login__field">

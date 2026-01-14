@@ -25,7 +25,7 @@
       <ul class="project-view__list">
         <li class="project-component" @click="createProject" @contextmenu.prevent>
           <div class="project__content">
-            <img class="project__thumnail--icon" src="@/assets/create.png" />
+            <img class="project__thumbnail--icon" src="@/assets/create.png" />
           </div>
           <div class="project__info">
             <p class="project__title">New Workflow</p>
@@ -35,7 +35,7 @@
         <li class="project-component" v-for="(workflow, idx) in workflows" :key="idx" @contextmenu.prevent
           @click="openWorkflow(workflow.id)" @click.right="RMouseClick($event, workflow.id, idx)">
           <div class="project__content">
-            <img class="project__thumnail" :src="workflow.thumbnail || require('@/assets/workflow-template2.png')
+            <img class="project__thumbnail" :src="workflow.thumbnail || require('@/assets/workflow-template2.png')
               " />
           </div>
           <div class="project__info">
@@ -62,7 +62,7 @@
     <!-- Modal for delete confirmation -->
     <div class="delete-modal" v-if="showDeleteModal">
       <div class="delete-modal__content">
-        <p>Are you sure you want to delete this workflow ?</p>
+        <p>Are you sure you want to delete this workflow?</p>
         <ul class="delete-modal__buttons">
           <button @click="removeWorkflow">Yes</button>
           <button @click="showDeleteModal = !showDeleteModal">No</button>
@@ -454,14 +454,14 @@ export default {
   justify-content: center;
 }
 
-.project__thumnail {
+.project__thumbnail {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 1rem 1rem 0 0;
 }
 
-.project__thumnail--icon {
+.project__thumbnail--icon {
   width: 4rem;
   height: 4rem;
   object-fit: cover;
