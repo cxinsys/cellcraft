@@ -44,7 +44,7 @@
     <ul class="toggle__menu" v-bind:class="{ open: R_Mouse_isActive }" :style="{ left: xPosition, top: yPosition }"
       @click.stop>
       <li @click="confirmDelete" v-if="isCompleted">Delete</li>
-      <li @click="cancelTask" v-else>Cancle</li>
+      <li @click="cancelTask" v-else>Cancel</li>
       <li @click="showLogs">View logs</li>
       <li @click="viewProgress" v-if="isAnalysisTask">View progress</li>
       <li @click="downloadExecutionManifest" v-if="isCompleted && canDownloadManifest">Download manifest</li>

@@ -121,7 +121,7 @@ describe('PluginsPage.vue', () => {
     it('should create service instances on mount', () => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -139,7 +139,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -169,7 +169,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -228,7 +228,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -287,7 +287,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -310,7 +310,7 @@ describe('PluginsPage.vue', () => {
     it('should stop all monitoring on destroy', () => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -331,7 +331,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -423,7 +423,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -526,7 +526,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -578,7 +578,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -645,7 +645,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -695,7 +695,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -736,7 +736,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -821,7 +821,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -887,7 +887,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -931,7 +931,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -985,7 +985,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -1064,7 +1064,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }
@@ -1119,7 +1119,7 @@ describe('PluginsPage.vue', () => {
     beforeEach(() => {
       wrapper = shallowMount(PluginsPage, {
         stubs: {
-          'PluginExtention': true,
+          'PluginExtension': true,
           'BuildMonitor': true,
           'PluginCategoryTabs': true
         }

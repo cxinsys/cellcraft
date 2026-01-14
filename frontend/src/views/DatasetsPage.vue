@@ -3,7 +3,7 @@
     <div class="first-line">
       <div class="header__text">Datasets</div>
       <div class="search">
-        <input type="text" v-model="searchTerm" placeholder="Search titles..." />
+        <input type="text" v-model="searchTerm" placeholder="Search datasets..." />
       </div>
       <div class="pagination">
         <button @click="prevPage" :disabled="currentPage <= 1">Prev</button>

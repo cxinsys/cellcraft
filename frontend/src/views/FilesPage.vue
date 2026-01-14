@@ -69,7 +69,7 @@
         <!-- <li>view</li>
         <li>plot</li>
         <li>rename</li> -->
-        <li @click="removeFile">delete</li>
+        <li @click="removeFile">Delete</li>
       </ul>
     </main>
     <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">

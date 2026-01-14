@@ -56,7 +56,7 @@
           </ul>
           <label class="form__button--apply" v-bind:class="{ activate: apply }">
             {{ apply ? "Applied" : "Apply" }}
-            <input class="form__input" type="submit" value="업로드" />
+            <input class="form__input" type="submit" value="Upload" />
           </label>
           <div v-if="isLoading" class="loading-layout">
             <span> </span>

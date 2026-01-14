@@ -26,7 +26,7 @@
             name <span class="sort-icon">{{ sortIcon("username") }}</span>
           </th>
           <th @click="sortTable('email')">
-            e-mail <span class="sort-icon">{{ sortIcon("email") }}</span>
+            Email <span class="sort-icon">{{ sortIcon("email") }}</span>
           </th>
           <th>Actions</th>
         </tr>

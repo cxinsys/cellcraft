@@ -1,7 +1,7 @@
 <template>
   <div class="signup-layout">
     <header class="signup-header">
-      <h1 class="header-text">Sign up</h1>
+      <h1 class="header-text">Sign Up</h1>
     </header>
     <form class="signup-form" @submit.prevent="submitForm">
       <div class="signup__field">
@@ -12,7 +12,7 @@
           v-model="email"
         />
         <div class="error-message" v-if="!isEmailValidation && email">
-          Please follow the email format
+          Please enter a valid email address
         </div>
       </div>
 
@@ -32,7 +32,7 @@
           placeholder="Password"
           v-model="password"
         />
-        <div class="error-message">At least 8 characters</div>
+        <div class="error-message" v-if="password && password.length < 8">Password must be at least 8 characters</div>
       </div>
 
       <div class="signup__field">
@@ -51,7 +51,7 @@
           class="signup__button"
           :disabled="!email || !username || !password"
         >
-          Join
+          Sign Up
         </button>
       </div>
     </form>
@@ -83,7 +83,7 @@ export default {
     async submitForm() {
       try {
         if (this.password != this.re_password) {
-          throw new Error("Confirm password does not match");
+          throw new Error("Passwords do not match");
         } else {
           const userData = {
             email: this.email,
@@ -95,13 +95,13 @@ export default {
           this.$router.push("/login");
         }
       } catch (error) {
-        if (error.message === "Confirm password does not match") {
+        if (error.message === "Passwords do not match") {
           this.errorMessage = error.message;
         } else {
           this.errorMessage =
             error.response && error.response.data.detail
               ? error.response.data.detail
-              : "An unknown error occurred";
+              : "An error occurred. Please try again.";
         }
         this.isError = true;
       } finally {
