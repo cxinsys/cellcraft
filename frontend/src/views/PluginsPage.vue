@@ -28,7 +28,7 @@
         </div>
       </div>
     </div>
-    <PluginExtention v-if="showPluginExtension" @close="closePluginExtension" :editName="selectedPlugin.name"
+    <PluginExtension v-if="showPluginExtension" @close="closePluginExtension" :editName="selectedPlugin.name"
       :editDescription="selectedPlugin.description" :editDependencies="selectedPlugin.dependencies"
       :editDrawflow="selectedPlugin.drawflow" :editRules="selectedPlugin.rules" :readOnly="selectedPlugin.readOnly"
       :pluginSource="selectedPlugin.source" />
@@ -171,7 +171,7 @@
 </template>
 
 <script>
-import PluginExtention from "@/components/PluginExtention.vue";
+import PluginExtension from "@/components/PluginExtension.vue";
 import BuildMonitor from "@/components/pluginComponents/BuildMonitor.vue";
 import PluginCategoryTabs from "@/components/pluginComponents/PluginCategoryTabs.vue";
 
@@ -188,7 +188,7 @@ import { analyzeError } from "@/utils/errorAnalyzer";
 
 export default {
   components: {
-    PluginExtention,
+    PluginExtension,
     BuildMonitor,
     PluginCategoryTabs,
   },
