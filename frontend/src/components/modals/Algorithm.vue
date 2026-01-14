@@ -473,7 +473,7 @@ export default {
     },
     activateClusters() {
       if (this.clusters.length === 0) {
-        alert("There is no cluster column. Please select the cellgroup first.");
+        alert("There is no cluster column. Please select the cell group first.");
         return;
       }
       this.dropdownIsActive = !this.dropdownIsActive;
