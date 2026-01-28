@@ -1,0 +1,45 @@
+FROM jenkins/jenkins:lts
+
+USER root
+
+# Node.js 20.x LTS 설치
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g npm@latest
+
+# Playwright 브라우저 의존성 설치 (시스템 라이브러리)
+RUN npx playwright install-deps chromium
+
+# Playwright 브라우저 경로 설정
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+
+# 브라우저 디렉토리 생성 (볼륨 마운트 포인트)
+RUN mkdir -p /opt/playwright-browsers \
+    && chmod -R 755 /opt/playwright-browsers
+
+# 초기 브라우저 설치 (볼륨이 비어있을 때 사용됨)
+RUN npx playwright install chromium
+
+# Docker CLI 설치 (docker.sock 사용을 위해)
+RUN apt-get update && apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 커스텀 엔트리포인트 스크립트 복사
+COPY docker-entrypoint-jenkins.sh /usr/local/bin/docker-entrypoint-jenkins.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint-jenkins.sh
+
+# Jenkins 사용자로 전환
+USER jenkins
+
+# 커스텀 엔트리포인트 사용
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint-jenkins.sh"]

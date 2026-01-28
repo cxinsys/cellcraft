@@ -97,11 +97,15 @@ services:
     restart: always
 
   jenkins:
-    image: jenkins/jenkins:lts
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.jenkins
+    image: cellcraft/jenkins:latest
     container_name: cellcraft_jenkins
     restart: always
     environment:
       - TZ=Asia/Seoul
+      - PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
       # Initial setup wizard enabled for first-time configuration
       # Remove this line after completing initial setup for faster restarts
     ports:
@@ -111,6 +115,7 @@ services:
       - "8080"   # Jenkins UI (internal access)
     volumes:
       - jenkins_data:/var/jenkins_home
+      - playwright_browsers:/opt/playwright-browsers
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backend:/workspace/backend:ro
       - ./frontend:/workspace/frontend:ro
@@ -147,4 +152,5 @@ services:
 volumes:
   postgres_data:
   jenkins_data:
+  playwright_browsers:
   uptime_kuma_data:
