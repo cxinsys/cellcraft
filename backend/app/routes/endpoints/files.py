@@ -154,7 +154,7 @@ def find_user_file(
 
 #User find File of folder
 @router.post("/folder")
-def find_user_file(
+def find_user_folder(
     *,
     db: Session = Depends(dep.get_db),
     current_user: models.User = Depends(dep.get_current_active_user),
@@ -405,8 +405,22 @@ def read_user_file(
             return contents
         
 @router.get("/html/{filename}", response_class=HTMLResponse)
-async def read_html_file(filename: str):
-    with open(f'./tutorials/{filename}.html', "r") as f:
+async def read_html_file(
+    *,
+    current_user: models.User = Depends(dep.get_current_active_user),
+    filename: str,
+) -> Any:
+    from app.common.utils.file_security import validate_file_path
+
+    folder_path = './tutorials'
+    file_path = os.path.join(folder_path, f'{filename}.html')
+
+    validate_file_path(folder_path, file_path)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    with open(file_path, "r") as f:
         html = f.read()
     return HTMLResponse(content=html)
 
