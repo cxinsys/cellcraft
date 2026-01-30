@@ -176,6 +176,10 @@ export function traverseGraphBFS(state, startNodeId, onNodeVisit, options = {}) 
  * @param {boolean} isMultiFile - 멀티파일 여부
  */
 export function propagateFileToConnectedNodes(state, sourceNodeId, filesToShare, isMultiFile = false) {
+  // 소스 노드의 fileSource 읽기
+  const sourceNode = getNodeFromState(state, sourceNodeId);
+  const fileSource = sourceNode ? (sourceNode.data.fileSource || "user") : "user";
+
   traverseGraphBFS(
     state,
     sourceNodeId,
@@ -201,6 +205,8 @@ export function propagateFileToConnectedNodes(state, sourceNodeId, filesToShare,
         // 단일 파일: 하위 호환성 유지
         targetNode.data.file = filesToShare;
       }
+      // fileSource 전파
+      targetNode.data.fileSource = fileSource;
 
       return 'continue';
     },

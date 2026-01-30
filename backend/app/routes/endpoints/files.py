@@ -404,10 +404,59 @@ def read_user_file(
             contents = file.read()
             return contents
         
-@router.get("/html/{filename}", response_class=HTMLResponse)
-async def read_html_file(
+@router.get("/shared")
+def get_shared_files(
+    current_user: models.User = Depends(dep.get_current_active_user),
+) -> Any:
+    """tutorials/ 디렉토리의 데이터 파일 목록 반환 (html 제외)"""
+    SHARED_DIR = './tutorials'
+    DATA_EXTENSIONS = {'.h5ad', '.csv', '.txt', '.json'}
+    shared_files = []
+
+    if not os.path.isdir(SHARED_DIR):
+        return shared_files
+
+    for f in os.listdir(SHARED_DIR):
+        ext = os.path.splitext(f)[1].lower()
+        if ext in DATA_EXTENSIONS:
+            file_path = os.path.join(SHARED_DIR, f)
+            shared_files.append({
+                "file_name": f,
+                "file_size": str(os.path.getsize(file_path)),
+                "file_path": SHARED_DIR,
+                "folder": "tutorials",
+                "source": "shared",
+            })
+    return shared_files
+
+
+@router.post("/shared/find")
+def find_shared_file(
     *,
     current_user: models.User = Depends(dep.get_current_active_user),
+    fileInfo: FileFind,
+) -> Any:
+    """공용 파일 단건 조회 (InputFile.vue에서 사용)"""
+    from app.common.utils.file_security import validate_file_path
+
+    SHARED_DIR = './tutorials'
+    file_path = os.path.join(SHARED_DIR, fileInfo.file_name)
+    validate_file_path(SHARED_DIR, file_path)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Shared file not found")
+
+    return {
+        "file_name": fileInfo.file_name,
+        "file_size": str(os.path.getsize(file_path)),
+        "file_path": SHARED_DIR,
+        "folder": "tutorials",
+        "source": "shared",
+    }
+
+
+@router.get("/html/{filename}", response_class=HTMLResponse)
+async def read_html_file(
     filename: str,
 ) -> Any:
     from app.common.utils.file_security import validate_file_path

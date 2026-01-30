@@ -1,26 +1,45 @@
 <template>
   <div class="layout">
     <form class="fileUpload-form" @submit.prevent="applyFile">
-      <ul class="folder__list">
-        <router-link class="cloud-row" target="_blank" to="/files">
-          <div class="cloud-textbox">
-            <p class="cloud-textbox__directory__desc">
-              If you want to upload a new file, please click here.
-            </p>
-            <h1 class="cloud-textbox__directory">Files Directory ></h1>
-          </div>
-        </router-link>
-        <li class="folder__item" v-for="(folder, idx) in folders_list" :key="idx + 'O'"
-          v-bind:class="{ toggleFolder: toggleFolder === idx }" @click="folderClick(idx, folder[0])">
-          <div class="folder__item--col">
-            <img class="folder__item--arrow" src="@/assets/arrow-right.png" v-if="toggleFolder === idx" />
-            <img class="folder__item--arrow" src="@/assets/arrow-right.png" v-else />
-            <img class="folder__item--icon" src="@/assets/open-folder.png" v-if="toggleFolder === idx" />
-            <img class="folder__item--icon" src="@/assets/folder.png" v-else />
-          </div>
-          <p class="folder__name">{{ folder[0] }}</p>
-        </li>
-      </ul>
+      <div class="folder__panel">
+        <div class="tab__bar">
+          <button type="button" class="tab__button" :class="{ 'tab__button--active': activeTab === 'user' }" @click="switchTab('user')">My Files</button>
+          <button type="button" class="tab__button" :class="{ 'tab__button--active': activeTab === 'shared' }" @click="switchTab('shared')">Tutorial Data</button>
+        </div>
+        <ul class="folder__list" v-if="activeTab === 'user'">
+          <router-link class="cloud-row" target="_blank" to="/files">
+            <div class="cloud-textbox">
+              <p class="cloud-textbox__directory__desc">
+                If you want to upload a new file, please click here.
+              </p>
+              <h1 class="cloud-textbox__directory">Files Directory ></h1>
+            </div>
+          </router-link>
+          <li class="folder__item" v-for="(folder, idx) in folders_list" :key="idx + 'O'"
+            v-bind:class="{ toggleFolder: toggleFolder === idx }" @click="folderClick(idx, folder[0])">
+            <div class="folder__item--col">
+              <img class="folder__item--arrow" src="@/assets/arrow-right.png" v-if="toggleFolder === idx" />
+              <img class="folder__item--arrow" src="@/assets/arrow-right.png" v-else />
+              <img class="folder__item--icon" src="@/assets/open-folder.png" v-if="toggleFolder === idx" />
+              <img class="folder__item--icon" src="@/assets/folder.png" v-else />
+            </div>
+            <p class="folder__name">{{ folder[0] }}</p>
+          </li>
+        </ul>
+        <ul class="folder__list folder__list--shared" v-if="activeTab === 'shared'">
+          <li class="folder__item" v-for="(file, idx) in shared_files_list" :key="idx + 'S'"
+            v-bind:class="{ toggleFolder: toggleSharedFile === idx }" @click="sharedFileClick(idx, file.file_name)">
+            <div class="folder__item--col">
+              <img class="folder__item--arrow" src="@/assets/arrow-right.png" />
+              <img class="folder__item--icon" src="@/assets/file-icon.png" />
+            </div>
+            <p class="folder__name">{{ file.file_name }}</p>
+          </li>
+          <li v-if="shared_files_list.length === 0" class="folder__item">
+            <p class="folder__name" style="color: rgba(51,51,51,0.5)">No tutorial data available</p>
+          </li>
+        </ul>
+      </div>
       <div class="fileUpload">
         <div class="form-row">
           <div class="form__selectFile">
@@ -70,6 +89,8 @@ import {
   getFiles,
   findFolder,
   findFile,
+  getSharedFiles,
+  findSharedFile,
 } from "@/api/index";
 import { formatBytes } from "@/utils/formatters";
 
@@ -83,11 +104,15 @@ export default {
       getFile: false,
       toggleFolder: null,
       toggleFile: null,
+      toggleSharedFile: null,
       folders_list: [],
       files_list: [],
+      shared_files_list: [],
       recentFiles_list: [],
       apply: false,
       isLoading: false,
+      activeTab: "user",
+      fileSource: "user",
       workflowId: this.$route.query.workflow_id,
       nodeId: this.$route.query.node,
     };
@@ -97,6 +122,22 @@ export default {
     previewFile() {
       if (this.$refs.selectFile.files.length > 0) {
         this.selectFile = this.$refs.selectFile.files[0];
+      }
+    },
+    async switchTab(tab) {
+      this.activeTab = tab;
+      this.toggleFile = null;
+      this.toggleSharedFile = null;
+      if (tab === "shared" && this.shared_files_list.length === 0) {
+        await this.loadSharedFiles();
+      }
+    },
+    async loadSharedFiles() {
+      try {
+        const res = await getSharedFiles();
+        this.shared_files_list = res.data;
+      } catch (error) {
+        console.error(error);
       }
     },
     async getFinder() {
@@ -130,6 +171,20 @@ export default {
           file_name: fileName,
         });
         this.selectFile = file.data;
+        this.fileSource = "user";
+      }
+    },
+    async sharedFileClick(idx, fileName) {
+      this.apply = false;
+      if (idx === this.toggleSharedFile) {
+        this.toggleSharedFile = null;
+      } else {
+        this.toggleSharedFile = idx;
+        const file = await findSharedFile({
+          file_name: fileName,
+        });
+        this.selectFile = file.data;
+        this.fileSource = "shared";
       }
     },
     applyFile() {
@@ -139,6 +194,7 @@ export default {
         const file_info = {
           file_name: this.selectFile.file_name,
           id: this.nodeId,
+          source: this.fileSource,
         };
         this.$store.commit("setWorkflowFile", file_info);
         this.$store.commit("shareWorkflowFile", this.nodeId);
@@ -154,10 +210,20 @@ export default {
       const currentFile = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
 
       if (currentFile !== "") {
+        // 저장된 fileSource 확인
+        const nodeData = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
+        const savedSource = nodeData && nodeData.data ? (nodeData.data.fileSource || "user") : "user";
+        this.fileSource = savedSource;
+
         try {
-          const file = await findFile({
-            file_name: currentFile,
-          });
+          let file;
+          if (savedSource === "shared") {
+            file = await findSharedFile({ file_name: currentFile });
+            this.activeTab = "shared";
+            await this.loadSharedFiles();
+          } else {
+            file = await findFile({ file_name: currentFile });
+          }
           this.selectFile = file.data;
           this.apply = true;
         } catch (error) {
@@ -207,16 +273,65 @@ export default {
   background-color: rgb(255, 255, 255);
 }
 
-.folder__list {
+.folder__panel {
   width: 45%;
   height: 95%;
   display: flex;
   flex-direction: column;
   margin: 1rem 0 1rem 1rem;
+}
+
+.tab__bar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+}
+
+.tab__button {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: rgb(220, 223, 228);
+  cursor: pointer;
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgb(100, 100, 100);
+  transition: background 0.2s, color 0.2s;
+}
+
+.tab__button:first-child {
+  border-radius: 0.5rem 0 0 0;
+}
+
+.tab__button:last-child {
+  border-radius: 0 0.5rem 0 0;
+}
+
+.tab__button--active {
+  background: rgb(255, 255, 255);
+  color: rgb(40, 84, 197);
+  font-weight: 600;
+}
+
+.tab__button:hover:not(.tab__button--active) {
+  background: rgb(235, 237, 240);
+}
+
+.folder__list {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 1rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: 0 0 0.5rem 0.5rem;
   box-sizing: border-box;
   background-color: rgb(255, 255, 255);
+  overflow-y: auto;
+}
+
+.folder__list--shared {
+  padding-top: 0.5rem;
 }
 
 .folder__item {

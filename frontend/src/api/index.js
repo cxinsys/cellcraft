@@ -119,6 +119,14 @@ function getFiles() {
   return instance.get("/routes/files/me");
 }
 
+function getSharedFiles() {
+  return instance.get("/routes/files/shared");
+}
+
+function findSharedFile(fileInfo) {
+  return instance.post("/routes/files/shared/find", fileInfo);
+}
+
 function findFile(fileInfo) {
   return instance.post("/routes/files/find", fileInfo);
 }
@@ -453,6 +461,8 @@ export {
   getResults,
   uploadForm,
   getFiles,
+  getSharedFiles,
+  findSharedFile,
   findFile,
   findFolder,
   getWorkflows,

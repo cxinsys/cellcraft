@@ -27,6 +27,7 @@ export default {
   setWorkflowFile(state, file_info) {
     if (state.workflow_info.drawflow.Home.data[file_info.id]) {
       state.workflow_info.drawflow.Home.data[file_info.id].data.file = file_info.file_name;
+      state.workflow_info.drawflow.Home.data[file_info.id].data.fileSource = file_info.source || "user";
     } else {
       console.error(`No object found with id: ${file_info.id}`);
     }
