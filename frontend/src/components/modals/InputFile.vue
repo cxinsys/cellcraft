@@ -46,9 +46,7 @@
             </li>
             <li class="form__info--text">
               <p class="form__info--name">{{ selectFile.file_name }}</p>
-              <p class="form__info--size">{{
-                selectFile.file_size | formatBytes
-                }}</p>
+              <p class="form__info--size">{{ formatBytes(selectFile.file_size) }}</p>
             </li>
           </ul>
           <ul class="form__info" v-else>
@@ -73,6 +71,7 @@ import {
   findFolder,
   findFile,
 } from "@/api/index";
+import { formatBytes } from "@/utils/formatters";
 
 export default {
   data() {
@@ -94,6 +93,7 @@ export default {
     };
   },
   methods: {
+    formatBytes,
     previewFile() {
       if (this.$refs.selectFile.files.length > 0) {
         this.selectFile = this.$refs.selectFile.files[0];
@@ -175,17 +175,6 @@ export default {
     } catch (error) {
       console.error(error);
     }
-  },
-  filters: {
-    formatBytes(a, b) {
-      if (a === 0) return "0 Bytes";
-      const c = 1024;
-      const d = b || 2;
-      const e = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-      const f = Math.floor(Math.log(a) / Math.log(c));
-
-      return parseFloat((a / Math.pow(c, f)).toFixed(d)) + " " + e[f];
-    },
   },
 };
 </script>
