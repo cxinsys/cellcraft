@@ -27,7 +27,7 @@ from app.common.utils.workflow_utils import (
     extract_visualization_data, extract_target_data, generate_user_input,
     generate_plugin_params, generate_visualization_params,
     resolve_algorithm_path_from_files, validate_file_paths,
-    find_connected_visualization_nodes
+    find_connected_visualization_nodes, extract_file_sources
 )
 from app.common.utils.log_archive_utils import cleanup_task_results
 from app.database.crud import crud_workflow, crud_plugin
@@ -83,8 +83,13 @@ def compileWorkflow(
                 except Exception as e:
                     raise HTTPException(status_code=404, detail=f"Plugin '{selected_plugin_name}' not found: {str(e)}")
 
-                # 입력 데이터 및 파라미터 추출
-                user_input = generate_user_input(algorithm['selectedPluginInputOutput'])
+                # 입력 데이터 및 파라미터 추출 (파일 소스에 따라 전체 경로 구성)
+                file_sources = extract_file_sources(algorithm)
+                user_input = generate_user_input(
+                    algorithm['selectedPluginInputOutput'],
+                    username=current_user.username,
+                    file_sources=file_sources,
+                )
                 plugin_params = generate_plugin_params(algorithm['selectedPluginRules'])
                 target_list = extract_target_data(algorithm['selectedPluginInputOutput'], user_workflow_task_path)
 
