@@ -72,11 +72,6 @@
         <li @click="removeFile">Delete</li>
       </ul>
     </main>
-    <div class="message" v-bind:class="{ toggleMessage: !toggleMessage }">
-      <p class="message__text">{{ messageContent }}</p>
-      <p class="message__undo" @click="undoDeletion">undo</p>
-      <img class="message__close" @click="toggleMessage = !toggleMessage" src="@/assets/close.png" />
-    </div>
   </div>
 </template>
 
@@ -108,10 +103,6 @@ export default {
       selectFile: null,
       file_name: null,
       list_idx: null,
-      toggleMessage: false,
-      deletionTimer: null,
-      messageContent: "",
-      targetFile: null,
       uploadPercentage: 0,
       isDeletingFile: false, // Track file deletion state to prevent concurrent deletions
     };
@@ -233,7 +224,6 @@ export default {
         await deleteFile(file);
 
         // Only remove from UI after successful deletion
-        this.targetFile = this.files_list[this.list_idx];
         this.files_list.splice(this.list_idx, 1);
 
       } catch (error) {
@@ -254,11 +244,6 @@ export default {
         // Reset loading state
         this.isDeletingFile = false;
       }
-    },
-    undoDeletion() {
-      this.files_list.push(this.targetFile);
-      this.toggleMessage = false;
-      clearTimeout(this.deletionTimer);
     },
   },
 
@@ -585,54 +570,6 @@ export default {
 
 .toggle__menu>li:hover {
   background: #e5e5e5;
-}
-
-.message {
-  width: 20rem;
-  height: 3rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  position: absolute;
-  bottom: 1rem;
-  left: calc(50% - 10rem);
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 1rem;
-  padding: 0 1rem;
-}
-
-.message__text {
-  font-family: "Montserrat", sans-serif;
-  font-style: normal;
-  font-weight: 400;
-  font-size: 1rem;
-  line-height: 1rem;
-  color: #ffffff;
-}
-
-.message__undo {
-  font-family: "Montserrat", sans-serif;
-  font-style: normal;
-  font-weight: 500;
-  font-size: 1rem;
-  line-height: 1rem;
-  color: #9196ff;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.message__close {
-  cursor: pointer;
-  width: 1rem;
-  height: 1rem;
-  object-fit: contain;
-  margin: 0 0.5rem;
-  opacity: 0.5;
-  filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
-}
-
-.toggleMessage {
-  display: none;
 }
 
 .progress__box {
