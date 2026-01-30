@@ -11,7 +11,8 @@ router = APIRouter()
 @router.post("/load_data")
 def load_data(vgt_info: DataTableEvent, current_user: str = Depends(dep.get_current_active_user)):
     try:
-        PATH_DATATABLE_FILE = f'./user/{current_user.username}/data/{vgt_info.file_name}'
+        from app.common.utils.file_path_resolver import resolve_data_file_path
+        PATH_DATATABLE_FILE = resolve_data_file_path(vgt_info.file_name, current_user.username, vgt_info.source)
         df = load_tab_file(PATH_DATATABLE_FILE)
         remote_table = RemoteDataTable(df, vgt_info)
         data = remote_table.get_filtered_sorted_paginated_data()

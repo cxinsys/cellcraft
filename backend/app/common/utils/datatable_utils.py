@@ -1,9 +1,10 @@
 import pandas as pd
-from typing import Dict, List
+from typing import Dict, List, Optional
 from pydantic import BaseModel
 
 class DataTableBase(BaseModel):
     file_name: str
+    source: Optional[str] = None  # "user" | "shared"
 
 class Sort(BaseModel):
     field: str

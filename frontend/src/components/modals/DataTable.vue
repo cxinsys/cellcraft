@@ -129,12 +129,15 @@ export default {
   },
   async mounted() {
     this.current_file = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
+    const nodeInfo = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
+    const fileSource = (nodeInfo && nodeInfo.data && nodeInfo.data.fileSource) || "user";
     console.log(this.current_file);
     // const initial_file_ids = Object.keys(this.current_files);
     if (this.current_file) {
       this.isLoading = true;
       try {
-        this.serverParams.file_name = this.current_file
+        this.serverParams.file_name = this.current_file;
+        this.serverParams.source = fileSource;
         const dataTableResult = await getDataTableFile(this.serverParams);
 
         console.log(dataTableResult.data);

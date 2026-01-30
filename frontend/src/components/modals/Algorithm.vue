@@ -222,6 +222,7 @@ export default {
                 updatedItem.selected_file = savedItem.selected_file;
                 updatedItem.activate = true;
                 updatedItem.file_name = savedItem.selected_file.file_name;
+                updatedItem.fileSource = savedItem.selected_file.fileSource || savedItem.fileSource || "user";
               }
               return updatedItem;
             });
@@ -385,7 +386,8 @@ export default {
                 node_id: connection.id,
                 file_name: connection.data.file,
                 display_name: connection.data.title || connection.data.file,
-                node_class: connection.class
+                node_class: connection.class,
+                fileSource: connection.data.fileSource || "user"
               };
 
               // 중복 방지
@@ -422,10 +424,12 @@ export default {
       if (inputItem.selected_file) {
         inputItem.activate = true;
         inputItem.file_name = inputItem.selected_file.file_name;
+        inputItem.fileSource = inputItem.selected_file.fileSource || "user";
       } else {
         // 선택 해제된 경우
         inputItem.activate = false;
         inputItem.file_name = null;
+        inputItem.fileSource = "user";
       }
 
       // Vue의 반응성을 위해 배열 항목을 교체
@@ -546,9 +550,12 @@ export default {
       }
 
       try {
+        const fileSource = selectedInputFile
+          ? (selectedInputFile.fileSource || "user") : "user";
         const result = await getClusters({
           file_name: h5adFileName,
           anno_column: anno_column,
+          source: fileSource,
         });
         console.log('Clusters loaded:', result.data);
         return result.data.clusters;
@@ -597,7 +604,8 @@ export default {
               node_id: matchingConnection.id,
               file_name: matchingConnection.data.file,
               display_name: matchingConnection.data.title || matchingConnection.data.file,
-              node_class: matchingConnection.class
+              node_class: matchingConnection.class,
+              fileSource: matchingConnection.data.fileSource || "user"
             };
           }
         } else if (item.type === 'optionalInputFile') {
@@ -615,7 +623,8 @@ export default {
           ...item,
           activate,
           file_name,
-          selected_file
+          selected_file,
+          fileSource: selected_file ? (selected_file.fileSource || "user") : (item.fileSource || "user")
         };
       });
     },
@@ -763,8 +772,11 @@ export default {
         }
 
         try {
+          const fileSource = selectedInputFile
+            ? (selectedInputFile.fileSource || "user") : "user";
           const result = await getColumns({
             file_name: h5adFileName,
+            source: fileSource,
           });
           console.log('Columns loaded:', result.data);
           this.annotations = result.data.anno_columns;

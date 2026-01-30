@@ -167,8 +167,9 @@ function setupAlgorithm(options) {
   return instance.post("/routes/files/setup", options);
 }
 
-function getFileData(filename) {
-  return instance.get(`/routes/files/data/${filename}`);
+function getFileData(filename, source) {
+  const params = source ? { source } : {};
+  return instance.get(`/routes/files/data/${filename}`, { params });
 }
 
 function getWorkflows() {

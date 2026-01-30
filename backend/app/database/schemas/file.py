@@ -19,6 +19,7 @@ class FileGet(FileBase):
 class FileFind(FileBase):
     file_name: str
     anno_column: Optional[str] = None
+    source: Optional[str] = None  # "user" | "shared"
 
 class FolderFind(FileBase):
     folder_name: str
