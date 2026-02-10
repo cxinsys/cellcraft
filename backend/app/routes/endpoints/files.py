@@ -17,6 +17,7 @@ from app.database.crud import crud_file
 from app.database import models
 from app.database.schemas.file import FileCreate, FileDelete, FileUpdate, FileFind, FolderFind, FileGet, FileResultFind
 from app.common.utils.h5ad_utils import organize_column_dtypes, get_annotation_columns, get_pseudotime_columns
+from app.common.utils.h5ad_metadata_cache import get_cached_columns, set_cached_columns, get_cached_clusters, set_cached_clusters, invalidate_file
 from app.common.utils.workflow_utils import load_tab_file
 
 router = APIRouter()
@@ -191,7 +192,10 @@ def delete_user_file(
         # 파일 존재 여부 확인 및 삭제
         if os.path.exists(file_path) and os.path.isfile(file_path):
             try:
-                os.remove(file_path)  # 실제 파일 삭제
+                from app.common.utils.datatable_cache import invalidate_datatable
+                invalidate_file(file_path)
+                invalidate_datatable(file_path)
+                os.remove(file_path)
             except Exception as e:
                 raise HTTPException(
                     status_code=500,
@@ -321,19 +325,24 @@ def h5ad_columns (
     if not os.path.isfile(input_filepath):
         raise HTTPException(status_code=404, detail="File not found")
 
-    # 메모리 누수 방지를 위해 adata를 명시적으로 해제
+    cached = get_cached_columns(input_filepath)
+    if cached is not None:
+        return cached
+
     adata = None
     try:
         adata = sc.read_h5ad(input_filepath)
-        adata.obs = organize_column_dtypes(adata.obs)
-        anno_columns = get_annotation_columns(adata.obs)
-        pseudo_columns = get_pseudotime_columns(adata.obs)
-        return {'anno_columns': anno_columns, 'pseudo_columns': pseudo_columns}
+        obs = organize_column_dtypes(adata.obs)
+        anno_columns = get_annotation_columns(obs, organized=True)
+        pseudo_columns = get_pseudotime_columns(obs, organized=True)
+        result = {'anno_columns': anno_columns, 'pseudo_columns': pseudo_columns}
+        set_cached_columns(input_filepath, result)
+        return result
     finally:
         if adata is not None:
             del adata
         gc.collect()
-    
+
 @router.post("/clusters")
 def h5ad_cluster (
     *,
@@ -357,13 +366,17 @@ def h5ad_cluster (
     if not os.path.isfile(input_filepath):
         raise HTTPException(status_code=404, detail="File not found")
 
-    # 메모리 누수 방지를 위해 adata를 명시적으로 해제
+    cached = get_cached_clusters(input_filepath, fileInfo.anno_column)
+    if cached is not None:
+        return {'clusters': cached}
+
     adata = None
     try:
         adata = sc.read_h5ad(input_filepath)
         adata.obs = organize_column_dtypes(adata.obs)
-        clusters = map(str, adata.obs[fileInfo.anno_column].value_counts().index)
-        return {'clusters': list(clusters)}
+        clusters = list(map(str, adata.obs[fileInfo.anno_column].value_counts().index))
+        set_cached_clusters(input_filepath, fileInfo.anno_column, clusters)
+        return {'clusters': clusters}
     finally:
         if adata is not None:
             del adata
