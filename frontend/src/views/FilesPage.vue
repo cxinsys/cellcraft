@@ -38,9 +38,24 @@
             <h1>Upload File</h1>
             <input class="files__input" type="file" name="file" ref="selectFile" @change.prevent="uploadFile" />
           </label>
-          <div class="progress__box" v-if="uploadPercentage > 0">
-            <progress :value="uploadPercentage" max="100"></progress>
-            <span>{{ uploadPercentage }}%</span>
+          <div class="progress__box" v-if="isUploading">
+            <!-- Step 1: Upload progress bar -->
+            <template v-if="uploadStep === 1">
+              <div class="upload-bar-track">
+                <div class="upload-bar-fill" :style="{ width: uploadPercentage + '%' }"></div>
+              </div>
+              <span class="upload-status-text">
+                Uploading<template v-if="uploadTotalSteps > 1"> (1/{{ uploadTotalSteps }})</template>...
+                {{ uploadPercentage }}%
+              </span>
+            </template>
+            <!-- Step 2: Compression indeterminate bar (H5AD only) -->
+            <template v-if="uploadStep === 2">
+              <div class="upload-bar-track">
+                <div class="upload-bar-fill upload-bar-fill--indeterminate"></div>
+              </div>
+              <span class="upload-status-text">Compressing (2/{{ uploadTotalSteps }})</span>
+            </template>
           </div>
         </div>
       </div>
@@ -104,8 +119,16 @@ export default {
       file_name: null,
       list_idx: null,
       uploadPercentage: 0,
+      uploadStep: 0,        // 0=idle, 1=uploading, 2=compressing
+      uploadTotalSteps: 1,  // 1=non-H5AD, 2=H5AD
       isDeletingFile: false, // Track file deletion state to prevent concurrent deletions
     };
+  },
+
+  computed: {
+    isUploading() {
+      return this.uploadStep > 0;
+    },
   },
 
   methods: {
@@ -139,47 +162,54 @@ export default {
       if (this.$refs.selectFile.files.length > 0) {
         const file = this.$refs.selectFile.files[0];
 
-        // Validate file extension using utility function
         const validation = validateFileExtension(file.name);
         if (!validation.isValid) {
           alert(validation.message);
           return;
         }
 
-        // Generate upload filename using utility function
         const newFileName = generateUploadFileName(this.currentFolder, file.name);
         this.selectFile = new File([file], newFileName);
+
+        const isH5ad = file.name.toLowerCase().endsWith('.h5ad');
+
+        // Initialize step state
+        this.uploadTotalSteps = isH5ad ? 2 : 1;
+        this.uploadStep = 1;
+        this.uploadPercentage = 0;
 
         const form = new FormData();
         form.append("files", this.selectFile);
 
-        // 파일 업로드 진행률을 추적하기 위한 콜백
         const onUploadProgress = (progressEvent) => {
-          this.uploadPercentage = parseInt(
-            Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          if (!progressEvent.total || progressEvent.total === 0) return;
+          const pct = Math.min(
+            100,
+            parseInt(Math.round((progressEvent.loaded * 100) / progressEvent.total))
           );
+          if (pct >= 100 && isH5ad) {
+            this.uploadPercentage = 100;
+            this.$nextTick(() => {
+              this.uploadStep = 2;
+              this.uploadPercentage = 0;
+            });
+          } else {
+            this.uploadPercentage = pct;
+          }
         };
 
         try {
           await uploadForm(form, onUploadProgress);
-          this.uploadPercentage = 0; // 업로드 완료 후 초기화
+          this.resetUploadState();
 
-          // 업로드 성공 후 파일 목록 새로고침
-          const folderList = await findFolder({
-            folder_name: this.currentFolder,
-          });
+          const folderList = await findFolder({ folder_name: this.currentFolder });
           this.files_list = folderList.data;
         } catch (error) {
           console.error('File upload failed:', error);
+          this.resetUploadState();
 
-          // 업로드 실패 시 진행률 리셋
-          this.uploadPercentage = 0;
-
-          // 사용자에게 에러 메시지 표시
           let errorMessage = 'File upload failed. Please try again.';
-
           if (error.response) {
-            // 백엔드 에러 응답이 있는 경우
             if (error.response.data && error.response.data.detail) {
               errorMessage = error.response.data.detail;
             } else if (error.response.status === 413) {
@@ -192,10 +222,14 @@ export default {
           } else if (error.request) {
             errorMessage = 'Network error. Please check your connection.';
           }
-
           alert(errorMessage);
         }
       }
+    },
+    resetUploadState() {
+      this.uploadStep = 0;
+      this.uploadTotalSteps = 1;
+      this.uploadPercentage = 0;
     },
     async removeFile() {
       // Prevent concurrent deletions
@@ -245,9 +279,27 @@ export default {
         this.isDeletingFile = false;
       }
     },
+    handleBeforeUnload(e) {
+      if (this.uploadStep > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    },
+  },
+
+  beforeRouteLeave(to, from, next) {
+    if (this.uploadStep > 0) {
+      const answer = window.confirm(
+        'File upload is in progress. Are you sure you want to leave this page?'
+      );
+      next(answer);
+    } else {
+      next();
+    }
   },
 
   async mounted() {
+    window.addEventListener('beforeunload', this.handleBeforeUnload);
     if (this.$route.query.doUploadFile) {
       this.$refs.selectFile.click();
     }
@@ -261,6 +313,10 @@ export default {
     } catch (error) {
       console.error(error);
     }
+  },
+
+  beforeDestroy() {
+    window.removeEventListener('beforeunload', this.handleBeforeUnload);
   },
 };
 </script>
@@ -575,36 +631,43 @@ export default {
 .progress__box {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 15rem;
-  height: 1rem;
+  width: 18rem;
+  height: 1.2rem;
+  margin-right: 1rem;
 }
 
-/* progress bar */
-progress {
-  width: 100%;
-  /* 전체 너비를 차지하도록 설정 */
-  height: 100%;
-  /* 높이 설정 */
+.upload-bar-track {
+  width: 10rem;
+  height: 0.6rem;
   background-color: #eee;
-  /* 배경색 설정 */
   border-radius: 10px;
-  /* 모서리 둥글게 처리 */
+  overflow: hidden;
+  flex-shrink: 0;
   margin-right: 0.5rem;
 }
 
-progress::-webkit-progress-bar {
-  background-color: #eee;
-  /* 크롬, 사파리 등 WebKit 기반 브라우저에서의 배경색 */
+.upload-bar-fill {
+  height: 100%;
+  background-color: #4caf50;
+  border-radius: 10px;
+  transition: width 0.2s ease;
 }
 
-progress::-webkit-progress-value {
-  background-color: #4caf50;
-  /* 크롬, 사파리 등 WebKit 기반 브라우저에서의 진행률 색상 */
+.upload-bar-fill--indeterminate {
+  width: 40%;
+  animation: indeterminate-slide 1.4s ease-in-out infinite;
 }
 
-progress::-moz-progress-bar {
-  background-color: #4caf50;
-  /* 파이어폭스에서의 진행률 색상 */
+@keyframes indeterminate-slide {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(150%); }
+  100% { transform: translateX(350%); }
+}
+
+.upload-status-text {
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.8rem;
+  color: #666;
+  white-space: nowrap;
 }
 </style>
