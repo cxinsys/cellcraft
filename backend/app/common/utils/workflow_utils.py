@@ -98,14 +98,22 @@ def load_tab_file(file_path: str):
                     df = pd.concat([df, pca_df], axis=1)
                 # 둘 다 없는 경우 raw 데이터에서 처음 두 컬럼 사용
                 else:
+                    # sparse matrix인 경우 dense로 변환
+                    from scipy.sparse import issparse
                     # 데이터가 1차원인 경우 처리
                     if adata.X.shape[1] == 1:
+                        col_data = adata.X[:, 0]
+                        if issparse(col_data):
+                            col_data = col_data.toarray().ravel()
                         raw_df = pd.DataFrame({
-                            'X': adata.X[:, 0],
+                            'X': col_data,
                             'Y': np.zeros(adata.X.shape[0])  # Y값을 0으로 설정
                         }, index=adata.obs.index)
                     else:
-                        raw_df = pd.DataFrame(adata.X[:, :2], columns=['X', 'Y'], index=adata.obs.index)
+                        col_data = adata.X[:, :2]
+                        if issparse(col_data):
+                            col_data = col_data.toarray()
+                        raw_df = pd.DataFrame(col_data, columns=['X', 'Y'], index=adata.obs.index)
                     df = pd.concat([df, raw_df], axis=1)
 
                 logger.debug(f"Successfully loaded H5AD file with {df.shape[0]} observations")
