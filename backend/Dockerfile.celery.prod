@@ -63,5 +63,7 @@ RUN if [ -f .gitmodules ]; then \
     git submodule update --init --recursive plugin/official || true; \
     fi
 
-# Celery 실행 (Micromamba cellcraft-test env 내 python 사용)
-CMD ["/opt/micromamba/envs/cellcraft-test/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "-n", "worker@%h", "--loglevel=info", "-E", "-Q", "workflow_task,plugin_task"]
+# Celery 실행 (shell form for env var substitution; default concurrency=12)
+CMD /opt/micromamba/envs/cellcraft-test/bin/python -m celery -A app.main.celery worker \
+    -n worker@%h --loglevel=info -E -Q workflow_task,plugin_task \
+    -c ${CELERY_WORKER_CONCURRENCY:-12}
