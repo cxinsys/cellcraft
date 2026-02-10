@@ -24,7 +24,19 @@ import os
 from pathlib import Path
 import time
 
-router = APIRouter()                  
+router = APIRouter()
+
+
+@router.get("/resources")
+async def get_resources():
+    """리소스 할당 현황 및 실행 중 작업 목록 조회"""
+    from app.common.utils.resource_manager import get_resource_status
+
+    status = get_resource_status()
+    if status is None:
+        raise HTTPException(status_code=503, detail="Resource monitoring unavailable")
+    return status
+
 
 @router.get("/info/{task_id}")
 async def get_task_status(task_id: str) -> dict:
