@@ -79,6 +79,21 @@ async def get_task_status(task_id: str) -> dict:
 
     return EventSourceResponse(event_generator())
 
+@router.get("/status/{task_id}")
+async def get_task_status_simple(task_id: str) -> dict:
+    """
+    SSE 재연결 판단용 경량 상태 확인 엔드포인트.
+    Celery AsyncResult 상태만 반환. 인증 불필요 (SSE 엔드포인트와 동일 패턴).
+    """
+    if not task_id or not task_id.strip():
+        raise HTTPException(status_code=400, detail="Invalid task_id")
+
+    task = get_task_info(task_id)
+    return {
+        "task_id": task_id,
+        "status": task.get("task_status", "UNKNOWN")
+    }
+
 @router.get("/monitoring", response_model=List[TaskMonitoringItem])
 async def get_task_monitoring(
     *,

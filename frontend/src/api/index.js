@@ -112,6 +112,7 @@ function uploadForm(formData, onUploadProgress) {
       "Content-Type": "multipart/form-data",
     },
     onUploadProgress,
+    timeout: 3600000, // 1 hour — matches nginx proxy_read_timeout
   });
 }
 
@@ -397,33 +398,113 @@ function clearDAGCaches() {
   return instance.delete(`/routes/task/cache/clear`);
 }
 
+function getTaskStatusSimple(taskId) {
+  return fetch(`${process.env.VUE_APP_BASE_URL}/routes/task/status/${taskId}`)
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    });
+}
+
 function createTaskEventSource(taskId, callbacks = {}) {
-  const eventSource = new EventSource(`${process.env.VUE_APP_BASE_URL}/routes/task/info/${taskId}`);
-  
-  eventSource.onmessage = (event) => {
-    // 기본 메시지 핸들러
-    if (callbacks.onMessage) {
-      callbacks.onMessage(event);
+  const TERMINAL_STATES = ['SUCCESS', 'FAILURE', 'REVOKED', 'RETRY'];
+  const MAX_CONSECUTIVE_FAILURES = 3;
+  const RECONNECT_DELAY_MS = 5000;
+
+  let closed = false;
+  let consecutiveFailures = 0;
+  let reconnectTimer = null;
+  let currentEventSource = null;
+
+  function cleanup() {
+    closed = true;
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
     }
-    
-    // 작업 완료시 이벤트소스 자동 종료
-    if (event.data === "SUCCESS" || event.data === "FAILURE" || event.data === "REVOKED") {
-      if (callbacks.onComplete) {
-        callbacks.onComplete(event.data);
+    if (currentEventSource) {
+      currentEventSource.close();
+      currentEventSource = null;
+    }
+  }
+
+  function scheduleReconnect() {
+    if (closed) return;
+    reconnectTimer = setTimeout(() => {
+      if (!closed) connect();
+    }, RECONNECT_DELAY_MS);
+  }
+
+  function checkTaskStatusAndReconnect() {
+    if (closed) return;
+    getTaskStatusSimple(taskId)
+      .then(data => {
+        if (closed) return;
+        const status = data.status;
+        if (TERMINAL_STATES.includes(status)) {
+          if (callbacks.onComplete) callbacks.onComplete(status);
+          cleanup();
+        } else {
+          // Task still running — REST succeeded, reset failure counter
+          consecutiveFailures = 0;
+          scheduleReconnect();
+        }
+      })
+      .catch(() => {
+        if (closed) return;
+        consecutiveFailures++;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          console.error(`SSE reconnection giving up for task ${taskId} after ${MAX_CONSECUTIVE_FAILURES} consecutive failures`);
+          if (callbacks.onError) callbacks.onError(new Error('SSE reconnection failed'));
+          cleanup();
+        } else {
+          scheduleReconnect();
+        }
+      });
+  }
+
+  function connect() {
+    if (closed) return;
+    currentEventSource = new EventSource(`${process.env.VUE_APP_BASE_URL}/routes/task/info/${taskId}`);
+
+    currentEventSource.onmessage = (event) => {
+      if (closed) return;
+
+      // TIMEOUT — expected hourly disconnect, reconnect immediately
+      if (event.data === 'TIMEOUT') {
+        console.log(`SSE timeout for task ${taskId}, reconnecting...`);
+        currentEventSource.close();
+        scheduleReconnect();
+        return;
       }
-      eventSource.close();
+
+      // Terminal state — task finished
+      if (TERMINAL_STATES.includes(event.data)) {
+        if (callbacks.onComplete) callbacks.onComplete(event.data);
+        cleanup();
+        return;
+      }
+
+      // Normal status update — reset failure counter
+      consecutiveFailures = 0;
+      if (callbacks.onMessage) callbacks.onMessage(event);
+    };
+
+    currentEventSource.onerror = () => {
+      if (closed) return;
+      currentEventSource.close();
+      checkTaskStatusAndReconnect();
+    };
+  }
+
+  connect();
+
+  // Return wrapper with same .close() interface as EventSource
+  return {
+    close() {
+      cleanup();
     }
   };
-
-  // 에러 핸들링
-  eventSource.onerror = (error) => {
-    if (callbacks.onError) {
-      callbacks.onError(error);
-    }
-    eventSource.close();
-  };
-
-  return eventSource;
 }
 
 // Admin APIs

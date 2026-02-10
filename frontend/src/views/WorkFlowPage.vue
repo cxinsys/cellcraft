@@ -354,12 +354,20 @@ export default {
       }
     }
 
-    // Task 모니터링
+    // Task 모니터링 — 실행 중인 task에 SSE 재연결
     try {
       const userTasks = await userTaskMonitoring();
       console.log(userTasks.data);
-      if (userTasks.data.some(task => task.status === "RUNNING" || task.status === "PENDING" || task.status === "INSTALLING")) {
+      const runningTasks = userTasks.data.filter(
+        task => task.status === "RUNNING" || task.status === "PENDING" || task.status === "INSTALLING"
+      );
+      if (runningTasks.length > 0) {
         this.on_progress = true;
+        runningTasks.forEach(task => {
+          if (!this.eventSources[task.task_id]) {
+            this.createEventSource(task.task_id);
+          }
+        });
       }
     } catch (error) {
       console.error(error);

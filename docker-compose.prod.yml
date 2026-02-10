@@ -82,6 +82,8 @@ services:
     expose:
       - "15672"
       - "5672"
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     restart: always
 
   celery:
