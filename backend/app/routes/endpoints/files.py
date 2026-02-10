@@ -102,6 +102,18 @@ async def fileUpload(
                 detail=f"File upload failed: {str(e)}"
             )
 
+        # Compress H5AD files to reduce storage
+        if final_filename.lower().endswith('.h5ad'):
+            from app.common.utils.h5ad_compression import compress_h5ad_file
+            from app.common.config import H5AD_COMPRESSION_ENABLED, H5AD_COMPRESSION_MIN_SIZE
+
+            if H5AD_COMPRESSION_ENABLED:
+                _compressed, file_size = await asyncio.to_thread(
+                    compress_h5ad_file,
+                    file_path,
+                    min_size_bytes=H5AD_COMPRESSION_MIN_SIZE,
+                )
+
         # Create database record
         created_file = crud_file.create_file(
             db,

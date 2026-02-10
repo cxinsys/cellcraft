@@ -109,8 +109,8 @@ class Settings(BaseSettings):
     # File Upload Validation Configuration
     # ==============================================================================
 
-    # Maximum file size: 500MB for H5AD files (bioinformatics datasets can be large)
-    MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500MB in bytes
+    # Maximum file size: 10GB for H5AD files (large scRNA-seq datasets)
+    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 * 1024  # 10GB in bytes
 
     # Allowed file extensions for upload
     ALLOWED_EXTENSIONS: set = {".h5ad", ".csv", ".json", ".txt"}
@@ -125,6 +125,10 @@ class Settings(BaseSettings):
     # This prevents loading entire files into memory during upload
     # Memory usage: ~1MB per upload instead of up to 500MB
     UPLOAD_CHUNK_SIZE: int = 1024 * 1024  # 1MB in bytes
+
+    # H5AD Compression Configuration
+    H5AD_COMPRESSION_ENABLED: bool = True
+    H5AD_COMPRESSION_MIN_SIZE: int = 1 * 1024 * 1024  # 1MB
 
     # ==============================================================================
     # Security Configuration (OWASP Top 10 Compliance)
@@ -185,3 +189,7 @@ ENABLE_ANOMALY_DETECTION = settings.ENABLE_ANOMALY_DETECTION
 ANOMALY_PATH_TRAVERSAL_THRESHOLD = settings.ANOMALY_PATH_TRAVERSAL_THRESHOLD
 ANOMALY_FILE_SPOOFING_THRESHOLD = settings.ANOMALY_FILE_SPOOFING_THRESHOLD
 ANOMALY_USER_EVENTS_THRESHOLD = settings.ANOMALY_USER_EVENTS_THRESHOLD
+
+# Export H5AD compression configuration
+H5AD_COMPRESSION_ENABLED = settings.H5AD_COMPRESSION_ENABLED
+H5AD_COMPRESSION_MIN_SIZE = settings.H5AD_COMPRESSION_MIN_SIZE
