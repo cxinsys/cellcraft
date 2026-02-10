@@ -85,7 +85,7 @@ class MyTask(Task):
         if task_type == 'visualization':
             cache_key = kwargs.get('cache_key')
             cache_info = kwargs.get('cache_info')
-            
+
             if cache_key and cache_info:
                 try:
                     success = save_result_to_cache(
@@ -104,7 +104,14 @@ class MyTask(Task):
                     logger.error(f"Error caching visualization result for task {task_id}: {e}")
             else:
                 logger.debug(f"No cache information provided for visualization task {task_id}")
-        
+
+        if task_type == 'plugin_build':
+            try:
+                from app.common.utils.plugin_cache import invalidate_all_plugin_cache
+                invalidate_all_plugin_cache()
+            except Exception as e:
+                logger.warning(f"Plugin cache invalidation failed for task {task_id}: {e}")
+
         # 작업 완료 시 컨테이너 매니저에서 등록 해제
         container_manager.unregister_container(task_id)
 
@@ -115,6 +122,14 @@ class MyTask(Task):
         print(f'Task {task_id} failed at {end_time}, error: {exc}')
         user_id = kwargs.get('user_id')
         end_task(user_id, task_id, end_time, status='FAILURE')
+
+        task_type = kwargs.get('task_type')
+        if task_type == 'plugin_build':
+            try:
+                from app.common.utils.plugin_cache import invalidate_all_plugin_cache
+                invalidate_all_plugin_cache()
+            except Exception as e:
+                logger.warning(f"Plugin cache invalidation failed for task {task_id}: {e}")
 
         # 작업 실패 시 관련 컨테이너 정리
         try:
@@ -158,11 +173,19 @@ class MyTask(Task):
         end_time = datetime.now(timezone.utc)
         print(f'Task {task_id} revoked at {end_time}')
         print(f'Revoke details - terminated: {terminated}, signal: {signum}, expired: {expired}')
-        
+
         user_id = kwargs.get('user_id') if kwargs else None
         if user_id:
             end_task(user_id, task_id, end_time, status='REVOKED')
-        
+
+        task_type = kwargs.get('task_type') if kwargs else None
+        if task_type == 'plugin_build':
+            try:
+                from app.common.utils.plugin_cache import invalidate_all_plugin_cache
+                invalidate_all_plugin_cache()
+            except Exception as e:
+                logger.warning(f"Plugin cache invalidation failed for task {task_id}: {e}")
+
         # 작업 취소 시 관련 컨테이너 강제 정리
         try:
             print(f"Attempting to stop container for revoked task {task_id}")

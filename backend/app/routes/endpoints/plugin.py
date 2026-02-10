@@ -18,6 +18,7 @@ from app.database.crud import crud_plugin
 from app.database import models
 from app.common.utils import plugin_utils
 from app.common.utils.plugin_utils import get_plugin_path, is_plugin_editable, ensure_local_plugins_dir
+from app.common.utils.plugin_cache import invalidate_all_plugin_cache
 from app.common.utils.github_registry_client import GitHubRegistryClient
 from app.routes.celery_tasks import build_plugin_task
 from celery.result import AsyncResult
@@ -254,6 +255,7 @@ async def upload_plugin(
             if backup_folder and os.path.exists(backup_folder):
                 shutil.rmtree(backup_folder)
 
+            invalidate_all_plugin_cache()
             return {
                 "message": "플러그인 메타데이터 업로드 성공",
                 "plugin": db_plugin,
@@ -375,7 +377,8 @@ async def upload_scripts(
                             shutil.copytree(str(item), str(target_dir))
             
             logger.info(f"Successfully moved {scripts_staging_dir} to {scripts_dir}. Script update complete.")
-            
+
+            invalidate_all_plugin_cache()
             return {
                 "message": "Scripts uploaded successfully",
                 "scripts_path": str(scripts_dir),
@@ -537,8 +540,9 @@ async def upload_package(
             final_package_files = [f for f in os.listdir(dependency_folder) if f.endswith(('.whl', '.tar.gz'))]
             print(f"Final package files in dependency folder: {final_package_files}")
 
+            invalidate_all_plugin_cache()
             return {
-                "message": "Package uploaded successfully", 
+                "message": "Package uploaded successfully",
                 "packages": [file.filename for file in files],
                 "success": True
             }
@@ -636,6 +640,7 @@ async def build_plugin_docker(
             ignore_result=False
         )
 
+        invalidate_all_plugin_cache()
         return {
             "message": f"플러그인 Docker 이미지 빌드 시작: {plugin_name}",
             "task_id": task.id,
@@ -737,8 +742,33 @@ def list_plugins(
     current_user: models.User = Depends(dep.get_current_active_user),
 ):
     try:
+        # Cache hit path
+        from app.common.utils.plugin_cache import get_cached_plugin_list, set_cached_plugin_list
+        cached = get_cached_plugin_list(current_user.id)
+        if cached is not None:
+            return cached
+
         plugins = crud_plugin.get_plugins(db)
         plugin_list = []
+
+        # Query user tasks once outside the loop (was N times inside)
+        from app.database.crud.crud_task import get_user_task
+        try:
+            user_tasks = get_user_task(db, current_user.id)
+        except Exception as e:
+            logger.warning(f"Error fetching user tasks: {e}")
+            user_tasks = []
+
+        # Create Docker client only if local plugins exist (avoids 21ms socket overhead)
+        import docker
+        docker_client = None
+        has_local = any(p.source == "local" for p in plugins)
+        if has_local:
+            try:
+                docker_client = docker.from_env()
+            except Exception:
+                docker_client = None
+
         for plugin in plugins:
             plugin_dict = plugin.__dict__
             plugin_dict['users'] = [user.__dict__ for user in plugin.users]
@@ -748,31 +778,32 @@ def list_plugins(
                 rules_dict = plugin_dict['rules']
                 rules_array = [rules_dict[str(i)] for i in range(len(rules_dict))]
                 plugin_dict['rules'] = rules_array
-            
+
             # 빌드 상태 정보 추가 (only for local plugins)
-            try:
-                if plugin.source == "local":
-                    plugin_dict['docker_image_exists'] = plugin_utils.check_plugin_docker_image(plugin.name)
-                else:
-                    plugin_dict['docker_image_exists'] = False  # Official plugins don't have local Docker images
-            except Exception as e:
-                print(f"Error checking Docker image for {plugin.name}: {e}")
+            if plugin.source == "local" and docker_client:
+                try:
+                    image_tag = f"plugin-{plugin.name.lower()}"
+                    docker_client.images.get(image_tag)
+                    plugin_dict['docker_image_exists'] = True
+                except docker.errors.ImageNotFound:
+                    plugin_dict['docker_image_exists'] = False
+                except Exception as e:
+                    logger.warning(f"Error checking Docker image for {plugin.name}: {e}")
+                    plugin_dict['docker_image_exists'] = False
+            else:
                 plugin_dict['docker_image_exists'] = False
-            
-            # 최근 빌드 태스크 정보 조회
+
+            # 최근 빌드 태스크 정보 조회 (using pre-fetched user_tasks)
             try:
-                from app.database.crud.crud_task import get_user_task
-                user_tasks = get_user_task(db, current_user.id)
                 plugin_build_tasks = [
-                    task for task in user_tasks 
+                    task for task in user_tasks
                     if task.task_type == "plugin_build" and task.plugin_name == plugin.name
                 ]
-                
+
                 if plugin_build_tasks:
-                    # 가장 최근 빌드 태스크 정보
                     latest_task = max(plugin_build_tasks, key=lambda x: x.start_time or datetime.min.replace(tzinfo=None))
                     task_result = AsyncResult(latest_task.task_id)
-                    
+
                     plugin_dict['latest_build'] = {
                         "task_id": latest_task.task_id,
                         "status": task_result.state,
@@ -782,24 +813,27 @@ def list_plugins(
                 else:
                     plugin_dict['latest_build'] = None
             except Exception as e:
-                print(f"Error getting build tasks for {plugin.name}: {e}")
+                logger.warning(f"Error getting build tasks for {plugin.name}: {e}")
                 plugin_dict['latest_build'] = None
-            
+
             # Official 플러그인의 경우 데이터베이스 version 컬럼 직접 사용
             if plugin.source == "official":
-                # GitHub Registry API 호출을 제거하고 데이터베이스 version 직접 사용
                 plugin_dict['current_version'] = plugin.version or "1.0"
-                plugin_dict['available_versions'] = []  # 빈 배열로 설정
-                
+                plugin_dict['available_versions'] = []
+
                 logger.info(f"Plugin {plugin.name} - Using database version: {plugin_dict['current_version']}")
             else:
-                # Local 플러그인의 경우 기존 로직 유지
                 plugin_dict['current_version'] = plugin.version or "local"
                 plugin_dict['available_versions'] = []
-            
+
             plugin_list.append(plugin_dict)
-        
-        return {"plugins": plugin_list}
+
+        if docker_client:
+            docker_client.close()
+
+        response = {"plugins": plugin_list}
+        set_cached_plugin_list(current_user.id, response)
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -836,10 +870,11 @@ def associate_plugin(
         # Get the plugin by ID
         plugin = crud_plugin.get_plugin_by_id(db, pluginInfo.plugin_id)
 
+        invalidate_all_plugin_cache()
         return { "message": "Plugin associated with user successfully", "plugin": plugin }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 @router.post("/dissociate")
 def dissociate_plugin(
     *,
@@ -854,6 +889,7 @@ def dissociate_plugin(
         # Get the plugin by ID
         plugin = crud_plugin.get_plugin_by_id(db, pluginInfo.plugin_id)
 
+        invalidate_all_plugin_cache()
         return { "message": "Plugin dissociated from user successfully", "plugin": plugin }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -932,6 +968,7 @@ async def build_plugin(
             ignore_result=False
         )
 
+        invalidate_all_plugin_cache()
         return {
             "message": f"Plugin build started for {plugin_name}",
             "task_id": task.id,
@@ -1072,6 +1109,7 @@ async def update_plugin_complete(
             db.commit()
             db.refresh(db_plugin)
             
+            invalidate_all_plugin_cache()
             return {
                 "message": f"Plugin {plugin_name} successfully synchronized",
                 "updated_fields": {
@@ -1080,14 +1118,14 @@ async def update_plugin_complete(
                     "drawflow_nodes": len(metadata.get('drawflow', {}).get('drawflow', {}).get('Home', {}).get('data', {})) if metadata.get('drawflow') else 0
                 }
             }
-            
+
         except Exception as e:
             db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to update database: {str(e)}"
             )
-        
+
     except HTTPException as he:
         raise he
     except Exception as e:
@@ -1170,13 +1208,14 @@ async def upload_text_dependencies(
             db.commit()
             db.refresh(db_plugin)
             
+            invalidate_all_plugin_cache()
             return {
-                "message": "Text dependency files uploaded and synchronized successfully", 
+                "message": "Text dependency files uploaded and synchronized successfully",
                 "uploaded_files": uploaded_files,
                 "total_dependencies": len(dependencies_dict),
                 "success": True
             }
-            
+
         except Exception as e:
             db.rollback()
             raise HTTPException(
@@ -1311,9 +1350,10 @@ async def cancel_build_task(
     try:
         # Celery 태스크 취소
         celery_app.control.revoke(task_id, terminate=True)
-        
+
         task_result = AsyncResult(task_id)
-        
+
+        invalidate_all_plugin_cache()
         return {
             "message": f"Build task {task_id} cancellation requested",
             "task_id": task_id,
@@ -1510,6 +1550,7 @@ async def update_plugin_version(
             except docker.errors.DockerException as e:
                 logger.warning(f"Docker not available for image pull: {e}")
             
+            invalidate_all_plugin_cache()
             return {
                 "message": f"Plugin '{plugin_name}' version updated successfully",
                 "plugin_name": plugin_name,
@@ -1517,7 +1558,7 @@ async def update_plugin_version(
                 "new_version": version,
                 "image_uri": registry.get_image_uri(plugin_name, version)
             }
-            
+
         except Exception as e:
             db.rollback()
             logger.error(f"Failed to update plugin version in database: {e}")
