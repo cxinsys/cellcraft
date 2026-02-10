@@ -68,6 +68,11 @@ class Settings(BaseSettings):
             f"{values.get('POSTGRES_DB')}"
         )
 
+    # Redis Configuration
+    REDIS_URL: str = "redis://redis:6379/0"
+    DATATABLE_DF_CACHE_TTL: int = 3600  # 1 hour
+    PLUGIN_LIST_CACHE_TTL: int = 120    # 2 minutes
+
     # Celery configuration with proper defaults
     CELERY_BROKER_URL: str = "amqp://guest:guest@rabbitmq:5672//"
     CELERY_RESULT_BACKEND: Optional[str] = None
