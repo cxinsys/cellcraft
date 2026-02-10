@@ -73,6 +73,14 @@ class Settings(BaseSettings):
     DATATABLE_DF_CACHE_TTL: int = 3600  # 1 hour
     PLUGIN_LIST_CACHE_TTL: int = 120    # 2 minutes
 
+    # Resource Queue Configuration
+    RESOURCE_CPU_TOTAL: int = 0            # 0 = auto-detect (os.cpu_count()), positive = manual override
+    RESOURCE_GPU_TOTAL: int = 0            # 0 = auto-detect (GPU_COUNT env or GPUtil), positive = manual override
+    RESOURCE_DEFAULT_CPU_SLOTS: int = 4    # Default CPU slots per task (TENET baseline)
+    RESOURCE_DEFAULT_GPU_SLOTS: int = 1    # Default GPU slots per task (FastTENET baseline)
+    RESOURCE_POLL_INTERVAL: int = 10       # Retry interval when resources unavailable (seconds)
+    CELERY_WORKER_CONCURRENCY: int = 0     # 0 = auto-calculate (cpu_total // default_cpu_slots), positive = manual override
+
     # Celery configuration with proper defaults
     CELERY_BROKER_URL: str = "amqp://guest:guest@rabbitmq:5672//"
     CELERY_RESULT_BACKEND: Optional[str] = None
