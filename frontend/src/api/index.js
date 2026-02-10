@@ -407,7 +407,7 @@ function getTaskStatusSimple(taskId) {
 }
 
 function createTaskEventSource(taskId, callbacks = {}) {
-  const TERMINAL_STATES = ['SUCCESS', 'FAILURE', 'REVOKED', 'RETRY'];
+  const TERMINAL_STATES = ['SUCCESS', 'FAILURE', 'REVOKED'];
   const MAX_CONSECUTIVE_FAILURES = 3;
   const RECONNECT_DELAY_MS = 5000;
 

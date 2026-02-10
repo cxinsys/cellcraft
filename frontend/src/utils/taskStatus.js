@@ -19,8 +19,8 @@ export const TASK_STATUS = {
 export function getStatusClass(status) {
   if (status === TASK_STATUS.SUCCESS) return "status-success";
   if (status === TASK_STATUS.FAILURE ||
-      status === TASK_STATUS.REVOKED ||
-      status === TASK_STATUS.RETRY) return "status-failure";
+      status === TASK_STATUS.REVOKED) return "status-failure";
+  if (status === TASK_STATUS.RETRY) return "status-retry";
   if (status === TASK_STATUS.RUNNING ||
       status === TASK_STATUS.PENDING ||
       status === TASK_STATUS.INSTALLING) return "status-running";
@@ -36,8 +36,7 @@ export function isTaskCompleted(status) {
   return [
     TASK_STATUS.SUCCESS,
     TASK_STATUS.FAILURE,
-    TASK_STATUS.REVOKED,
-    TASK_STATUS.RETRY
+    TASK_STATUS.REVOKED
   ].includes(status);
 }
 
@@ -50,6 +49,7 @@ export function isTaskRunning(status) {
   return [
     TASK_STATUS.RUNNING,
     TASK_STATUS.PENDING,
-    TASK_STATUS.INSTALLING
+    TASK_STATUS.INSTALLING,
+    TASK_STATUS.RETRY
   ].includes(status);
 }

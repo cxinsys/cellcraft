@@ -305,7 +305,7 @@ def wait_for_file_ready(file_path: str, timeout: int = 10, check_interval: float
     return file_exists
 
 
-@shared_task(bind=True, base=MyTask, name="workflow_task:process_data_task")
+@shared_task(bind=True, base=MyTask, name="workflow_task:process_data_task", max_retries=None)
 def process_data_task(self, username: str, snakefile_path: str, selected_plugin: str,
                       targets: list, user_id: int, workflow_id: int, algorithm_id: int,
                       plugin_name: str, task_type: str,
@@ -318,7 +318,7 @@ def process_data_task(self, username: str, snakefile_path: str, selected_plugin:
     # --- Resource gating: acquire slots or retry ---
     acquired = acquire_slots(resource_type, resource_slots, task_id, plugin_name=plugin_name)
     if not acquired:
-        raise self.retry(countdown=app_settings.RESOURCE_POLL_INTERVAL, max_retries=None)
+        raise self.retry(countdown=app_settings.RESOURCE_POLL_INTERVAL)
 
     try:
         print(f'Processing data for user {username}...')

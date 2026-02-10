@@ -59,7 +59,7 @@ async def get_task_status(task_id: str) -> dict:
                     task = get_task_info(task_id)
                     task_status = task.get('task_status', 'UNKNOWN')
 
-                    if task_status in ['SUCCESS', 'FAILURE', 'REVOKED', 'RETRY']:
+                    if task_status in ['SUCCESS', 'FAILURE', 'REVOKED']:
                         yield f"{task_status}"
                         break
 
