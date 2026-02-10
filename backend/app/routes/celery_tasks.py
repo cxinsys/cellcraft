@@ -37,6 +37,9 @@ class MyTask(Task):
     Request = MyRequest  # Custom Request class 적용
 
     def before_start(self, task_id, args, kwargs):
+        # Skip DB recording on retries — task was already recorded on first attempt
+        if self.request.retries > 0:
+            return
         start_time = datetime.now(timezone.utc)
         print(f'Task {task_id} started at {start_time}')
         user_id = kwargs.get('user_id')
@@ -231,7 +234,15 @@ class MyTask(Task):
         print('----------------------------------------')
         print(f'Task {task_id} returned with status {status}, return value: {retval}')
         print('----------------------------------------')
-        
+
+        # Safety-net resource release for non-retry terminal states
+        if status != 'RETRY':
+            try:
+                from app.common.utils.resource_manager import release_slots_by_task_id
+                release_slots_by_task_id(task_id)
+            except Exception as e:
+                logger.warning(f"Safety-net resource release failed for task {task_id}: {e}")
+
         # 모든 작업 완료 후 컨테이너 정리 확인
         if status in ['SUCCESS', 'FAILURE', 'REVOKED']:
             try:
@@ -296,14 +307,26 @@ def wait_for_file_ready(file_path: str, timeout: int = 10, check_interval: float
 
 @shared_task(bind=True, base=MyTask, name="workflow_task:process_data_task")
 def process_data_task(self, username: str, snakefile_path: str, selected_plugin: str,
-                      targets: list, user_id: int, workflow_id: int, algorithm_id: int, plugin_name: str, task_type: str, **kwargs):
+                      targets: list, user_id: int, workflow_id: int, algorithm_id: int,
+                      plugin_name: str, task_type: str,
+                      resource_type: str = 'cpu', resource_slots: int = 4, **kwargs):
+    from app.common.utils.resource_manager import acquire_slots, release_slots
+    from app.common.config import settings as app_settings
+
+    task_id = self.request.id
+
+    # --- Resource gating: acquire slots or retry ---
+    acquired = acquire_slots(resource_type, resource_slots, task_id, plugin_name=plugin_name)
+    if not acquired:
+        raise self.retry(countdown=app_settings.RESOURCE_POLL_INTERVAL, max_retries=None)
+
     try:
-        task_id = self.request.id
         print(f'Processing data for user {username}...')
         print(f"Task ID: {task_id}")
         print(f"Targets: {targets}")
         print(f"Snakefile path: {snakefile_path}")
         print(f"Plugin name: {selected_plugin}")
+        print(f"Resource: {resource_type} x {resource_slots} slots")
 
         self.update_state(state="RUNNING", meta={"message": "Executing workflow..."})
 
@@ -331,7 +354,7 @@ def process_data_task(self, username: str, snakefile_path: str, selected_plugin:
 
         print('Data processing complete.')
         return {
-            "status": "Success", 
+            "status": "Success",
             "message": "Processing complete",
             "stdout": result.get("stdout", ""),
             "stderr": result.get("stderr", ""),
@@ -346,6 +369,9 @@ def process_data_task(self, username: str, snakefile_path: str, selected_plugin:
             error_message = f"Plugin execution failed: {error_message}. Please ensure the plugin is properly built and available."
         self.update_state(state="FAILURE", meta={"error": error_message})
         raise RuntimeError(error_message) from e
+    finally:
+        # Always release slots after execution (acquire succeeded at this point)
+        release_slots(resource_type, resource_slots, task_id)
 
 @shared_task(bind=True, base=MyTask, name="plugin_task:build_plugin_task")
 def build_plugin_task(self, plugin_name: str = None, user_id: int = None, workflow_id: int = None, algorithm_id: int = None, task_type: str = "plugin_build"):
