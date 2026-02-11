@@ -7,6 +7,9 @@ so that page/sort/filter changes don't re-read the entire h5ad file.
 Cache key includes file mtime for automatic invalidation on file changes.
 Pickle is used for serialization — safe because only trusted internal
 DataFrames are serialized, never external/user-supplied data.
+
+SECURITY: Never store user-supplied or externally-sourced objects in this cache.
+pickle.loads() can execute arbitrary code — only cache internally-generated DataFrames.
 """
 import os
 import pickle
