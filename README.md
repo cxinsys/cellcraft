@@ -155,7 +155,21 @@ Before installing CellCraft, please verify your system meets the following requi
    cd ../../..
    ```
 
-**3. (Optional) Manage GHCR images:**
+**3. (GPU only) Configure GPU count:**
+
+   If your system has NVIDIA GPUs, set the `GPU_COUNT` variable in the `.env` file so that the resource manager can track GPU slot allocation:
+
+   ```bash
+   # Check the number of GPUs on your system
+   nvidia-smi --query-gpu=count --format=csv,noheader
+
+   # Add GPU_COUNT to the .env file (replace 4 with your GPU count)
+   echo "GPU_COUNT = 4" >> .env
+   ```
+
+   > **Note**: If `GPU_COUNT` is not set, it defaults to `0` (CPU-only mode). The resource monitoring dashboard in the workflow execution dialog uses this value to display GPU availability and manage task scheduling.
+
+**4. (Optional) Manage GHCR images:**
 
    Before installation, you can optionally **check and pre-download** required Docker images from GitHub Container Registry (GHCR). This step is recommended for faster deployment and offline environments.
 
@@ -182,7 +196,7 @@ Before installing CellCraft, please verify your system meets the following requi
 
    **Note:** If you skip this step or if GHCR is not accessible, the installation scripts will automatically fall back to building images locally. Pre-downloading images is simply an optimization for faster deployment.
 
-**4. Start the application:**
+**5. Start the application:**
 
    Option A: Using automated scripts (recommended)
 
@@ -213,7 +227,7 @@ Before installing CellCraft, please verify your system meets the following requi
    docker compose -f docker-compose.cpu.arm64.yml up -d --build
    ```
 
-**5. Access the application at [http://localhost:8080](http://localhost:8080).**
+**6. Access the application at [http://localhost:8080](http://localhost:8080).**
 
    > **Remote Access via SSH**: When accessing CellCraft on a remote Linux server, use SSH port forwarding to access the web interface from your local machine:
    > ```bash
@@ -222,7 +236,7 @@ Before installing CellCraft, please verify your system meets the following requi
    > - Port 8080: Frontend web interface
    > - Port 8000: Backend API
 
-**6. Check the installation status:**
+**7. Check the installation status:**
 
    ```bash
    ./check-installation.sh
@@ -369,3 +383,30 @@ For more detailed information, see our documentation:
 - **Features**
   - [Execution Manifest](docs/features/execution-manifest/README.md) - Workflow reproducibility and debugging
 
+---
+
+## How to Cite
+
+If you use CellCraft in your research, please cite the following paper:
+
+> Shin, D., Kim, J. H., Sung, R., Kim, J., & Lee, D. (2025). CellCraft: an extensible visual programming application for gene regulatory network inference. *Bioinformatics*, 42(1), btaf684. https://doi.org/10.1093/bioinformatics/btaf684
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@article{10.1093/bioinformatics/btaf684,
+    author = {Shin, Dongmin and Kim, Jeonghwan Henry and Sung, Rakbin and Kim, Junil and Lee, Daewon},
+    title = {CellCraft: an extensible visual programming application for gene regulatory network inference},
+    journal = {Bioinformatics},
+    volume = {42},
+    number = {1},
+    pages = {btaf684},
+    year = {2025},
+    month = {12},
+    doi = {10.1093/bioinformatics/btaf684},
+    url = {https://doi.org/10.1093/bioinformatics/btaf684}
+}
+```
+
+</details>
