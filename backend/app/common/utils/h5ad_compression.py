@@ -2,6 +2,11 @@
 
 Compresses uploaded H5AD files using HDF5 internal gzip compression.
 sc.read_h5ad() transparently decompresses, so no downstream code changes needed.
+
+Memory safety: sc.read_h5ad() loads the entire file into memory (~1.0-1.3x file size
+for uncompressed files, ~2-4x for already-compressed files). To prevent OOM,
+already-compressed files are detected via h5py metadata and skipped — they would
+not benefit from re-compression anyway.
 """
 
 import gc
@@ -11,6 +16,7 @@ import shutil
 import tempfile
 from typing import Tuple
 
+import h5py
 import scanpy as sc
 
 logger = logging.getLogger(__name__)
@@ -19,6 +25,30 @@ logger = logging.getLogger(__name__)
 # Some H5AD files (e.g., from older pipelines) have '_index' in raw.var or obs,
 # which causes write_h5ad() to raise ValueError.
 _ANNDATA_RESERVED_COLUMNS = {"_index"}
+
+
+def _is_already_compressed(file_path: str) -> bool:
+    """Check if the main X dataset in an H5AD file already has HDF5 compression.
+
+    Uses h5py to read only file metadata (no data loaded into memory).
+    Returns True if compression is detected, False otherwise.
+    On any error, returns False to allow the normal compression path.
+    """
+    try:
+        with h5py.File(file_path, "r") as f:
+            if "X" not in f:
+                return False
+            x = f["X"]
+            # Dense X: stored as a single Dataset
+            if isinstance(x, h5py.Dataset):
+                return x.compression is not None
+            # Sparse X (CSR/CSC): stored as a Group with 'data' dataset
+            if isinstance(x, h5py.Group) and "data" in x:
+                return x["data"].compression is not None
+        return False
+    except Exception as e:
+        logger.debug("Could not check compression for %s: %s", file_path, e)
+        return False
 
 
 def _fix_reserved_columns(adata) -> None:
@@ -78,6 +108,16 @@ def compress_h5ad_file(
         )
         return False, original_size
 
+    # Skip already-compressed files to avoid OOM: sc.read_h5ad() would decompress
+    # the entire dataset into memory (~2-4x file size), and re-compression would
+    # produce a similar-sized file anyway.
+    if _is_already_compressed(file_path):
+        logger.info(
+            "Skipping already-compressed H5AD file: %s (%d bytes)",
+            file_path, original_size,
+        )
+        return False, original_size
+
     tmp_fd = None
     tmp_path = None
     adata = None
@@ -127,10 +167,5 @@ def compress_h5ad_file(
         if tmp_path is not None and os.path.exists(tmp_path):
             try:
                 os.remove(tmp_path)
-            except OSError:
-                pass
-        if tmp_fd is not None:
-            try:
-                os.close(tmp_fd)
             except OSError:
                 pass

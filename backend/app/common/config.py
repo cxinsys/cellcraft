@@ -109,8 +109,10 @@ class Settings(BaseSettings):
     # File Upload Validation Configuration
     # ==============================================================================
 
-    # Maximum file size: 10GB for H5AD files (large scRNA-seq datasets)
-    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 * 1024  # 10GB in bytes
+    # Maximum file size: 5GB for H5AD files (large scRNA-seq datasets)
+    # Note: sc.read_h5ad() loads entire file into memory during compression,
+    # so peak memory ≈ 1.0-1.3x file size. 5GB keeps peak under ~6.5GB.
+    MAX_UPLOAD_SIZE: int = 5 * 1024 * 1024 * 1024  # 5GB in bytes
 
     # Allowed file extensions for upload
     ALLOWED_EXTENSIONS: set = {".h5ad", ".csv", ".json", ".txt"}
