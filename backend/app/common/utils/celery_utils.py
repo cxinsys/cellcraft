@@ -36,6 +36,7 @@ def create_celery():
     celery_app.conf.update(result_persistent=True)
     celery_app.conf.update(worker_send_task_events=True)
     celery_app.conf.update(worker_prefetch_multiplier=1)
+    celery_app.conf.update(worker_max_tasks_per_child=5)  # 메모리 누수 방지: 5개 태스크 처리 후 워커 프로세스 재시작 (24건/일 ÷ 36워커 = ~7.5일/워커)
 
     # broker_transport_options 설정
     # - visibility_timeout: acks_late=False이므로 실질적 영향 없음. 방어적으로 유지.
