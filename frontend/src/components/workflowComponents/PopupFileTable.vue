@@ -11,10 +11,10 @@
             </thead>
             <tbody>
                 <tr v-for="(file, index) in files_list" :key="index">
-                    <td>{{ file.file_name | cutFromDotName }}</td>
-                    <td>{{ file.created_at | cutFromT }}</td>
-                    <td>{{ file.file_name | cutFromDotType }}</td>
-                    <td>{{ file.file_size | formatBytes }}</td>
+                    <td>{{ extractFileName(file.file_name) }}</td>
+                    <td>{{ cutDateFromISO(file.created_at) }}</td>
+                    <td>{{ extractExtension(file.file_name) }}</td>
+                    <td>{{ formatBytes(file.file_size) }}</td>
                 </tr>
             </tbody>
         </table>
@@ -22,6 +22,8 @@
 </template>
 
 <script>
+import { formatBytes, extractFileName, cutDateFromISO, extractExtension } from "@/utils/formatters";
+
 export default {
     props: {
         show_files: {
@@ -33,28 +35,12 @@ export default {
             required: true
         }
     },
-    filters: {
-        cutFromDotName(value) {
-            // Implement the filter logic here
-            return value.split('.')[0];
-        },
-        cutFromT(value) {
-            // Implement the filter logic here
-            return value.split('T')[0];
-        },
-        cutFromDotType(value) {
-            // Implement the filter logic here
-            return value.split('.').pop();
-        },
-        formatBytes(value) {
-            // Implement the filter logic here
-            if (value === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(value) / Math.log(k));
-            return parseFloat((value / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-    }
+    methods: {
+        formatBytes,
+        extractFileName,
+        cutDateFromISO,
+        extractExtension,
+    },
 };
 </script>
 

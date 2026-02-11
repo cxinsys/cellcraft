@@ -98,14 +98,22 @@ def load_tab_file(file_path: str):
                     df = pd.concat([df, pca_df], axis=1)
                 # 둘 다 없는 경우 raw 데이터에서 처음 두 컬럼 사용
                 else:
+                    # sparse matrix인 경우 dense로 변환
+                    from scipy.sparse import issparse
                     # 데이터가 1차원인 경우 처리
                     if adata.X.shape[1] == 1:
+                        col_data = adata.X[:, 0]
+                        if issparse(col_data):
+                            col_data = col_data.toarray().ravel()
                         raw_df = pd.DataFrame({
-                            'X': adata.X[:, 0],
+                            'X': col_data,
                             'Y': np.zeros(adata.X.shape[0])  # Y값을 0으로 설정
                         }, index=adata.obs.index)
                     else:
-                        raw_df = pd.DataFrame(adata.X[:, :2], columns=['X', 'Y'], index=adata.obs.index)
+                        col_data = adata.X[:, :2]
+                        if issparse(col_data):
+                            col_data = col_data.toarray()
+                        raw_df = pd.DataFrame(col_data, columns=['X', 'Y'], index=adata.obs.index)
                     df = pd.concat([df, raw_df], axis=1)
 
                 logger.debug(f"Successfully loaded H5AD file with {df.shape[0]} observations")
@@ -280,19 +288,63 @@ def extract_visualization_data(workflow_info, node_id):
     # "Visualization" 클래스를 가진 객체가 없을 경우 빈 딕셔너리 반환
     return {}
 
-def generate_user_input(selectedPluginInputOutput):
+def generate_user_input(selectedPluginInputOutput, username=None, file_sources=None):
+    """
+    플러그인 입출력 파라미터에서 사용자 입력 파일 매핑을 생성한다.
+
+    Args:
+        selectedPluginInputOutput: 플러그인 입출력 파라미터 배열
+        username: 유저명 (전체 경로 구성 시 사용)
+        file_sources: {파라미터키: "user"|"shared"} 매핑 (None이면 기존 동작)
+
+    Returns:
+        {"input.h5ad": "user/john/data/pbmc.h5ad"} 또는
+        {"input.h5ad": "tutorials/pbmc.h5ad"} 또는
+        {"input.h5ad": "pbmc.h5ad"} (하위 호환: username/file_sources 미제공 시)
+    """
     user_input = {}
 
-    # selectedPluginInputOutput에서 type이 "input"인 파라미터 추출 및 사용자 입력에 추가
     for parameter in selectedPluginInputOutput:
-        if parameter.get("type") == "inputFile" or parameter.get("type") == "optionalInputFile":
-            # 파라미터 이름 추출
+        if parameter.get("type") in ("inputFile", "optionalInputFile"):
             parameter_key = parameter.get("defaultValue")
-            
-            # 사용자 입력에 추가
-            user_input[parameter_key] = parameter.get("file_name")
-    
+            file_name = parameter.get("file_name")
+
+            if not file_name:
+                continue
+
+            # 하위 호환: username이 없으면 기존 동작 (파일명만 반환)
+            if username is None or file_sources is None:
+                user_input[parameter_key] = file_name
+            else:
+                source = file_sources.get(parameter_key, "user")
+                if source == "shared":
+                    user_input[parameter_key] = f"tutorials/{file_name}"
+                else:
+                    user_input[parameter_key] = f"user/{username}/data/{file_name}"
+
     return user_input
+
+
+def extract_file_sources(algorithm_data):
+    """Algorithm 노드에서 file_source 매핑 추출.
+
+    selectedPluginInputOutput 배열의 각 inputFile 파라미터에서
+    fileSource 필드를 읽어 {defaultValue: source} 매핑을 반환한다.
+
+    Args:
+        algorithm_data: algorithm dict (selectedPluginInputOutput 포함)
+
+    Returns:
+        {"input.h5ad": "shared", "geneList.txt": "user", ...}
+    """
+    sources = {}
+    input_output = algorithm_data.get('selectedPluginInputOutput', [])
+    for param in input_output:
+        if param.get('type') in ('inputFile', 'optionalInputFile'):
+            key = param.get('defaultValue')
+            source = param.get('fileSource', 'user')
+            sources[key] = source
+    return sources
 
 def generate_plugin_params(selectedPluginRules):
     plugin_params = {}

@@ -1,43 +1,27 @@
 from celery import current_app as current_celery_app
 from celery.result import AsyncResult
-from celery.signals import celeryd_after_setup
-from kombu import Queue, Exchange
-import threading
-import GPUtil
-import psutil
-import time
+from celery.signals import worker_ready
+import logging
 
 from app.common.config import settings
 
-# 자원 사용량 제한 설정
-CPU_USAGE_LIMIT = 85  # CPU 사용량 제한
-MEMORY_USAGE_LIMIT = 90  # 메모리 사용량 제한
-GPU_USAGE_LIMIT = 90  # GPU 사용량 제한
+logger = logging.getLogger(__name__)
 
-def check_system_usage():
-    """ CPU, 메모리 및 GPU 사용량 확인 후 Celery Task 큐 컨트롤 """
-    while True:
-        cpu_usage = psutil.cpu_percent(interval=1)
-        memory_usage = psutil.virtual_memory().percent
-        gpus = GPUtil.getGPUs()
-        gpu_usage = max((gpu.load * 100 for gpu in gpus), default=0)
 
-        celery_app = current_celery_app
+@worker_ready.connect
+def on_worker_ready(sender, **kwargs):
+    """Initialize resource totals and clean up stale allocations on worker startup."""
+    from app.common.utils.resource_manager import (
+        initialize_resource_totals, cleanup_stale_resources
+    )
+    result = initialize_resource_totals()
+    cleanup_stale_resources()
+    logger.info(
+        f"Worker ready — resources initialized: "
+        f"CPU={result['cpu_total']}, GPU={result['gpu_total']}, "
+        f"concurrency={result['worker_concurrency']}"
+    )
 
-        print(f"💡 시스템 리소스 체크: CPU {cpu_usage}%, 메모리 {memory_usage}%, GPU {gpu_usage}%")
-
-        if cpu_usage >= CPU_USAGE_LIMIT or memory_usage >= MEMORY_USAGE_LIMIT or gpu_usage >= GPU_USAGE_LIMIT:
-            print(f"⚠️ 리소스 초과! (CPU: {cpu_usage}%, Memory: {memory_usage}%, GPU: {gpu_usage}%) → 큐 대기 중...")
-            # celery_app.control.pause_consumer("workflow_task")  # 특정 Task Queue 중지
-            celery_app.control.cancel_consumer("workflow_task")  # 특정 Task Queue 중지
-            celery_app.control.cancel_consumer("plugin_task")  # 플러그인 Task Queue 중지
-        else:
-            print(f"✅ 정상 상태 (CPU: {cpu_usage}%, Memory: {memory_usage}%, GPU: {gpu_usage}%) → 큐 실행 중...")
-            # celery_app.control.resume_consumer("workflow_task")  # 특정 Task Queue 다시 실행
-            celery_app.control.add_consumer("workflow_task")  # 특정 Task Queue 다시 실행
-            celery_app.control.add_consumer("plugin_task")  # 플러그인 Task Queue 다시 실행
-
-        time.sleep(5)  # 5초마다 상태 체크
 
 def create_celery():
     celery_app = current_celery_app
@@ -53,16 +37,20 @@ def create_celery():
     celery_app.conf.update(worker_send_task_events=True)
     celery_app.conf.update(worker_prefetch_multiplier=1)
 
-    # 긴 작업을 위한 타임아웃 설정 추가
+    # broker_transport_options 설정
+    # - visibility_timeout: acks_late=False이므로 실질적 영향 없음. 방어적으로 유지.
+    # - confirm_publish: 메시지 발행 확인 활성화
+    # - confirm_timeout: 발행 확인 타임아웃
     celery_app.conf.update(broker_transport_options={
-        'visibility_timeout': 259200,  # 긴 작업을 위한 visibility timeout 설정 (72시간)
-        'confirm_publish': True,  # 메시지 발행 확인 활성화
-        'confirm_timeout': 60.0  # 메시지 발행 확인을 위한 타임아웃 설정 (초 단위)
+        'visibility_timeout': 259200,
+        'confirm_publish': True,
+        'confirm_timeout': 10.0
     })
 
-    # Task Time Limits 설정 (72시간 제한, 소프트 타임아웃 71시간 56분)
-    celery_app.conf.update(task_time_limit=259200)  # 작업 시간 제한 (72시간)
-    celery_app.conf.update(task_soft_time_limit=258960)  # 소프트 타임아웃 설정 (71시간 56분)
+    # Task Time Limits 비활성화 — GRN inference 작업은 데이터셋에 따라 수일~수주 소요 가능
+    # None = 무제한. 작업 중단은 사용자가 UI에서 revoke로 수행.
+    celery_app.conf.update(task_time_limit=None)
+    celery_app.conf.update(task_soft_time_limit=None)
 
     # Celery 설정에서 ampq 연결 끊김 방지를 위한 연결 관련 옵션 조정
     celery_app.conf.update(
@@ -73,18 +61,11 @@ def create_celery():
         broker_connection_retry_delay=1,  # 재시도 간격 (초 단위)
         broker_connection_retry_jitter=False,  # 재시도 간격 랜덤화 비활성화
     )
-    celery_app.conf.broker_transport_options = {'confirm_publish': True, 'confirm_timeout': 10.0}
 
-    # 라우팅 설정 활성화 (큐별 라우팅을 위해 필요)
-    # celery_app.conf.task_routes = None  # 기본 설정으로 돌아감
-
-    # 작업자(worker) 동시성 제한 설정 수정
+    # 작업자(worker) 동시성 제한 설정
     celery_app.conf.update(
         task_reject_on_worker_lost=True  # 워커 손실 시 작업 거부
     )
-
-    # monitoring_thread = threading.Thread(target=check_system_usage, daemon=True)
-    # monitoring_thread.start()
 
     return celery_app
 

@@ -34,6 +34,7 @@ services:
       - ./backend/plugin/build_logs:/app/plugin/build_logs:rw
     depends_on:
       - db
+      - redis
     restart: always
     networks:
       - app-network
@@ -73,6 +74,22 @@ services:
     # No volumes - ephemeral test database
     # No restart - manual control for testing
     # No healthcheck - keep it minimal
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    restart: always
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: "rabbitmq:management"
@@ -122,3 +139,4 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:

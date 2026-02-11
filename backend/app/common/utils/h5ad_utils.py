@@ -57,23 +57,23 @@ def organize_column_dtypes(data_frame):
             df[column] = df[column].astype('category')
     return df
 
-def get_annotation_columns(data_frame):
+def get_annotation_columns(data_frame, organized=False):
     '''
     유저가 tenet을 돌리고 싶은 부분을 선택할 때에 다양한 annotation을 기준으로
-    선택하고 싶을 수 있습니다. 범주형 데이터는 모두 그런 annotation이 될 수 
+    선택하고 싶을 수 있습니다. 범주형 데이터는 모두 그런 annotation이 될 수
     있다고 가정하고 모든 범주형 column의 이름을 추출합니다.
     '''
-    df = organize_column_dtypes(data_frame.copy())
+    df = data_frame if organized else organize_column_dtypes(data_frame.copy())
     return list(df.columns[np.where(np.char.startswith(list(map(str,df.dtypes)), 'category'))[0]])
 
-def get_pseudotime_columns(data_frame):
+def get_pseudotime_columns(data_frame, organized=False):
     '''
     유저가 다양한 방식으로 pseudotime을 구하고 pseudotime 값을 저장한 column 개수가
     여러 개인 상황을 가정했습니다. pseudotime 데이터는 연속형으로 나오기 때문에 연속형
     데이터인 column은 모두 pseudotime에 관련된 데이터일 수 있다고 가정하고 모든 연속형
     column의 이름을 추출합니다.
     '''
-    df = organize_column_dtypes(data_frame.copy())
+    df = data_frame if organized else organize_column_dtypes(data_frame.copy())
     numeric_columns = df.select_dtypes(include=['float', 'int']).columns
     return list(numeric_columns)
 

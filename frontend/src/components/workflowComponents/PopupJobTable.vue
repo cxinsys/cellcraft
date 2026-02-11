@@ -143,7 +143,7 @@ export default {
         // 메뉴 크기 계산을 위해 임시로 메뉴를 표시
         this.currentTaskId = task.task_id;
         this.currentTask = task;
-        this.isCompleted = ["SUCCESS", "FAILURE", "REVOKED", "RETRY"].includes(task.status);
+        this.isCompleted = ["SUCCESS", "FAILURE", "REVOKED"].includes(task.status);
         this.canDownloadManifest = task.status === 'SUCCESS' && this.formatPluginType(task) === 'Analysis';
         this.isAnalysisTask = this.formatPluginType(task) === 'Analysis';
         this.R_Mouse_isActive = true;
@@ -400,6 +400,10 @@ export default {
 
 .status-running {
   background-color: #f39c12;
+}
+
+.status-retry {
+  background-color: #f1c40f;
 }
 
 /* 취소 아이콘 */

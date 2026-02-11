@@ -96,6 +96,7 @@ export default {
       scatterResult: null,
       workflowId: this.$route.query.workflow_id,
       nodeId: this.$route.query.node,
+      current_file_source: "user",
     };
   },
   async mounted() {
@@ -135,6 +136,8 @@ export default {
 
     try {
       this.current_file = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
+      const nodeInfo = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
+      this.current_file_source = (nodeInfo && nodeInfo.data && nodeInfo.data.fileSource) || "user";
     } catch (error) {
       console.error("Error getting current file info:", error);
     }
@@ -164,7 +167,7 @@ export default {
     if (this.current_file !== "") {
       let scatterResult;
       try {
-        scatterResult = await getFileData(this.current_file);
+        scatterResult = await getFileData(this.current_file, this.current_file_source);
       } catch (error) {
         console.error("Error getting file data:", error);
       }

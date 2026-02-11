@@ -1,5 +1,4 @@
 from typing import Any
-from venv import create
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, FileResponse
 from typing import List, Union
@@ -17,6 +16,7 @@ from app.database.crud import crud_file
 from app.database import models
 from app.database.schemas.file import FileCreate, FileDelete, FileUpdate, FileFind, FolderFind, FileGet, FileResultFind
 from app.common.utils.h5ad_utils import organize_column_dtypes, get_annotation_columns, get_pseudotime_columns
+from app.common.utils.h5ad_metadata_cache import get_cached_columns, set_cached_columns, get_cached_clusters, set_cached_clusters, invalidate_file
 from app.common.utils.workflow_utils import load_tab_file
 
 router = APIRouter()
@@ -101,6 +101,18 @@ async def fileUpload(
                 detail=f"File upload failed: {str(e)}"
             )
 
+        # Compress H5AD files to reduce storage
+        if final_filename.lower().endswith('.h5ad'):
+            from app.common.utils.h5ad_compression import compress_h5ad_file
+            from app.common.config import H5AD_COMPRESSION_ENABLED, H5AD_COMPRESSION_MIN_SIZE
+
+            if H5AD_COMPRESSION_ENABLED:
+                _compressed, file_size = await asyncio.to_thread(
+                    compress_h5ad_file,
+                    file_path,
+                    min_size_bytes=H5AD_COMPRESSION_MIN_SIZE,
+                )
+
         # Create database record
         created_file = crud_file.create_file(
             db,
@@ -154,7 +166,7 @@ def find_user_file(
 
 #User find File of folder
 @router.post("/folder")
-def find_user_file(
+def find_user_folder(
     *,
     db: Session = Depends(dep.get_db),
     current_user: models.User = Depends(dep.get_current_active_user),
@@ -191,7 +203,10 @@ def delete_user_file(
         # 파일 존재 여부 확인 및 삭제
         if os.path.exists(file_path) and os.path.isfile(file_path):
             try:
-                os.remove(file_path)  # 실제 파일 삭제
+                from app.common.utils.datatable_cache import invalidate_datatable
+                invalidate_file(file_path)
+                invalidate_datatable(file_path)
+                os.remove(file_path)
             except Exception as e:
                 raise HTTPException(
                     status_code=500,
@@ -305,30 +320,40 @@ def h5ad_columns (
     current_user: models.User = Depends(dep.get_current_active_user),
     fileInfo: FileFind,
     ) -> Any:
-    user_file = crud_file.get_user_file(db, current_user.id, fileInfo.file_name)
-    if user_file:
-        folder_path = './user' + '/' + current_user.username
-        input_filename = fileInfo.file_name
-        input_filepath = f"{folder_path}/data/{input_filename}"
+    from app.common.utils.file_path_resolver import resolve_data_file_path
 
-        # 메모리 누수 방지를 위해 adata를 명시적으로 해제
-        adata = None
-        try:
-            adata = sc.read_h5ad(input_filepath)
-            adata.obs = organize_column_dtypes(adata.obs)
-            anno_columns = get_annotation_columns(adata.obs)
-            pseudo_columns = get_pseudotime_columns(adata.obs)
-            return {'anno_columns': anno_columns, 'pseudo_columns': pseudo_columns}
-        finally:
-            if adata is not None:
-                del adata
-            gc.collect()
-    else:
-        raise HTTPException(
+    # 공용 파일은 DB 소유권 검사 스킵
+    if fileInfo.source != "shared":
+        user_file = crud_file.get_user_file(db, current_user.id, fileInfo.file_name)
+        if not user_file:
+            raise HTTPException(
                 status_code=400,
                 detail="this file not exists in your files",
-        )
-    
+            )
+
+    input_filepath = resolve_data_file_path(fileInfo.file_name, current_user.username, fileInfo.source)
+
+    if not os.path.isfile(input_filepath):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    cached = get_cached_columns(input_filepath)
+    if cached is not None:
+        return cached
+
+    adata = None
+    try:
+        adata = sc.read_h5ad(input_filepath)
+        obs = organize_column_dtypes(adata.obs)
+        anno_columns = get_annotation_columns(obs, organized=True)
+        pseudo_columns = get_pseudotime_columns(obs, organized=True)
+        result = {'anno_columns': anno_columns, 'pseudo_columns': pseudo_columns}
+        set_cached_columns(input_filepath, result)
+        return result
+    finally:
+        if adata is not None:
+            del adata
+        gc.collect()
+
 @router.post("/clusters")
 def h5ad_cluster (
     *,
@@ -336,28 +361,37 @@ def h5ad_cluster (
     current_user: models.User = Depends(dep.get_current_active_user),
     fileInfo: FileFind,
     ) -> Any:
-    user_file = crud_file.get_user_file(db, current_user.id, fileInfo.file_name)
-    if user_file:
-        folder_path = './user' + '/' + current_user.username
-        input_filename = fileInfo.file_name
-        input_filepath = f"{folder_path}/data/{input_filename}"
+    from app.common.utils.file_path_resolver import resolve_data_file_path
 
-        # 메모리 누수 방지를 위해 adata를 명시적으로 해제
-        adata = None
-        try:
-            adata = sc.read_h5ad(input_filepath)
-            adata.obs = organize_column_dtypes(adata.obs)
-            clusters = map(str, adata.obs[fileInfo.anno_column].value_counts().index)
-            return {'clusters': list(clusters)}
-        finally:
-            if adata is not None:
-                del adata
-            gc.collect()
-    else:
-        raise HTTPException(
+    # 공용 파일은 DB 소유권 검사 스킵
+    if fileInfo.source != "shared":
+        user_file = crud_file.get_user_file(db, current_user.id, fileInfo.file_name)
+        if not user_file:
+            raise HTTPException(
                 status_code=400,
                 detail="this file not exists in your files",
-        )
+            )
+
+    input_filepath = resolve_data_file_path(fileInfo.file_name, current_user.username, fileInfo.source)
+
+    if not os.path.isfile(input_filepath):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    cached = get_cached_clusters(input_filepath, fileInfo.anno_column)
+    if cached is not None:
+        return {'clusters': cached}
+
+    adata = None
+    try:
+        adata = sc.read_h5ad(input_filepath)
+        adata.obs = organize_column_dtypes(adata.obs)
+        clusters = list(map(str, adata.obs[fileInfo.anno_column].value_counts().index))
+        set_cached_clusters(input_filepath, fileInfo.anno_column, clusters)
+        return {'clusters': clusters}
+    finally:
+        if adata is not None:
+            del adata
+        gc.collect()
     
 @router.get("/setup/check")
 def algorithm_setup_check (
@@ -404,9 +438,72 @@ def read_user_file(
             contents = file.read()
             return contents
         
+@router.get("/shared")
+def get_shared_files(
+    current_user: models.User = Depends(dep.get_current_active_user),
+) -> Any:
+    """tutorials/ 디렉토리의 데이터 파일 목록 반환 (html 제외)"""
+    SHARED_DIR = './tutorials'
+    DATA_EXTENSIONS = {'.h5ad', '.csv', '.txt', '.json'}
+    shared_files = []
+
+    if not os.path.isdir(SHARED_DIR):
+        return shared_files
+
+    for f in os.listdir(SHARED_DIR):
+        ext = os.path.splitext(f)[1].lower()
+        if ext in DATA_EXTENSIONS:
+            file_path = os.path.join(SHARED_DIR, f)
+            shared_files.append({
+                "file_name": f,
+                "file_size": str(os.path.getsize(file_path)),
+                "file_path": SHARED_DIR,
+                "folder": "tutorials",
+                "source": "shared",
+            })
+    return shared_files
+
+
+@router.post("/shared/find")
+def find_shared_file(
+    *,
+    current_user: models.User = Depends(dep.get_current_active_user),
+    fileInfo: FileFind,
+) -> Any:
+    """공용 파일 단건 조회 (InputFile.vue에서 사용)"""
+    from app.common.utils.file_security import validate_file_path
+
+    SHARED_DIR = './tutorials'
+    file_path = os.path.join(SHARED_DIR, fileInfo.file_name)
+    validate_file_path(SHARED_DIR, file_path)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Shared file not found")
+
+    return {
+        "file_name": fileInfo.file_name,
+        "file_size": str(os.path.getsize(file_path)),
+        "file_path": SHARED_DIR,
+        "folder": "tutorials",
+        "source": "shared",
+    }
+
+
 @router.get("/html/{filename}", response_class=HTMLResponse)
-async def read_html_file(filename: str):
-    with open(f'./tutorials/{filename}.html', "r") as f:
+async def read_html_file(
+    filename: str,
+) -> Any:
+    from app.common.utils.file_security import validate_file_path
+
+    folder_path = './tutorials'
+    file_path = os.path.join(folder_path, f'{filename}.html')
+
+    validate_file_path(folder_path, file_path)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    with open(file_path, "r") as f:
         html = f.read()
     return HTMLResponse(content=html)
 
@@ -462,14 +559,11 @@ async def download_data_file(
     *,
     current_user: models.User = Depends(dep.get_current_active_user),
     filename: str,
+    source: str = None,
     ) -> Any:
-    from app.common.utils.file_security import validate_file_path
+    from app.common.utils.file_path_resolver import resolve_data_file_path
 
-    folder_path = f'./user/{current_user.username}/data'
-    file_path = os.path.join(folder_path, filename)
-
-    # Security: Prevent path traversal
-    validate_file_path(folder_path, file_path)
+    file_path = resolve_data_file_path(filename, current_user.username, source)
 
     # 파일이 존재하는지 확인
     if not os.path.isfile(file_path):

@@ -68,6 +68,19 @@ class Settings(BaseSettings):
             f"{values.get('POSTGRES_DB')}"
         )
 
+    # Redis Configuration
+    REDIS_URL: str = "redis://redis:6379/0"
+    DATATABLE_DF_CACHE_TTL: int = 3600  # 1 hour
+    PLUGIN_LIST_CACHE_TTL: int = 120    # 2 minutes
+
+    # Resource Queue Configuration
+    RESOURCE_CPU_TOTAL: int = 0            # 0 = auto-detect (os.cpu_count()), positive = manual override
+    RESOURCE_GPU_TOTAL: int = 0            # 0 = auto-detect (GPU_COUNT env or GPUtil), positive = manual override
+    RESOURCE_DEFAULT_CPU_SLOTS: int = 4    # Default CPU slots per task (TENET baseline)
+    RESOURCE_DEFAULT_GPU_SLOTS: int = 1    # Default GPU slots per task (FastTENET baseline)
+    RESOURCE_POLL_INTERVAL: int = 10       # Retry interval when resources unavailable (seconds)
+    CELERY_WORKER_CONCURRENCY: int = 0     # 0 = auto-calculate (cpu_total // default_cpu_slots), positive = manual override
+
     # Celery configuration with proper defaults
     CELERY_BROKER_URL: str = "amqp://guest:guest@rabbitmq:5672//"
     CELERY_RESULT_BACKEND: Optional[str] = None
@@ -96,8 +109,10 @@ class Settings(BaseSettings):
     # File Upload Validation Configuration
     # ==============================================================================
 
-    # Maximum file size: 500MB for H5AD files (bioinformatics datasets can be large)
-    MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500MB in bytes
+    # Maximum file size: 5GB for H5AD files (large scRNA-seq datasets)
+    # Note: sc.read_h5ad() loads entire file into memory during compression,
+    # so peak memory ≈ 1.0-1.3x file size. 5GB keeps peak under ~6.5GB.
+    MAX_UPLOAD_SIZE: int = 5 * 1024 * 1024 * 1024  # 5GB in bytes
 
     # Allowed file extensions for upload
     ALLOWED_EXTENSIONS: set = {".h5ad", ".csv", ".json", ".txt"}
@@ -112,6 +127,10 @@ class Settings(BaseSettings):
     # This prevents loading entire files into memory during upload
     # Memory usage: ~1MB per upload instead of up to 500MB
     UPLOAD_CHUNK_SIZE: int = 1024 * 1024  # 1MB in bytes
+
+    # H5AD Compression Configuration
+    H5AD_COMPRESSION_ENABLED: bool = True
+    H5AD_COMPRESSION_MIN_SIZE: int = 1 * 1024 * 1024  # 1MB
 
     # ==============================================================================
     # Security Configuration (OWASP Top 10 Compliance)
@@ -172,3 +191,7 @@ ENABLE_ANOMALY_DETECTION = settings.ENABLE_ANOMALY_DETECTION
 ANOMALY_PATH_TRAVERSAL_THRESHOLD = settings.ANOMALY_PATH_TRAVERSAL_THRESHOLD
 ANOMALY_FILE_SPOOFING_THRESHOLD = settings.ANOMALY_FILE_SPOOFING_THRESHOLD
 ANOMALY_USER_EVENTS_THRESHOLD = settings.ANOMALY_USER_EVENTS_THRESHOLD
+
+# Export H5AD compression configuration
+H5AD_COMPRESSION_ENABLED = settings.H5AD_COMPRESSION_ENABLED
+H5AD_COMPRESSION_MIN_SIZE = settings.H5AD_COMPRESSION_MIN_SIZE

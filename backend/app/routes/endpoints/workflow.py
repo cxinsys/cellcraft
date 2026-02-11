@@ -27,7 +27,7 @@ from app.common.utils.workflow_utils import (
     extract_visualization_data, extract_target_data, generate_user_input,
     generate_plugin_params, generate_visualization_params,
     resolve_algorithm_path_from_files, validate_file_paths,
-    find_connected_visualization_nodes
+    find_connected_visualization_nodes, extract_file_sources
 )
 from app.common.utils.log_archive_utils import cleanup_task_results
 from app.database.crud import crud_workflow, crud_plugin
@@ -83,8 +83,13 @@ def compileWorkflow(
                 except Exception as e:
                     raise HTTPException(status_code=404, detail=f"Plugin '{selected_plugin_name}' not found: {str(e)}")
 
-                # 입력 데이터 및 파라미터 추출
-                user_input = generate_user_input(algorithm['selectedPluginInputOutput'])
+                # 입력 데이터 및 파라미터 추출 (파일 소스에 따라 전체 경로 구성)
+                file_sources = extract_file_sources(algorithm)
+                user_input = generate_user_input(
+                    algorithm['selectedPluginInputOutput'],
+                    username=current_user.username,
+                    file_sources=file_sources,
+                )
                 plugin_params = generate_plugin_params(algorithm['selectedPluginRules'])
                 target_list = extract_target_data(algorithm['selectedPluginInputOutput'], user_workflow_task_path)
 
@@ -130,10 +135,31 @@ def compileWorkflow(
                 plugin_snakefile_path = os.path.join(plugin_path, "Snakefile")
                 user_snakefile_path = change_snakefile_parameter(plugin_snakefile_path, user_workflow_task_path + "/Snakefile", user_input, plugin_params)
 
+                # 리소스 요구량 추출
+                plugin_db = db.query(models.Plugin).filter_by(name=selected_plugin_name).first()
+                use_gpu = plugin_db.use_gpu if plugin_db else False
+                resource_type = 'gpu' if use_gpu else 'cpu'
+
+                num_devices_raw = plugin_params.get("number of devices")
+                if num_devices_raw is not None:
+                    resource_slots = int(num_devices_raw)
+                else:
+                    from app.common.config import settings as app_settings
+                    resource_slots = (app_settings.RESOURCE_DEFAULT_GPU_SLOTS
+                                     if use_gpu else app_settings.RESOURCE_DEFAULT_CPU_SLOTS)
+
                 # Celery 작업 실행
                 process_task = process_data_task.apply_async(
                     args=[current_user.username, user_snakefile_path, selected_plugin_name, target_list],
-                    kwargs={'user_id': current_user.id, 'workflow_id': workflow.id, 'algorithm_id': algorithm['id'], 'plugin_name': selected_plugin_name, 'task_type': 'compile'},
+                    kwargs={
+                        'user_id': current_user.id,
+                        'workflow_id': workflow.id,
+                        'algorithm_id': algorithm['id'],
+                        'plugin_name': selected_plugin_name,
+                        'task_type': 'compile',
+                        'resource_type': resource_type,
+                        'resource_slots': resource_slots,
+                    },
                     ignore_result=False
                 )
 
@@ -560,6 +586,8 @@ def visualizeData(
                     'algorithm_id': workflow_request.current_node_id,  # Use visualization node ID for correct log path
                     'plugin_name': selected_plugin_name,
                     'task_type': 'visualization',
+                    'resource_type': 'cpu',
+                    'resource_slots': 1,
                     'cache_key': cache_key,
                     'cache_info': {
                         'user_path': user_path,

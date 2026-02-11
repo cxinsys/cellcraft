@@ -38,6 +38,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
 
   db:
@@ -59,6 +61,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
     image: "rabbitmq:management"
     environment:
@@ -66,6 +82,8 @@ services:
     expose:
       - "15672"
       - "5672"
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     restart: always
 
   celery:
@@ -151,6 +169,7 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   jenkins_data:
   playwright_browsers:
   uptime_kuma_data:

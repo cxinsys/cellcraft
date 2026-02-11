@@ -85,5 +85,7 @@ COPY . .
 # Note: Git submodules are managed on the host and mounted via volumes
 # This ensures proper branch synchronization between host and container
 
-# Celery 실행
-CMD ["/opt/micromamba/envs/snakemake/bin/python", "-m", "celery", "-A", "app.main.celery", "worker", "-n", "worker@%h", "--loglevel=info", "-E", "-Q", "workflow_task,plugin_task"]
+# Celery 실행 (shell form for env var substitution; default concurrency=12)
+CMD /opt/micromamba/envs/snakemake/bin/python -m celery -A app.main.celery worker \
+    -n worker@%h --loglevel=info -E -Q workflow_task,plugin_task \
+    -c ${CELERY_WORKER_CONCURRENCY:-12}

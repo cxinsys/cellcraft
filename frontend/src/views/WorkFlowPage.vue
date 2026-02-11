@@ -354,12 +354,20 @@ export default {
       }
     }
 
-    // Task 모니터링
+    // Task 모니터링 — 실행 중인 task에 SSE 재연결
     try {
       const userTasks = await userTaskMonitoring();
       console.log(userTasks.data);
-      if (userTasks.data.some(task => task.status === "RUNNING" || task.status === "PENDING" || task.status === "INSTALLING")) {
+      const runningTasks = userTasks.data.filter(
+        task => task.status === "RUNNING" || task.status === "PENDING" || task.status === "INSTALLING"
+      );
+      if (runningTasks.length > 0) {
         this.on_progress = true;
+        runningTasks.forEach(task => {
+          if (!this.eventSources[task.task_id]) {
+            this.createEventSource(task.task_id);
+          }
+        });
       }
     } catch (error) {
       console.error(error);
@@ -405,8 +413,17 @@ export default {
         onMessage: (event) => {
           console.log("Received update: ", event.data);
           // PENDING 상태도 진행 중으로 처리
-          if (event.data === "RUNNING" || event.data === "PENDING" || event.data === "INSTALLING") {
+          if (event.data === "RUNNING" || event.data === "PENDING" || event.data === "INSTALLING" || event.data === "RETRY") {
             this.on_progress = true;
+          }
+          if (event.data === "RETRY") {
+            const taskIndex = this.taskList.findIndex(task => task.task_id === task_id);
+            if (taskIndex !== -1) {
+              this.$set(this.taskList, taskIndex, {
+                ...this.taskList[taskIndex],
+                status: "RETRY",
+              });
+            }
           }
           if (event.data === "INSTALLING") {
             // taskList에서 해당 task에 대해서 status를 INSTALLING으로 변경
@@ -671,13 +688,12 @@ export default {
       this.taskList.forEach((task, idx) => {
         if (task.status === "SUCCESS" ||
           task.status === "FAILURE" ||
-          task.status === "REVOKED" ||
-          task.status === "RETRY") {
+          task.status === "REVOKED") {
           this.taskList[idx].running_time = getTimeDifference(
             task.start_time,
             task.end_time
           );
-        } else if (task.status === "RUNNING" || task.status === "PENDING" || task.status === "INSTALLING") {
+        } else if (task.status === "RUNNING" || task.status === "PENDING" || task.status === "INSTALLING" || task.status === "RETRY") {
           // RUNNING 또는 PENDING 상태일 때 타이머 시작
           this.timeInterval = this.startTimer(idx);
           // Task가 실행 중이므로 on_progress를 true로 설정

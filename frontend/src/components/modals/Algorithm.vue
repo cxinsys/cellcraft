@@ -36,6 +36,10 @@
           <div class="algorithm-logo">{{ selectedPlugin ? selectedPlugin.name : 'Select a Plugin' }}</div>
         </div>
         <div class="algorithm-parts">
+          <div v-if="isParameterLoading" class="parameter-loading-overlay">
+            <div class="parameter-spinner"></div>
+            <p class="parameter-loading-text">Loading parameters...</p>
+          </div>
           <div v-for="(rule, ruleIndex) in selectedPluginRules" :key="`rule-${ruleIndex}-${rule.name}`">
             <div class="part-title" v-show="rule.parameters.length != 0">{{ rule.name }}</div>
             <div v-for="(parameter, paramIndex) in rule.parameters"
@@ -170,6 +174,7 @@ export default {
       nodeInfo: {},
       currentCellGroup: '',
       activePluginType: 'official', // 기본적으로 Official 플러그인 표시
+      isParameterLoading: false,
     };
   },
   async mounted() {
@@ -222,6 +227,7 @@ export default {
                 updatedItem.selected_file = savedItem.selected_file;
                 updatedItem.activate = true;
                 updatedItem.file_name = savedItem.selected_file.file_name;
+                updatedItem.fileSource = savedItem.selected_file.fileSource || savedItem.fileSource || "user";
               }
               return updatedItem;
             });
@@ -230,20 +236,25 @@ export default {
           }
 
           if (this.selectedPluginInputOutput.some((item) => item.type === "inputFile" && item.fileExtension === ".h5ad")) {
-            await this.loadColumns();
+            this.isParameterLoading = true;
+            try {
+              await this.loadColumns();
 
-            // cell group 파라미터를 찾아서 defaultValue가 있으면 clusters를 할당
-            const cellGroupParam = this.selectedPluginRules.find(rule =>
-              rule.parameters.some(param => param.name === 'cell group' && param.defaultValue)
-            )?.parameters.find(param => param.name === 'cell group');
+              // cell group 파라미터를 찾아서 defaultValue가 있으면 clusters를 할당
+              const cellGroupParam = this.selectedPluginRules.find(rule =>
+                rule.parameters.some(param => param.name === 'cell group' && param.defaultValue)
+              )?.parameters.find(param => param.name === 'cell group');
 
-            if (cellGroupParam?.defaultValue) {
-              const clusters = await this.getCurrnetClusters(cellGroupParam.defaultValue);
-              this.clusters = clusters;
+              if (cellGroupParam?.defaultValue) {
+                const clusters = await this.getCurrnetClusters(cellGroupParam.defaultValue);
+                this.clusters = clusters;
+              }
+
+              // ScatterPlot Lasso 선택 정보 기반 cell group 및 clusters 자동 설정
+              await this.applyAutoClusterSelection();
+            } finally {
+              this.isParameterLoading = false;
             }
-
-            // ScatterPlot Lasso 선택 정보 기반 cell group 및 clusters 자동 설정
-            await this.applyAutoClusterSelection();
           }
         }
       }
@@ -385,7 +396,8 @@ export default {
                 node_id: connection.id,
                 file_name: connection.data.file,
                 display_name: connection.data.title || connection.data.file,
-                node_class: connection.class
+                node_class: connection.class,
+                fileSource: connection.data.fileSource || "user"
               };
 
               // 중복 방지
@@ -422,10 +434,12 @@ export default {
       if (inputItem.selected_file) {
         inputItem.activate = true;
         inputItem.file_name = inputItem.selected_file.file_name;
+        inputItem.fileSource = inputItem.selected_file.fileSource || "user";
       } else {
         // 선택 해제된 경우
         inputItem.activate = false;
         inputItem.file_name = null;
+        inputItem.fileSource = "user";
       }
 
       // Vue의 반응성을 위해 배열 항목을 교체
@@ -486,16 +500,21 @@ export default {
         (item) => item.type === "inputFile" && item.fileExtension === ".h5ad" && item.activate
       );
       if (selectedInputFile) {
-        const clusters = await this.getCurrnetClusters(anno_column);
-        this.clusters = clusters;
+        this.isParameterLoading = true;
+        try {
+          const clusters = await this.getCurrnetClusters(anno_column);
+          this.clusters = clusters;
 
-        // cell group 변경 시 clusters 파라미터 초기화 (사용자가 직접 선택하도록)
-        const clustersParam = this.selectedPluginRules
-          .flatMap(rule => rule.parameters)
-          .find(param => param.name === 'clusters');
+          // cell group 변경 시 clusters 파라미터 초기화 (사용자가 직접 선택하도록)
+          const clustersParam = this.selectedPluginRules
+            .flatMap(rule => rule.parameters)
+            .find(param => param.name === 'clusters');
 
-        if (clustersParam) {
-          clustersParam.defaultValue = [];  // clusters 초기화
+          if (clustersParam) {
+            clustersParam.defaultValue = [];  // clusters 초기화
+          }
+        } finally {
+          this.isParameterLoading = false;
         }
       }
     },
@@ -546,9 +565,12 @@ export default {
       }
 
       try {
+        const fileSource = selectedInputFile
+          ? (selectedInputFile.fileSource || "user") : "user";
         const result = await getClusters({
           file_name: h5adFileName,
           anno_column: anno_column,
+          source: fileSource,
         });
         console.log('Clusters loaded:', result.data);
         return result.data.clusters;
@@ -597,7 +619,8 @@ export default {
               node_id: matchingConnection.id,
               file_name: matchingConnection.data.file,
               display_name: matchingConnection.data.title || matchingConnection.data.file,
-              node_class: matchingConnection.class
+              node_class: matchingConnection.class,
+              fileSource: matchingConnection.data.fileSource || "user"
             };
           }
         } else if (item.type === 'optionalInputFile') {
@@ -615,7 +638,8 @@ export default {
           ...item,
           activate,
           file_name,
-          selected_file
+          selected_file,
+          fileSource: selected_file ? (selected_file.fileSource || "user") : (item.fileSource || "user")
         };
       });
     },
@@ -763,8 +787,11 @@ export default {
         }
 
         try {
+          const fileSource = selectedInputFile
+            ? (selectedInputFile.fileSource || "user") : "user";
           const result = await getColumns({
             file_name: h5adFileName,
+            source: fileSource,
           });
           console.log('Columns loaded:', result.data);
           this.annotations = result.data.anno_columns;
@@ -1190,6 +1217,39 @@ export default {
   align-content: start;
   width: 100%;
   margin-bottom: 2rem;
+  min-height: 60px;
+}
+
+.parameter-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 0.5rem;
+}
+
+.parameter-spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: param-spin 1s linear infinite;
+}
+
+@keyframes param-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.parameter-loading-text {
+  margin-top: 0.5rem;
+  color: #666;
+  font-size: 0.85rem;
 }
 
 .algorithm-select__tenet {

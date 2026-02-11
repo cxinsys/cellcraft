@@ -24,7 +24,19 @@ import os
 from pathlib import Path
 import time
 
-router = APIRouter()                  
+router = APIRouter()
+
+
+@router.get("/resources")
+async def get_resources():
+    """리소스 할당 현황 및 실행 중 작업 목록 조회"""
+    from app.common.utils.resource_manager import get_resource_status
+
+    status = get_resource_status()
+    if status is None:
+        raise HTTPException(status_code=503, detail="Resource monitoring unavailable")
+    return status
+
 
 @router.get("/info/{task_id}")
 async def get_task_status(task_id: str) -> dict:
@@ -47,7 +59,7 @@ async def get_task_status(task_id: str) -> dict:
                     task = get_task_info(task_id)
                     task_status = task.get('task_status', 'UNKNOWN')
 
-                    if task_status in ['SUCCESS', 'FAILURE', 'REVOKED', 'RETRY']:
+                    if task_status in ['SUCCESS', 'FAILURE', 'REVOKED']:
                         yield f"{task_status}"
                         break
 
@@ -66,6 +78,21 @@ async def get_task_status(task_id: str) -> dict:
             print(f"SSE generator cleanup for task {task_id}")
 
     return EventSourceResponse(event_generator())
+
+@router.get("/status/{task_id}")
+async def get_task_status_simple(task_id: str) -> dict:
+    """
+    SSE 재연결 판단용 경량 상태 확인 엔드포인트.
+    Celery AsyncResult 상태만 반환. 인증 불필요 (SSE 엔드포인트와 동일 패턴).
+    """
+    if not task_id or not task_id.strip():
+        raise HTTPException(status_code=400, detail="Invalid task_id")
+
+    task = get_task_info(task_id)
+    return {
+        "task_id": task_id,
+        "status": task.get("task_status", "UNKNOWN")
+    }
 
 @router.get("/monitoring", response_model=List[TaskMonitoringItem])
 async def get_task_monitoring(

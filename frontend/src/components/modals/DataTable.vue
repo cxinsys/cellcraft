@@ -3,10 +3,11 @@
     <div v-if="current_file === null">
       <span>NO DATA FOR TABLE</span>
     </div>
-    <!-- <div v-else-if="isLoading" class="loading-layout">
-      <span v-if="current_files !== null"></span>
-    </div> -->
     <div v-else class="table-layout">
+      <div v-if="isLoading" class="loading-overlay">
+        <div class="spinner"></div>
+        <p class="loading-text">Loading data...</p>
+      </div>
       <vue-good-table class="dataTable" :columns="columns" :rows="rows" mode="remote" @on-page-change="onPageChange"
         @on-sort-change="onSortChange" @on-column-filter="onColumnFilter" @on-per-page-change="onPerPageChange"
         :line-numbers="true" theme="polar-bear" max-height="31.5rem" :isLoading.sync="isLoading"
@@ -129,12 +130,15 @@ export default {
   },
   async mounted() {
     this.current_file = this.$store.getters.getWorkflowNodeFileInfo(this.nodeId);
+    const nodeInfo = this.$store.getters.getWorkflowNodeInfo(this.nodeId);
+    const fileSource = (nodeInfo && nodeInfo.data && nodeInfo.data.fileSource) || "user";
     console.log(this.current_file);
     // const initial_file_ids = Object.keys(this.current_files);
     if (this.current_file) {
       this.isLoading = true;
       try {
-        this.serverParams.file_name = this.current_file
+        this.serverParams.file_name = this.current_file;
+        this.serverParams.source = fileSource;
         const dataTableResult = await getDataTableFile(this.serverParams);
 
         console.log(dataTableResult.data);
@@ -165,6 +169,7 @@ export default {
 }
 
 .table-layout {
+  position: relative;
   width: 90%;
   height: 90%;
   background: #fff;
@@ -179,18 +184,35 @@ export default {
   overflow: auto;
 }
 
-.loading-layout {
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  z-index: 10;
+  border-radius: 0.5rem;
 }
 
-.loading-layout span {
+.spinner {
   border: 4px solid #f3f3f3;
   border-top: 4px solid #3498db;
   border-radius: 50%;
   width: 40px;
   height: 40px;
-  animation: spin 2s linear infinite;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  margin-top: 0.75rem;
+  color: #666;
+  font-size: 0.9rem;
 }
 </style>
