@@ -80,6 +80,10 @@ function getSystemResources() {
   return instance.get("/routes/admin/system/stats");
 }
 
+function getTaskResources() {
+  return instance.get("/routes/task/resources");
+}
+
 function exportData(data) {
   return instance.post("/routes/workflow/compile", data);
 }
@@ -585,6 +589,7 @@ export {
   readWorkflowNodeFile,
   getFileData,
   getSystemResources,
+  getTaskResources,
   getPluginFile,
   getPluginPackageList,
   getPluginInfo,

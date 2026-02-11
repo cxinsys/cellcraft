@@ -6,7 +6,7 @@
                 <div class="loading-spinner"></div>
                 <p class="loading-text">Loading resource information...</p>
             </div>
-            
+
             <h2 class="modal-title">Confirm Task Execution</h2>
 
             <div class="task-info">
@@ -22,7 +22,7 @@
                         </div>
 
                         <!-- Arrow -->
-                        <div class="task-arrow">→</div>
+                        <div class="task-arrow">&rarr;</div>
 
                         <!-- Output Section -->
                         <div class="task-outputs">
@@ -35,99 +35,84 @@
             </div>
 
             <div class="resource-info">
-                <h3 class="resource-info__title">Server Resource Status</h3>
+                <h3 class="resource-info__title">Resource Allocation Status</h3>
 
-                <!-- CPU 정보 표시 -->
-                <div class="resource-bar">
-                    <label>CPU Usage: {{ Number(serverResources.total_cpu_usage_percent).toFixed(2) }}%</label>
-                    <div class="bar">
-                        <div class="fill"
-                            :style="{ width: Math.min(serverResources.total_cpu_usage_percent, 100) + '%' }">
-                        </div>
-                    </div>
-                    <div class="resource-details">
-                        <p><strong>Total Memory Usage:</strong> {{ formatBytes(serverResources.total_memory_usage_bytes)
-                            }}</p>
-                        <p><strong>Total Memory Limit:</strong> {{ formatBytes(serverResources.total_memory_limit_bytes)
-                            }}</p>
-                    </div>
+                <!-- Error state -->
+                <div v-if="hasError" class="error-state">
+                    <p>Resource monitoring temporarily unavailable</p>
                 </div>
 
-                <!-- 메모리 정보 표시 -->
-                <div class="resource-bar">
-                    <label>Memory Usage: {{ Number(serverResources.total_memory_usage_percent).toFixed(2) }}%</label>
-                    <div class="bar">
-                        <div class="fill"
-                            :style="{ width: Math.min(serverResources.total_memory_usage_percent, 100) + '%' }"></div>
-                    </div>
-                    <div class="resource-details">
-                        <p>
-                            <strong>Total Memory:</strong> {{ formatBytes(serverResources.total_memory_limit_bytes) }}
-                        </p>
-                        <p>
-                            <strong>Used Memory:</strong>
-                            <span :class="getMemoryUsageClass(serverResources.total_memory_usage_percent)">
-                                {{ formatBytes(serverResources.total_memory_usage_bytes) }}
-                            </span>
-                        </p>
-                        <p>
-                            <strong>Available Memory:</strong> {{ formatBytes(serverResources.total_memory_limit_bytes -
-                                serverResources.total_memory_usage_bytes) }}
-                        </p>
-                    </div>
+                <!-- Worker not initialized -->
+                <div v-else-if="resources && resources.cpu.total === 0 && resources.gpu.total === 0" class="empty-state">
+                    <p>Waiting for worker initialization...</p>
                 </div>
 
-                <!-- 컨테이너별 정보 표시 -->
-                <div v-for="(container, index) in serverResources.containers" :key="index" class="container-info">
-                    <h4>{{ container.container_info.name }}</h4>
-
-                    <!-- 컨테이너 CPU 정보 -->
-                    <div class="resource-sub-bar">
-                        <label>CPU Usage: {{ Number(container.cpu.usage_percent).toFixed(2) }}%</label>
+                <!-- Resource overview -->
+                <div v-else-if="resources" class="resource-overview">
+                    <!-- CPU Slots -->
+                    <div class="resource-bar">
+                        <label>CPU Slots: {{ resources.cpu.available }} / {{ resources.cpu.total }} available</label>
                         <div class="bar">
-                            <div class="fill" :style="{ width: Math.min(container.cpu.usage_percent, 100) + '%' }">
+                            <div class="fill" :class="getUsageClass(cpuPercent)"
+                                :style="{ width: cpuPercent + '%' }">
+                            </div>
+                        </div>
+                        <span class="bar-percent" :class="getUsageClass(cpuPercent)">{{ cpuPercent.toFixed(0) }}% used</span>
+                    </div>
+
+                    <!-- Memory -->
+                    <div v-if="resources.memory" class="resource-bar">
+                        <label>Memory: {{ formatBytes(resources.memory.used_bytes) }} / {{ formatBytes(resources.memory.total_bytes) }}</label>
+                        <div class="bar">
+                            <div class="fill" :class="getUsageClass(resources.memory.percent)"
+                                :style="{ width: Math.min(resources.memory.percent, 100) + '%' }">
+                            </div>
+                        </div>
+                        <span class="bar-percent" :class="getUsageClass(resources.memory.percent)">{{ resources.memory.percent.toFixed(1) }}%</span>
+                        <div class="resource-detail-line">
+                            Available: {{ formatBytes(resources.memory.available_bytes) }}
+                        </div>
+                    </div>
+
+                    <!-- GPU Slots (only when gpu.total > 0) -->
+                    <div v-if="resources.gpu.total > 0" class="resource-bar">
+                        <label>GPU Slots: {{ resources.gpu.available }} / {{ resources.gpu.total }} available</label>
+                        <div class="bar">
+                            <div class="fill" :class="getUsageClass(gpuPercent)"
+                                :style="{ width: gpuPercent + '%' }">
+                            </div>
+                        </div>
+                        <span class="bar-percent" :class="getUsageClass(gpuPercent)">{{ gpuPercent.toFixed(0) }}% used</span>
+                    </div>
+
+                    <!-- GPU Device details (only when gpu_devices has items) -->
+                    <div v-if="resources.gpu_devices && resources.gpu_devices.length > 0" class="gpu-devices">
+                        <div v-for="gpu in resources.gpu_devices" :key="gpu.id" class="gpu-device">
+                            <label>[GPU {{ gpu.id }}] {{ gpu.name }} - {{ gpu.load_percent }}%</label>
+                            <div class="resource-detail-line">
+                                VRAM: {{ formatBytes(gpu.memory_used_bytes) }} / {{ formatBytes(gpu.memory_total_bytes) }}
+                            </div>
+                            <div v-if="gpu.temperature_c !== null" class="resource-detail-line">
+                                Temp: {{ gpu.temperature_c }}&deg;C
                             </div>
                         </div>
                     </div>
 
-                    <!-- 컨테이너 메모리 정보 -->
-                    <div class="resource-sub-bar">
-                        <label>Memory Usage: {{ Number(container.memory.percent).toFixed(2) }}%</label>
-                        <div class="bar">
-                            <div class="fill" :style="{ width: Math.min(container.memory.percent, 100) + '%' }"></div>
+                    <!-- Running Tasks -->
+                    <div class="task-list-section">
+                        <label class="task-list-label">Running Tasks ({{ resources.tasks.length }})</label>
+                        <div v-if="resources.tasks.length > 0" class="task-list">
+                            <div v-for="task in resources.tasks" :key="task.task_id" class="task-item">
+                                <span class="task-dot">&#9679;</span>
+                                <span class="task-name">{{ task.plugin_name || 'Unknown' }}</span>
+                                <span class="resource-badge" :class="'badge-' + task.resource_type">
+                                    {{ task.resource_type.toUpperCase() }} x{{ task.resource_slots }}
+                                </span>
+                                <span class="task-elapsed">{{ getElapsedTime(task.started_at) }}</span>
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- 컨테이너 GPU 정보 -->
-                    <div v-if="container.gpu" class="gpu-info">
-                        <div v-for="(gpu, gpuIndex) in container.gpu" :key="gpuIndex">
-                            <label>{{ gpu.name }} (GPU {{ gpu.id }})</label>
-                            <div class="resource-sub-bar">
-                                <label>GPU Usage: {{ gpu.utilization_percent }}%</label>
-                                <div class="bar">
-                                    <div class="fill" :style="{ width: Math.min(gpu.utilization_percent, 100) + '%' }">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="resource-sub-bar">
-                                <label>Memory Usage: {{ gpu.memory.utilization_percent.toFixed(2) }}%</label>
-                                <div class="bar">
-                                    <div class="fill"
-                                        :style="{ width: Math.min(gpu.memory.utilization_percent, 100) + '%' }"></div>
-                                </div>
-                            </div>
-                            <div class="resource-details">
-                                <p>
-                                    <strong>Memory:</strong>
-                                    {{ formatBytes(gpu.memory.used_bytes) }} / {{ formatBytes(gpu.memory.total_bytes) }}
-                                </p>
-                                <p>
-                                    <strong>Temperature:</strong> {{ gpu.temperature_c }}°C
-                                </p>
-                                <p>
-                                    <strong>Power:</strong> {{ gpu.power.draw_watts }}W / {{ gpu.power.limit_watts }}W
-                                </p>
-                            </div>
+                        <div v-else class="empty-state">
+                            <p>No active tasks</p>
                         </div>
                     </div>
                 </div>
@@ -143,52 +128,64 @@
 </template>
 
 <script>
-import { getSystemResources } from '@/api/index';
-import { formatBytes } from '@/utils/formatters';
+import { getTaskResources } from '@/api/index';
+import { formatBytes, getRunningTime } from '@/utils/formatters';
 
 export default {
     data() {
         return {
             taskInfoList: [],
-            serverResources: {
-                total_containers: 0,
-                total_cpu_usage_percent: 0,
-                total_memory_usage_bytes: 0,
-                total_memory_limit_bytes: 0,
-                total_memory_usage_percent: 0,
-                containers: []
-            },
+            resources: null,
             isLoadingResources: true,
             isPolling: false,
             resourceTimeoutId: null,
+            currentTime: new Date(),
+            currentTimeIntervalId: null,
+            hasError: false,
         };
+    },
+    computed: {
+        cpuPercent() {
+            if (!this.resources || this.resources.cpu.total === 0) return 0;
+            return (this.resources.cpu.used / this.resources.cpu.total) * 100;
+        },
+        gpuPercent() {
+            if (!this.resources || this.resources.gpu.total === 0) return 0;
+            return (this.resources.gpu.used / this.resources.gpu.total) * 100;
+        },
     },
     async mounted() {
         try {
-            const response = await getSystemResources();
-            this.serverResources = response.data;
-            this.isLoadingResources = false;
+            const response = await getTaskResources();
+            this.resources = response.data;
+            this.hasError = false;
         } catch (error) {
             console.error('Failed to load initial resources:', error);
+            if (error.response && error.response.status === 503) {
+                this.hasError = true;
+            }
+        } finally {
             this.isLoadingResources = false;
         }
-        
+
         this.startPolling();
+
+        // 1초마다 currentTime 갱신 (경과시간 실시간 표시)
+        this.currentTimeIntervalId = setInterval(() => {
+            this.currentTime = new Date();
+        }, 1000);
 
         // workflow 정보를 통해 Algorithm 노드들의 정보 가져오기
         try {
             const workflow_info = this.$store.getters.getWorkflowInfo;
-            console.log(workflow_info);
 
             const nodes_list = Object.values(workflow_info.drawflow.Home.data);
             const algorithm_nodes = nodes_list.filter(node => node.class === 'Algorithm');
-            console.log(algorithm_nodes);
 
             // 각 노드의 정보를 taskInfoList에 추가
             algorithm_nodes.forEach(node => {
                 const taskInfo = {
                     pluginName: node.data.selectedPlugin.name,
-                    // node.data.selectedPluginInputOutput에서 activate가 true고 type이 inputFile인 것만 고르기
                     inputs: node.data.selectedPluginInputOutput.filter(input => input.activate && input.type === 'inputFile').map(input => input.defaultValue),
                     outputs: node.data.selectedPluginInputOutput.filter(output => output.activate && output.type === 'outputFile').map(output => output.defaultValue)
                 };
@@ -200,8 +197,13 @@ export default {
     },
     beforeDestroy() {
         this.stopPolling();
+        if (this.currentTimeIntervalId) {
+            clearInterval(this.currentTimeIntervalId);
+            this.currentTimeIntervalId = null;
+        }
     },
     methods: {
+        formatBytes,
         startPolling() {
             this.isPolling = true;
             this.pollResources();
@@ -217,18 +219,29 @@ export default {
             if (!this.isPolling) return;
 
             try {
-                const response = await getSystemResources();
-                this.serverResources = response.data;
-                console.log(this.serverResources);
+                const response = await getTaskResources();
+                this.resources = response.data;
+                this.hasError = false;
             } catch (error) {
+                if (error.response && error.response.status === 503) {
+                    this.hasError = true;
+                }
                 console.error('Failed to refresh resources:', error);
             } finally {
                 if (this.isPolling) {
-                    this.resourceTimeoutId = setTimeout(this.pollResources, 10000);
+                    this.resourceTimeoutId = setTimeout(this.pollResources, 5000);
                 }
             }
         },
-        formatBytes,
+        getElapsedTime(startedAt) {
+            if (!startedAt) return '--:--:--';
+            return getRunningTime(startedAt, this.currentTime);
+        },
+        getUsageClass(percent) {
+            if (percent >= 90) return 'usage-critical';
+            if (percent >= 70) return 'usage-warning';
+            return 'usage-normal';
+        },
         confirmTask() {
             alert("Task is being executed...");
             this.closeModal();
@@ -238,32 +251,7 @@ export default {
             this.stopPolling();
             this.$emit('deactivate-compile-check');
         },
-        formatCPUUsage(usage) {
-            return usage ? Number(usage).toLocaleString() : '0';
-        },
-        getCPUUsageClass(usage) {
-            if (usage >= 90) return 'usage-critical';
-            if (usage >= 70) return 'usage-warning';
-            return 'usage-normal';
-        },
-        getMemoryUsageClass(percent) {
-            if (percent >= 90) return 'usage-critical';
-            if (percent >= 70) return 'usage-warning';
-            return 'usage-normal';
-        },
-        calculateCPUPercentage(usage) {
-            if (!this.serverResources.cpu.system_usage) return 0;
-            return (usage / (this.serverResources.cpu.system_usage / this.serverResources.cpu.num_cpus)) * 100;
-        }
     },
-    computed: {
-        getTotalMemory() {
-            return this.serverResources.available_memory_bytes / (1 - this.serverResources.memory_usage_percent / 100);
-        },
-        getUsedMemory() {
-            return this.getTotalMemory - this.serverResources.available_memory_bytes;
-        }
-    }
 };
 </script>
 
@@ -279,7 +267,7 @@ export default {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 10000; /* 높은 z-index 설정 */
+    z-index: 10000;
 }
 
 .modal-container {
@@ -291,7 +279,7 @@ export default {
     max-width: 90%;
     text-align: center;
     position: relative;
-    z-index: 10001; /* modal-content보다 높은 z-index */
+    z-index: 10001;
 }
 
 .modal-container.loading-active > *:not(.full-loading-overlay) {
@@ -315,40 +303,31 @@ export default {
     text-align: left;
     margin-bottom: 1.5rem;
 
-    /* 스크롤바의 색상 설정 (Firefox) */
     scrollbar-color: #2c3e50 #34495e;
-    /* 스크롤바 핸들, 트랙 색상 */
     scrollbar-width: thin;
-    /* 스크롤바 두께 설정 (Firefox) */
 }
 
-/* WebKit 기반 브라우저용 스크롤바 스타일링 (Chrome, Edge, Safari 등) */
 .task-info::-webkit-scrollbar,
 .resource-info::-webkit-scrollbar {
     width: 8px;
-    /* 스크롤바의 너비 */
 }
 
 .task-info::-webkit-scrollbar-track,
 .resource-info::-webkit-scrollbar-track {
     background: #34495e;
-    /* 스크롤바 트랙(배경) 색상 */
     border-radius: 1rem;
 }
 
 .task-info::-webkit-scrollbar-thumb,
 .resource-info::-webkit-scrollbar-thumb {
     background-color: #2c3e50;
-    /* 스크롤바 핸들 색상 */
     border-radius: 1rem;
 }
 
 .task-info::-webkit-scrollbar-thumb:hover,
 .resource-info::-webkit-scrollbar-thumb:hover {
     background-color: #1f2a38;
-    /* 스크롤바 핸들 hover 색상 */
 }
-
 
 .task-info__title,
 .resource-info__title {
@@ -406,8 +385,22 @@ export default {
     margin: 0 10px;
 }
 
+/* Resource bars */
+.resource-overview {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
 .resource-bar {
-    margin-bottom: 10px;
+    margin-bottom: 2px;
+}
+
+.resource-bar label {
+    font-size: 0.85rem;
+    color: #bdc3c7;
+    display: block;
+    margin-bottom: 4px;
 }
 
 .bar {
@@ -416,23 +409,151 @@ export default {
     background-color: #46627e;
     border-radius: 5px;
     overflow: hidden;
-    margin-top: 5px;
 }
 
 .fill {
     height: 100%;
     background-color: #3498db;
+    border-radius: 5px;
+    transition: width 0.3s ease;
 }
 
-.resource-details {
-    margin-top: 15px;
+.fill.usage-warning {
+    background-color: #f39c12;
+}
+
+.fill.usage-critical {
+    background-color: #e74c3c;
+}
+
+.bar-percent {
+    font-size: 0.75rem;
+    margin-top: 2px;
+    display: inline-block;
+}
+
+.resource-detail-line {
+    font-size: 0.8rem;
+    color: #95a5a6;
+    margin-top: 2px;
+}
+
+/* GPU devices */
+.gpu-devices {
+    margin-top: 4px;
+}
+
+.gpu-device {
+    background-color: #2c3e50;
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+}
+
+.gpu-device label {
+    font-size: 0.85rem;
+    font-weight: bold;
     color: #ecf0f1;
+    display: block;
+    margin-bottom: 4px;
 }
 
-.resource-details p {
-    margin: 5px 0;
+/* Running tasks list */
+.task-list-section {
+    margin-top: 8px;
 }
 
+.task-list-label {
+    font-size: 0.9rem;
+    color: #bdc3c7;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.task-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #2c3e50;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.task-dot {
+    color: #2ecc71;
+    font-size: 0.6rem;
+}
+
+.task-name {
+    flex: 1;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.resource-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.badge-cpu {
+    background-color: #2980b9;
+    color: #fff;
+}
+
+.badge-gpu {
+    background-color: #8e44ad;
+    color: #fff;
+}
+
+.task-elapsed {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: #95a5a6;
+    white-space: nowrap;
+}
+
+/* States */
+.empty-state {
+    text-align: center;
+    color: #7f8c8d;
+    padding: 12px 0;
+    font-size: 0.9rem;
+}
+
+.error-state {
+    text-align: center;
+    color: #e67e22;
+    padding: 12px 0;
+    font-size: 0.9rem;
+}
+
+/* Usage color classes for text */
+.usage-normal {
+    color: #2ecc71;
+}
+
+.usage-warning {
+    color: #f39c12;
+}
+
+.usage-critical {
+    color: #e74c3c;
+}
+
+/* Modal actions */
 .modal-actions {
     display: flex;
     justify-content: space-between;
@@ -462,73 +583,6 @@ export default {
     background-color: #c0392b;
 }
 
-.gpu-info {
-    margin-bottom: 15px;
-    padding: 10px;
-    background-color: #2c3e50;
-    border-radius: 8px;
-}
-
-.resource-sub-bar {
-    margin: 8px 0;
-}
-
-.gpu-info label {
-    font-weight: bold;
-    margin-bottom: 5px;
-    display: block;
-}
-
-.usage-critical {
-    color: #e74c3c;
-}
-
-.usage-warning {
-    color: #f39c12;
-}
-
-.usage-normal {
-    color: #2ecc71;
-}
-
-.cpu-cores {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 8px;
-    margin-top: 10px;
-}
-
-.usage-normal {
-    color: #2ecc71;
-}
-
-.usage-warning {
-    color: #f1c40f;
-}
-
-.usage-critical {
-    color: #e74c3c;
-}
-
-.resource-details p {
-    margin: 8px 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.container-info {
-    margin-bottom: 15px;
-    padding: 10px;
-    background-color: #2c3e50;
-    border-radius: 8px;
-}
-
-.container-info h4 {
-    margin-bottom: 10px;
-    color: #ecf0f1;
-}
-
 /* Full modal loading overlay */
 .full-loading-overlay {
     position: absolute;
@@ -540,7 +594,7 @@ export default {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    z-index: 10002; /* 가장 높은 z-index로 설정 */
+    z-index: 10002;
     background-color: rgba(44, 62, 80, 0.3);
     border-radius: 1rem;
 }
