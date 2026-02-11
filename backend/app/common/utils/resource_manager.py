@@ -268,6 +268,12 @@ def get_resource_status() -> Optional[dict]:
     """
     Return comprehensive resource status for the monitoring API.
     Returns None on Redis failure (caller should return HTTP 503).
+
+    Includes:
+    - cpu/gpu slot allocation from Redis semaphore
+    - host memory via psutil (~1ms)
+    - GPU device details via GPUtil (optional)
+    - running task list from Redis
     """
     try:
         client = get_redis_client()
@@ -275,6 +281,38 @@ def get_resource_status() -> Optional[dict]:
         gpu_total = int(client.get("resource:gpu:total") or 0)
         cpu_used = int(client.get("resource:cpu:used") or 0)
         gpu_used = int(client.get("resource:gpu:used") or 0)
+
+        # Host memory via psutil
+        memory_info = None
+        try:
+            import psutil
+            vm = psutil.virtual_memory()
+            memory_info = {
+                'total_bytes': vm.total,
+                'used_bytes': vm.used,
+                'available_bytes': vm.available,
+                'percent': vm.percent,
+            }
+        except Exception:
+            pass
+
+        # GPU device details (only when GPUs are present)
+        gpu_devices = []
+        if gpu_total > 0:
+            try:
+                import GPUtil
+                for gpu in GPUtil.getGPUs():
+                    gpu_devices.append({
+                        'id': gpu.id,
+                        'name': gpu.name,
+                        'load_percent': round(gpu.load * 100, 1),
+                        'memory_total_bytes': int(gpu.memoryTotal * 1024 * 1024),
+                        'memory_used_bytes': int(gpu.memoryUsed * 1024 * 1024),
+                        'memory_free_bytes': int(gpu.memoryFree * 1024 * 1024),
+                        'temperature_c': gpu.temperature,
+                    })
+            except Exception:
+                pass
 
         # Collect running task allocations
         tasks = []
@@ -308,6 +346,8 @@ def get_resource_status() -> Optional[dict]:
                 'used': gpu_used,
                 'available': max(0, gpu_total - gpu_used),
             },
+            'memory': memory_info,
+            'gpu_devices': gpu_devices,
             'tasks': tasks,
         }
 
