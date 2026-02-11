@@ -96,6 +96,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      - GPU_COUNT=${GPU_COUNT:-0}
     ipc: host
     build:
       context: ./backend

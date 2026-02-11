@@ -108,6 +108,7 @@ services:
       environment:
         - C_FORCE_ROOT=true
         - TZ=Asia/Seoul
+        - GPU_COUNT=${GPU_COUNT:-0}
       ipc: host
       build:
         context: ./backend
