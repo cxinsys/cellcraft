@@ -658,7 +658,7 @@ export class WorkflowPage {
 
   async cancelJobByTitle(jobTitle) {
     await this.openJobContextMenuForTitle(jobTitle);
-    await this.selectJobContextOption('Cancle');
+    await this.selectJobContextOption('Cancel');
   }
 
   /**

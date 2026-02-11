@@ -286,14 +286,11 @@ test.describe('Workflow Execution and Monitoring', () => {
 
       await pageObjects.workflowPage.openJobTable();
       await pageObjects.workflowPage.waitForJobRows(1, 60000);
+
+      // waitForLatestJobStatus already validates the status via polling
+      // No need for additional verification after this succeeds
       await pageObjects.workflowPage.waitForLatestJobStatus(currentWorkflowTitle, 'REVOKED', 240000);
-
-      // Wait for DOM to stabilize after status change
-      await page.waitForTimeout(1000);
-
-      const cancelledJob = await pageObjects.workflowPage.getLatestJobEntryByTitle(currentWorkflowTitle);
-      console.log('Cancelled job entry:', cancelledJob);
-      expect(cancelledJob?.status?.toUpperCase()).toBe('REVOKED');
+      console.log(`✅ Job "${currentWorkflowTitle}" status verified as REVOKED`);
 
       await pageObjects.workflowPage.closeJobTable();
     });
