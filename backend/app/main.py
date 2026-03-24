@@ -17,6 +17,9 @@ import docker
 # GitHub Registry Client removed - no authentication needed
 from app.common.utils.plugin_sync_manager import PluginSyncManager
 from app.common.utils.plugin_version_validator import PluginVersionValidator
+from alembic.config import Config as AlembicConfig
+from alembic import command as alembic_command
+from sqlalchemy import inspect as sa_inspect
 import logging
 
 def setup_signal_handlers():
@@ -48,7 +51,37 @@ def on_worker_shut_down(sender=None, conf=None, **kwargs):
     except Exception as e:
         print(f"Worker shutdown 처리 중 오류 발생: {e}")
 
-models.Base.metadata.create_all(bind=engine)
+def run_migrations():
+    """Alembic 마이그레이션을 실행하여 DB 스키마를 최신 상태로 유지한다.
+
+    기존 create_all() 대신 Alembic을 Single Source of Truth로 사용.
+    - 첫 설치 (상태 A): 빈 DB → upgrade head → 모든 테이블 생성
+    - 기존 DB (상태 B): create_all()로 생성된 DB → stamp head → 버전만 기록
+    - Alembic DB (상태 C): 이미 관리 중 → upgrade head → 미적용 revision만 적용
+    """
+    alembic_cfg = AlembicConfig("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", settings.SQLALCHEMY_DATABASE_URI)
+
+    inspector = sa_inspect(engine)
+    existing_tables = inspector.get_table_names()
+
+    has_alembic_version = "alembic_version" in existing_tables
+    has_app_tables = "users" in existing_tables
+
+    if has_alembic_version:
+        # 상태 C: 이미 Alembic으로 관리 중인 DB → 미적용 revision만 적용
+        print("DB: Alembic 관리 DB 감지 → upgrade head", flush=True)
+        alembic_command.upgrade(alembic_cfg, "head")
+    elif has_app_tables:
+        # 상태 B: create_all()로 생성된 기존 DB → 현재 상태를 head로 표시
+        print("DB: 기존 create_all() DB 감지 → stamp head", flush=True)
+        alembic_command.stamp(alembic_cfg, "head")
+    else:
+        # 상태 A: 완전히 새로운 설치 → 전체 마이그레이션 실행
+        print("DB: 빈 DB 감지 → upgrade head (전체 마이그레이션)", flush=True)
+        alembic_command.upgrade(alembic_cfg, "head")
+
+run_migrations()
 global_engine = engine
 
 app = FastAPI(

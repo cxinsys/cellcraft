@@ -17,21 +17,17 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-
 # 현재 디렉토리를 sys.path에 추가
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
 from app.database.models import Base
+from app.common.config import settings
+
 target_metadata = Base.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+# DB URL을 config.py에서 읽어 Alembic에 주입 (Single Source of Truth)
+# alembic.ini의 하드코딩 URL 대신, .env 기반 config.py의 URL을 항상 사용
+config.set_main_option("sqlalchemy.url", settings.SQLALCHEMY_DATABASE_URI)
 
 
 def run_migrations_offline() -> None:
