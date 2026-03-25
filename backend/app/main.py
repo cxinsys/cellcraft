@@ -95,13 +95,18 @@ app = FastAPI(
     openapi_url=None if is_production else "/openapi.json",
 )
 
+cors_origins = (
+    ["https://cellcraft.app"]
+    if is_production
+    else [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.celery_app = create_celery()
