@@ -84,8 +84,15 @@ def run_migrations():
 run_migrations()
 global_engine = engine
 
+is_production = settings.ENVIRONMENT == "production"
+
 app = FastAPI(
-    title=settings.PROJECT_NAME
+    title=settings.PROJECT_NAME,
+    version=settings.APP_VERSION,
+    description=settings.APP_DESCRIPTION,
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json",
 )
 
 app.add_middleware(

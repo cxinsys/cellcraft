@@ -43,7 +43,10 @@ class Settings(BaseSettings):
             return v
         raise ValueError(f"Invalid type for CORS origins: {type(v)}")
 
-    PROJECT_NAME: str = "test"
+    PROJECT_NAME: str = "CellCraft API"
+    APP_VERSION: str = "1.0.7"
+    APP_DESCRIPTION: str = "Gene Regulatory Network reconstruction platform from scRNA-seq data"
+    ENVIRONMENT: str = "local"  # "local" (default) or "production"
     SENTRY_DSN: Optional[HttpUrl] = None
     
     # Pydantic BaseSettings automatically loads these from environment variables
