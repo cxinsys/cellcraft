@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.routes.endpoints import auth, workflow, files, admin, plugin, task, datatable
+from app.routes.endpoints import auth, workflow, files, admin, plugin, task, datatable, version
 
 api_router = APIRouter()
 
@@ -11,3 +11,4 @@ api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(plugin.router, prefix="/plugin", tags=["plugin"])
 api_router.include_router(task.router, prefix="/task", tags=["task"])
 api_router.include_router(datatable.router, prefix="/datatable", tags=["datatable"])
+api_router.include_router(version.router, prefix="/version", tags=["version"])

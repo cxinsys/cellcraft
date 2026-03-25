@@ -22,9 +22,9 @@ function registerUser(userData) {
 
 function loginUser(userData) {
   const formData = new URLSearchParams();
-  formData.append('username', userData.username);
-  formData.append('password', userData.password);
-  
+  formData.append("username", userData.username);
+  formData.append("password", userData.password);
+
   return instance.post("/routes/auth/login/access-token", formData.toString(), {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -302,11 +302,11 @@ function getPlugins() {
 }
 
 function associatePlugin(plugin_id) {
-  return instance.post("/routes/plugin/associate", { plugin_id : plugin_id });
+  return instance.post("/routes/plugin/associate", { plugin_id: plugin_id });
 }
 
 function dissociatePlugin(plugin_id) {
-  return instance.post("/routes/plugin/dissociate", { plugin_id : plugin_id });
+  return instance.post("/routes/plugin/dissociate", { plugin_id: plugin_id });
 }
 
 function getPluginTemplate(plugin_id) {
@@ -314,9 +314,12 @@ function getPluginTemplate(plugin_id) {
 }
 
 function getPluginFile(file_info) {
-  return instance.get(`/routes/plugin/file/${file_info.plugin_name}/${file_info.file_name}`, {
-    responseType: "blob", // 서버로부터 받은 데이터를 blob 형태로 처리
-  });
+  return instance.get(
+    `/routes/plugin/file/${file_info.plugin_name}/${file_info.file_name}`,
+    {
+      responseType: "blob", // 서버로부터 받은 데이터를 blob 형태로 처리
+    },
+  );
 }
 
 function getPluginPackageList(plugin_name) {
@@ -325,6 +328,10 @@ function getPluginPackageList(plugin_name) {
 
 function getPluginReferenceFolders(plugin_name) {
   return instance.get(`/routes/plugin/reference_folders/${plugin_name}`);
+}
+
+function getAppVersion() {
+  return instance.get("/routes/version");
 }
 
 function getDataTableFile(vgt_info) {
@@ -340,7 +347,9 @@ function buildPlugin(plugin_name) {
 }
 
 function buildPluginDocker(plugin_name, use_gpu = false) {
-  return instance.post(`/routes/plugin/build_docker/${plugin_name}`, { use_gpu });
+  return instance.post(`/routes/plugin/build_docker/${plugin_name}`, {
+    use_gpu,
+  });
 }
 
 function checkPluginImage(plugin_name) {
@@ -354,7 +363,7 @@ function getBuildStatus(task_id) {
 
 function getBuildTasks(plugin_name = null) {
   const params = plugin_name ? { plugin_name } : {};
-  return instance.get('/routes/plugin/build/tasks', { params });
+  return instance.get("/routes/plugin/build/tasks", { params });
 }
 
 function cancelBuildTask(task_id) {
@@ -371,8 +380,11 @@ function getPluginVersions(plugin_name) {
 
 function updatePluginVersion(plugin_name, version) {
   const formData = new FormData();
-  formData.append('version', version);
-  return instance.post(`/routes/plugin/versions/${plugin_name}/update`, formData);
+  formData.append("version", version);
+  return instance.post(
+    `/routes/plugin/versions/${plugin_name}/update`,
+    formData,
+  );
 }
 
 // DAG Visualization APIs
@@ -403,15 +415,16 @@ function clearDAGCaches() {
 }
 
 function getTaskStatusSimple(taskId) {
-  return fetch(`${process.env.VUE_APP_BASE_URL}/routes/task/status/${taskId}`)
-    .then(response => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
-    });
+  return fetch(
+    `${process.env.VUE_APP_BASE_URL}/routes/task/status/${taskId}`,
+  ).then((response) => {
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  });
 }
 
 function createTaskEventSource(taskId, callbacks = {}) {
-  const TERMINAL_STATES = ['SUCCESS', 'FAILURE', 'REVOKED'];
+  const TERMINAL_STATES = ["SUCCESS", "FAILURE", "REVOKED"];
   const MAX_CONSECUTIVE_FAILURES = 3;
   const RECONNECT_DELAY_MS = 5000;
 
@@ -442,7 +455,7 @@ function createTaskEventSource(taskId, callbacks = {}) {
   function checkTaskStatusAndReconnect() {
     if (closed) return;
     getTaskStatusSimple(taskId)
-      .then(data => {
+      .then((data) => {
         if (closed) return;
         const status = data.status;
         if (TERMINAL_STATES.includes(status)) {
@@ -458,8 +471,11 @@ function createTaskEventSource(taskId, callbacks = {}) {
         if (closed) return;
         consecutiveFailures++;
         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-          console.error(`SSE reconnection giving up for task ${taskId} after ${MAX_CONSECUTIVE_FAILURES} consecutive failures`);
-          if (callbacks.onError) callbacks.onError(new Error('SSE reconnection failed'));
+          console.error(
+            `SSE reconnection giving up for task ${taskId} after ${MAX_CONSECUTIVE_FAILURES} consecutive failures`,
+          );
+          if (callbacks.onError)
+            callbacks.onError(new Error("SSE reconnection failed"));
           cleanup();
         } else {
           scheduleReconnect();
@@ -469,13 +485,15 @@ function createTaskEventSource(taskId, callbacks = {}) {
 
   function connect() {
     if (closed) return;
-    currentEventSource = new EventSource(`${process.env.VUE_APP_BASE_URL}/routes/task/info/${taskId}`);
+    currentEventSource = new EventSource(
+      `${process.env.VUE_APP_BASE_URL}/routes/task/info/${taskId}`,
+    );
 
     currentEventSource.onmessage = (event) => {
       if (closed) return;
 
       // TIMEOUT — expected hourly disconnect, reconnect immediately
-      if (event.data === 'TIMEOUT') {
+      if (event.data === "TIMEOUT") {
         console.log(`SSE timeout for task ${taskId}, reconnecting...`);
         currentEventSource.close();
         scheduleReconnect();
@@ -507,7 +525,7 @@ function createTaskEventSource(taskId, callbacks = {}) {
   return {
     close() {
       cleanup();
-    }
+    },
   };
 }
 
@@ -619,4 +637,6 @@ export {
   // Cache Management APIs
   getDAGCacheStats,
   clearDAGCaches,
+  // Version API
+  getAppVersion,
 };
