@@ -1,0 +1,5722 @@
+{
+  "components": {
+    "schemas": {
+      "Body_fileUpload_routes_files_upload_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_fileUpload_routes_files_upload_post",
+        "type": "object"
+      },
+      "Body_login_access_token_routes_auth_login_access_token_post": {
+        "properties": {
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_secret": {
+            "title": "Client Secret",
+            "type": "string"
+          },
+          "grant_type": {
+            "pattern": "password",
+            "title": "Grant Type",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "scope": {
+            "default": "",
+            "title": "Scope",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_access_token_routes_auth_login_access_token_post",
+        "type": "object"
+      },
+      "Body_update_plugin_version_routes_plugin_versions__plugin_name__update_post": {
+        "properties": {
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "Body_update_plugin_version_routes_plugin_versions__plugin_name__update_post",
+        "type": "object"
+      },
+      "Body_upload_package_routes_plugin_upload_package_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "plugin_name": {
+            "title": "Plugin Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plugin_name",
+          "files"
+        ],
+        "title": "Body_upload_package_routes_plugin_upload_package_post",
+        "type": "object"
+      },
+      "Body_upload_scripts_routes_plugin_upload_scripts_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "plugin_name": {
+            "title": "Plugin Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plugin_name",
+          "files"
+        ],
+        "title": "Body_upload_scripts_routes_plugin_upload_scripts_post",
+        "type": "object"
+      },
+      "Body_upload_text_dependencies_routes_plugin_upload_text_dependencies_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "plugin_name": {
+            "title": "Plugin Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plugin_name",
+          "files"
+        ],
+        "title": "Body_upload_text_dependencies_routes_plugin_upload_text_dependencies_post",
+        "type": "object"
+      },
+      "BuildDockerRequest": {
+        "properties": {
+          "use_gpu": {
+            "default": false,
+            "title": "Use Gpu",
+            "type": "boolean"
+          }
+        },
+        "title": "BuildDockerRequest",
+        "type": "object"
+      },
+      "DataTableEvent": {
+        "properties": {
+          "columnFilters": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Columnfilters",
+            "type": "object"
+          },
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "perPage": {
+            "title": "Perpage",
+            "type": "integer"
+          },
+          "sort": {
+            "items": {
+              "$ref": "#/components/schemas/Sort"
+            },
+            "title": "Sort",
+            "type": "array"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_name",
+          "page",
+          "perPage",
+          "columnFilters",
+          "sort"
+        ],
+        "title": "DataTableEvent",
+        "type": "object"
+      },
+      "DependencyFile": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "fileName": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "fileName",
+          "type"
+        ],
+        "title": "DependencyFile",
+        "type": "object"
+      },
+      "FileDelete": {
+        "properties": {
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "file_path": {
+            "title": "File Path",
+            "type": "string"
+          },
+          "file_size": {
+            "title": "File Size",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_name"
+        ],
+        "title": "FileDelete",
+        "type": "object"
+      },
+      "FileFind": {
+        "properties": {
+          "anno_column": {
+            "title": "Anno Column",
+            "type": "string"
+          },
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "file_path": {
+            "title": "File Path",
+            "type": "string"
+          },
+          "file_size": {
+            "title": "File Size",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_name"
+        ],
+        "title": "FileFind",
+        "type": "object"
+      },
+      "FileResultFind": {
+        "properties": {
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "file_path": {
+            "title": "File Path",
+            "type": "string"
+          },
+          "file_size": {
+            "title": "File Size",
+            "type": "string"
+          },
+          "option_file_name": {
+            "title": "Option File Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_name",
+          "option_file_name"
+        ],
+        "title": "FileResultFind",
+        "type": "object"
+      },
+      "FileUpdate": {
+        "properties": {
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "file_path": {
+            "title": "File Path",
+            "type": "string"
+          },
+          "file_size": {
+            "title": "File Size",
+            "type": "string"
+          },
+          "update_name": {
+            "title": "Update Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_name",
+          "update_name"
+        ],
+        "title": "FileUpdate",
+        "type": "object"
+      },
+      "FolderFind": {
+        "properties": {
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "file_path": {
+            "title": "File Path",
+            "type": "string"
+          },
+          "file_size": {
+            "title": "File Size",
+            "type": "string"
+          },
+          "folder_name": {
+            "title": "Folder Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "folder_name"
+        ],
+        "title": "FolderFind",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Parameter": {
+        "properties": {
+          "defaultValue": {
+            "title": "Defaultvalue"
+          },
+          "fileExtension": {
+            "title": "Fileextension",
+            "type": "string"
+          },
+          "max": {
+            "title": "Max"
+          },
+          "min": {
+            "title": "Min"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "Parameter",
+        "type": "object"
+      },
+      "PluginAssociate": {
+        "properties": {
+          "plugin_id": {
+            "title": "Plugin Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plugin_id"
+        ],
+        "title": "PluginAssociate",
+        "type": "object"
+      },
+      "PluginCreate": {
+        "properties": {
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "dependencies": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Dependencies",
+            "type": "object"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "drawflow": {
+            "title": "Drawflow",
+            "type": "object"
+          },
+          "is_editable": {
+            "default": true,
+            "title": "Is Editable",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "plugin_path": {
+            "title": "Plugin Path",
+            "type": "string"
+          },
+          "plugin_type": {
+            "$ref": "#/components/schemas/PluginType"
+          },
+          "reference_folders": {
+            "title": "Reference Folders",
+            "type": "object"
+          },
+          "rules": {
+            "title": "Rules",
+            "type": "object"
+          },
+          "source": {
+            "default": "local",
+            "title": "Source",
+            "type": "string"
+          },
+          "submodule_path": {
+            "title": "Submodule Path",
+            "type": "string"
+          },
+          "use_gpu": {
+            "default": false,
+            "title": "Use Gpu",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "author",
+          "plugin_path",
+          "drawflow",
+          "rules"
+        ],
+        "title": "PluginCreate",
+        "type": "object"
+      },
+      "PluginData": {
+        "properties": {
+          "drawflow": {
+            "title": "Drawflow",
+            "type": "object"
+          },
+          "plugin": {
+            "$ref": "#/components/schemas/app__database__schemas__plugin__PluginInfo"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/Rule"
+            },
+            "title": "Rules",
+            "type": "array"
+          }
+        },
+        "required": [
+          "plugin",
+          "rules",
+          "drawflow"
+        ],
+        "title": "PluginData",
+        "type": "object"
+      },
+      "PluginType": {
+        "description": "An enumeration.",
+        "enum": [
+          "analysis",
+          "visualization"
+        ],
+        "title": "PluginType",
+        "type": "string"
+      },
+      "ReferenceFolder": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyFile"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "folderName": {
+            "title": "Foldername",
+            "type": "string"
+          },
+          "subFolders": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ReferenceFolder"
+            },
+            "title": "Subfolders",
+            "type": "array"
+          }
+        },
+        "required": [
+          "folderName",
+          "files"
+        ],
+        "title": "ReferenceFolder",
+        "type": "object"
+      },
+      "Rule": {
+        "properties": {
+          "input": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Input",
+            "type": "array"
+          },
+          "isVisualization": {
+            "default": false,
+            "title": "Isvisualization",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nodeId": {
+            "title": "Nodeid",
+            "type": "integer"
+          },
+          "output": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Output",
+            "type": "array"
+          },
+          "parameters": {
+            "items": {
+              "$ref": "#/components/schemas/Parameter"
+            },
+            "title": "Parameters",
+            "type": "array"
+          },
+          "script": {
+            "title": "Script",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "input",
+          "output",
+          "parameters",
+          "nodeId"
+        ],
+        "title": "Rule",
+        "type": "object"
+      },
+      "Sort": {
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "type"
+        ],
+        "title": "Sort",
+        "type": "object"
+      },
+      "TaskMonitoringItem": {
+        "description": "Individual task item in task monitoring response.",
+        "properties": {
+          "end_time": {
+            "format": "date-time",
+            "title": "End Time",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "plugin": {
+            "$ref": "#/components/schemas/app__database__schemas__task__PluginInfo"
+          },
+          "plugin_name": {
+            "title": "Plugin Name",
+            "type": "string"
+          },
+          "start_time": {
+            "format": "date-time",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "task_title": {
+            "title": "Task Title",
+            "type": "string"
+          },
+          "task_type": {
+            "title": "Task Type",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "title": "Workflow Id",
+            "type": "integer"
+          },
+          "workflow_title": {
+            "title": "Workflow Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "task_id",
+          "user_id",
+          "status",
+          "start_time"
+        ],
+        "title": "TaskMonitoringItem",
+        "type": "object"
+      },
+      "Token": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "token_type": {
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user_info": {
+            "$ref": "#/components/schemas/UserInfo"
+          }
+        },
+        "required": [
+          "access_token",
+          "token_type",
+          "user_info"
+        ],
+        "title": "Token",
+        "type": "object"
+      },
+      "UserCreate": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_superuser": {
+            "default": false,
+            "title": "Is Superuser",
+            "type": "boolean"
+          },
+          "password": {
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "minLength": 1,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "username",
+          "password"
+        ],
+        "title": "UserCreate",
+        "type": "object"
+      },
+      "UserInfo": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_superuser": {
+            "title": "Is Superuser",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "is_superuser",
+          "email",
+          "is_active"
+        ],
+        "title": "UserInfo",
+        "type": "object"
+      },
+      "UserProfile": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_superuser": {
+            "title": "Is Superuser",
+            "type": "boolean"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "is_superuser",
+          "username",
+          "id"
+        ],
+        "title": "UserProfile",
+        "type": "object"
+      },
+      "UserUpdate": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_superuser": {
+            "default": false,
+            "title": "Is Superuser",
+            "type": "boolean"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "plugins": {
+            "items": {},
+            "title": "Plugins",
+            "type": "array"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "title": "UserUpdate",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "WorkflowCreate": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "thumbnail": {
+            "title": "Thumbnail",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "workflow_info": {
+            "title": "Workflow Info",
+            "type": "object"
+          }
+        },
+        "title": "WorkflowCreate",
+        "type": "object"
+      },
+      "WorkflowDelete": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "thumbnail": {
+            "title": "Thumbnail",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "workflow_info": {
+            "title": "Workflow Info",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "WorkflowDelete",
+        "type": "object"
+      },
+      "WorkflowFind": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "thumbnail": {
+            "title": "Thumbnail",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "workflow_info": {
+            "title": "Workflow Info",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "WorkflowFind",
+        "type": "object"
+      },
+      "WorkflowNodeFileCreate": {
+        "properties": {
+          "file_content": {
+            "items": {},
+            "title": "File Content",
+            "type": "array"
+          },
+          "file_extension": {
+            "title": "File Extension",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "node_name": {
+            "title": "Node Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "node_id",
+          "node_name",
+          "file_extension"
+        ],
+        "title": "WorkflowNodeFileCreate",
+        "type": "object"
+      },
+      "WorkflowNodeFileDelete": {
+        "properties": {
+          "file_content": {
+            "items": {},
+            "title": "File Content",
+            "type": "array"
+          },
+          "file_extension": {
+            "title": "File Extension",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "node_name": {
+            "title": "Node Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "node_id",
+          "node_name",
+          "file_extension"
+        ],
+        "title": "WorkflowNodeFileDelete",
+        "type": "object"
+      },
+      "WorkflowNodeFileRead": {
+        "properties": {
+          "file_content": {
+            "items": {},
+            "title": "File Content",
+            "type": "array"
+          },
+          "file_extension": {
+            "title": "File Extension",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "node_name": {
+            "title": "Node Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "node_id",
+          "node_name",
+          "file_extension"
+        ],
+        "title": "WorkflowNodeFileRead",
+        "type": "object"
+      },
+      "WorkflowResult": {
+        "properties": {
+          "algorithm_id": {
+            "title": "Algorithm Id",
+            "type": "integer"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          }
+        },
+        "title": "WorkflowResult",
+        "type": "object"
+      },
+      "WorkflowVisualizationRequest": {
+        "properties": {
+          "algorithm_id": {
+            "title": "Algorithm Id",
+            "type": "string"
+          },
+          "availableFiles": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Availablefiles",
+            "type": "array"
+          },
+          "current_node_id": {
+            "title": "Current Node Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "selectedScript": {
+            "title": "Selectedscript",
+            "type": "object"
+          },
+          "selectedVisualizationParams": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Selectedvisualizationparams",
+            "type": "array"
+          },
+          "selectedVisualizationPlugin": {
+            "title": "Selectedvisualizationplugin",
+            "type": "object"
+          },
+          "thumbnail": {
+            "title": "Thumbnail",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "workflow_info": {
+            "title": "Workflow Info",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "current_node_id",
+          "selectedVisualizationPlugin",
+          "selectedScript",
+          "selectedVisualizationParams"
+        ],
+        "title": "WorkflowVisualizationRequest",
+        "type": "object"
+      },
+      "app__database__schemas__plugin__PluginInfo": {
+        "properties": {
+          "dependencyFiles": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyFile"
+            },
+            "title": "Dependencyfiles",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pluginType": {
+            "$ref": "#/components/schemas/PluginType"
+          },
+          "referenceFolders": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceFolder"
+            },
+            "title": "Referencefolders",
+            "type": "array"
+          },
+          "useGpu": {
+            "default": false,
+            "title": "Usegpu",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "pluginType",
+          "referenceFolders"
+        ],
+        "title": "PluginInfo",
+        "type": "object"
+      },
+      "app__database__schemas__task__PluginInfo": {
+        "description": "Plugin information for task monitoring response.",
+        "properties": {
+          "plugin_type": {
+            "title": "Plugin Type",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "title": "PluginInfo",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "/routes/auth/login/access-token"
+          }
+        },
+        "type": "oauth2"
+      }
+    }
+  },
+  "info": {
+    "description": "Gene Regulatory Network reconstruction platform from scRNA-seq data",
+    "title": "CellCraft API",
+    "version": "1.0.7"
+  },
+  "openapi": "3.0.2",
+  "paths": {
+    "/routes/admin/container-manager/cleanup": {
+      "post": {
+        "description": "Container Manager stale 매핑 수동 정리\n\n실제로 존재하지 않는 Docker 컨테이너에 대한 매핑을 정리합니다.\n이 작업은 장시간 운영 후 메모리 누수 방지를 위해 주기적으로 수행할 수 있습니다.\n\nReturns:\n    - task_containers: 정리된 작업-컨테이너 매핑 수\n    - cleanup_set: 정리된 cleanup_in_progress 항목 수\n    - errors: 발생한 오류 목록 (있는 경우)",
+        "operationId": "cleanup_container_manager_routes_admin_container_manager_cleanup_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Cleanup Container Manager",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/container-manager/force-clear": {
+      "post": {
+        "description": "Container Manager 모든 매핑 강제 정리 (비상용)\n\nWARNING: 이 작업은 모든 매핑을 즉시 삭제합니다.\n실행 중인 작업의 추적이 불가능해질 수 있으므로,\n시스템 재시작 전이나 비상 상황에서만 사용하세요.\n\nReturns:\n    - cleared_tasks: 삭제된 작업-컨테이너 매핑 수\n    - cleared_cleanup_markers: 삭제된 cleanup 마커 수",
+        "operationId": "force_clear_container_manager_routes_admin_container_manager_force_clear_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Force Clear Container Manager",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/container-manager/status": {
+      "get": {
+        "description": "Container Manager 상태 조회\n\nReturns:\n    - tracked_tasks: 추적 중인 작업 수\n    - cleanup_in_progress_count: 정리 중인 컨테이너 수\n    - task_container_mapping: 작업-컨테이너 매핑\n    - container_task_mapping: 컨테이너-작업 매핑\n    - cleanup_in_progress: 정리 중인 컨테이너 ID 목록",
+        "operationId": "get_container_manager_status_routes_admin_container_manager_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Container Manager Status",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/files": {
+      "get": {
+        "operationId": "get_filtered_files_routes_admin_files_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "amount",
+            "required": true,
+            "schema": {
+              "title": "Amount",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_num",
+            "required": true,
+            "schema": {
+              "title": "Page Num",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": true,
+            "schema": {
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": true,
+            "schema": {
+              "title": "Order",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "searchTerm",
+            "required": true,
+            "schema": {
+              "title": "Searchterm",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Filtered Files Routes Admin Files Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Filtered Files",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/files/{file_id}": {
+      "delete": {
+        "operationId": "delete_file_routes_admin_files__file_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "title": "File Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete File",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/files_count": {
+      "get": {
+        "operationId": "get_files_count_routes_admin_files_count_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Files Count Routes Admin Files Count Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Files Count",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/plugins": {
+      "get": {
+        "operationId": "get_filtered_plugins_routes_admin_plugins_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "amount",
+            "required": true,
+            "schema": {
+              "title": "Amount",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_num",
+            "required": true,
+            "schema": {
+              "title": "Page Num",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": true,
+            "schema": {
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": true,
+            "schema": {
+              "title": "Order",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "searchTerm",
+            "required": true,
+            "schema": {
+              "title": "Searchterm",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Filtered Plugins Routes Admin Plugins Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Filtered Plugins",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/plugins/branch/{branch}": {
+      "post": {
+        "description": "Switch plugin repository branch and synchronize database",
+        "operationId": "switch_plugin_branch_routes_admin_plugins_branch__branch__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "branch",
+            "required": true,
+            "schema": {
+              "title": "Branch",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Switch Plugin Branch",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/plugins/branches": {
+      "get": {
+        "description": "Get list of available plugin repository branches",
+        "operationId": "get_available_plugin_branches_routes_admin_plugins_branches_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Available Plugin Branches",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/plugins/consistency": {
+      "get": {
+        "description": "Get plugin version consistency report",
+        "operationId": "get_plugin_consistency_report_routes_admin_plugins_consistency_get",
+        "parameters": [
+          {
+            "description": "Report format: json or text",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "description": "Report format: json or text",
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Plugin Consistency Report",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/plugins/consistency/quick": {
+      "get": {
+        "description": "Quick consistency check (returns boolean only)",
+        "operationId": "quick_consistency_check_routes_admin_plugins_consistency_quick_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Quick Consistency Check",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/plugins/sync": {
+      "post": {
+        "description": "Manually trigger plugin synchronization from repository to database",
+        "operationId": "sync_plugins_from_repository_routes_admin_plugins_sync_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Sync Plugins From Repository",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/plugins/sync/status": {
+      "get": {
+        "description": "Get current plugin synchronization status",
+        "operationId": "get_plugin_sync_status_routes_admin_plugins_sync_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Plugin Sync Status",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/plugins/{plugin_id}/install-dependencies": {
+      "post": {
+        "operationId": "install_plugin_dependencies_routes_admin_plugins__plugin_id__install_dependencies_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_id",
+            "required": true,
+            "schema": {
+              "title": "Plugin Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Install Plugin Dependencies",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/plugins_count": {
+      "get": {
+        "operationId": "get_plugins_count_routes_admin_plugins_count_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Plugins Count Routes Admin Plugins Count Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Plugins Count",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/system/stats": {
+      "get": {
+        "operationId": "get_system_stats_routes_admin_system_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get System Stats Routes Admin System Stats Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get System Stats",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/tasks": {
+      "get": {
+        "operationId": "get_filtered_tasks_routes_admin_tasks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "amount",
+            "required": true,
+            "schema": {
+              "title": "Amount",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_num",
+            "required": true,
+            "schema": {
+              "title": "Page Num",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": true,
+            "schema": {
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": true,
+            "schema": {
+              "title": "Order",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "searchTerm",
+            "required": true,
+            "schema": {
+              "title": "Searchterm",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Filtered Tasks Routes Admin Tasks Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Filtered Tasks",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/tasks/{task_id}/cancel": {
+      "post": {
+        "operationId": "cancel_task_routes_admin_tasks__task_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Cancel Task",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/tasks_count": {
+      "get": {
+        "operationId": "get_tasks_count_routes_admin_tasks_count_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Tasks Count Routes Admin Tasks Count Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Tasks Count",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/users": {
+      "get": {
+        "operationId": "get_filtered_users_routes_admin_users_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "amount",
+            "required": true,
+            "schema": {
+              "title": "Amount",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_num",
+            "required": true,
+            "schema": {
+              "title": "Page Num",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": true,
+            "schema": {
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": true,
+            "schema": {
+              "title": "Order",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "searchTerm",
+            "required": true,
+            "schema": {
+              "title": "Searchterm",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Filtered Users Routes Admin Users Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Filtered Users",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/users/{user_id}": {
+      "delete": {
+        "operationId": "delete_user_routes_admin_users__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete User",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "operationId": "update_user_routes_admin_users__user_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "User Data",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Update User Routes Admin Users  User Id  Put"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update User",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/users_count": {
+      "get": {
+        "operationId": "get_users_count_routes_admin_users_count_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Users Count Routes Admin Users Count Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Users Count",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/workflows": {
+      "get": {
+        "operationId": "get_filtered_workflows_routes_admin_workflows_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "amount",
+            "required": true,
+            "schema": {
+              "title": "Amount",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_num",
+            "required": true,
+            "schema": {
+              "title": "Page Num",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": true,
+            "schema": {
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": true,
+            "schema": {
+              "title": "Order",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "searchTerm",
+            "required": true,
+            "schema": {
+              "title": "Searchterm",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Filtered Workflows Routes Admin Workflows Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Filtered Workflows",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/workflows/{workflow_id}": {
+      "delete": {
+        "operationId": "delete_workflow_routes_admin_workflows__workflow_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete Workflow",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/admin/workflows_count": {
+      "get": {
+        "operationId": "get_workflows_count_routes_admin_workflows_count_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Workflows Count Routes Admin Workflows Count Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Workflows Count",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/routes/auth/login/access-token": {
+      "post": {
+        "operationId": "login_access_token_routes_auth_login_access_token_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_access_token_routes_auth_login_access_token_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login Access Token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/routes/auth/me": {
+      "get": {
+        "operationId": "read_user_me_routes_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Read User Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/routes/auth/plugins": {
+      "post": {
+        "operationId": "update_user_plugins_routes_auth_plugins_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update User Plugins",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/routes/auth/register": {
+      "post": {
+        "operationId": "create_user_routes_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create User",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/routes/datatable/load_data": {
+      "post": {
+        "operationId": "load_data_routes_datatable_load_data_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataTableEvent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Load Data",
+        "tags": [
+          "datatable"
+        ]
+      }
+    },
+    "/routes/files/check/{file_name}": {
+      "get": {
+        "operationId": "check_user_file_convert_routes_files_check__file_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_name",
+            "required": true,
+            "schema": {
+              "title": "File Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Check User File Convert Routes Files Check  File Name  Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Check User File Convert",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/clusters": {
+      "post": {
+        "operationId": "h5ad_cluster_routes_files_clusters_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileFind"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response H5Ad Cluster Routes Files Clusters Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "H5Ad Cluster",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/columns": {
+      "post": {
+        "operationId": "h5ad_columns_routes_files_columns_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileFind"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response H5Ad Columns Routes Files Columns Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "H5Ad Columns",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/convert": {
+      "post": {
+        "operationId": "user_file_convert_routes_files_convert_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileFind"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response User File Convert Routes Files Convert Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "User File Convert",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/data/{filename}": {
+      "get": {
+        "operationId": "download_data_file_routes_files_data__filename__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "title": "Filename",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "title": "Source",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Download Data File Routes Files Data  Filename  Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Download Data File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/delete": {
+      "post": {
+        "operationId": "delete_user_file_routes_files_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Delete User File Routes Files Delete Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete User File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/find": {
+      "post": {
+        "operationId": "find_user_file_routes_files_find_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileFind"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Find User File Routes Files Find Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Find User File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/folder": {
+      "post": {
+        "operationId": "find_user_folder_routes_files_folder_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderFind"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Find User Folder Routes Files Folder Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Find User Folder",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/html/{filename}": {
+      "get": {
+        "operationId": "read_html_file_routes_files_html__filename__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Html File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/me": {
+      "get": {
+        "operationId": "read_user_folder_routes_files_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Read User Folder Routes Files Me Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Read User Folder",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/result": {
+      "post": {
+        "operationId": "read_result_file_routes_files_result_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileResultFind"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Read Result File Routes Files Result Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Read Result File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/result/{filename}": {
+      "get": {
+        "operationId": "download_result_file_routes_files_result__filename__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Download Result File Routes Files Result  Filename  Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Download Result File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/setup/check": {
+      "get": {
+        "operationId": "algorithm_setup_check_routes_files_setup_check_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Algorithm Setup Check Routes Files Setup Check Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Algorithm Setup Check",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/setup/{file_name}": {
+      "get": {
+        "operationId": "read_user_file_routes_files_setup__file_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_name",
+            "required": true,
+            "schema": {
+              "title": "File Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Read User File Routes Files Setup  File Name  Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Read User File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/shared": {
+      "get": {
+        "description": "tutorials/ 디렉토리의 데이터 파일 목록 반환 (html 제외)",
+        "operationId": "get_shared_files_routes_files_shared_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Shared Files Routes Files Shared Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Shared Files",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/shared/find": {
+      "post": {
+        "description": "공용 파일 단건 조회 (InputFile.vue에서 사용)",
+        "operationId": "find_shared_file_routes_files_shared_find_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileFind"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Find Shared File Routes Files Shared Find Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Find Shared File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/tutorials/{filename}": {
+      "get": {
+        "operationId": "download_tutorial_file_routes_files_tutorials__filename__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Download Tutorial File Routes Files Tutorials  Filename  Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Download Tutorial File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/update": {
+      "post": {
+        "operationId": "update_user_file_routes_files_update_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Update User File Routes Files Update Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update User File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/files/upload": {
+      "post": {
+        "operationId": "fileUpload_routes_files_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_fileUpload_routes_files_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Fileupload Routes Files Upload Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Fileupload",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/routes/plugin/associate": {
+      "post": {
+        "operationId": "associate_plugin_routes_plugin_associate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginAssociate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Associate Plugin",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/build/cancel/{task_id}": {
+      "post": {
+        "description": "실행 중인 플러그인 빌드 태스크를 취소합니다.",
+        "operationId": "cancel_build_task_routes_plugin_build_cancel__task_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Cancel Build Task",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/build/logs/{plugin_name}": {
+      "get": {
+        "description": "플러그인 빌드 로그를 조회합니다.",
+        "operationId": "get_build_logs_routes_plugin_build_logs__plugin_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Build Logs",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/build/status/{task_id}": {
+      "get": {
+        "description": "플러그인 빌드 태스크의 상태를 조회합니다.",
+        "operationId": "get_build_status_routes_plugin_build_status__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Build Status",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/build/tasks": {
+      "get": {
+        "description": "플러그인 빌드 태스크 목록을 조회합니다.\nplugin_name이 제공되면 해당 플러그인의 태스크만 필터링합니다.",
+        "operationId": "get_build_tasks_routes_plugin_build_tasks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "plugin_name",
+            "required": false,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Build Tasks",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/build/{plugin_name}": {
+      "post": {
+        "description": "플러그인 Docker 이미지를 비동기적으로 빌드합니다.\nCelery task를 사용하여 백그라운드에서 처리됩니다.",
+        "operationId": "build_plugin_routes_plugin_build__plugin_name__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Build Plugin",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/build_docker/{plugin_name}": {
+      "post": {
+        "description": "플러그인의 Dockerfile 생성 및 Docker 이미지 빌드\n스크립트와 패키지 파일들이 모두 업로드된 후에 실행되어야 함",
+        "operationId": "build_plugin_docker_routes_plugin_build_docker__plugin_name__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuildDockerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Build Plugin Docker",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/check_image/{plugin_name}": {
+      "get": {
+        "operationId": "check_plugin_image_routes_plugin_check_image__plugin_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Check Plugin Image",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/dissociate": {
+      "post": {
+        "operationId": "dissociate_plugin_routes_plugin_dissociate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginAssociate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Dissociate Plugin",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/file/{plugin_name}/{file_name}": {
+      "get": {
+        "operationId": "get_plugin_file_routes_plugin_file__plugin_name___file_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_name",
+            "required": true,
+            "schema": {
+              "title": "File Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Plugin File",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/info/{plugin_name}": {
+      "get": {
+        "operationId": "get_plugin_info_routes_plugin_info__plugin_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Plugin Info",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/list": {
+      "get": {
+        "operationId": "list_plugins_routes_plugin_list_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Plugins",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/package/{plugin_name}": {
+      "get": {
+        "operationId": "get_package_files_routes_plugin_package__plugin_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Package Files",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/reference_folders/{plugin_name}": {
+      "get": {
+        "operationId": "get_reference_folders_routes_plugin_reference_folders__plugin_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Reference Folders",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/template/{plugin_id}": {
+      "get": {
+        "operationId": "get_plugin_template_routes_plugin_template__plugin_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_id",
+            "required": true,
+            "schema": {
+              "title": "Plugin Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Plugin Template",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/update/{plugin_name}": {
+      "post": {
+        "description": "플러그인의 메타데이터를 물리적 파일에서 DB로 동기화하는 엔드포인트\n스크립트나 패키지 파일 업데이트 후 DB 정보를 최신화할 때 사용",
+        "operationId": "update_plugin_complete_routes_plugin_update__plugin_name__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Plugin Complete",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/upload": {
+      "post": {
+        "operationId": "upload_plugin_routes_plugin_upload_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Upload Plugin",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/upload_package": {
+      "post": {
+        "operationId": "upload_package_routes_plugin_upload_package_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_package_routes_plugin_upload_package_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Upload Package",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/upload_scripts": {
+      "post": {
+        "operationId": "upload_scripts_routes_plugin_upload_scripts_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_scripts_routes_plugin_upload_scripts_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Upload Scripts",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/upload_text_dependencies": {
+      "post": {
+        "description": "텍스트 의존성 파일들(requirements.txt, environment.yml, renv.lock)을 업로드하고 DB도 업데이트",
+        "operationId": "upload_text_dependencies_routes_plugin_upload_text_dependencies_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_text_dependencies_routes_plugin_upload_text_dependencies_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Upload Text Dependencies",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/validation": {
+      "post": {
+        "operationId": "validate_plugin_routes_plugin_validation_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginData"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Validate Plugin",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/version/{plugin_name}": {
+      "get": {
+        "description": "Get current version information for a plugin.",
+        "operationId": "get_plugin_current_version_routes_plugin_version__plugin_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Plugin Current Version",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/versions/{plugin_name}": {
+      "get": {
+        "description": "Get available versions for an official plugin from GitHub Container Registry.",
+        "operationId": "get_plugin_versions_routes_plugin_versions__plugin_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Plugin Versions",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/plugin/versions/{plugin_name}/update": {
+      "post": {
+        "description": "Update the version of an official plugin.",
+        "operationId": "update_plugin_version_routes_plugin_versions__plugin_name__update_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plugin_name",
+            "required": true,
+            "schema": {
+              "title": "Plugin Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_update_plugin_version_routes_plugin_versions__plugin_name__update_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Plugin Version",
+        "tags": [
+          "plugin"
+        ]
+      }
+    },
+    "/routes/task/cache/clear": {
+      "delete": {
+        "description": "모든 DAG 파싱 캐시 초기화 (관리자 전용)",
+        "operationId": "clear_dag_caches_routes_task_cache_clear_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Clear Dag Caches Routes Task Cache Clear Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Clear Dag Caches",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/cache/stats": {
+      "get": {
+        "description": "DAG 파싱 캐시 통계 정보 조회 (관리자 전용)",
+        "operationId": "get_dag_cache_stats_routes_task_cache_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Dag Cache Stats Routes Task Cache Stats Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Dag Cache Stats",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/containers/status": {
+      "get": {
+        "description": "Get current container status for debugging",
+        "operationId": "get_container_status_routes_task_containers_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Container Status Routes Task Containers Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Container Status",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/delete/{task_id}": {
+      "delete": {
+        "description": "Delete the task",
+        "operationId": "delete_task_routes_task_delete__task_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Delete Task Routes Task Delete  Task Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete Task",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/info/{task_id}": {
+      "get": {
+        "description": "Return the status of the submitted Task.\nSSE 연결은 1시간 타임아웃 및 정리 로직이 적용됩니다.",
+        "operationId": "get_task_status_routes_task_info__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Task Status Routes Task Info  Task Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Task Status",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/logs/{task_id}": {
+      "get": {
+        "description": "특정 task의 로그 파일들을 조회합니다.",
+        "operationId": "get_task_logs_routes_task_logs__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Task Logs Routes Task Logs  Task Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Task Logs",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/logs/{task_id}/export/json": {
+      "get": {
+        "description": "특정 task의 모든 로그 파일들을 JSON 형식으로 export합니다.\nJSON 형태: {\"filename1.log\": \"content1\", \"filename2.log\": \"content2\"}",
+        "operationId": "export_task_logs_json_routes_task_logs__task_id__export_json_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Export Task Logs Json",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/logs/{task_id}/export/txt/{filename}": {
+      "get": {
+        "description": "특정 task의 개별 로그 파일을 TXT 형식으로 export합니다.",
+        "operationId": "export_task_log_txt_routes_task_logs__task_id__export_txt__filename__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Export Task Log Txt",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/monitoring": {
+      "get": {
+        "description": "Return the status of all User Tasks with workflow information.\nExcludes plugin build tasks and returns only workflow-related tasks.\nUses optimized queries to prevent N+1 query problems.",
+        "operationId": "get_task_monitoring_routes_task_monitoring_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TaskMonitoringItem"
+                  },
+                  "title": "Response Get Task Monitoring Routes Task Monitoring Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Task Monitoring",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/resources": {
+      "get": {
+        "description": "리소스 할당 현황 및 실행 중 작업 목록 조회",
+        "operationId": "get_resources_routes_task_resources_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Resources",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/revoke/{task_id}": {
+      "delete": {
+        "description": "Revoke the task and cleanup associated containers",
+        "operationId": "revoke_task_routes_task_revoke__task_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Revoke Task Routes Task Revoke  Task Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Revoke Task",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/status/{task_id}": {
+      "get": {
+        "description": "SSE 재연결 판단용 경량 상태 확인 엔드포인트.\nCelery AsyncResult 상태만 반환. 인증 불필요 (SSE 엔드포인트와 동일 패턴).",
+        "operationId": "get_task_status_simple_routes_task_status__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Task Status Simple Routes Task Status  Task Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Task Status Simple",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/{task_id}/dag-structure": {
+      "get": {
+        "description": "특정 Task의 Snakefile을 파싱하여 DAG 구조를 반환합니다.",
+        "operationId": "get_dag_structure_routes_task__task_id__dag_structure_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Dag Structure Routes Task  Task Id  Dag Structure Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Dag Structure",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/{task_id}/enhanced-progress": {
+      "get": {
+        "description": "특정 Task의 향상된 진행률 정보를 반환합니다.\n\n향상된 기능:\n- 타이밍 기반 분석\n- 예상 완료 시간\n- 병목 현상 감지\n- 정체 상황 감지\n- 상세 진행률 계산",
+        "operationId": "get_enhanced_progress_routes_task__task_id__enhanced_progress_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Enhanced Progress Routes Task  Task Id  Enhanced Progress Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Enhanced Progress",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/{task_id}/execution-manifest": {
+      "get": {
+        "description": "SUCCESS 상태이고 Analysis 타입 플러그인인 Task의 execution manifest를 JSON 형식으로 다운로드합니다.\n분석 재현을 위한 포괄적인 정보를 포함합니다.\n\n포함 정보:\n- Task, Plugin, Workflow 메타데이터\n- 모든 로그 파일 (run.log, *.stdout, *.stderr 등)\n- Snakefile 내용\n- Plugin metadata.json 내용\n- meta.yml 파일 내용 (있는 경우)",
+        "operationId": "get_execution_manifest_routes_task__task_id__execution_manifest_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Execution Manifest",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/{task_id}/rule-logs/{rule_name}": {
+      "get": {
+        "description": "특정 Rule의 로그 파일들(stdout, stderr)을 조회합니다.",
+        "operationId": "get_rule_logs_routes_task__task_id__rule_logs__rule_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "rule_name",
+            "required": true,
+            "schema": {
+              "title": "Rule Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Rule Logs Routes Task  Task Id  Rule Logs  Rule Name  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Rule Logs",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/task/{task_id}/rule-status": {
+      "get": {
+        "description": "특정 Task의 각 Rule별 실행 상태를 로그 파일 기반으로 추적하여 반환합니다.",
+        "operationId": "get_rule_status_routes_task__task_id__rule_status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actual_status",
+            "required": false,
+            "schema": {
+              "title": "Actual Status",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Rule Status Routes Task  Task Id  Rule Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Rule Status",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/routes/version": {
+      "get": {
+        "description": "애플리케이션 버전 정보를 반환한다. 인증 불필요.",
+        "operationId": "get_version_routes_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Version",
+        "tags": [
+          "version"
+        ]
+      }
+    },
+    "/routes/workflow/compile": {
+      "post": {
+        "operationId": "compileWorkflow_routes_workflow_compile_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Compileworkflow",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/delete": {
+      "post": {
+        "operationId": "delete_user_workflow_routes_workflow_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Delete User Workflow Routes Workflow Delete Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete User Workflow",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/find": {
+      "post": {
+        "operationId": "find_user_workflow_routes_workflow_find_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowFind"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowCreate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Find User Workflow",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/me": {
+      "get": {
+        "operationId": "get_user_workflow_routes_workflow_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get User Workflow Routes Workflow Me Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get User Workflow",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/node/delete": {
+      "post": {
+        "operationId": "deleteNodeData_routes_workflow_node_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowNodeFileDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Deletenodedata",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/node/read": {
+      "post": {
+        "operationId": "readNodeData_routes_workflow_node_read_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowNodeFileRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Readnodedata",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/node/save": {
+      "post": {
+        "operationId": "saveNodeData_routes_workflow_node_save_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowNodeFileCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Savenodedata",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/result": {
+      "post": {
+        "operationId": "checkResult_routes_workflow_result_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowResult"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Checkresult",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/results": {
+      "post": {
+        "operationId": "getResults_routes_workflow_results_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowResult"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Getresults",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/save": {
+      "post": {
+        "operationId": "update_user_workflow_routes_workflow_save_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update User Workflow",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/visualization": {
+      "post": {
+        "description": "Create visualization from workflow data using the new self-contained visualization system.\n\nThis endpoint processes visualization requests using:\n- selectedVisualizationPlugin to get plugin information\n- selectedScript.name to identify the specific visualization rule\n- resolve_algorithm_path_from_files() for file resolution\n- generate_visualization_snakefile() for Snakefile generation\n\nRaises:\n    ValidationError: If required parameters are missing or invalid\n    WorkflowError: If workflow is not found or inaccessible\n    PluginNotFoundError: If specified plugin is not available\n    ScriptNotFoundError: If visualization script is not found\n    FileNotFoundError: If required files are missing\n    SnakefileGenerationError: If Snakefile generation fails\n    TaskSubmissionError: If task submission fails",
+        "operationId": "visualizeData_routes_workflow_visualization_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowVisualizationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Visualizedata",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/visualization/result": {
+      "post": {
+        "operationId": "checkVisualizationResult_routes_workflow_visualization_result_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowResult"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Checkvisualizationresult",
+        "tags": [
+          "workflow"
+        ]
+      }
+    },
+    "/routes/workflow/visualize/result": {
+      "post": {
+        "operationId": "getVisualizationResult_routes_workflow_visualize_result_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowResult"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Getvisualizationresult",
+        "tags": [
+          "workflow"
+        ]
+      }
+    }
+  }
+}
