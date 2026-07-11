@@ -1,0 +1,14 @@
+# Test image: app image + test-only dependencies.
+#
+# Build the base app image first (arm64 example):
+#   docker build -f backend/Dockerfile.cpu \
+#     --build-arg TARGETPLATFORM=linux/arm64 --platform linux/arm64 \
+#     -t cellcraft-backend:refactor-test backend/
+# Then:
+#   docker build -f backend/Dockerfile.test -t cellcraft-backend:test backend/
+#
+# Used by docker-compose.test.yml (backend-test service).
+FROM cellcraft-backend:refactor-test
+
+COPY requirements-test.txt /tmp/requirements-test.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-test.txt

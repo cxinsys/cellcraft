@@ -15,8 +15,13 @@ from app.common.security import get_password_hash
 
 # Use test PostgreSQL database when TESTING=1 (matches production environment)
 if os.environ.get("TESTING") == "1":
-    # Test DB runs on Docker test-db service (localhost:5433)
-    SQLALCHEMY_TEST_DATABASE_URI = "postgresql://test_user:test_pass@localhost:5433/cellcraft_test"
+    # Test DB runs on Docker test-db service (localhost:5433 by default).
+    # TEST_DATABASE_URI overrides it when tests run inside a container
+    # (e.g. docker-compose.test.yml uses test-db:5432 on its own network).
+    SQLALCHEMY_TEST_DATABASE_URI = os.environ.get(
+        "TEST_DATABASE_URI",
+        "postgresql://test_user:test_pass@localhost:5433/cellcraft_test",
+    )
     engine = create_engine(
         SQLALCHEMY_TEST_DATABASE_URI,
         echo=False,  # Disable SQL logging in tests

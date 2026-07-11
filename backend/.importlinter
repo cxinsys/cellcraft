@@ -1,0 +1,30 @@
+# import-linter contracts for the cellcraft backend.
+#
+# Run (once import-linter is installed) from the backend/ directory:
+#     lint-imports
+#
+# Purpose: define the architectural import contracts up front (during PR-1,
+# the safety-net phase) so they can be switched on as the refactoring lands.
+#
+# STATUS: the `no-web-in-worker` contract is defined but INACTIVE. There is no
+# `app.worker` package yet — the Celery worker still boots via `app.main`
+# (Dockerfile.celery: `celery -A app.main.celery worker`). This contract becomes
+# meaningful in PR-2 (phase-1-app-assembly), where `app.worker` is introduced and
+# the worker entry point stops importing the web layer. To ACTIVATE in PR-2:
+#   1. Uncomment the [importlinter:contract:no-web-in-worker] block below.
+#   2. Ensure `app.worker` exists.
+#   3. Add `import-linter` to the backend dev/test dependencies and wire
+#      `lint-imports` into CI.
+
+[importlinter]
+root_package = app
+
+# --- Activated in PR-2 (phase-1-app-assembly) — keep commented until app.worker exists ---
+# [importlinter:contract:no-web-in-worker]
+# name = worker must not depend on the web layer
+# type = forbidden
+# source_modules =
+#     app.worker
+# forbidden_modules =
+#     app.main
+#     app.api
