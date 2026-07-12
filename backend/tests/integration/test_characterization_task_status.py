@@ -4,7 +4,7 @@ Characterization tests for task status / monitoring endpoints.
 Purpose: pin the CURRENT behavior of the task status surface so the later
 service + SSE extraction refactor (PR-7) can prove behavior is unchanged.
 
-Endpoints covered (app/routes/endpoints/task.py):
+Endpoints covered (app/task/router.py):
 - GET  /routes/task/status/{task_id}   (lightweight, non-SSE; lines 82-95)
 - GET  /routes/task/monitoring         (list; lines 97-159)
 - DELETE /routes/task/delete/{task_id} (lines 276-287)
@@ -30,7 +30,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.database import models
+from app import models
 from app.core.config import settings
 
 TASK_PREFIX = f"{settings.ROUTES_STR}/task"
@@ -41,7 +41,7 @@ TASK_PREFIX = f"{settings.ROUTES_STR}/task"
 class TestCharacterizationTaskStatus:
     """Freeze non-SSE task status endpoints; minimal SSE smoke."""
 
-    @patch("app.routes.endpoints.task.get_task_info")
+    @patch("app.task.router.get_task_info")
     def test_status_simple_response_shape(
         self,
         mock_get_task_info,
@@ -55,7 +55,7 @@ class TestCharacterizationTaskStatus:
         assert response.status_code == 200
         assert response.json() == {"task_id": "some-task-123", "status": "SUCCESS"}
 
-    @patch("app.routes.endpoints.task.get_task_info")
+    @patch("app.task.router.get_task_info")
     def test_status_missing_status_defaults_to_unknown(
         self,
         mock_get_task_info,
@@ -158,10 +158,10 @@ class TestCharacterizationTaskStatus:
         assert response.status_code == 404
 
     # NOTE: task.py binds get_task_info at import time
-    # (`from ...celery_utils import get_task_info`), so the patch must target
-    # the endpoint module namespace — patching celery_utils has no effect and
+    # (`from ...worker.utils import get_task_info`), so the patch must target
+    # the endpoint module namespace — patching app.worker.utils has no effect and
     # the SSE loop would poll the real backend forever.
-    @patch("app.routes.endpoints.task.get_task_info")
+    @patch("app.task.router.get_task_info")
     def test_info_sse_stream_content_type(
         self,
         mock_get_task_info,

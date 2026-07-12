@@ -91,7 +91,7 @@ def setup_client():
     print("  Auth OK")
 
     # Extract user_id from token for cache operations
-    from app.routes.dep import get_current_active_user
+    from app.auth.deps import get_current_active_user
     import jwt
     from app.core.config import settings
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
@@ -197,8 +197,8 @@ def run_true_before_benchmark(db_session, user_id, iterations=5):
     print("# Reproduces N×get_user_task + N×docker.from_env loop pattern")
     print("#" * 60)
 
-    from app.database.crud import crud_plugin
-    from app.database.crud.crud_task import get_user_task
+    from app.plugin import crud as crud_plugin
+    from app.task.crud import get_user_task
     from celery.result import AsyncResult
     from datetime import datetime
     import docker
@@ -379,7 +379,7 @@ def run_invalidation_benchmark(client, headers, user_id, iterations=5):
     for i in range(iterations):
         # Measure invalidation
         start = time.perf_counter()
-        from app.common.utils.plugin_cache import invalidate_all_plugin_cache
+        from app.plugin.cache import invalidate_all_plugin_cache
         invalidate_all_plugin_cache()
         elapsed = time.perf_counter() - start
         timer_invalidate.record(elapsed)

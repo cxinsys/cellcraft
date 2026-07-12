@@ -14,13 +14,13 @@ from sqlalchemy.orm import sessionmaker, Session
 from fastapi.testclient import TestClient
 
 # IMPORTANT: Set TESTING environment variable BEFORE importing app
-# This makes app/database/conn.py use PostgreSQL test DB (localhost:5433)
+# This makes app/db/session.py use PostgreSQL test DB (localhost:5433)
 os.environ["TESTING"] = "1"
 
 from app.main import app
 from app.db.session import Base
-from app.database import models
-from app.routes.dep import get_db
+from app import models
+from app.db.session import get_db
 from app.core.security import get_password_hash
 from app.core.enums import PluginType
 

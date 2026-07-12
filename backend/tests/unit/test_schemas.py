@@ -15,7 +15,7 @@ Related bugs:
 import pytest
 from pydantic import ValidationError
 
-from app.database.schemas.user import (
+from app.user.schemas import (
     UserBase,
     UserCreate,
     UserUpdate,

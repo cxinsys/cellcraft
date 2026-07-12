@@ -1,8 +1,8 @@
 """Celery worker entry point.
 
 This module owns the Celery application instance and worker-lifecycle hooks.
-It must NOT import the FastAPI web layer (``app.main`` / ``app.routes.api``);
-the ``no-web-in-worker`` import-linter contract enforces this.
+It must NOT import the FastAPI web layer (``app.main`` / ``app.api`` and the
+domain routers); the ``no-web-in-worker`` import-linter contract enforces this.
 
 Worker Dockerfiles boot via ``celery -A app.worker.app worker``.
 """

@@ -10,7 +10,7 @@ import tempfile
 from fastapi import HTTPException
 from pathlib import Path
 
-from app.common.utils.file_security import (
+from app.file.security import (
     validate_file_path,
     sanitize_filename,
     validate_file_upload

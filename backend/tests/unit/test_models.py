@@ -16,7 +16,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.database import models
+from app import models
 from app.core.enums import PluginType
 
 

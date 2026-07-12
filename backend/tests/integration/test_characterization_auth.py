@@ -7,8 +7,8 @@ they did not change observable behavior. These tests describe reality, not the
 ideal — if something looks odd, it is preserved intentionally.
 
 Source of truth read while writing these tests:
-- app/routes/endpoints/auth.py :: login_access_token (lines 47-69)
-- app/routes/api.py mounts the auth router; app/main.py mounts api_router with
+- app/auth/router.py :: login_access_token (lines 47-69)
+- app/api.py mounts the auth router; app/main.py mounts api_router with
   prefix settings.ROUTES_STR ("/routes"), and auth router is mounted at
   "/auth" -> full prefix "/routes/auth".
 
@@ -22,7 +22,7 @@ Pinned behavior:
 import pytest
 from fastapi.testclient import TestClient
 
-from app.database import models
+from app import models
 from app.core.config import settings
 
 LOGIN_URL = f"{settings.ROUTES_STR}/auth/login/access-token"

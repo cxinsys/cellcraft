@@ -2,7 +2,7 @@
 Characterization tests for the workflow compile endpoint.
 
 Purpose: pin the CURRENT behavior of ``POST /routes/workflow/compile``
-(compileWorkflow, app/routes/endpoints/workflow.py lines 47-185) so the later
+(compileWorkflow, app/workflow/router.py lines 47-185) so the later
 service-extraction refactor (PR-6) can prove behavior is unchanged.
 
 IMPORTANT current-behavior note (preserved intentionally, do NOT "fix"):
@@ -14,8 +14,8 @@ caught by the outer handler and surfaced as HTTP 400. These tests pin that
 observable 400 behavior rather than the status code named at the inner ``raise``.
 
 Source of truth read while writing these tests:
-- app/routes/endpoints/workflow.py :: compileWorkflow
-- app/database/schemas/workflow.py :: WorkflowCreate
+- app/workflow/router.py :: compileWorkflow
+- app/workflow/schemas.py :: WorkflowCreate
 
 Pinned behavior:
 - Success returns 200 with keys: message, task_ids, algorithm_ids,
@@ -29,7 +29,7 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.database import models
+from app import models
 from app.core.config import settings
 
 COMPILE_URL = f"{settings.ROUTES_STR}/workflow/compile"
@@ -64,10 +64,10 @@ def _algorithm_workflow_info(plugin_name: str = "TestPlugin") -> dict:
 class TestCharacterizationWorkflowCompile:
     """Freeze current compile behavior: success shape + error wrapping to 400."""
 
-    @patch("app.routes.endpoints.workflow.process_data_task.apply_async")
-    @patch("app.routes.endpoints.workflow.change_snakefile_parameter")
-    @patch("app.routes.endpoints.workflow.get_plugin_path")
-    @patch("app.routes.endpoints.workflow.get_task_info")
+    @patch("app.workflow.router.process_data_task.apply_async")
+    @patch("app.workflow.router.change_snakefile_parameter")
+    @patch("app.workflow.router.get_plugin_path")
+    @patch("app.workflow.router.get_task_info")
     def test_compile_success_response_shape(
         self,
         mock_get_task_info,
@@ -155,7 +155,7 @@ class TestCharacterizationWorkflowCompile:
         assert response.status_code == 400
         assert response.json()["detail"] == ""
 
-    @patch("app.routes.endpoints.workflow.get_plugin_path")
+    @patch("app.workflow.router.get_plugin_path")
     def test_compile_plugin_not_found_surfaces_as_400(
         self,
         mock_get_plugin_path,

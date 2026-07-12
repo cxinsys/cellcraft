@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from pathlib import Path
 
-from app.database import models
+from app import models
 
 
 # ==============================================================================
@@ -705,7 +705,7 @@ class TestDAGStructure:
     """
 
     # Test 1: GET /dag-structure - success with valid task
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.router.parse_snakefile_native')
     def test_dag_structure_success_native_parser(self, mock_parse_native, client, db_session, auth_headers, sample_task):
         """Test DAG structure endpoint successfully parses Snakefile using native parser."""
         # Arrange: Mock native parser to return valid DAG data
@@ -746,8 +746,8 @@ class TestDAGStructure:
         assert dag["parsing_method"] == "native_native"
 
     # Test 2: GET /dag-structure - fallback to legacy parser
-    @patch('app.common.utils.snakefile_dag_parser.SnakemakeDAGParser')
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.workflow.compiler.dag_parser.SnakemakeDAGParser')
+    @patch('app.task.router.parse_snakefile_native')
     def test_dag_structure_fallback_to_legacy(self, mock_parse_native, mock_parser_class, client, db_session, auth_headers, sample_task):
         """Test DAG structure endpoint falls back to legacy parser when native parser fails."""
         # Arrange: Native parser fails, legacy succeeds
@@ -786,14 +786,14 @@ class TestDAGStructure:
         assert response.status_code == 401
 
     # Test 5: GET /dag-structure - forbidden access (different user)
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.router.parse_snakefile_native')
     def test_dag_structure_forbidden(self, mock_parse_native, client, db_session, sample_task):
         """Test DAG structure endpoint returns 403 for different user's task."""
         # Mock parser to avoid file not found errors
         mock_parse_native.return_value = {"nodes": [], "edges": [], "execution_sequence": []}
 
         # Create another user and get auth headers
-        from app.database import models
+        from app import models
         other_user = models.User(
             username="otheruser",
             email="other@example.com",
@@ -814,8 +814,8 @@ class TestDAGStructure:
         assert "access denied" in response.json()["detail"].lower()
 
     # Test 6: GET /dag-structure - both parsers fail
-    @patch('app.common.utils.snakefile_dag_parser.SnakemakeDAGParser')
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.workflow.compiler.dag_parser.SnakemakeDAGParser')
+    @patch('app.task.router.parse_snakefile_native')
     def test_dag_structure_both_parsers_fail(self, mock_parse_native, mock_parser_class, client, db_session, auth_headers, sample_task):
         """Test DAG structure endpoint returns 500 when both parsers fail."""
         # Arrange: Both parsers fail
@@ -833,8 +833,8 @@ class TestDAGStructure:
         assert "Failed to parse workflow" in response.json()["detail"]
 
     # Test 7: GET /rule-status - success with rule tracking
-    @patch('app.routes.endpoints.task.SnakemakeRuleStatusTracker')
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.router.SnakemakeRuleStatusTracker')
+    @patch('app.task.router.parse_snakefile_native')
     def test_rule_status_success(self, mock_parse_native, mock_tracker_class, client, db_session, auth_headers, sample_task):
         """Test rule status endpoint returns rule execution statuses."""
         # Arrange: Mock DAG parsing
@@ -894,8 +894,8 @@ class TestDAGStructure:
         assert progress["percentage"] == 50.0
 
     # Test 8: GET /rule-status - with actual_status parameter
-    @patch('app.routes.endpoints.task.SnakemakeRuleStatusTracker')
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.router.SnakemakeRuleStatusTracker')
+    @patch('app.task.router.parse_snakefile_native')
     def test_rule_status_with_actual_status_param(self, mock_parse_native, mock_tracker_class, client, db_session, auth_headers, sample_task):
         """Test rule status endpoint accepts and uses actual_status query parameter."""
         # Arrange
@@ -948,13 +948,13 @@ class TestDAGStructure:
         assert response.status_code == 401
 
     # Test 11: GET /rule-status - forbidden access (different user)
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.router.parse_snakefile_native')
     def test_rule_status_forbidden(self, mock_parse_native, client, db_session, sample_task):
         """Test rule status endpoint returns 403 for different user's task."""
         # Mock parser to avoid file not found errors
         mock_parse_native.return_value = {"nodes": [], "edges": [], "execution_sequence": []}
 
-        from app.database import models
+        from app import models
         other_user = models.User(
             username="otheruserrule",
             email="otherrule@example.com",
@@ -974,8 +974,8 @@ class TestDAGStructure:
         assert "access denied" in response.json()["detail"].lower()
 
     # Test 12: GET /rule-status - fallback when tracker fails
-    @patch('app.routes.endpoints.task.SnakemakeRuleStatusTracker')
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.router.SnakemakeRuleStatusTracker')
+    @patch('app.task.router.parse_snakefile_native')
     def test_rule_status_tracker_fallback(self, mock_parse_native, mock_tracker_class, client, db_session, auth_headers, sample_task):
         """Test rule status endpoint falls back to pending statuses when tracker fails."""
         # Arrange: DAG parsing succeeds, tracker fails
@@ -1030,7 +1030,7 @@ class TestSSEStatusStream:
     """
 
     # Test 1: SSE stream returns status updates
-    @patch('app.common.utils.celery_utils.get_task_info')
+    @patch('app.worker.utils.get_task_info')
     def test_sse_stream_status_updates(self, mock_get_task_info, client):
         """Test SSE endpoint streams task status updates."""
         # Arrange: Mock task info to return SUCCESS immediately
@@ -1048,7 +1048,7 @@ class TestSSEStatusStream:
         assert "SUCCESS" in response_text or response_text != ""
 
     # Test 2: SSE stream handles FAILURE status
-    @patch('app.common.utils.celery_utils.get_task_info')
+    @patch('app.worker.utils.get_task_info')
     def test_sse_stream_failure_status(self, mock_get_task_info, client):
         """Test SSE endpoint handles FAILURE status and terminates stream."""
         # Arrange
@@ -1063,7 +1063,7 @@ class TestSSEStatusStream:
         assert "FAILURE" in response.text
 
     # Test 3: SSE stream handles REVOKED status
-    @patch('app.common.utils.celery_utils.get_task_info')
+    @patch('app.worker.utils.get_task_info')
     def test_sse_stream_revoked_status(self, mock_get_task_info, client):
         """Test SSE endpoint handles REVOKED status and terminates stream."""
         # Arrange
@@ -1087,7 +1087,7 @@ class TestSSEStatusStream:
         assert response.status_code in [404, 405]  # 404 Not Found or 405 Method Not Allowed
 
     # Test 5: SSE stream with RUNNING status
-    @patch('app.common.utils.celery_utils.get_task_info')
+    @patch('app.worker.utils.get_task_info')
     def test_sse_stream_running_status(self, mock_get_task_info, client):
         """Test SSE endpoint returns RUNNING status."""
         # Arrange: Mock RUNNING status (in real scenario, would continue until terminal state)
@@ -1106,7 +1106,7 @@ class TestSSEStatusStream:
     def test_sse_content_type_header(self, client):
         """Test SSE endpoint returns correct content-type header."""
         # Act
-        with patch('app.common.utils.celery_utils.get_task_info') as mock_get_task:
+        with patch('app.worker.utils.get_task_info') as mock_get_task:
             mock_get_task.return_value = {"task_status": "SUCCESS"}
             response = client.get("/routes/task/info/test-task-headers")
 

@@ -9,7 +9,7 @@ Test coverage:
 import pytest
 import pandas as pd
 
-from app.common.utils.datatable_utils import (
+from app.datatable.utils import (
     DataTableEvent,
     RemoteDataTable,
     Sort

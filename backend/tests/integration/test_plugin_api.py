@@ -12,7 +12,7 @@ This module tests the plugin-related API endpoints in:
 - POST /routes/plugin/build/{plugin_name} - Build Docker image
 - GET /routes/plugin/check_image/{plugin_name} - Check if Docker image exists
 
-Coverage Goal: 55%+ for app/routes/endpoints/plugin.py
+Coverage Goal: 55%+ for app/plugin/router.py
 Quality Score Goal: 8.2/10
 """
 import pytest
@@ -24,7 +24,7 @@ from unittest.mock import patch, MagicMock, mock_open
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.database import models
+from app import models
 from app.core.enums import PluginType
 
 
@@ -359,8 +359,8 @@ class TestPluginUploadValidation:
         assert response.status_code == 400
         assert "script" in response.json()["detail"].lower()
 
-    @patch('app.routes.endpoints.plugin.os.makedirs')
-    @patch('app.routes.endpoints.plugin.open', new_callable=mock_open)
+    @patch('app.plugin.router.os.makedirs')
+    @patch('app.plugin.router.open', new_callable=mock_open)
     def test_upload_plugin_success(
         self,
         mock_file_open: MagicMock,
@@ -450,8 +450,8 @@ class TestPluginFileManagement:
             data = response.json()
             assert isinstance(data, (dict, list))
 
-    @patch('app.routes.endpoints.plugin.os.path.exists')
-    @patch('app.routes.endpoints.plugin.FileResponse')
+    @patch('app.plugin.router.os.path.exists')
+    @patch('app.plugin.router.FileResponse')
     def test_download_plugin_package_success(
         self,
         mock_file_response: MagicMock,
@@ -472,8 +472,8 @@ class TestPluginFileManagement:
         # Should attempt to download or return not found
         assert response.status_code in [200, 404]
 
-    @patch('app.routes.endpoints.plugin.os.path.exists')
-    @patch('app.routes.endpoints.plugin.FileResponse')
+    @patch('app.plugin.router.os.path.exists')
+    @patch('app.plugin.router.FileResponse')
     def test_download_plugin_file_success(
         self,
         mock_file_response: MagicMock,
@@ -601,7 +601,7 @@ class TestPluginAssociation:
 class TestPluginDockerBuild:
     """Test Docker build-related operations (with mocks)."""
 
-    @patch('app.routes.endpoints.plugin.build_plugin_task.apply_async')
+    @patch('app.plugin.router.build_plugin_task.apply_async')
     def test_build_plugin_success(
         self,
         mock_task: MagicMock,
@@ -625,7 +625,7 @@ class TestPluginDockerBuild:
             data = response.json()
             assert "task_id" in data or "message" in data
 
-    @patch('app.routes.endpoints.plugin.docker.from_env')
+    @patch('app.plugin.router.docker.from_env')
     def test_check_image_exists(
         self,
         mock_docker: MagicMock,
@@ -648,7 +648,7 @@ class TestPluginDockerBuild:
         data = response.json()
         assert "exists" in data or "image_exists" in data
 
-    @patch('app.routes.endpoints.plugin.docker.from_env')
+    @patch('app.plugin.router.docker.from_env')
     def test_check_image_not_exists(
         self,
         mock_docker: MagicMock,
@@ -676,7 +676,7 @@ class TestPluginDockerBuild:
         elif "image_exists" in data:
             assert data["image_exists"] is False
 
-    @patch('app.routes.endpoints.plugin.AsyncResult')
+    @patch('app.plugin.router.AsyncResult')
     def test_get_build_status_success(
         self,
         mock_async_result: MagicMock,
@@ -699,7 +699,7 @@ class TestPluginDockerBuild:
         data = response.json()
         assert "state" in data or "status" in data
 
-    @patch('app.routes.endpoints.plugin.celery_app.control.revoke')
+    @patch('app.plugin.router.celery_app.control.revoke')
     def test_cancel_build_task_success(
         self,
         mock_revoke: MagicMock,

@@ -1,7 +1,7 @@
 """
 Integration tests for Auth API endpoints.
 
-Coverage Goal: 60%+ for app/routes/endpoints/auth.py
+Coverage Goal: 60%+ for app/auth/router.py
 Quality Score Goal: 8.2/10
 
 Endpoints tested:
@@ -27,7 +27,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from jose import jwt
 
-from app.database import models
+from app import models
 from app.core.config import settings
 from app.core.security import ALGORITHM
 
