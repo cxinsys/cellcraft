@@ -12,10 +12,11 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from jose import jwt
 
-from app.routes.dep import get_db, get_current_user, get_current_active_user
+from app.db.session import get_db
+from app.routes.dep import get_current_user, get_current_active_user
 from app.database import models
-from app.common.config import settings
-from app.common.security import ALGORITHM, create_access_token
+from app.core.config import settings
+from app.core.security import ALGORITHM, create_access_token
 
 
 @pytest.mark.unit
@@ -23,7 +24,7 @@ from app.common.security import ALGORITHM, create_access_token
 class TestGetDb:
     """Test database session dependency."""
 
-    @patch('app.routes.dep.SessionLocal')
+    @patch('app.db.session.SessionLocal')
     def test_get_db_yields_session(self, mock_session_local):
         """Test get_db yields database session and closes it."""
         # Arrange
@@ -46,7 +47,7 @@ class TestGetDb:
 
         mock_db.close.assert_called_once()
 
-    @patch('app.routes.dep.SessionLocal')
+    @patch('app.db.session.SessionLocal')
     def test_get_db_closes_on_exception(self, mock_session_local):
         """Test get_db closes session even if exception occurs."""
         # Arrange

@@ -9,7 +9,7 @@ from datetime import datetime
 
 from app.common.utils.plugin_sync_manager import PluginSyncManager
 from app.common.utils.github_registry_client import GitHubRegistryClient
-from app.database.conn import SessionLocal
+from app.db.session import SessionLocal
 from app.database import models
 
 logger = logging.getLogger(__name__)

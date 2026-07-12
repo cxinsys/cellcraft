@@ -33,7 +33,7 @@ from sqlalchemy.orm import Session
 
 from app.database import models
 from app.database.crud import crud_file
-from app.common.config import settings
+from app.core.config import settings
 
 UPLOAD_URL = f"{settings.ROUTES_STR}/files/upload"
 RESULT_URL = f"{settings.ROUTES_STR}/files/result"

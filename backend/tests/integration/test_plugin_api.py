@@ -25,7 +25,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.database import models
-from app.common.enums import PluginType
+from app.core.enums import PluginType
 
 
 # ==============================================================================

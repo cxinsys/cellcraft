@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from app.database import models
-from app.database.conn import SessionLocal, initialize_plugins_from_csv
+from app.db.session import SessionLocal, initialize_plugins_from_csv
 from app.database.crud import crud_plugin
 
 logger = logging.getLogger(__name__)

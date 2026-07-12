@@ -14,8 +14,8 @@ from app import model
 from app.database import models
 from app.database.crud import crud_user
 from app.database.schemas import user
-from app.common.security import create_access_token
-from app.common.config import settings
+from app.core.security import create_access_token
+from app.core.config import settings
 from app.routes import dep
 
 router = APIRouter()

@@ -10,12 +10,10 @@
 # Celery worker boots via `celery -A app.worker.app worker` — it no longer imports
 # the web layer (`app.main`). See the contract below.
 #
-# NOTE on scope: only `app.main` is forbidden. The web router package `app.routes`
-# cannot be blanket-forbidden yet because the Celery tasks module still lives at
-# `app.routes.celery_tasks` (the worker legitimately includes it). The
-# `app.routes.api` web-assembly module is forbidden as well since the task-chain
-# does not depend on it. Tightening `app.routes` fully happens in a later PR that
-# relocates the tasks module out of the web-router package.
+# NOTE on scope: TIGHTENED in PR-3 (phase-2-domain-skeleton). The Celery tasks
+# module relocated from `app.routes.celery_tasks` to `app.worker.tasks`, so the
+# worker no longer legitimately includes anything under `app.routes`. The whole
+# `app.routes` web-router package is now forbidden alongside `app.main`.
 
 [importlinter]
 root_package = app
@@ -27,4 +25,4 @@ source_modules =
     app.worker
 forbidden_modules =
     app.main
-    app.routes.api
+    app.routes

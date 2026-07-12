@@ -212,7 +212,7 @@ class TestValidateFileUploadWithMIME:
 
     def test_validate_with_mime_check_valid_h5ad(self, monkeypatch):
         """Test validation with valid H5AD file and MIME checking."""
-        monkeypatch.setattr("app.common.config.ENABLE_FILE_SIGNATURE_VALIDATION", True)
+        monkeypatch.setattr("app.core.config.ENABLE_FILE_SIGNATURE_VALIDATION", True)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create valid H5AD file
@@ -237,7 +237,7 @@ class TestValidateFileUploadWithMIME:
 
     def test_validate_with_mime_check_spoofed_file(self, monkeypatch, temp_security_log):
         """Test that spoofed files are rejected with MIME checking."""
-        monkeypatch.setattr("app.common.config.ENABLE_FILE_SIGNATURE_VALIDATION", True)
+        monkeypatch.setattr("app.core.config.ENABLE_FILE_SIGNATURE_VALIDATION", True)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create file with wrong signature (executable as H5AD)
@@ -276,7 +276,7 @@ class TestValidateFileUploadWithMIME:
             validate_file_upload(mock_file, user_id=456)
 
         # Verify security log was created
-        from app.common.utils.security_logging import get_security_events
+        from app.core.logging import get_security_events
         events = get_security_events(event_type="invalid_file_extension")
         assert len(events) > 0
         assert events[0]["user_id"] == 456
@@ -297,7 +297,7 @@ class TestValidateFileUploadWithMIME:
         assert exc_info.value.status_code == 413
 
         # Verify security log
-        from app.common.utils.security_logging import get_security_events
+        from app.core.logging import get_security_events
         events = get_security_events(event_type="file_size_exceeded")
         assert len(events) > 0
         assert events[0]["user_id"] == 789
@@ -314,13 +314,13 @@ class TestValidateFileUploadWithMIME:
             validate_file_upload(mock_file, user_id=111)
 
         # Verify security log
-        from app.common.utils.security_logging import get_security_events
+        from app.core.logging import get_security_events
         events = get_security_events(event_type="empty_file_upload")
         assert len(events) > 0
 
     def test_mime_validation_disabled(self, monkeypatch):
         """Test that MIME validation can be disabled via config."""
-        monkeypatch.setattr("app.common.config.ENABLE_FILE_SIGNATURE_VALIDATION", False)
+        monkeypatch.setattr("app.core.config.ENABLE_FILE_SIGNATURE_VALIDATION", False)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create file with wrong signature
@@ -348,7 +348,7 @@ def temp_security_log(monkeypatch):
     """Create a temporary security log file for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         log_file = os.path.join(tmpdir, "test_security.log")
-        monkeypatch.setattr("app.common.config.SECURITY_LOG_FILE", log_file)
+        monkeypatch.setattr("app.core.config.SECURITY_LOG_FILE", log_file)
 
         # Reset logger handlers
         import logging

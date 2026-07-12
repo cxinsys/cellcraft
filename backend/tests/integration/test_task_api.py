@@ -336,7 +336,7 @@ class TestTaskRevocation:
     """
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_running_task_success(
         self,
         mock_docker,
@@ -381,7 +381,7 @@ class TestTaskRevocation:
         assert sample_task.end_time is not None
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_with_container_cleanup(
         self,
         mock_docker,
@@ -407,7 +407,7 @@ class TestTaskRevocation:
         mock_docker_client.containers.get.return_value = mock_container
 
         # Register container in ContainerManager
-        from app.common.utils.docker_utils import container_manager
+        from app.shared.docker import container_manager
         container_manager.register_container(sample_task.task_id, mock_container.id)
 
         response = client.delete(
@@ -423,7 +423,7 @@ class TestTaskRevocation:
         mock_container.remove.assert_called()
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_without_container(
         self,
         mock_docker,
@@ -460,7 +460,7 @@ class TestTaskRevocation:
         assert sample_task.status == "REVOKED"
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_container_not_found(
         self,
         mock_docker,
@@ -486,7 +486,7 @@ class TestTaskRevocation:
         mock_docker_client.containers.get.side_effect = NotFound("Container not found")
 
         # Register container in ContainerManager
-        from app.common.utils.docker_utils import container_manager
+        from app.shared.docker import container_manager
         container_manager.register_container(sample_task.task_id, "nonexistent-container")
 
         response = client.delete(
@@ -501,7 +501,7 @@ class TestTaskRevocation:
         assert sample_task.status == "REVOKED"
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_container_by_label_fallback(
         self,
         mock_docker,
@@ -532,7 +532,7 @@ class TestTaskRevocation:
         mock_docker_client.containers.list.return_value = [mock_container]
 
         # Register container
-        from app.common.utils.docker_utils import container_manager
+        from app.shared.docker import container_manager
         container_manager.register_container(sample_task.task_id, "original-container-id")
 
         response = client.delete(
@@ -543,7 +543,7 @@ class TestTaskRevocation:
         assert response.status_code == 200
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_container_by_name_fallback(
         self,
         mock_docker,
@@ -575,7 +575,7 @@ class TestTaskRevocation:
         mock_container.name = f"task-{task_id_short}"
 
         # Register container
-        from app.common.utils.docker_utils import container_manager
+        from app.shared.docker import container_manager
         container_manager.register_container(sample_task.task_id, "original-id")
 
         response = client.delete(
@@ -586,7 +586,7 @@ class TestTaskRevocation:
         assert response.status_code == 200
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_force_db_update(
         self,
         mock_docker,
@@ -804,7 +804,7 @@ class TestDAGStructure:
         db_session.commit()
 
         # Get auth token for other user
-        from app.common.security import create_access_token
+        from app.core.security import create_access_token
         other_token = create_access_token(subject=other_user.username)
         other_headers = {"Authorization": f"Bearer {other_token}"}
 
@@ -964,7 +964,7 @@ class TestDAGStructure:
         db_session.add(other_user)
         db_session.commit()
 
-        from app.common.security import create_access_token
+        from app.core.security import create_access_token
         other_token = create_access_token(subject=other_user.username)
         other_headers = {"Authorization": f"Bearer {other_token}"}
 
@@ -1821,7 +1821,7 @@ class TestTaskDeletion:
         db_session.commit()
 
         # Get auth token for user_b (must use user ID, not username)
-        from app.common.security import create_access_token
+        from app.core.security import create_access_token
         user_b_token = create_access_token(subject=user_b.id)
         user_b_headers = {"Authorization": f"Bearer {user_b_token}"}
 
@@ -2011,7 +2011,7 @@ class TestExecutionManifest:
         other_user = user_factory(username="otheruser", email="other@example.com")
 
         # Get auth headers for the other user
-        from app.common.security import create_access_token
+        from app.core.security import create_access_token
         access_token = create_access_token(subject=str(other_user.id))
         other_headers = {"Authorization": f"Bearer {access_token}"}
 

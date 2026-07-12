@@ -18,8 +18,8 @@ from typing import Optional
 
 import pandas as pd
 
-from app.common.utils.redis_cache import cache_get_bytes, cache_set_bytes, cache_delete_pattern
-from app.common.config import settings
+from app.shared.redis import cache_get_bytes, cache_set_bytes, cache_delete_pattern
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

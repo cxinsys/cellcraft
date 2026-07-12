@@ -23,7 +23,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.database import models
-from app.common.config import settings
+from app.core.config import settings
 
 LOGIN_URL = f"{settings.ROUTES_STR}/auth/login/access-token"
 

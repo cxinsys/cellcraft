@@ -28,8 +28,8 @@ from sqlalchemy.orm import Session
 from jose import jwt
 
 from app.database import models
-from app.common.config import settings
-from app.common.security import ALGORITHM
+from app.core.config import settings
+from app.core.security import ALGORITHM
 
 
 # ==============================================================================

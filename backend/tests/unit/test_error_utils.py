@@ -14,7 +14,7 @@ from unittest.mock import patch
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 
-from app.common.utils.error_utils import (
+from app.core.exceptions import (
     ErrorCategory,
     ErrorResponse,
     CellCraftHTTPException,
@@ -496,7 +496,7 @@ class TestTaskSubmissionError:
 class TestLogError:
     """Test log_error utility function."""
 
-    @patch('app.common.utils.error_utils.logger')
+    @patch('app.core.exceptions.logger')
     def test_log_error_with_context(self, mock_logger):
         """Test log_error function with context and exact kwargs validation."""
         # Arrange
@@ -522,7 +522,7 @@ class TestLogError:
         # Verify exc_info is True for stack trace
         assert call_kwargs["exc_info"] is True
 
-    @patch('app.common.utils.error_utils.logger')
+    @patch('app.core.exceptions.logger')
     def test_log_error_without_context(self, mock_logger):
         """Test log_error function without context."""
         # Arrange
@@ -542,7 +542,7 @@ class TestLogError:
         # Verify exc_info is True even without context
         assert call_kwargs["exc_info"] is True
 
-    @patch('app.common.utils.error_utils.logger')
+    @patch('app.core.exceptions.logger')
     def test_log_error_exc_info_always_true(self, mock_logger):
         """Test log_error always passes exc_info=True for stack trace capture.
 
@@ -674,7 +674,7 @@ class TestCreateErrorResponse:
         default_message = "Validation processing failed"
 
         # Act - Test with default_message
-        with patch('app.common.utils.error_utils.log_error') as mock_log_error:
+        with patch('app.core.exceptions.log_error') as mock_log_error:
             response = create_error_response(error, default_message)
 
             # Assert - Verify log_error was called
@@ -695,7 +695,7 @@ class TestCreateErrorResponse:
         assert response_data["error"]["message"] == default_message
 
         # Act - Test without default_message
-        with patch('app.common.utils.error_utils.log_error') as mock_log_error:
+        with patch('app.core.exceptions.log_error') as mock_log_error:
             response_no_default = create_error_response(error)
 
             # Assert - Verify log_error was called
@@ -727,7 +727,7 @@ class TestCreateErrorResponse:
         assert response_data["error"]["message"] == "Bad request"
         assert response_data["error"]["details"] == "An HTTP error occurred"
 
-    @patch('app.common.utils.error_utils.log_error')
+    @patch('app.core.exceptions.log_error')
     def test_create_error_response_with_generic_exception(self, mock_log_error):
         """Test create_error_response with generic Exception."""
         # Arrange

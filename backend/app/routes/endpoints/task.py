@@ -9,7 +9,7 @@ import json
 import io
 
 from app.common.utils.celery_utils import get_task_info
-from app.common.utils.docker_utils import container_manager
+from app.shared.docker import container_manager
 from app.common.utils.snakefile_dag_parser import SnakemakeDAGParser, SnakemakeRuleStatusTracker
 from app.common.utils.snakemake_native_parser import (
     parse_snakefile_native, 
@@ -19,7 +19,7 @@ from app.database.crud import crud_task, crud_workflow, crud_plugin
 from app.database.schemas.task import TaskMonitoringResponse, TaskMonitoringItem, PluginInfo
 from app.routes import dep
 from app.database import models
-from app.common.enums import PluginType
+from app.core.enums import PluginType
 import os
 from pathlib import Path
 import time
@@ -30,7 +30,7 @@ router = APIRouter()
 @router.get("/resources")
 async def get_resources():
     """리소스 할당 현황 및 실행 중 작업 목록 조회"""
-    from app.common.utils.resource_manager import get_resource_status
+    from app.shared.resources import get_resource_status
 
     status = get_resource_status()
     if status is None:
@@ -210,7 +210,7 @@ def revoke_task(
                 else:
                     task_folder = f"./user/{current_user.username}/workflow_{task_record.workflow_id}/algorithm_{task_record.algorithm_id}"
 
-                from app.common.utils.log_archive_utils import cleanup_task_results
+                from app.shared.archive import cleanup_task_results
                 cleanup_result = cleanup_task_results(Path(task_folder), preserve_folder=True)
                 results_cleanup_success = cleanup_result["success"]
 

@@ -17,12 +17,12 @@ from alembic.config import Config as AlembicConfig
 from alembic import command as alembic_command
 from sqlalchemy import inspect as sa_inspect
 
-from app.common.config import settings
-from app.common.utils.docker_utils import container_manager
+from app.core.config import settings
+from app.shared.docker import container_manager
 from app.common.utils.plugin_sync_manager import PluginSyncManager
 from app.common.utils.plugin_version_validator import PluginVersionValidator
 from app.database import models
-from app.database.conn import engine, initialize_plugins_from_csv, get_db_session
+from app.db.session import engine, initialize_plugins_from_csv, get_db_session
 
 # Docker pull 작업을 위한 ThreadPoolExecutor (메인 이벤트 루프 블로킹 방지)
 _docker_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="docker-pull")

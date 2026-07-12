@@ -9,8 +9,8 @@ Worker Dockerfiles boot via ``celery -A app.worker.app worker``.
 from celery import current_app as current_celery_app
 from celery.signals import worker_shutting_down
 
-from app.common.config import settings
-from app.common.utils.docker_utils import container_manager
+from app.core.config import settings
+from app.shared.docker import container_manager
 
 
 def create_celery():
@@ -58,9 +58,9 @@ def create_celery():
         task_reject_on_worker_lost=True  # 워커 손실 시 작업 거부
     )
 
-    # 태스크 등록 보장: 워커가 app.routes.celery_tasks의 태스크를 인식하도록 include에 명시.
-    # (celery_tasks.py는 웹 계층을 import하지 않으므로 워커가 FastAPI를 끌어오지 않음)
-    celery_app.conf.update(include=['app.routes.celery_tasks'])
+    # 태스크 등록 보장: 워커가 app.worker.tasks의 태스크를 인식하도록 include에 명시.
+    # (app.worker.tasks는 웹 계층을 import하지 않으므로 워커가 FastAPI를 끌어오지 않음)
+    celery_app.conf.update(include=['app.worker.tasks'])
 
     return celery_app
 
@@ -69,7 +69,7 @@ celery = create_celery()
 
 # 태스크 모듈을 import 시점에 로드하여 태스크 레지스트리를 채운다.
 # (celery_tasks.py는 웹 계층을 import하지 않으므로 워커가 FastAPI를 끌어오지 않음)
-import app.routes.celery_tasks  # noqa: E402,F401
+import app.worker.tasks  # noqa: E402,F401
 
 
 # Celery 이벤트 핸들러를 정의합니다

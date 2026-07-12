@@ -12,12 +12,12 @@ from fastapi.responses import FileResponse, JSONResponse
 from app.common.utils.plugin_utils import verify_dependencies, get_plugin_path
 from app.common.utils.celery_utils import get_task_info
 from app.common.utils.snakemake_utils import change_snakefile_parameter
-from app.common.utils.error_utils import (
+from app.core.exceptions import (
     PluginNotFoundError, ScriptNotFoundError, FileNotFoundError as CellCraftFileNotFoundError,
     ValidationError, WorkflowError, SnakefileGenerationError, TaskSubmissionError,
     log_error, create_error_response
 )
-from app.common.utils.cache_utils import (
+from app.shared.cache import (
     generate_cache_key, check_cache_with_expiry, create_symbolic_link,
     save_result_to_cache, maybe_cleanup_cache, update_cache_link_location,
     remove_cache_by_visualization_path
@@ -29,7 +29,7 @@ from app.common.utils.workflow_utils import (
     resolve_algorithm_path_from_files, validate_file_paths,
     find_connected_visualization_nodes, extract_file_sources
 )
-from app.common.utils.log_archive_utils import cleanup_task_results
+from app.shared.archive import cleanup_task_results
 from app.database.crud import crud_workflow, crud_plugin
 from app.database.schemas.workflow import (
     WorkflowDelete, WorkflowCreate, WorkflowUpdate, WorkflowResult, WorkflowFind, 
@@ -38,7 +38,7 @@ from app.database.schemas.workflow import (
 )
 from app.routes import dep
 from app.database import models
-from app.routes.celery_tasks import process_data_task
+from app.worker.tasks import process_data_task
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -144,7 +144,7 @@ def compileWorkflow(
                 if num_devices_raw is not None:
                     resource_slots = int(num_devices_raw)
                 else:
-                    from app.common.config import settings as app_settings
+                    from app.core.config import settings as app_settings
                     resource_slots = (app_settings.RESOURCE_DEFAULT_GPU_SLOTS
                                      if use_gpu else app_settings.RESOURCE_DEFAULT_CPU_SLOTS)
 

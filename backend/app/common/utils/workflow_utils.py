@@ -7,7 +7,7 @@ import logging
 import json
 import gc
 from typing import Dict, List, Optional, Tuple, Any
-from app.common.utils.error_utils import SnakefileGenerationError
+from app.core.exceptions import SnakefileGenerationError
 
 # Configure logging
 logger = logging.getLogger(__name__)

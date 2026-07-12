@@ -36,9 +36,9 @@
 | `routes/celery_tasks.py` | `worker/tasks.py` | `name=` 고정 완료 상태(PR-2)라 안전. Dockerfile의 `include`/autodiscover 경로 확인 |
 
 ### 체크리스트
-- [ ] 위 매핑대로 `git mv` + shim + import 갱신
-- [ ] `grep -rn "from app.common\|from app.database.conn\|from app.routes.celery_tasks" backend/app` 결과 0 (shim 파일 제외)
-- [ ] 공통 머지 게이트 4종 통과
+- [x] 위 매핑대로 `git mv` + shim + import 갱신
+- [x] `grep -rn "from app.common\|from app.database.conn\|from app.routes.celery_tasks" backend/app` 결과 0 (shim 파일 제외)
+- [x] 공통 머지 게이트 4종 통과
 
 ---
 

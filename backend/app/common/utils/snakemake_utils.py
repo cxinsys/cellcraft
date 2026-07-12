@@ -6,7 +6,7 @@ from typing import Dict, Any
 import time
 from datetime import datetime
 
-from app.common.utils.docker_utils import container_manager
+from app.shared.docker import container_manager
 from app.database import models
 
 def get_log_path(snakefile_path: str) -> Path:
@@ -116,7 +116,7 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         client = docker.from_env()
         
         # 플러그인 타입에 따라 이미지 이름 결정
-        from app.database.conn import get_db_session
+        from app.db.session import get_db_session
         from app.common.utils.github_registry_client import GitHubRegistryClient
 
         # 세션 내에서 필요한 값 추출 (세션 닫힌 후에도 사용 가능)
@@ -165,7 +165,7 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
 
         # Set up logs symlink to executions/{task_id}/logs/ for log preservation
         if task_id:
-            from app.common.utils.log_archive_utils import setup_execution_logs_symlink
+            from app.shared.archive import setup_execution_logs_symlink
             symlink_result = setup_execution_logs_symlink(snakefile_dir, task_id)
             if symlink_result["success"]:
                 print(f"Logs will be stored in: {symlink_result['logs_path']}")
@@ -321,7 +321,7 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         # Copy meta.yml to executions/{task_id}/ directory
         # (Logs are already in executions/{task_id}/logs/ via symlink)
         if task_id:
-            from app.common.utils.log_archive_utils import copy_meta_to_execution
+            from app.shared.archive import copy_meta_to_execution
             meta_result = copy_meta_to_execution(
                 snakefile_dir=snakefile_dir,
                 task_id=task_id
