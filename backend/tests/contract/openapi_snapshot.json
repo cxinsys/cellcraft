@@ -476,7 +476,7 @@
             "type": "object"
           },
           "plugin": {
-            "$ref": "#/components/schemas/app__database__schemas__plugin__PluginInfo"
+            "$ref": "#/components/schemas/app__plugin__schemas__PluginInfo"
           },
           "rules": {
             "items": {
@@ -614,7 +614,7 @@
             "type": "integer"
           },
           "plugin": {
-            "$ref": "#/components/schemas/app__database__schemas__task__PluginInfo"
+            "$ref": "#/components/schemas/app__task__schemas__PluginInfo"
           },
           "plugin_name": {
             "title": "Plugin Name",
@@ -1094,7 +1094,7 @@
         "title": "WorkflowVisualizationRequest",
         "type": "object"
       },
-      "app__database__schemas__plugin__PluginInfo": {
+      "app__plugin__schemas__PluginInfo": {
         "properties": {
           "dependencyFiles": {
             "items": {
@@ -1136,7 +1136,7 @@
         "title": "PluginInfo",
         "type": "object"
       },
-      "app__database__schemas__task__PluginInfo": {
+      "app__task__schemas__PluginInfo": {
         "description": "Plugin information for task monitoring response.",
         "properties": {
           "plugin_type": {
