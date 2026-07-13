@@ -25,9 +25,9 @@
 4. 각 모듈 단위 테스트 보강 (분할 과정에서 발견되는 죽은 코드는 **삭제하지 말고 목록만 기록** — 삭제는 별도 PR)
 
 ### 체크리스트
-- [ ] 모든 신규 모듈 800줄 이하
-- [ ] `plugin/` 내부 지연 import(함수 내부 import) 제거 — 순환이 있으면 모듈 경계 재조정으로 해결
-- [ ] 공통 머지 게이트 4종 + plugin characterization 테스트 통과
+- [x] 모든 신규 모듈 800줄 이하 — files.py 456 / metadata.py 657 / runtime.py 727 / builder.py 515 / utils.py 63 (잔류 facade)
+- [x] `plugin/` 내부 지연 import(함수 내부 import) 제거 — 새 모듈 함수 내부 import 0건 (create_plugin_folder의 `import tempfile`를 files.py 상단으로 승격). builder↔worker 순환은 utils facade가 builder 심볼을 re-export하지 않도록 경계 조정(builder 심볼은 `app.plugin.builder`에서 직접 import)하여 해소
+- [x] 공통 머지 게이트 4종 + plugin characterization 테스트 통과 — 전체 570 passed / 68 failed(baseline 집합 동일), lint-imports 2 kept/0 broken, WORKER OK(app.main 미로드)
 
 ---
 

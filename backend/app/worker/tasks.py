@@ -10,7 +10,6 @@ import logging
 
 from app.workflow.compiler.snakefile import snakemakeProcess
 from app.shared.docker import container_manager
-from app.plugin import utils as plugin_utils
 from app.task.crud import start_task, end_task, record_plugin_image_uri
 from app.shared.cache import save_result_to_cache
 
@@ -53,7 +52,7 @@ class MyTask(Task):
         plugin_id = None
         if plugin_name:
             try:
-                from app.plugin.utils import generate_plugin_image_uri
+                from app.plugin.builder import generate_plugin_image_uri
                 from app.db.session import get_db_session
                 from app import models
 
@@ -440,7 +439,8 @@ def build_plugin_task(self, plugin_name: str = None, user_id: int = None, workfl
         self.update_state(state="RUNNING", meta={"message": "Starting Docker build process..."})
 
         # Docker 이미지 빌드
-        build_result = plugin_utils.build_plugin_docker_image(
+        from app.plugin.builder import build_plugin_docker_image
+        build_result = build_plugin_docker_image(
             plugin_path=plugin_folder,
             plugin_name=plugin_name,
         )
@@ -457,7 +457,7 @@ def build_plugin_task(self, plugin_name: str = None, user_id: int = None, workfl
 
         # Record plugin_image_uri for local build
         try:
-            from app.plugin.utils import generate_plugin_image_uri
+            from app.plugin.builder import generate_plugin_image_uri
             plugin_image_uri = generate_plugin_image_uri(plugin_name, "local")
             record_plugin_image_uri(task_id, plugin_image_uri, user_id)
             print(f'Recorded plugin_image_uri: {plugin_image_uri}')
