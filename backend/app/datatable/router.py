@@ -1,29 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi import Depends
 
 from app.auth import deps as dep
-from app import models
-from app.workflow.utils import load_tab_file, transform_df_to_vgt_format
-from app.datatable.utils import RemoteDataTable, DataTableEvent
+from app.datatable.utils import DataTableEvent
+from app.datatable import service
 
 router = APIRouter()
 
+
 @router.post("/load_data")
 def load_data(vgt_info: DataTableEvent, current_user: str = Depends(dep.get_current_active_user)):
-    try:
-        from app.file.path_resolver import resolve_data_file_path
-        from app.datatable.cache import get_cached_dataframe, set_cached_dataframe
-
-        file_path = resolve_data_file_path(vgt_info.file_name, current_user.username, vgt_info.source)
-
-        df = get_cached_dataframe(file_path)
-        if df is None:
-            df = load_tab_file(file_path)
-            set_cached_dataframe(file_path, df)
-
-        remote_table = RemoteDataTable(df, vgt_info)
-        data = remote_table.get_filtered_sorted_paginated_data()
-        vgt_data = transform_df_to_vgt_format(data["df"])
-        return {"status": "success", "columns": vgt_data['columns'], "rows": vgt_data["rows"], "totalRecords": data["totalRecords"]}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return service.load_data(vgt_info=vgt_info, current_user=current_user)

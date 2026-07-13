@@ -23,6 +23,7 @@ from unittest.mock import patch, MagicMock
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
+from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationFailedError
 from app.workflow import service
 from app.workflow.schemas import (
     WorkflowCreate, WorkflowResult, WorkflowVisualizationRequest,
@@ -448,7 +449,7 @@ class TestWorkflowCrud:
         user = _user()
         db = MagicMock()
         with patch("app.workflow.service.crud_workflow.get_user_workflow", return_value=None):
-            with pytest.raises(HTTPException) as exc:
+            with pytest.raises(ValidationFailedError) as exc:
                 service.find_workflow(db=db, user=user, workflow_id=42)
         assert exc.value.status_code == 400
         assert "not exists" in exc.value.detail
@@ -457,7 +458,7 @@ class TestWorkflowCrud:
         user = _user()
         db = MagicMock()
         with patch("app.workflow.service.crud_workflow.get_user_workflows", return_value=[]):
-            with pytest.raises(HTTPException) as exc:
+            with pytest.raises(ValidationFailedError) as exc:
                 service.list_workflows(db=db, user=user)
         assert exc.value.status_code == 400
 
@@ -465,7 +466,7 @@ class TestWorkflowCrud:
         user = _user()
         db = MagicMock()
         with patch("app.workflow.service.crud_workflow.get_user_workflow", return_value=None):
-            with pytest.raises(HTTPException) as exc:
+            with pytest.raises(ValidationFailedError) as exc:
                 service.delete_workflow(db=db, user=user, workflow_id=1)
         assert exc.value.status_code == 400
 
@@ -527,7 +528,7 @@ class TestNodeData:
         db = MagicMock()
         read = WorkflowNodeFileRead(id=9, node_id="n", node_name="x", file_extension="json")
         with patch("app.workflow.service.crud_workflow.get_user_workflow", return_value=None):
-            with pytest.raises(HTTPException) as exc:
+            with pytest.raises(ValidationFailedError) as exc:
                 service.read_node_data(db=db, user=user, node_file_info=read)
         assert exc.value.status_code == 400
 
@@ -539,7 +540,7 @@ class TestResultAccess:
         user = _user(username="resu")
         monkeypatch.chdir(tmp_path)
         wr = WorkflowResult(id=1, algorithm_id=1, filename=None)
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(NotFoundError) as exc:
             service.get_results(user=user, workflow_result=wr)
         assert exc.value.status_code == 404
 
@@ -557,7 +558,7 @@ class TestResultAccess:
 
     def test_get_visualization_result_bad_file_raises_400(self):
         wr = WorkflowResult(id=1, algorithm_id=1, filename="/does/not/exist.json")
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(ValidationFailedError) as exc:
             service.get_visualization_result(workflow_result=wr)
         assert exc.value.status_code == 400
 
@@ -598,6 +599,6 @@ class TestResultAccess:
         wr = WorkflowResult(id=1, algorithm_id=1, filename="absent.json")
         # Avoid real sleeps during the retry loop.
         with patch("app.workflow.service.time.sleep"):
-            with pytest.raises(HTTPException) as exc:
+            with pytest.raises(ValidationFailedError) as exc:
                 service.check_visualization_result(user=user, workflow_result=wr)
         assert exc.value.status_code == 400
