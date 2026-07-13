@@ -1,63 +1,60 @@
+"""Workflow 유틸리티 (PR-10 부분 분할).
+
+compile 파이프라인의 Snakefile rule 추출/생성 로직은 ``compiler/visualization.py``로,
+공유 예외 계층은 ``workflow/errors.py``로 이동했다. 이 모듈은 데이터 로딩/그래프
+탐색/파라미터 생성/파일 경로 검증 등 잔류 헬퍼를 담고, 이동한 심볼들을 아래에서
+그대로 re-export 하여 기존 import 경로(``app.workflow.utils.extract_rule_block``,
+``app.workflow.utils.FileValidationError`` 등)를 유지한다.
+"""
 import os
 import pandas as pd
-import re
 import scanpy as sc
 import numpy as np
 import logging
 import json
 import gc
 from typing import Dict, List, Optional, Tuple, Any
-from app.core.exceptions import SnakefileGenerationError
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Custom exceptions for better error handling
-class WorkflowUtilsError(Exception):
-    """Base exception for workflow utilities."""
-    pass
-
-class FileValidationError(WorkflowUtilsError):
-    """Exception raised when file validation fails."""
-    def __init__(self, message: str, file_path: str = None, context: Dict[str, Any] = None):
-        super().__init__(message)
-        self.file_path = file_path
-        self.context = context or {}
-        logger.error(f"File validation error: {message}. Path: {file_path}. Context: {context}")
-
-class SnakefileProcessingError(WorkflowUtilsError):
-    """Exception raised when Snakefile processing fails."""
-    def __init__(self, message: str, snakefile_path: str = None, rule_name: str = None):
-        super().__init__(message)
-        self.snakefile_path = snakefile_path
-        self.rule_name = rule_name
-        logger.error(f"Snakefile processing error: {message}. File: {snakefile_path}, Rule: {rule_name}")
-
-class AlgorithmResolutionError(WorkflowUtilsError):
-    """Exception raised when algorithm path resolution fails."""
-    def __init__(self, message: str, node_id: str = None, available_files: List = None):
-        super().__init__(message)
-        self.node_id = node_id
-        self.available_files = available_files
-        logger.error(f"Algorithm resolution error: {message}. Node ID: {node_id}")
+# --- Facade re-exports (PR-10 split) -------------------------------------
+# 예외 계층은 workflow/errors.py로, Snakefile 처리 함수는 compiler/visualization.py로
+# 이동했다. 기존 참조 경로 호환을 위해 여기서 re-export 한다.
+from app.workflow.errors import (  # noqa: F401
+    WorkflowUtilsError,
+    FileValidationError,
+    SnakefileProcessingError,
+    AlgorithmResolutionError,
+)
+from app.workflow.compiler.visualization import (  # noqa: F401
+    extract_rule_block,
+    generate_visualization_snakefile,
+    validate_visualization_rule,
+    get_rule_metadata,
+    _get_available_rules,
+    _apply_replacements,
+    _extract_filename_from_pattern,
+)
+# -------------------------------------------------------------------------
 
 # def load_tab_file(file_path: str, max_rows: int = 5000):
 def load_tab_file(file_path: str):
     """
     Load tabular data from CSV, TSV, or H5AD files.
-    
+
     Args:
         file_path: Path to the file to load
-        
+
     Returns:
         pandas.DataFrame: Loaded data
-        
+
     Raises:
         FileValidationError: If file doesn't exist or has invalid extension
         WorkflowUtilsError: If file loading fails
     """
     logger.info(f"Loading tabular file: {file_path}")
-    
+
     # Check if the file exists
     if not os.path.isfile(file_path):
         raise FileValidationError(
@@ -65,10 +62,10 @@ def load_tab_file(file_path: str):
             file_path=file_path,
             context={"operation": "load_tab_file"}
         )
-    
+
     # Extract the file extension
     file_extension = os.path.splitext(file_path)[1].lower()
-    
+
     # Check if the file extension is supported
     supported_extensions = ['.csv', '.tsv', '.h5ad']
     if file_extension not in supported_extensions:
@@ -77,7 +74,7 @@ def load_tab_file(file_path: str):
             file_path=file_path,
             context={"extension": file_extension, "supported": supported_extensions}
         )
-    
+
     try:
         if file_extension == '.h5ad':
             logger.debug(f"Loading H5AD file: {file_path}")
@@ -126,11 +123,11 @@ def load_tab_file(file_path: str):
             # Determine the separator based on the file extension
             sep = ',' if file_extension == '.csv' else '\t'
             logger.debug(f"Loading {'CSV' if file_extension == '.csv' else 'TSV'} file: {file_path}")
-            
+
             # Load the file with pandas
             df = pd.read_csv(file_path, sep=sep)
             logger.debug(f"Successfully loaded tabular file with shape {df.shape}")
-            
+
             # Return the dataframe
             return df
     except Exception as e:
@@ -148,12 +145,12 @@ def transform_df_to_vgt_format(df):
     ]
 
     rows = df.to_dict(orient='records')
-    
+
     return {"columns": columns, "rows": rows}
 
 def extract_all_algorithms(workflow_info):
     algorithms = []
-    
+
     # 탐색하여 class가 "Algorithm"인 모든 객체를 찾음
     for key, value in workflow_info.items():
         if value.get("class") == "Algorithm":
@@ -249,7 +246,7 @@ def extract_algorithm_data(workflow_info, algorithm_id):
     for key, value in workflow_info.items():
         if value.get("class") == "Algorithm" and str(value.get("id")) == algorithm_id:
             algorithm_data = value.get("data", {})
-            
+
             # 필드 추출
             selected_plugin = algorithm_data.get("selectedPlugin")
             selected_plugin_input_output = algorithm_data.get("selectedPluginInputOutput")
@@ -263,7 +260,7 @@ def extract_algorithm_data(workflow_info, algorithm_id):
                 "selectedPluginInputOutput": selected_plugin_input_output,
                 "selectedPluginRules": selected_plugin_rules
             }
-    
+
     # "Algorithm" 클래스를 가진 객체가 없을 경우 빈 딕셔너리 반환
     return {}
 
@@ -274,7 +271,7 @@ def extract_visualization_data(workflow_info, node_id):
         print(value.get("id"))
         if value.get("class") == "Visualization" and str(value.get("id")) == node_id:
             visualization_data = value.get("data", {})
-            
+
             # 필드 추출
             selected_visualization_params= visualization_data.get("selectedVisualizationParams")
             selected_visualization_title = visualization_data.get("selectedVisualizationTitle")
@@ -284,7 +281,7 @@ def extract_visualization_data(workflow_info, node_id):
                 "selectedVisualizationParams": selected_visualization_params,
                 "selectedVisualizationTitle": selected_visualization_title
             }
-    
+
     # "Visualization" 클래스를 가진 객체가 없을 경우 빈 딕셔너리 반환
     return {}
 
@@ -354,7 +351,7 @@ def generate_plugin_params(selectedPluginRules):
         for parameter in rule.get("parameters", []):
             # 파라미터 이름 추출
             parameter_name = parameter.get("name")
-            
+
             plugin_params[parameter_name] = parameter.get("defaultValue")
 
     return plugin_params
@@ -369,17 +366,17 @@ def generate_visualization_params(selectedVisualizationParams):
         param_type = parameter.get("type")
         param_name = parameter.get("name")
         param_value = parameter.get("defaultValue")
-        
+
         # inputFile과 optionalInputFile은 visualization_inputs에 할당
         if param_type in ["inputFile", "optionalInputFile"]:
             if "target" in param_name:
                 param_name = param_name + parameter.get("fileExtension")
             visualization_inputs[param_name] = param_value
-            
+
         # outputFile은 visualization_outputs에 할당
         elif param_type == "outputFile":
             visualization_outputs[param_name] = param_value
-            
+
         # 나머지는 visualization_params에 할당
         else:
             visualization_params[param_name] = param_value
@@ -399,173 +396,28 @@ def extract_target_data(selectedPluginInputOutput, user_workflow_task_path):
     # 데이터 리스트 반환
     return data_list
 
-def extract_rule_block(snakefile_path: str, visualization_title: str, result_path: str, 
-                      parameters: Optional[Dict[str, Any]] = None, 
-                      file_mappings: Optional[Dict[str, str]] = None) -> Tuple[str, str]:
-    """
-    Enhanced rule extraction with dynamic parameter replacement and better error handling.
-    
-    Args:
-        snakefile_path: Path to the Snakefile containing rules
-        visualization_title: Name of the rule to extract
-        result_path: Path where extracted rule should be saved
-        parameters: Optional dict of parameters to replace in the rule
-        file_mappings: Optional dict mapping file placeholders to actual paths
-        
-    Returns:
-        Tuple of (extracted_content, result_path)
-        
-    Raises:
-        SnakefileProcessingError: If snakefile processing fails
-        FileValidationError: If files don't exist or are invalid
-    """
-    logger.info(f"Extracting rule '{visualization_title}' from {snakefile_path}")
-    
-    # Validate inputs
-    if not snakefile_path:
-        raise SnakefileProcessingError(
-            "Snakefile path is required",
-            snakefile_path=snakefile_path,
-            rule_name=visualization_title
-        )
-    
-    if not visualization_title:
-        raise SnakefileProcessingError(
-            "Rule name is required",
-            snakefile_path=snakefile_path,
-            rule_name=visualization_title
-        )
-    
-    if not os.path.exists(snakefile_path):
-        raise FileValidationError(
-            f"Snakefile not found",
-            file_path=snakefile_path,
-            context={"operation": "extract_rule_block", "rule": visualization_title}
-        )
-    
-    if not os.path.isfile(snakefile_path):
-        raise FileValidationError(
-            f"Path is not a file",
-            file_path=snakefile_path,
-            context={"operation": "extract_rule_block", "rule": visualization_title}
-        )
-    
-    # rule 블록들을 분리하기 위한 시작 패턴
-    rule_pattern = f"rule {visualization_title}:"
-    
-    # 파일 내용을 줄 단위로 분리
-    try:
-        with open(snakefile_path, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
-    except UnicodeDecodeError as e:
-        raise FileValidationError(
-            f"Failed to read Snakefile: encoding error",
-            file_path=snakefile_path,
-            context={"error": str(e), "encoding": "utf-8"}
-        )
-    except Exception as e:
-        raise SnakefileProcessingError(
-            f"Failed to read Snakefile: {str(e)}",
-            snakefile_path=snakefile_path,
-            rule_name=visualization_title
-        ) from e
-    
-    result = []
-    is_target_rule = False
-    current_indent = 0
-    rule_found = False
-    
-    for line_num, line in enumerate(lines, 1):
-        # 대상 rule 블록의 시작을 찾음
-        if line.startswith(rule_pattern):
-            is_target_rule = True
-            rule_found = True
-            current_indent = len(line) - len(line.lstrip())
-            result.append(line)
-            logger.debug(f"Found rule '{visualization_title}' at line {line_num}")
-            continue
-            
-        # rule 블록 내부의 내용을 수집
-        if is_target_rule:
-            # 현재 줄의 들여쓰기 수준 확인
-            if line.strip() == "":
-                result.append(line)  # Preserve empty lines within the rule
-                continue
-                
-            line_indent = len(line) - len(line.lstrip())
-            
-            # 들여쓰기가 같거나 큰 경우에만 해당 rule에 속한 것으로 간주
-            if line_indent > current_indent:
-                result.append(line)
-            else:
-                break
-    
-    if not rule_found:
-        try:
-            available_rules = _get_available_rules(snakefile_path)
-        except Exception:
-            available_rules = ["Unable to determine available rules"]
-        raise SnakefileProcessingError(
-            f"Rule '{visualization_title}' not found. Available rules: {available_rules}",
-            snakefile_path=snakefile_path,
-            rule_name=visualization_title
-        )
-                
-    # 빈 줄 제거하고 결과 문자열 생성
-    result = [line.rstrip() for line in result if line.strip() or line.strip() == ""]
-    extracted_content = 'import os\n' + '\n'.join(result)
-    
-    # Apply parameter and file mapping replacements if provided
-    if parameters or file_mappings:
-        extracted_content = _apply_replacements(extracted_content, parameters, file_mappings)
-    
-    # 추출한 내용을 파일에 쓰기
-    try:
-        # Ensure parent directory exists
-        result_dir = os.path.dirname(result_path)
-        if result_dir:
-            os.makedirs(result_dir, exist_ok=True)
-        
-        with open(result_path, 'w', encoding='utf-8') as file:
-            file.write(extracted_content)
-        logger.info(f"Successfully extracted rule to {result_path}")
-    except PermissionError as e:
-        raise FileValidationError(
-            f"Permission denied writing to result path",
-            file_path=result_path,
-            context={"operation": "write_extracted_rule", "error": str(e)}
-        )
-    except Exception as e:
-        raise SnakefileProcessingError(
-            f"Failed to write extracted rule: {str(e)}",
-            snakefile_path=snakefile_path,
-            rule_name=visualization_title
-        ) from e
-
-    return extracted_content, result_path
-
 def resolve_algorithm_path_from_files(workflow_info: dict, current_node_id: str, available_files: list) -> Optional[str]:
     """
     Resolve Algorithm node path from visualization node connections and available files.
-    
-    This function traverses the workflow graph to find the Algorithm node connected to a 
+
+    This function traverses the workflow graph to find the Algorithm node connected to a
     Visualization node through ResultFiles nodes. The connection flow is typically:
     Algorithm -> ResultFiles -> Visualization
-    
+
     Args:
         workflow_info (dict): Complete workflow information containing nodes and connections
                              Expected structure: {node_key: {id, class, inputs, outputs, ...}}
         current_node_id (str): ID of the visualization node requesting files
         available_files (list): List of available files from ResultFiles node
                                Can be list of strings or list of dicts with 'name'/'filename' keys
-        
+
     Returns:
-        Optional[str]: Algorithm ID that can be used to construct file paths like 
+        Optional[str]: Algorithm ID that can be used to construct file paths like
                       'algorithm_{id}/results/{filename}', or None if not found
-        
+
     Raises:
         AlgorithmResolutionError: If algorithm path resolution fails
-        
+
     Example:
         algorithm_id = resolve_algorithm_path_from_files(
             workflow_info=workflow.workflow_info,
@@ -581,15 +433,15 @@ def resolve_algorithm_path_from_files(workflow_info: dict, current_node_id: str,
                 "Workflow info is required",
                 node_id=current_node_id
             )
-        
+
         if not current_node_id:
             raise AlgorithmResolutionError(
                 "Current node ID is required",
                 available_files=available_files
             )
-        
+
         logger.info(f"Resolving algorithm path for visualization node {current_node_id}")
-        
+
         # Find the visualization node
         visualization_node = None
         for node_key, node_value in workflow_info.items():
@@ -597,22 +449,22 @@ def resolve_algorithm_path_from_files(workflow_info: dict, current_node_id: str,
                 if node_value.get("class") == "Visualization" or node_value.get("data", {}).get("isVisualization", False):
                     visualization_node = node_value
                     break
-        
+
         if not visualization_node:
             raise AlgorithmResolutionError(
                 f"Visualization node with ID {current_node_id} not found in workflow",
                 node_id=current_node_id,
                 available_files=available_files
             )
-        
+
         logger.debug(f"Found visualization node: {visualization_node.get('html', 'Unknown')}")
-        
+
         # Get input connections from the visualization node
         inputs = visualization_node.get("inputs", {})
         if not inputs:
             logger.warning(f"No inputs found for visualization node {current_node_id}")
             return None
-            
+
         # Traverse input connections to find ResultFiles nodes
         resultfiles_node_ids = []
         for input_key, input_data in inputs.items():
@@ -629,11 +481,11 @@ def resolve_algorithm_path_from_files(workflow_info: dict, current_node_id: str,
                                 resultfiles_node_ids.append(connected_node_id)
                                 logger.debug(f"Found ResultFiles node: {connected_node_id}")
                             break
-        
+
         if not resultfiles_node_ids:
             logger.warning(f"No ResultFiles nodes connected to visualization node {current_node_id}")
             return None
-            
+
         # From ResultFiles nodes, find connected Algorithm nodes
         algorithm_ids = []
         for resultfiles_id in resultfiles_node_ids:
@@ -654,11 +506,11 @@ def resolve_algorithm_path_from_files(workflow_info: dict, current_node_id: str,
                                             logger.debug(f"Found Algorithm node: {algorithm_node_id}")
                                         break
                     break
-        
+
         if not algorithm_ids:
             logger.warning("No Algorithm nodes found connected to ResultFiles nodes")
             return None
-            
+
         # Try each algorithm ID to see which one has valid file paths
         for algorithm_id in algorithm_ids:
             logger.debug(f"Checking algorithm {algorithm_id} for valid file paths")
@@ -670,11 +522,11 @@ def resolve_algorithm_path_from_files(workflow_info: dict, current_node_id: str,
                         filename = file_item.get("name") or file_item.get("filename")
                     else:
                         filename = file_item
-                    
+
                     if filename:
                         # Extract just the filename without path
                         filenames.append(os.path.basename(filename))
-                
+
                 if filenames:
                     try:
                         # This is a placeholder check - we'll validate paths in validate_file_paths
@@ -683,13 +535,13 @@ def resolve_algorithm_path_from_files(workflow_info: dict, current_node_id: str,
                     except Exception as e:
                         logger.debug(f"Algorithm {algorithm_id} validation failed: {e}")
                         continue
-        
+
         raise AlgorithmResolutionError(
             "No valid algorithm path found with existing files",
             node_id=current_node_id,
             available_files=available_files
         )
-        
+
     except AlgorithmResolutionError:
         # Re-raise our custom exceptions
         raise
@@ -703,27 +555,27 @@ def resolve_algorithm_path_from_files(workflow_info: dict, current_node_id: str,
 def validate_file_paths(user_path: str, workflow_id: int, algorithm_id: str, filenames: list) -> list:
     """
     Validate that files exist in the expected algorithm results directory.
-    
+
     This function constructs the expected file paths following the CellCraft directory structure:
     {user_path}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/{filename}
-    
+
     Args:
         user_path (str): Base user data path (e.g., backend/user_data/{user_id}/)
         workflow_id (int): Workflow ID for path construction
-        algorithm_id (str): Algorithm ID for path construction  
+        algorithm_id (str): Algorithm ID for path construction
         filenames (list): List of filenames to validate (just filenames, not full paths)
-        
+
     Returns:
         list: List of validated absolute file paths that exist on the filesystem
-        
+
     Raises:
         FileValidationError: If validation fails or files don't exist
-        
+
     Example:
         validated_paths = validate_file_paths(
             user_path="/home/user/cellcraft/backend/user_data/123/",
             workflow_id=5,
-            algorithm_id="2", 
+            algorithm_id="2",
             filenames=["result.csv", "output.txt"]
         )
         # Returns: ["/home/user/.../workflow_5/algorithm_2/results/result.csv", ...]
@@ -735,29 +587,29 @@ def validate_file_paths(user_path: str, workflow_id: int, algorithm_id: str, fil
                 "User path is required",
                 context={"workflow_id": workflow_id, "algorithm_id": algorithm_id}
             )
-        
+
         if not workflow_id:
             raise FileValidationError(
                 "Workflow ID is required",
                 context={"user_path": user_path, "algorithm_id": algorithm_id}
             )
-        
+
         if not algorithm_id:
             raise FileValidationError(
                 "Algorithm ID is required",
                 context={"user_path": user_path, "workflow_id": workflow_id}
             )
-        
+
         logger.info(f"Validating file paths for algorithm {algorithm_id} in workflow {workflow_id}")
-        
+
         if not filenames:
             logger.warning("No filenames provided for validation")
             return []
-        
+
         # Construct the expected results directory path
         results_dir = os.path.join(user_path, f"workflow_{workflow_id}", f"algorithm_{algorithm_id}", "results")
         logger.debug(f"Expected results directory: {results_dir}")
-        
+
         # Check if the results directory exists
         if not os.path.exists(results_dir):
             raise FileValidationError(
@@ -769,7 +621,7 @@ def validate_file_paths(user_path: str, workflow_id: int, algorithm_id: str, fil
                     "expected_dir": results_dir
                 }
             )
-        
+
         if not os.path.isdir(results_dir):
             raise FileValidationError(
                 f"Results path is not a directory",
@@ -779,19 +631,19 @@ def validate_file_paths(user_path: str, workflow_id: int, algorithm_id: str, fil
                     "algorithm_id": algorithm_id
                 }
             )
-        
+
         validated_paths = []
         missing_files = []
-        
+
         # Validate each filename
         for filename in filenames:
             if not filename:
                 continue
-                
+
             # Extract just the filename without any path components
             clean_filename = os.path.basename(filename)
             expected_path = os.path.join(results_dir, clean_filename)
-            
+
             if os.path.exists(expected_path) and os.path.isfile(expected_path):
                 # Return relative path instead of absolute path to avoid Docker path issues
                 validated_paths.append(expected_path)
@@ -799,7 +651,7 @@ def validate_file_paths(user_path: str, workflow_id: int, algorithm_id: str, fil
             else:
                 missing_files.append(clean_filename)
                 logger.warning(f"File not found: {expected_path}")
-        
+
         if not validated_paths:
             raise FileValidationError(
                 f"No valid files found in results directory",
@@ -811,13 +663,13 @@ def validate_file_paths(user_path: str, workflow_id: int, algorithm_id: str, fil
                     "requested_files": filenames
                 }
             )
-        
+
         if missing_files:
             logger.warning(f"Some files were not found: {', '.join(missing_files)}")
-        
+
         logger.info(f"Successfully validated {len(validated_paths)} file paths")
         return validated_paths
-        
+
     except FileValidationError:
         # Re-raise file validation errors as-is
         raise
@@ -831,386 +683,3 @@ def validate_file_paths(user_path: str, workflow_id: int, algorithm_id: str, fil
                 "filenames": filenames
             }
         ) from e
-
-
-def generate_visualization_snakefile(plugin_path: str, selected_script_name: str, 
-                                   visualization_params: Dict[str, Any], 
-                                   file_mappings: Dict[str, str], 
-                                   output_path: str) -> str:
-    """
-    Generate a standalone executable Snakefile for a specific visualization script.
-    
-    This function reads a plugin's Snakefile, extracts only the rule for the selected script,
-    replaces parameter placeholders with actual values, and generates a standalone Snakefile
-    that can be executed independently.
-    
-    Args:
-        plugin_path: Path to the plugin directory containing Snakefile
-        selected_script_name: Name of the visualization rule/script to extract
-        visualization_params: Dictionary of visualization parameters and their values
-        file_mappings: Dictionary mapping input file placeholders to actual file paths
-        output_path: Path where the generated Snakefile should be saved
-        
-    Returns:
-        str: Path to the generated Snakefile
-        
-    Raises:
-        SnakefileProcessingError: If Snakefile generation fails
-        FileValidationError: If plugin or files don't exist
-        
-    Example:
-        snakefile_path = generate_visualization_snakefile(
-            plugin_path="/path/to/GRNViz",
-            selected_script_name="Heatmap",
-            visualization_params={"Top_Genes": 20, "Sample_Size": 150},
-            file_mappings={"expression.csv": "/data/expr.csv", "input.txt": "/data/network.txt"},
-            output_path="/tmp/heatmap_snakefile.smk"
-        )
-    """
-    logger.info(f"Generating visualization Snakefile for '{selected_script_name}' from {plugin_path}")
-    
-    # Validate inputs
-    if not plugin_path:
-        raise SnakefileProcessingError(
-            "Plugin path is required",
-            rule_name=selected_script_name
-        )
-    
-    if not selected_script_name:
-        raise SnakefileProcessingError(
-            "Script name is required",
-            snakefile_path=plugin_path
-        )
-    
-    if not output_path:
-        raise SnakefileProcessingError(
-            "Output path is required",
-            snakefile_path=plugin_path,
-            rule_name=selected_script_name
-        )
-    
-    # Validate plugin path
-    if not os.path.exists(plugin_path):
-        raise FileValidationError(
-            f"Plugin path not found",
-            file_path=plugin_path,
-            context={"script_name": selected_script_name, "operation": "generate_snakefile"}
-        )
-    
-    if not os.path.isdir(plugin_path):
-        raise FileValidationError(
-            f"Plugin path is not a directory",
-            file_path=plugin_path,
-            context={"script_name": selected_script_name}
-        )
-    
-    # Construct Snakefile path
-    snakefile_path = os.path.join(plugin_path, "Snakefile")
-    if not os.path.exists(snakefile_path):
-        raise FileValidationError(
-            f"Snakefile not found in plugin",
-            file_path=snakefile_path,
-            context={"plugin_path": plugin_path, "script_name": selected_script_name}
-        )
-    
-    # Validate the rule exists before extraction
-    if not validate_visualization_rule(snakefile_path, selected_script_name):
-        try:
-            available_rules = _get_available_rules(snakefile_path)
-        except Exception:
-            available_rules = ["Unable to determine available rules"]
-        raise SnakefileProcessingError(
-            f"Visualization rule '{selected_script_name}' not found. Available rules: {available_rules}",
-            snakefile_path=snakefile_path,
-            rule_name=selected_script_name
-        )
-    
-    # Extract the specific rule with parameter replacements
-    try:
-        extracted_content, _ = extract_rule_block(
-            snakefile_path=snakefile_path,
-            visualization_title=selected_script_name,
-            result_path=output_path,
-            parameters=visualization_params,
-            file_mappings=file_mappings
-        )
-        
-        logger.info(f"Successfully generated visualization Snakefile: {output_path}")
-        return output_path
-        
-    except (SnakefileProcessingError, FileValidationError):
-        # Re-raise our custom exceptions
-        raise
-    except Exception as e:
-        raise SnakefileProcessingError(
-            f"Failed to generate visualization Snakefile: {str(e)}",
-            snakefile_path=snakefile_path,
-            rule_name=selected_script_name
-        ) from e
-
-
-def validate_visualization_rule(snakefile_path: str, rule_name: str) -> bool:
-    """
-    Check if a specific rule name exists in a Snakefile and validate its structure.
-    
-    Args:
-        snakefile_path: Path to the Snakefile to check
-        rule_name: Name of the rule to validate
-        
-    Returns:
-        bool: True if rule exists and has valid structure, False otherwise
-        
-    Raises:
-        FileNotFoundError: If snakefile_path doesn't exist
-    """
-    logger.debug(f"Validating rule '{rule_name}' in {snakefile_path}")
-    
-    if not os.path.exists(snakefile_path):
-        raise FileNotFoundError(f"Snakefile not found: {snakefile_path}")
-    
-    try:
-        with open(snakefile_path, 'r', encoding='utf-8') as file:
-            content = file.read()
-        
-        # Check if rule exists
-        rule_pattern = f"rule {rule_name}:"
-        if rule_pattern not in content:
-            logger.debug(f"Rule '{rule_name}' not found in Snakefile")
-            return False
-        
-        # Extract rule metadata for validation
-        metadata = get_rule_metadata(snakefile_path, rule_name)
-        if not metadata:
-            logger.warning(f"Rule '{rule_name}' found but metadata extraction failed")
-            return False
-        
-        # Basic structure validation
-        required_sections = ['input', 'output']
-        for section in required_sections:
-            if section not in metadata:
-                logger.warning(f"Rule '{rule_name}' missing required section: {section}")
-                return False
-        
-        logger.debug(f"Rule '{rule_name}' validation successful")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error validating rule '{rule_name}': {e}")
-        return False
-
-
-def get_rule_metadata(snakefile_path: str, rule_name: str) -> Optional[Dict[str, Any]]:
-    """
-    Extract rule metadata including inputs, outputs, and parameters.
-    
-    Args:
-        snakefile_path: Path to the Snakefile
-        rule_name: Name of the rule to analyze
-        
-    Returns:
-        Dict containing rule metadata or None if extraction fails
-        
-    Example:
-        metadata = get_rule_metadata("/path/to/Snakefile", "Heatmap")
-        # Returns: {
-        #     "inputs": ["expression.csv", "trajectory.txt", "input.txt"],
-        #     "outputs": ["Heatmap.json"],
-        #     "parameters": ["Top_Genes", "Sample_Size"],
-        #     "shell_command": "Rscript ..."
-        # }
-    """
-    try:
-        with open(snakefile_path, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
-        
-        rule_pattern = f"rule {rule_name}:"
-        metadata = {
-            'inputs': [],
-            'outputs': [], 
-            'parameters': [],
-            'shell_command': None
-        }
-        
-        is_target_rule = False
-        current_section = None
-        current_indent = 0
-        
-        for line in lines:
-            if line.startswith(rule_pattern):
-                is_target_rule = True
-                current_indent = len(line) - len(line.lstrip())
-                continue
-            
-            if not is_target_rule:
-                continue
-            
-            if line.strip() == "":
-                continue
-                
-            line_indent = len(line) - len(line.lstrip())
-            
-            # End of rule block
-            if line_indent <= current_indent and line.strip():
-                break
-            
-            stripped_line = line.strip()
-            
-            # Identify sections
-            if stripped_line.endswith(':'):
-                section_name = stripped_line[:-1]
-                if section_name in ['input', 'output', 'params', 'shell']:
-                    current_section = section_name
-                continue
-            
-            # Parse section content
-            if current_section == 'input':
-                # Extract input file patterns
-                if '=' in stripped_line:
-                    file_pattern = stripped_line.split('=')[1].strip().strip('"')
-                    # Extract filename from pattern
-                    filename = _extract_filename_from_pattern(file_pattern)
-                    if filename:
-                        metadata['inputs'].append(filename)
-            
-            elif current_section == 'output':
-                # Extract output file patterns
-                if '=' in stripped_line:
-                    file_pattern = stripped_line.split('=')[1].strip().strip('"')
-                    filename = _extract_filename_from_pattern(file_pattern)
-                    if filename:
-                        metadata['outputs'].append(filename)
-            
-            elif current_section == 'params':
-                # Extract parameter names
-                if '=' in stripped_line:
-                    param_name = stripped_line.split('=')[0].strip()
-                    metadata['parameters'].append(param_name)
-            
-            elif current_section == 'shell':
-                # Extract shell command
-                if stripped_line.startswith('"') and stripped_line.endswith('"'):
-                    metadata['shell_command'] = stripped_line.strip('"')
-        
-        logger.debug(f"Extracted metadata for rule '{rule_name}': {metadata}")
-        return metadata
-        
-    except Exception as e:
-        logger.error(f"Error extracting metadata for rule '{rule_name}': {e}")
-        return None
-
-
-def _get_available_rules(snakefile_path: str) -> List[str]:
-    """Extract list of available rule names from a Snakefile."""
-    try:
-        with open(snakefile_path, 'r', encoding='utf-8') as file:
-            content = file.read()
-        
-        # Find all rule definitions
-        rule_pattern = r'^rule\s+(\w+):'
-        matches = re.findall(rule_pattern, content, re.MULTILINE)
-        return matches
-        
-    except Exception as e:
-        logger.error(f"Error getting available rules: {e}")
-        return []
-
-
-def _apply_replacements(content: str, parameters: Optional[Dict[str, Any]], 
-                       file_mappings: Optional[Dict[str, str]]) -> str:
-    """
-    Apply parameter and file mapping replacements to extracted rule content.
-    
-    Args:
-        content: The Snakefile rule content to process
-        parameters: Dict of parameter name/value pairs to replace
-        file_mappings: Dict mapping file placeholders to absolute paths
-                      e.g., {"input.txt": "/absolute/path/to/expression.csv"}
-                      These replace placeholders like {input.txt} with actual file paths
-    
-    Returns:
-        str: Content with all placeholders replaced
-        
-    Raises:
-        SnakefileGenerationError: If placeholder replacement fails
-    """
-    try:
-        # Apply parameter replacements
-        if parameters:
-            for param_name, param_value in parameters.items():
-                # Replace parameter placeholders like {Top Genes} or {Sample Size}
-                # Handle various naming conventions - covers all cases without duplication
-                placeholder_patterns = [
-                    f"{{{param_name}}}",  # Exact match
-                    f"{{{param_name.replace('_', ' ')}}}",  # Underscore to space
-                    f"{{{param_name.replace(' ', '_')}}}",  # Space to underscore
-                ]
-                
-                for pattern in placeholder_patterns:
-                    if pattern in content:
-                        content = content.replace(pattern, str(param_value))
-                        logger.debug(f"Replaced parameter placeholder: {pattern} -> {param_value}")
-        
-        # Apply file mapping replacements
-        if file_mappings:
-            for placeholder, actual_path in file_mappings.items():
-                # Replace file placeholders in input/output sections
-                placeholder_patterns = [
-                    f"{{{placeholder}}}",  # Standard placeholder format
-                    f"/{{{placeholder}}}",  # With leading slash
-                    f'"{{{placeholder}}}"',  # In quotes
-                    f"'{{{placeholder}}}'",  # In single quotes
-                ]
-                
-                for pattern in placeholder_patterns:
-                    if pattern in content:
-                        # Preserve quotes if they exist
-                        if pattern.startswith('"') and pattern.endswith('"'):
-                            replacement = f'"{actual_path}"'
-                        elif pattern.startswith("'") and pattern.endswith("'"):
-                            replacement = f"'{actual_path}'"
-                        else:
-                            replacement = actual_path
-                        
-                        content = content.replace(pattern, replacement)
-                        logger.debug(f"Replaced file placeholder: {pattern} -> {replacement}")
-        
-        # Check for any remaining placeholders that weren't replaced
-        remaining_placeholders = re.findall(r'\{[^}]+\}', content)
-        if remaining_placeholders:
-            logger.warning(f"Unreplaced placeholders found: {remaining_placeholders}")
-            logger.debug(f"Available parameters: {list(parameters.keys()) if parameters else []}")
-            logger.debug(f"Available file mappings: {list(file_mappings.keys()) if file_mappings else []}")
-        
-        return content
-        
-    except Exception as e:
-        logger.error(f"Error applying replacements: {e}")
-        # Re-raise the exception to prevent silent failures
-        raise SnakefileGenerationError(
-            plugin_name="unknown",
-            script_name="unknown", 
-            error_details=f"Placeholder replacement failed: {str(e)}"
-        ) from e
-
-
-def _extract_filename_from_pattern(file_pattern: str) -> Optional[str]:
-    """Extract filename from Snakemake file pattern."""
-    try:
-        # Handle patterns like "user/{user_name}/data/{filename}"
-        if "/" in file_pattern:
-            # Get the last part of the path
-            filename = file_pattern.split("/")[-1]
-        else:
-            filename = file_pattern
-        
-        # Remove curly braces if present
-        filename = filename.strip("{}")
-        
-        # Return None for template variables
-        if filename in ['user_name', 'workflow_id', 'algorithm_id']:
-            return None
-            
-        return filename
-        
-    except Exception:
-        return None
