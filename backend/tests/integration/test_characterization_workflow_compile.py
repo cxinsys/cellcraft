@@ -64,10 +64,10 @@ def _algorithm_workflow_info(plugin_name: str = "TestPlugin") -> dict:
 class TestCharacterizationWorkflowCompile:
     """Freeze current compile behavior: success shape + error wrapping to 400."""
 
-    @patch("app.workflow.router.process_data_task.apply_async")
-    @patch("app.workflow.router.change_snakefile_parameter")
-    @patch("app.workflow.router.get_plugin_path")
-    @patch("app.workflow.router.get_task_info")
+    @patch("app.workflow.service.process_data_task.apply_async")
+    @patch("app.workflow.service.change_snakefile_parameter")
+    @patch("app.workflow.service.get_plugin_path")
+    @patch("app.workflow.service.get_task_info")
     def test_compile_success_response_shape(
         self,
         mock_get_task_info,
@@ -155,7 +155,7 @@ class TestCharacterizationWorkflowCompile:
         assert response.status_code == 400
         assert response.json()["detail"] == ""
 
-    @patch("app.workflow.router.get_plugin_path")
+    @patch("app.workflow.service.get_plugin_path")
     def test_compile_plugin_not_found_surfaces_as_400(
         self,
         mock_get_plugin_path,
