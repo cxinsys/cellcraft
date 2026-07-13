@@ -64,9 +64,9 @@ JSON 키, 상태코드, 에러 메시지 문자열까지 유지 (OpenAPI diff 0 
 | 워크플로우 CRUD 엔드포인트 | `service.create/get/list/update/delete_workflow()` |
 
 ### 체크리스트
-- [ ] compile 파이프라인의 각 단계가 `workflow/compiler/*`를 호출하는 구조로 정리 (파서 내부 수정은 PR-10)
-- [ ] 캐시 적중/미적중 경로 characterization 테스트 통과
-- [ ] service 단위 테스트 (파서는 실제, 파일시스템은 tmp_path)
+- [x] compile 파이프라인의 각 단계가 `workflow/compiler/*`를 호출하는 구조로 정리 (파서 내부 수정은 PR-10)
+- [x] 캐시 적중/미적중 경로 characterization 테스트 통과
+- [x] service 단위 테스트 (파서는 실제, 파일시스템은 tmp_path)
 
 ---
 
