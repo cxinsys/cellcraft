@@ -46,7 +46,9 @@ def upgrade() -> None:
         sa.Column('description', sa.String(), nullable=False),
         sa.Column('author', sa.String(), nullable=False),
         sa.Column('plugin_path', sa.String(), nullable=False),
-        sa.Column('plugin_type', sa.Enum('ANALYSIS', 'VISUALIZATION', name='plugintype', create_type=False), nullable=True),
+        # create_type=False is only honored by postgresql.ENUM (generic sa.Enum
+        # ignores it and emits a duplicate CREATE TYPE, breaking fresh installs).
+        sa.Column('plugin_type', postgresql.ENUM('ANALYSIS', 'VISUALIZATION', name='plugintype', create_type=False), nullable=True),
         sa.Column('dependencies', postgresql.JSONB(), nullable=True),
         sa.Column('drawflow', postgresql.JSONB(), nullable=False),
         sa.Column('rules', postgresql.JSONB(), nullable=False),

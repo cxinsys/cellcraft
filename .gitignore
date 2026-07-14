@@ -21,3 +21,11 @@ __pycache__
 # Frontend test artifacts
 frontend/coverage/
 frontend/coverage-output.txt
+
+# Backend test artifacts
+backend/.coverage
+backend/htmlcov/
+backend/logs/
+
+# oh-my-claudecode local state
+.omc/

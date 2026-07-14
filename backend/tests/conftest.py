@@ -43,7 +43,10 @@ def test_engine():
     Note: Requires test-db service running:
         docker compose -f docker-compose.dev.yml up test-db -d
     """
-    TEST_DATABASE_URI = "postgresql://test_user:test_pass@localhost:5433/cellcraft_test"
+    TEST_DATABASE_URI = os.environ.get(
+        "TEST_DATABASE_URI",
+        "postgresql://test_user:test_pass@localhost:5433/cellcraft_test"
+    )
 
     engine = create_engine(
         TEST_DATABASE_URI,
