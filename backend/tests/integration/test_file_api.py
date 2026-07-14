@@ -18,8 +18,8 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.database import models
-from app.database.crud import crud_file
+from app import models
+from app.file import crud as crud_file
 
 # File-specific fixtures are automatically available from conftest.py
 # No need to import explicitly - pytest discovers fixtures automatically

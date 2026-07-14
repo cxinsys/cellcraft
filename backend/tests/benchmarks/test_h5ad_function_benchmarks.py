@@ -21,7 +21,7 @@ import pandas as pd
 import pytest
 import scanpy as sc
 
-from app.common.utils.h5ad_utils import (
+from app.datatable.h5ad import (
     get_annotation_columns,
     get_pseudotime_columns,
     organize_column_dtypes,

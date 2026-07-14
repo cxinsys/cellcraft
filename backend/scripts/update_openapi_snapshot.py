@@ -5,7 +5,7 @@ Generate / refresh the OpenAPI contract snapshot.
 This MUST run inside the test environment. ``app.main`` executes
 ``run_migrations()`` at import time (main.py:84), so importing the app requires a
 reachable database. Setting ``TESTING=1`` before the import routes the app to the
-test DB configuration (see ``app/database/conn.py`` and conftest).
+test DB configuration (see ``app/db/session.py`` and conftest).
 
 Usage (from the ``backend`` directory, inside the container / test env):
 

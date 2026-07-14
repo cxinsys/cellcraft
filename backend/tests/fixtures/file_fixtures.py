@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 import numpy as np
 import pandas as pd
 
-from app.database import models
+from app import models
 
 
 # ==============================================================================

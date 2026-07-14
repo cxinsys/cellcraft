@@ -177,7 +177,7 @@ def main():
     if real_exists:
         # Discover annotation column from real data first
         import scanpy as sc
-        from app.common.utils.h5ad_utils import organize_column_dtypes, get_annotation_columns
+        from app.datatable.h5ad import organize_column_dtypes, get_annotation_columns
         adata = sc.read_h5ad(REAL_H5AD_PATH)
         obs = organize_column_dtypes(adata.obs)
         anno_cols = get_annotation_columns(obs)

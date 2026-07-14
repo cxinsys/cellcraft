@@ -13,8 +13,8 @@ from fastapi import HTTPException
 from jose import jwt
 
 from app.db.session import get_db
-from app.routes.dep import get_current_user, get_current_active_user
-from app.database import models
+from app.auth.deps import get_current_user, get_current_active_user
+from app import models
 from app.core.config import settings
 from app.core.security import ALGORITHM, create_access_token
 
@@ -77,7 +77,7 @@ class TestGetCurrentUser:
         """Test successful user retrieval with valid token using isolated SECRET_KEY."""
         # Arrange - Use monkeypatch for SECRET_KEY isolation
         test_secret_key = "test_secret_key_for_isolation_12345678"
-        monkeypatch.setattr('app.routes.dep.settings.SECRET_KEY', test_secret_key)
+        monkeypatch.setattr('app.auth.deps.settings.SECRET_KEY', test_secret_key)
 
         mock_db = MagicMock()
         user_id = 123
@@ -92,7 +92,7 @@ class TestGetCurrentUser:
             is_superuser=False
         )
 
-        with patch('app.routes.dep.crud_user.get_user', return_value=mock_user):
+        with patch('app.auth.deps.crud_user.get_user', return_value=mock_user):
             # Act
             result = get_current_user(db=mock_db, token=token)
 
@@ -144,7 +144,7 @@ class TestGetCurrentUser:
         token_without_sub = jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
         # Mock the user lookup to return None (user not found)
-        with patch('app.routes.dep.crud_user.get_user', return_value=None):
+        with patch('app.auth.deps.crud_user.get_user', return_value=None):
             # Act & Assert - Missing sub leads to None user_id, then 404
             with pytest.raises(HTTPException) as exc_info:
                 get_current_user(db=mock_db, token=token_without_sub)
@@ -159,7 +159,7 @@ class TestGetCurrentUser:
         user_id = 999
         token = jwt.encode({"sub": str(user_id)}, settings.SECRET_KEY, algorithm=ALGORITHM)
 
-        with patch('app.routes.dep.crud_user.get_user', return_value=None):
+        with patch('app.auth.deps.crud_user.get_user', return_value=None):
             # Act & Assert
             with pytest.raises(HTTPException) as exc_info:
                 get_current_user(db=mock_db, token=token)
@@ -211,7 +211,7 @@ class TestGetCurrentActiveUser:
             is_superuser=False
         )
 
-        with patch('app.routes.dep.crud_user.is_active', return_value=True):
+        with patch('app.auth.deps.crud_user.is_active', return_value=True):
             # Act
             result = get_current_active_user(current_user=mock_user)
 
@@ -231,7 +231,7 @@ class TestGetCurrentActiveUser:
             is_superuser=False
         )
 
-        with patch('app.routes.dep.crud_user.is_active', return_value=False):
+        with patch('app.auth.deps.crud_user.is_active', return_value=False):
             # Act & Assert
             with pytest.raises(HTTPException) as exc_info:
                 get_current_active_user(current_user=mock_user)
@@ -257,7 +257,7 @@ class TestGetCurrentActiveUser:
             is_superuser=False
         )
 
-        with patch('app.routes.dep.crud_user.is_active', return_value=False):
+        with patch('app.auth.deps.crud_user.is_active', return_value=False):
             # Act & Assert
             with pytest.raises(HTTPException) as exc_info:
                 get_current_active_user(current_user=mock_user)

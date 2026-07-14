@@ -1,8 +1,8 @@
 """Celery worker entry point.
 
 This module owns the Celery application instance and worker-lifecycle hooks.
-It must NOT import the FastAPI web layer (``app.main`` / ``app.routes.api``);
-the ``no-web-in-worker`` import-linter contract enforces this.
+It must NOT import the FastAPI web layer (``app.main`` / ``app.api`` and the
+domain routers); the ``no-web-in-worker`` import-linter contract enforces this.
 
 Worker Dockerfiles boot via ``celery -A app.worker.app worker``.
 """
@@ -90,9 +90,7 @@ def on_worker_shut_down(sender=None, conf=None, **kwargs):
 # Celery 이벤트 핸들러를 Celery 애플리케이션 인스턴스에 연결합니다
 worker_shutting_down.connect(on_worker_shut_down, sender=celery)
 
-# worker_ready 훅(on_worker_ready)은 celery_utils에 잔류(Phase-1 계획). 구 워커는
-# app.main 경유로 celery_utils를 import하며 자동 등록됐으나, 신 워커 진입점(app.worker.app)은
-# celery_utils를 import하지 않는다. 이 import로 @worker_ready.connect 핸들러를 명시 등록하여
-# 워커 기동 시 리소스 총량 초기화/스테일 정리가 정상 수행되게 한다.
-# (하단 배치 이유: celery_utils가 create_celery를 역참조하므로 celery 정의 이후에 import.)
-import app.common.utils.celery_utils  # noqa: E402,F401
+# worker_ready 훅(on_worker_ready)은 app.worker.utils에 정의돼 있다. 이 import로
+# @worker_ready.connect 핸들러를 워커 프로세스에 명시 등록하여 워커 기동 시
+# 리소스 총량 초기화/스테일 정리가 정상 수행되게 한다. (미import 시 미등록 → 리그레션)
+import app.worker.utils  # noqa: E402,F401

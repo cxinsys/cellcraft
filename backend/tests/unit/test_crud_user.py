@@ -1,5 +1,5 @@
 """
-Unit tests for CRUD user operations (app/database/crud/crud_user.py).
+Unit tests for CRUD user operations (app/user/crud.py).
 
 Test coverage:
 - Create operations: create_user (with plugin auto-association), create_superuser
@@ -18,9 +18,9 @@ Critical Business Logic Tested:
 import pytest
 from sqlalchemy.orm import Session
 
-from app.database.crud import crud_user
-from app.database import models
-from app.database.schemas.user import UserCreate, UserUpdate
+from app.user import crud as crud_user
+from app import models
+from app.user.schemas import UserCreate, UserUpdate
 from app.core.security import verify_password
 
 

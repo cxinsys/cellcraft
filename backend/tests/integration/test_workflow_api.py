@@ -14,7 +14,7 @@ This module tests the workflow-related API endpoints in:
 - POST /routes/workflow/node/read - Read node data
 - POST /routes/workflow/node/delete - Delete node data
 
-Coverage Goal: 60%+ for app/routes/endpoints/workflow.py
+Coverage Goal: 60%+ for app/workflow/router.py
 Quality Score Goal: 8.2/10
 """
 import pytest
@@ -26,7 +26,7 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.database import models
+from app import models
 
 
 # ==============================================================================
@@ -316,8 +316,8 @@ class TestWorkflowCRUD:
 class TestWorkflowCompilation:
     """Test workflow compilation and task submission."""
 
-    @patch('app.routes.endpoints.workflow.process_data_task.apply_async')
-    @patch('app.routes.endpoints.workflow.get_plugin_path')
+    @patch('app.workflow.router.process_data_task.apply_async')
+    @patch('app.workflow.router.get_plugin_path')
     def test_compile_workflow_single_algorithm(
         self,
         mock_get_plugin_path: MagicMock,
@@ -372,7 +372,7 @@ class TestWorkflowCompilation:
             "workflow_info": workflow_info
         }
 
-        with patch('app.routes.endpoints.workflow.change_snakefile_parameter') as mock_snakefile:
+        with patch('app.workflow.router.change_snakefile_parameter') as mock_snakefile:
             mock_snakefile.return_value = "/tmp/test_snakefile"
 
             response = client.post(
@@ -387,8 +387,8 @@ class TestWorkflowCompilation:
         assert len(data["task_ids"]) == 1
         assert data["task_ids"][0] == "test-task-id-123"
 
-    @patch('app.routes.endpoints.workflow.process_data_task.apply_async')
-    @patch('app.routes.endpoints.workflow.get_plugin_path')
+    @patch('app.workflow.router.process_data_task.apply_async')
+    @patch('app.workflow.router.get_plugin_path')
     def test_compile_workflow_multiple_algorithms(
         self,
         mock_get_plugin_path: MagicMock,
@@ -453,7 +453,7 @@ class TestWorkflowCompilation:
             "workflow_info": workflow_info
         }
 
-        with patch('app.routes.endpoints.workflow.change_snakefile_parameter') as mock_snakefile:
+        with patch('app.workflow.router.change_snakefile_parameter') as mock_snakefile:
             mock_snakefile.return_value = "/tmp/test_snakefile"
 
             response = client.post(
@@ -515,7 +515,7 @@ class TestWorkflowCompilation:
         assert response.status_code == 400
         assert "No algorithm nodes" in response.json()["detail"]
 
-    @patch('app.routes.endpoints.workflow.get_plugin_path')
+    @patch('app.workflow.router.get_plugin_path')
     def test_compile_workflow_invalid_plugin(
         self,
         mock_get_plugin_path: MagicMock,
@@ -716,9 +716,9 @@ class TestWorkflowResults:
 class TestWorkflowVisualization:
     """Test workflow visualization operations."""
 
-    @patch('app.routes.endpoints.workflow.process_data_task.apply_async')
-    @patch('app.routes.endpoints.workflow.get_plugin_path')
-    @patch('app.routes.endpoints.workflow.crud_plugin.get_plugin_by_name')
+    @patch('app.workflow.router.process_data_task.apply_async')
+    @patch('app.workflow.router.get_plugin_path')
+    @patch('app.workflow.router.crud_plugin.get_plugin_by_name')
     def test_create_visualization_success(
         self,
         mock_get_plugin: MagicMock,
@@ -773,7 +773,7 @@ class TestWorkflowVisualization:
             "selectedVisualizationParams": []
         }
 
-        with patch('app.routes.endpoints.workflow.extract_rule_block') as mock_extract:
+        with patch('app.workflow.router.extract_rule_block') as mock_extract:
             mock_extract.return_value = ("rule content", "/tmp/snakefile")
 
             response = client.post(

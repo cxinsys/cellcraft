@@ -10,10 +10,11 @@
 # Celery worker boots via `celery -A app.worker.app worker` — it no longer imports
 # the web layer (`app.main`). See the contract below.
 #
-# NOTE on scope: TIGHTENED in PR-3 (phase-2-domain-skeleton). The Celery tasks
-# module relocated from `app.routes.celery_tasks` to `app.worker.tasks`, so the
-# worker no longer legitimately includes anything under `app.routes`. The whole
-# `app.routes` web-router package is now forbidden alongside `app.main`.
+# NOTE on scope: TIGHTENED in PR-4 (phase-2-domain-skeleton). The old
+# `app.routes` web package was removed; the FastAPI app is now assembled in
+# `app.api` from per-domain routers (`app.<domain>.router`). The worker must not
+# depend on any of those web-facing modules. It may still import each domain's
+# non-router modules (crud/utils/models/schemas), which is intentional.
 
 [importlinter]
 root_package = app
@@ -25,4 +26,28 @@ source_modules =
     app.worker
 forbidden_modules =
     app.main
-    app.routes
+    app.api
+    app.auth.router
+    app.admin.router
+    app.datatable.router
+    app.file.router
+    app.plugin.router
+    app.task.router
+    app.version.router
+    app.workflow.router
+
+[importlinter:contract:shared-is-domain-agnostic]
+name = shared infrastructure must not depend on any domain
+type = forbidden
+source_modules =
+    app.shared
+forbidden_modules =
+    app.auth
+    app.user
+    app.admin
+    app.datatable
+    app.file
+    app.plugin
+    app.task
+    app.version
+    app.workflow

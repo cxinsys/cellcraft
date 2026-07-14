@@ -2,7 +2,7 @@
 Characterization tests for the plugin upload endpoint.
 
 Purpose: pin the CURRENT behavior of ``POST /routes/plugin/upload`` exactly as it
-is today (upload_plugin, app/routes/endpoints/plugin.py lines 130-288). These
+is today (upload_plugin, app/plugin/router.py lines 130-288). These
 tests describe reality so a later service-extraction refactor (PR-5) can prove it
 did not change observable behavior.
 
@@ -13,8 +13,8 @@ pin the HTTP/DB contract without touching the real filesystem, the
 (consistent with the existing mocking style in test_plugin_api.py).
 
 Source of truth read while writing these tests:
-- app/routes/endpoints/plugin.py :: upload_plugin
-- app/database/schemas/plugin.py :: PluginCreate (flat schema this endpoint uses)
+- app/plugin/router.py :: upload_plugin
+- app/plugin/schemas.py :: PluginCreate (flat schema this endpoint uses)
 
 Pinned behavior:
 - New local plugin: 200 with
@@ -29,7 +29,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.database import models
+from app import models
 from app.core.config import settings
 from app.core.enums import PluginType
 
@@ -60,15 +60,15 @@ def _valid_plugin_create_payload(name: str = "CharPlugin") -> dict:
 class TestCharacterizationPluginUpload:
     """Freeze current upload_plugin behavior (success, official reject, rollback)."""
 
-    @patch("app.routes.endpoints.plugin.invalidate_all_plugin_cache")
-    @patch("app.routes.endpoints.plugin.plugin_utils.generate_snakemake_code")
-    @patch("app.routes.endpoints.plugin.plugin_utils.create_metadata_file")
-    @patch("app.routes.endpoints.plugin.plugin_utils.create_dependency_folder")
-    @patch("app.routes.endpoints.plugin.plugin_utils.create_plugin_folder")
-    @patch("app.routes.endpoints.plugin.ensure_local_plugins_dir")
-    @patch("app.routes.endpoints.plugin.get_plugin_path")
-    @patch("app.routes.endpoints.plugin.os.path.exists", return_value=False)
-    @patch("app.routes.endpoints.plugin.os.makedirs")
+    @patch("app.plugin.router.invalidate_all_plugin_cache")
+    @patch("app.plugin.router.plugin_utils.generate_snakemake_code")
+    @patch("app.plugin.router.plugin_utils.create_metadata_file")
+    @patch("app.plugin.router.plugin_utils.create_dependency_folder")
+    @patch("app.plugin.router.plugin_utils.create_plugin_folder")
+    @patch("app.plugin.router.ensure_local_plugins_dir")
+    @patch("app.plugin.router.get_plugin_path")
+    @patch("app.plugin.router.os.path.exists", return_value=False)
+    @patch("app.plugin.router.os.makedirs")
     def test_upload_new_plugin_success_response_and_db(
         self,
         _mock_makedirs,
@@ -152,16 +152,16 @@ class TestCharacterizationPluginUpload:
         # The official-plugin protection is therefore silently bypassed today.
         assert response.status_code == 500
 
-    @patch("app.routes.endpoints.plugin.invalidate_all_plugin_cache")
-    @patch("app.routes.endpoints.plugin.crud_plugin.create_plugin")
-    @patch("app.routes.endpoints.plugin.plugin_utils.generate_snakemake_code")
-    @patch("app.routes.endpoints.plugin.plugin_utils.create_metadata_file")
-    @patch("app.routes.endpoints.plugin.plugin_utils.create_dependency_folder")
-    @patch("app.routes.endpoints.plugin.plugin_utils.create_plugin_folder")
-    @patch("app.routes.endpoints.plugin.ensure_local_plugins_dir")
-    @patch("app.routes.endpoints.plugin.get_plugin_path")
-    @patch("app.routes.endpoints.plugin.os.path.exists", return_value=False)
-    @patch("app.routes.endpoints.plugin.os.makedirs")
+    @patch("app.plugin.router.invalidate_all_plugin_cache")
+    @patch("app.plugin.router.crud_plugin.create_plugin")
+    @patch("app.plugin.router.plugin_utils.generate_snakemake_code")
+    @patch("app.plugin.router.plugin_utils.create_metadata_file")
+    @patch("app.plugin.router.plugin_utils.create_dependency_folder")
+    @patch("app.plugin.router.plugin_utils.create_plugin_folder")
+    @patch("app.plugin.router.ensure_local_plugins_dir")
+    @patch("app.plugin.router.get_plugin_path")
+    @patch("app.plugin.router.os.path.exists", return_value=False)
+    @patch("app.plugin.router.os.makedirs")
     def test_upload_db_failure_rolls_back_and_returns_500(
         self,
         _mock_makedirs,

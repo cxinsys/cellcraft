@@ -8,10 +8,10 @@ from typing import List
 from billiard import Pool, cpu_count
 import logging
 
-from app.common.utils.snakemake_utils import snakemakeProcess
+from app.workflow.compiler.snakefile import snakemakeProcess
 from app.shared.docker import container_manager
-from app.common.utils import plugin_utils
-from app.database.crud.crud_task import start_task, end_task, record_plugin_image_uri
+from app.plugin import utils as plugin_utils
+from app.task.crud import start_task, end_task, record_plugin_image_uri
 from app.shared.cache import save_result_to_cache
 
 logger = logging.getLogger('celery.custom')
@@ -53,9 +53,9 @@ class MyTask(Task):
         plugin_id = None
         if plugin_name:
             try:
-                from app.common.utils.plugin_utils import generate_plugin_image_uri
+                from app.plugin.utils import generate_plugin_image_uri
                 from app.db.session import get_db_session
-                from app.database import models
+                from app import models
 
                 # Get plugin information from database
                 with get_db_session() as db:
@@ -110,7 +110,7 @@ class MyTask(Task):
 
         if task_type == 'plugin_build':
             try:
-                from app.common.utils.plugin_cache import invalidate_all_plugin_cache
+                from app.plugin.cache import invalidate_all_plugin_cache
                 invalidate_all_plugin_cache()
             except Exception as e:
                 logger.warning(f"Plugin cache invalidation failed for task {task_id}: {e}")
@@ -129,7 +129,7 @@ class MyTask(Task):
         task_type = kwargs.get('task_type')
         if task_type == 'plugin_build':
             try:
-                from app.common.utils.plugin_cache import invalidate_all_plugin_cache
+                from app.plugin.cache import invalidate_all_plugin_cache
                 invalidate_all_plugin_cache()
             except Exception as e:
                 logger.warning(f"Plugin cache invalidation failed for task {task_id}: {e}")
@@ -151,7 +151,7 @@ class MyTask(Task):
 
             if user_id and workflow_id and algorithm_id:
                 from app.db.session import get_db_session
-                from app.database import models
+                from app import models
                 from pathlib import Path
                 from app.shared.archive import cleanup_task_results
 
@@ -184,7 +184,7 @@ class MyTask(Task):
         task_type = kwargs.get('task_type') if kwargs else None
         if task_type == 'plugin_build':
             try:
-                from app.common.utils.plugin_cache import invalidate_all_plugin_cache
+                from app.plugin.cache import invalidate_all_plugin_cache
                 invalidate_all_plugin_cache()
             except Exception as e:
                 logger.warning(f"Plugin cache invalidation failed for task {task_id}: {e}")
@@ -403,7 +403,7 @@ def build_plugin_task(self, plugin_name: str = None, user_id: int = None, workfl
         self.update_state(state="RUNNING", meta={"message": f"Building Docker image for plugin {plugin_name}..."})
 
         # Use new plugin path resolution
-        from app.common.utils.plugin_utils import get_plugin_path, is_plugin_editable
+        from app.plugin.utils import get_plugin_path, is_plugin_editable
         
         # Check if plugin is editable (only local plugins can be built)
         if not is_plugin_editable(plugin_name):
@@ -457,7 +457,7 @@ def build_plugin_task(self, plugin_name: str = None, user_id: int = None, workfl
 
         # Record plugin_image_uri for local build
         try:
-            from app.common.utils.plugin_utils import generate_plugin_image_uri
+            from app.plugin.utils import generate_plugin_image_uri
             plugin_image_uri = generate_plugin_image_uri(plugin_name, "local")
             record_plugin_image_uri(task_id, plugin_image_uri, user_id)
             print(f'Recorded plugin_image_uri: {plugin_image_uri}')

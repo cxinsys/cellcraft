@@ -4,15 +4,15 @@ Characterization tests for the file upload + download-security surface.
 Purpose: pin the CURRENT behavior of the files endpoints so the later service +
 storage/security extraction refactor (PR-8) can prove behavior is unchanged.
 
-Endpoints covered (app/routes/endpoints/files.py):
+Endpoints covered (app/file/router.py):
 - POST /routes/files/upload           (fileUpload; lines 25-132)
 - GET  /routes/files/result/{filename} (download_result_file; lines 538-555)
     -> exercises file_security.validate_file_path path-traversal rejection (403)
 
 Source of truth read while writing these tests:
-- app/routes/endpoints/files.py :: fileUpload, download_result_file
-- app/common/utils/file_security.py :: validate_file_upload, validate_file_path
-- app/common/config.py :: ALLOWED_EXTENSIONS ({.h5ad,.csv,.json,.txt}),
+- app/file/router.py :: fileUpload, download_result_file
+- app/file/security.py :: validate_file_upload, validate_file_path
+- app/core/config.py :: ALLOWED_EXTENSIONS ({.h5ad,.csv,.json,.txt}),
   MAX_FILES_PER_UPLOAD (20)
 
 Pinned behavior:
@@ -31,8 +31,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.database import models
-from app.database.crud import crud_file
+from app import models
+from app.file import crud as crud_file
 from app.core.config import settings
 
 UPLOAD_URL = f"{settings.ROUTES_STR}/files/upload"

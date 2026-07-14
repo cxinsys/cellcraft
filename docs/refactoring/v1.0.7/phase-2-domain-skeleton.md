@@ -98,31 +98,33 @@
 | `Plugin` | `plugin/models.py` |
 
 **필수 규칙**:
-- [ ] 모든 모델은 `db/base.py`의 단일 `Base`를 상속 (metadata 하나 유지)
-- [ ] `relationship()`은 문자열 참조(`relationship("Task", ...)`)로 통일 → 도메인 간 순환 import 방지
-- [ ] FK의 `ForeignKey("users.id")` 등 테이블명 문자열은 그대로 (변경 없음)
-- [ ] `db/base.py`(또는 `db/base_registry.py`)에서 전 도메인 models를 import — Alembic `env.py`와 `create_all` 계열이 전체 메타데이터를 보도록:
+- [x] 모든 모델은 `db/base.py`의 단일 `Base`를 상속 (metadata 하나 유지)
+- [x] `relationship()`은 문자열 참조(`relationship("Task", ...)`)로 통일 → 도메인 간 순환 import 방지
+- [x] FK의 `ForeignKey("users.id")` 등 테이블명 문자열은 그대로 (변경 없음)
+- [x] 전 도메인 models를 import하는 중앙 registry 추가 — Alembic `env.py`와 `create_all` 계열이 전체 메타데이터를 보도록:
 ```python
-# db/base.py 하단 또는 별도 registry 모듈
+# app/db/base_registry.py — db/base.py 하단이 아닌 별도 모듈로 배치 (아래 참고)
 from app.user.models import User        # noqa
 from app.file.models import File        # noqa
 from app.workflow.models import Workflow  # noqa
 from app.task.models import Task        # noqa
 from app.plugin.models import Plugin    # noqa
 ```
-- [ ] `alembic/env.py`의 `target_metadata` import 경로 갱신
-- [ ] 구 `database/models.py`는 shim으로 유지 후 이 PR 마지막 커밋에서 제거
+  > **구현 노트(순환 import 회피)**: 도메인 `models` 모듈이 `app.db.base`에서 `Base`를 import하므로, registry를 `db/base.py` 하단에 두면 `db.base` ↔ `<domain>.models` 순환이 발생한다(도메인 models가 먼저 import될 때 `partially initialized` ImportError). 따라서 registry는 별도 모듈 `app/db/base_registry.py`로 분리했다. 웹/CRUD 호출부의 `models.User` 접근을 위해서는 얇은 aggregator `app/models.py`(`from app.user.models import User` 등)를 추가해 `from app import models` 패턴을 유지했다(클래스명·테이블명 불변). `user_plugin_association` Table은 `user/models.py`에 두고 `plugin/models.py`가 참조(단방향 plugin→user).
+- [x] `alembic/env.py`의 `target_metadata` import 경로 갱신 (`from app.db.base_registry import Base`)
+- [x] 구 `database/models.py`는 도메인별로 분리 후 이 PR에서 제거
 
 ### 마무리
-- [ ] `api.py`의 라우터 import를 새 경로로 갱신 (`from app.plugin.router import router as plugin_router` 등) — **prefix/tags 변경 금지**
-- [ ] PR-3·PR-4에서 만든 모든 shim 제거, `routes/`·`database/`·`common/` 빈 디렉터리 삭제
-- [ ] 테스트 코드의 import 경로 일괄 갱신
-- [ ] import-linter에 도메인 계약 추가 (예: `app.shared`는 도메인 모듈 import 금지)
+- [x] `api.py`의 라우터 import를 새 경로로 갱신 (`from app.plugin.router import router as plugin_router` 등) — **prefix/tags 변경 금지**
+- [x] PR-3·PR-4에서 만든 모든 shim 제거, `routes/`·`database/`·`common/` 빈 디렉터리 삭제
+- [x] 테스트 코드의 import 경로 일괄 갱신 (patch 경로 `app.routes.endpoints.X` → `app.X.router`, docstring 경로 언급 포함)
+- [x] import-linter에 도메인 계약 추가 (`app.shared`는 도메인 모듈 import 금지 → `shared-is-domain-agnostic` 계약 KEPT; `no-web-in-worker`는 `app.api`+도메인 router 금지로 갱신)
 
 ### 머지 게이트 (공통 4종 + 추가)
-- [ ] **alembic 게이트가 특히 중요**: `alembic revision --autogenerate`가 빈 마이그레이션 → 모델 분리가 스키마에 영향 없음 증명
-- [ ] `celery inspect registered` 태스크 이름 불변
-- [ ] `grep -rn "app.common\|app.database\|app.routes" backend/app backend/tests` 결과 0
+- [x] **alembic 게이트**: `alembic upgrade head` 후 `alembic revision --autogenerate` → 앱 관리 테이블(users/plugins/files/workflows/tasks/user_plugin_association) 변경 0 → 모델 분리가 스키마에 영향 없음 증명 (autogenerate가 감지한 `celery_taskmeta`/`celery_tasksetmeta` drop은 Celery 런타임 결과-백엔드 테이블로, 모델·초기 마이그레이션 어디에도 정의되지 않은 사전-기존 noise)
+- [x] `celery` 태스크 이름 불변: `['plugin_task:build_plugin_task', 'workflow_task:process_data_task']`, `app.main` 미유입
+- [x] `grep -rn "app.common\|app.database\|app.routes" backend/app backend/tests` 코드 import 0건 (남은 매치는 docstring/주석의 경로 언급뿐)
+  > **계약 테스트 예외 보고**: `tests/contract/test_openapi_contract.py::test_openapi_schema_unchanged`가 실패한다. 원인은 pydantic이 **동명(同名) 클래스 충돌**(`PluginInfo`가 `plugin/schemas.py`와 `task/schemas.py`에 각각 존재)을 해소할 때 `components.schemas` 키를 **모듈 경로**로 생성하기 때문이다. 모듈 이동으로 키가 `app__database__schemas__plugin__PluginInfo` → `app__plugin__schemas__PluginInfo`(및 task 동일)로 바뀌고, 이를 `$ref`하는 `PluginData`/`TaskMonitoringItem`도 연동 변경된다. **클래스명은 변경하지 않았고**(로직 변경 0), `paths`·`info`·최상위 키는 완전 동일하며 두 `PluginInfo` 키의 모듈-경로 부분만 정규화하면 `components`가 바이트 단위로 동일함을 확인했다(API 표면 불변). 지시대로 **스냅샷은 갱신하지 않았다** — 스냅샷 재생성은 PR 리뷰에서 의도된 변경으로 승인 후 별도 진행 권장.
 
 ### 리스크
 | 리스크 | 완화 |
