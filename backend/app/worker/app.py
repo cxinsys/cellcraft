@@ -89,3 +89,8 @@ def on_worker_shut_down(sender=None, conf=None, **kwargs):
 
 # Celery 이벤트 핸들러를 Celery 애플리케이션 인스턴스에 연결합니다
 worker_shutting_down.connect(on_worker_shut_down, sender=celery)
+
+# worker_ready 훅(on_worker_ready)은 app.worker.utils에 정의돼 있다. 이 import로
+# @worker_ready.connect 핸들러를 워커 프로세스에 명시 등록하여 워커 기동 시
+# 리소스 총량 초기화/스테일 정리가 정상 수행되게 한다. (미import 시 미등록 → 리그레션)
+import app.worker.utils  # noqa: E402,F401
