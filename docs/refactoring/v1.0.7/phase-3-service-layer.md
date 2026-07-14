@@ -46,10 +46,10 @@ JSON 키, 상태코드, 에러 메시지 문자열까지 유지 (OpenAPI diff 0 
 | 공식 플러그인 sync 관련 | 기존 `plugin/sync.py` 재사용, router에서 직접 로직 금지 |
 
 ### 체크리스트
-- [ ] Docker 빌드 로직을 `plugin/builder.py`로 위임 (utils.py에서 빌드 관련 호출부만 — utils 내부 분할은 PR-9)
-- [ ] 롤백 로직을 명시적 함수로 분리하고 단위 테스트 (실패 주입 테스트: 빌드 실패 시 파일/DB 원복)
-- [ ] `plugin/router.py` 400줄 이하 확인
-- [ ] service 단위 테스트 (Docker 모킹)
+- [x] Docker 빌드 로직을 `plugin/builder.py`로 위임 (utils.py에서 빌드 관련 호출부만 — utils 내부 분할은 PR-9)
+- [x] 롤백 로직을 명시적 함수로 분리하고 단위 테스트 (실패 주입 테스트: 빌드 실패 시 파일/DB 원복)
+- [x] `plugin/router.py` 400줄 이하 확인 (301줄)
+- [x] service 단위 테스트 (Docker 모킹)
 
 ---
 

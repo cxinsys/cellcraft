@@ -60,15 +60,15 @@ def _valid_plugin_create_payload(name: str = "CharPlugin") -> dict:
 class TestCharacterizationPluginUpload:
     """Freeze current upload_plugin behavior (success, official reject, rollback)."""
 
-    @patch("app.plugin.router.invalidate_all_plugin_cache")
-    @patch("app.plugin.router.plugin_utils.generate_snakemake_code")
-    @patch("app.plugin.router.plugin_utils.create_metadata_file")
-    @patch("app.plugin.router.plugin_utils.create_dependency_folder")
-    @patch("app.plugin.router.plugin_utils.create_plugin_folder")
-    @patch("app.plugin.router.ensure_local_plugins_dir")
-    @patch("app.plugin.router.get_plugin_path")
-    @patch("app.plugin.router.os.path.exists", return_value=False)
-    @patch("app.plugin.router.os.makedirs")
+    @patch("app.plugin.service.invalidate_all_plugin_cache")
+    @patch("app.plugin.service.plugin_utils.generate_snakemake_code")
+    @patch("app.plugin.service.plugin_utils.create_metadata_file")
+    @patch("app.plugin.service.plugin_utils.create_dependency_folder")
+    @patch("app.plugin.service.plugin_utils.create_plugin_folder")
+    @patch("app.plugin.service.ensure_local_plugins_dir")
+    @patch("app.plugin.service.get_plugin_path")
+    @patch("app.plugin.service.os.path.exists", return_value=False)
+    @patch("app.plugin.service.os.makedirs")
     def test_upload_new_plugin_success_response_and_db(
         self,
         _mock_makedirs,
@@ -152,16 +152,16 @@ class TestCharacterizationPluginUpload:
         # The official-plugin protection is therefore silently bypassed today.
         assert response.status_code == 500
 
-    @patch("app.plugin.router.invalidate_all_plugin_cache")
-    @patch("app.plugin.router.crud_plugin.create_plugin")
-    @patch("app.plugin.router.plugin_utils.generate_snakemake_code")
-    @patch("app.plugin.router.plugin_utils.create_metadata_file")
-    @patch("app.plugin.router.plugin_utils.create_dependency_folder")
-    @patch("app.plugin.router.plugin_utils.create_plugin_folder")
-    @patch("app.plugin.router.ensure_local_plugins_dir")
-    @patch("app.plugin.router.get_plugin_path")
-    @patch("app.plugin.router.os.path.exists", return_value=False)
-    @patch("app.plugin.router.os.makedirs")
+    @patch("app.plugin.service.invalidate_all_plugin_cache")
+    @patch("app.plugin.service.crud_plugin.create_plugin")
+    @patch("app.plugin.service.plugin_utils.generate_snakemake_code")
+    @patch("app.plugin.service.plugin_utils.create_metadata_file")
+    @patch("app.plugin.service.plugin_utils.create_dependency_folder")
+    @patch("app.plugin.service.plugin_utils.create_plugin_folder")
+    @patch("app.plugin.service.ensure_local_plugins_dir")
+    @patch("app.plugin.service.get_plugin_path")
+    @patch("app.plugin.service.os.path.exists", return_value=False)
+    @patch("app.plugin.service.os.makedirs")
     def test_upload_db_failure_rolls_back_and_returns_500(
         self,
         _mock_makedirs,
