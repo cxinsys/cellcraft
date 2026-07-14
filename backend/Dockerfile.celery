@@ -64,6 +64,6 @@ RUN if [ -f .gitmodules ]; then \
     fi
 
 # Celery 실행 (shell form for env var substitution; default concurrency=12)
-CMD /opt/micromamba/envs/snakemake/bin/python -m celery -A app.main.celery worker \
+CMD /opt/micromamba/envs/snakemake/bin/python -m celery -A app.worker.app worker \
     -n worker@%h --loglevel=info -E -Q workflow_task,plugin_task \
     -c ${CELERY_WORKER_CONCURRENCY:-12}
