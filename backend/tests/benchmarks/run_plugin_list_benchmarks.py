@@ -93,7 +93,7 @@ def setup_client():
     # Extract user_id from token for cache operations
     from app.routes.dep import get_current_active_user
     import jwt
-    from app.common.config import settings
+    from app.core.config import settings
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
     user_id = payload.get("sub")
     print(f"  User ID: {user_id}")
@@ -108,7 +108,7 @@ def setup_client():
 def clear_plugin_cache():
     """Clear all plugin list cache entries from Redis."""
     try:
-        from app.common.utils.redis_cache import cache_delete_pattern
+        from app.shared.redis import cache_delete_pattern
         count = cache_delete_pattern("plugin:list:*")
         return count
     except Exception as e:
@@ -119,7 +119,7 @@ def clear_plugin_cache():
 def check_cache_exists(user_id):
     """Check if cache exists for user."""
     try:
-        from app.common.utils.redis_cache import cache_get_bytes
+        from app.shared.redis import cache_get_bytes
         data = cache_get_bytes(f"plugin:list:{user_id}")
         return data is not None
     except Exception:
@@ -129,7 +129,7 @@ def check_cache_exists(user_id):
 def get_cache_size(user_id):
     """Get size of cached data in bytes."""
     try:
-        from app.common.utils.redis_cache import cache_get_bytes
+        from app.shared.redis import cache_get_bytes
         data = cache_get_bytes(f"plugin:list:{user_id}")
         return len(data) if data else 0
     except Exception:
@@ -477,7 +477,7 @@ def main():
 
     # Scenario 1b: True before (original code path)
     try:
-        from app.database.conn import get_db_session
+        from app.db.session import get_db_session
         with get_db_session() as db:
             results["true_before"] = run_true_before_benchmark(db, user_id, iterations=5)
     except Exception as e:

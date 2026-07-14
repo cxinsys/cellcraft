@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 @worker_ready.connect
 def on_worker_ready(sender, **kwargs):
     """Initialize resource totals and clean up stale allocations on worker startup."""
-    from app.common.utils.resource_manager import (
+    from app.shared.resources import (
         initialize_resource_totals, cleanup_stale_resources
     )
     result = initialize_resource_totals()

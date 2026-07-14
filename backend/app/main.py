@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from app.routes.api import api_router
-from app.common.config import settings
+from app.core.config import settings
 from app.core import startup
 from app.worker.app import celery
 

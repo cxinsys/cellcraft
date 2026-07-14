@@ -20,7 +20,7 @@ from app.common.utils import plugin_utils
 from app.common.utils.plugin_utils import get_plugin_path, is_plugin_editable, ensure_local_plugins_dir
 from app.common.utils.plugin_cache import invalidate_all_plugin_cache
 from app.common.utils.github_registry_client import GitHubRegistryClient
-from app.routes.celery_tasks import build_plugin_task
+from app.worker.tasks import build_plugin_task
 from celery.result import AsyncResult
 from celery import current_app as celery_app
 

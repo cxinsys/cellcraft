@@ -11,7 +11,7 @@ from app.database.crud import crud_admin
 from app.database import models
 from app.common.utils.plugin_sync_manager import PluginSyncManager
 from app.common.utils.plugin_version_validator import PluginVersionValidator
-from app.common.utils.docker_utils import container_manager
+from app.shared.docker import container_manager
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel
 from datetime import datetime
-from app.common.enums import PluginType
+from app.core.enums import PluginType
 
 class DependencyFile(BaseModel):
     file: str  # 파일 내용

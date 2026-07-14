@@ -29,7 +29,7 @@ async def fileUpload(
     files: List[UploadFile] = File(),
     current_user: models.User = Depends(dep.get_current_active_user),
 ) -> Any:
-    from app.common.config import MAX_FILES_PER_UPLOAD
+    from app.core.config import MAX_FILES_PER_UPLOAD
     from app.common.utils.file_security import validate_file_upload
 
     # Validation 1: Check batch upload limit
@@ -69,7 +69,7 @@ async def fileUpload(
             )
 
         # Stream file to disk in chunks to prevent memory exhaustion
-        from app.common.config import UPLOAD_CHUNK_SIZE, MAX_UPLOAD_SIZE
+        from app.core.config import UPLOAD_CHUNK_SIZE, MAX_UPLOAD_SIZE
 
         file_path = os.path.join(UPLOAD_DIRECTORY, final_filename)
         file_size = 0
@@ -104,7 +104,7 @@ async def fileUpload(
         # Compress H5AD files to reduce storage
         if final_filename.lower().endswith('.h5ad'):
             from app.common.utils.h5ad_compression import compress_h5ad_file
-            from app.common.config import H5AD_COMPRESSION_ENABLED, H5AD_COMPRESSION_MIN_SIZE
+            from app.core.config import H5AD_COMPRESSION_ENABLED, H5AD_COMPRESSION_MIN_SIZE
 
             if H5AD_COMPRESSION_ENABLED:
                 _compressed, file_size = await asyncio.to_thread(

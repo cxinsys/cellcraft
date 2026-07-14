@@ -18,11 +18,11 @@ from fastapi.testclient import TestClient
 os.environ["TESTING"] = "1"
 
 from app.main import app
-from app.database.conn import Base
+from app.db.session import Base
 from app.database import models
 from app.routes.dep import get_db
-from app.common.security import get_password_hash
-from app.common.enums import PluginType
+from app.core.security import get_password_hash
+from app.core.enums import PluginType
 
 
 # ==============================================================================
@@ -369,7 +369,7 @@ def expired_token(sample_user: models.User) -> str:
         str: Expired JWT token (expired 10 minutes ago)
     """
     from datetime import timedelta
-    from app.common.security import create_access_token
+    from app.core.security import create_access_token
 
     # Create token that expired 10 minutes ago
     token = create_access_token(
@@ -390,7 +390,7 @@ def tampered_token(sample_user: models.User) -> str:
     Returns:
         str: JWT token with tampered signature
     """
-    from app.common.security import create_access_token
+    from app.core.security import create_access_token
 
     # Create valid token and tamper with signature
     valid_token = create_access_token(subject=sample_user.id)
@@ -1480,7 +1480,7 @@ def manifest_auth_headers(sample_manifest_user: models.User) -> dict:
     Returns:
         dict: Headers with Authorization Bearer token
     """
-    from app.common.security import create_access_token
+    from app.core.security import create_access_token
     access_token = create_access_token(subject=str(sample_manifest_user.id))
     return {"Authorization": f"Bearer {access_token}"}
 
@@ -2107,7 +2107,7 @@ def reset_container_manager():
 
     # Reset ContainerManager state after test
     try:
-        from app.common.utils.docker_utils import container_manager
+        from app.shared.docker import container_manager
         # Clear all mappings
         container_manager._task_containers.clear()
         container_manager._container_tasks.clear()

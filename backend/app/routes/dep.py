@@ -1,5 +1,3 @@
-from typing import Generator
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
@@ -8,24 +6,16 @@ from pydantic import ValidationError
 from jose import jwt
 
 
-from app.common.config import settings
-from app.common import security
+from app.core.config import settings
+from app.core import security
 from app.database import models
 from app.database.crud import crud_user
-from app.database.conn import SessionLocal
+from app.db.session import get_db
 from app import model
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.ROUTES_STR}/auth/login/access-token"
 )
-
-#dependency
-def get_db() -> Generator:
-    try:
-        db = SessionLocal()
-        yield db
-    finally:
-        db.close()
 
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(reusable_oauth2)

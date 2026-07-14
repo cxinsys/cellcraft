@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import MultipleResultsFound
 from app.database import models
-from app.database.conn import get_db_session
+from app.db.session import get_db_session
 from app.database.crud import crud_plugin
 import logging
 

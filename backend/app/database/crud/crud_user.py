@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import asc, desc, or_
 from app.database import models
 from app.database.schemas import user
-from app.common.security import get_password_hash, verify_password
+from app.core.security import get_password_hash, verify_password
 
 def get_user(db: Session, id: int):
     return db.query(models.User).filter(models.User.id == id).first()

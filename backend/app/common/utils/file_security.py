@@ -170,7 +170,7 @@ def validate_file_path(user_folder: str, file_path: str, user_id: Optional[int] 
         resolved_file.relative_to(resolved_folder)
     except ValueError:
         # Path is outside allowed directory - log security event
-        from app.common.utils.security_logging import log_security_event
+        from app.core.logging import log_security_event
 
         log_security_event(
             event_type="path_traversal_attempt",
@@ -257,13 +257,13 @@ def validate_file_upload(
         safe_name = validate_file_upload(upload_file, user_id=123, temp_path="/tmp/upload")
         # Raises exception if invalid, returns safe filename if valid
     """
-    from app.common.config import (
+    from app.core.config import (
         MAX_UPLOAD_SIZE,
         ALLOWED_EXTENSIONS,
         MAX_FILENAME_LENGTH,
         ENABLE_FILE_SIGNATURE_VALIDATION
     )
-    from app.common.utils.security_logging import log_security_event
+    from app.core.logging import log_security_event
 
     # Use defaults from config if not provided
     if max_size is None:

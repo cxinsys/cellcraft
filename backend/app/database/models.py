@@ -3,8 +3,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB, JSON, ARRAY
 from sqlalchemy.sql import func
 
-from app.database.conn import Base
-from app.common.enums import PluginType
+from app.db.base import Base
+from app.core.enums import PluginType
 
 user_plugin_association = Table(
     'user_plugin_association', Base.metadata,
