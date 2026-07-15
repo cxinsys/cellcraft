@@ -998,7 +998,7 @@ async def check_plugin_image(*, plugin_name: str) -> dict:
             )
 
         # Docker 이미지 존재 여부 확인
-        image_exists = plugin_utils.check_plugin_docker_image(plugin_name)
+        image_exists = builder.check_plugin_docker_image(plugin_name)
 
         return {
             "plugin_name": plugin_name,
@@ -1321,7 +1321,7 @@ async def get_build_logs(*, plugin_name: str) -> dict:
             )
 
         # 로그 파일 경로 - use the BUILD_LOGS_DIR constant
-        log_file = os.path.join(plugin_utils.BUILD_LOGS_DIR, f"{plugin_name.lower()}.log")
+        log_file = os.path.join(builder.BUILD_LOGS_DIR, f"{plugin_name.lower()}.log")
 
         if not os.path.exists(log_file):
             return {

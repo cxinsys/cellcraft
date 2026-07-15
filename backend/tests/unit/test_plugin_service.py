@@ -51,7 +51,7 @@ class TestBuilder:
         os.makedirs(plugin_folder)
         script_folder = os.path.join(plugin_folder, "scripts")
 
-        with patch("app.plugin.builder.plugin_utils.generate_plugin_dockerfile") as mock_gen:
+        with patch("app.plugin.builder.generate_plugin_dockerfile") as mock_gen:
             dockerfile_path = builder.prepare_build_context(
                 plugin_folder=plugin_folder,
                 script_folder=script_folder,
@@ -73,7 +73,7 @@ class TestBuilder:
         with open(os.path.join(script_folder, "existing.py"), "w") as f:
             f.write("# real script\n")
 
-        with patch("app.plugin.builder.plugin_utils.generate_plugin_dockerfile"):
+        with patch("app.plugin.builder.generate_plugin_dockerfile"):
             builder.prepare_build_context(
                 plugin_folder=plugin_folder,
                 script_folder=script_folder,
