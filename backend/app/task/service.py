@@ -131,6 +131,14 @@ def get_task_monitoring(*, db: Session, current_user: models.User) -> List[TaskM
 
 def revoke_task(*, db: Session, current_user: models.User, task_id: str) -> dict:
     """Revoke a Celery task and clean up its containers + results folder."""
+    # 권한 확인: 본인 소유 task만 revoke 가능 (형제 엔드포인트 get_dag_structure/get_rule_status와 동일 패턴).
+    # 누락 시 인증된 사용자가 타인 task_id로 실행중 작업을 SIGTERM/컨테이너 강제종료 가능 (A01 BAC).
+    task_record = crud_task.get_task_by_task_id(db, task_id)
+    if not task_record:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task_record.user_id != current_user.id:
+        logger.warning(f"Access denied for user {current_user.id} to revoke task {task_id}")
+        raise HTTPException(status_code=403, detail="Access denied")
     try:
         # 지연 import 유지 (사유): 테스트 patch 호환(`app.task.service.get_celery_app`가
         # 아닌 호출부 재바인딩 방식) + worker가 task.service를 import 해도 web 계층
