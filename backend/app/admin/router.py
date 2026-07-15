@@ -139,11 +139,6 @@ def get_plugins_count(
     return service.get_plugins_count(db=db, current_user=current_user)
 
 
-@router.get("/system/stats", response_model=Any)
-def get_system_stats():
-    return service.get_system_stats()
-
-
 @router.put("/users/{user_id}", response_model=Any)
 def update_user(
     user_id: int,
