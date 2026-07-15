@@ -41,7 +41,7 @@ TASK_PREFIX = f"{settings.ROUTES_STR}/task"
 class TestCharacterizationTaskStatus:
     """Freeze non-SSE task status endpoints; minimal SSE smoke."""
 
-    @patch("app.task.router.get_task_info")
+    @patch("app.task.service.get_task_info")
     def test_status_simple_response_shape(
         self,
         mock_get_task_info,
@@ -55,7 +55,7 @@ class TestCharacterizationTaskStatus:
         assert response.status_code == 200
         assert response.json() == {"task_id": "some-task-123", "status": "SUCCESS"}
 
-    @patch("app.task.router.get_task_info")
+    @patch("app.task.service.get_task_info")
     def test_status_missing_status_defaults_to_unknown(
         self,
         mock_get_task_info,
@@ -157,11 +157,12 @@ class TestCharacterizationTaskStatus:
 
         assert response.status_code == 404
 
-    # NOTE: task.py binds get_task_info at import time
-    # (`from ...worker.utils import get_task_info`), so the patch must target
-    # the endpoint module namespace — patching app.worker.utils has no effect and
-    # the SSE loop would poll the real backend forever.
-    @patch("app.task.router.get_task_info")
+    # NOTE: after PR-7 the SSE generator lives in ``app.task.sse`` and binds
+    # get_task_info at import time (`from ...worker.utils import get_task_info`),
+    # so the patch must target the SSE module namespace — patching
+    # app.worker.utils has no effect and the SSE loop would poll the real backend
+    # forever.
+    @patch("app.task.sse.get_task_info")
     def test_info_sse_stream_content_type(
         self,
         mock_get_task_info,

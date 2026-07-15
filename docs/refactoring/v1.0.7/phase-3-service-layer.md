@@ -97,13 +97,15 @@ def submit_task(*, db: Session, user: User, payload: ...) -> Task:
     submission = TaskSubmission(...)
     celery_task = run_pipeline.apply_async(kwargs=submission.dict(), ...)
 ```
-- [ ] `worker/tasks.py` 쪽에서도 수신 시 같은 스키마로 파싱 → 런타임 검증
-- [ ] **와이어 포맷(kwargs 키 이름) 불변** — 구버전 워커/신버전 웹 혼재 배포 호환
+- [~] `worker/tasks.py` 쪽에서도 수신 시 같은 스키마로 파싱 → 런타임 검증
+      (SKIPPED: `process_data_task` 시그니처는 `**kwargs`가 아닌 명시 인자라 워커 변경 없음. `TaskSubmission`은 task/schemas.py에 정의 — 디스패치측 타입화 전용)
+- [x] **와이어 포맷(kwargs 키 이름) 불변** — 구버전 워커/신버전 웹 혼재 배포 호환
+      (`TaskSubmission.dict(exclude_none=True)` == 기존 compile/visualization kwargs, 왕복 테스트로 검증)
 
 ### 체크리스트
-- [ ] SSE 이벤트 포맷·종료 조건 characterization 테스트 통과
-- [ ] 타임아웃/정리(finally) 로직이 sse.py로 이동 후에도 동일 동작
-- [ ] service + sse 단위 테스트
+- [x] SSE 이벤트 포맷·종료 조건 characterization 테스트 통과 (patch 경로만 `app.task.sse`/`app.task.service`로 갱신)
+- [x] 타임아웃/정리(finally) 로직이 sse.py로 이동 후에도 동일 동작 (`stream_task_status` 단위 테스트: 종료조건/타임아웃/예외/cleanup)
+- [x] service + sse 단위 테스트 (tests/unit/test_task_service.py, 28건)
 
 ---
 
