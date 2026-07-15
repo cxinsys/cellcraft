@@ -1753,27 +1753,6 @@
         ]
       }
     },
-    "/routes/admin/system/stats": {
-      "get": {
-        "operationId": "get_system_stats_routes_admin_system_stats_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "title": "Response Get System Stats Routes Admin System Stats Get"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get System Stats",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
     "/routes/admin/tasks": {
       "get": {
         "operationId": "get_filtered_tasks_routes_admin_tasks_get",

@@ -137,18 +137,3 @@ class TestPluginSync:
             cm.get_status.return_value = {"tracked_tasks": 0}
             out = service.get_container_manager_status(current_user=_admin())
         assert out == {"tracked_tasks": 0}
-
-
-# ---------------------------------------------------------------------------
-# system stats (Docker mocked)
-# ---------------------------------------------------------------------------
-
-class TestSystemStats:
-    def test_no_containers_returns_zeroed_stats(self):
-        client = MagicMock()
-        client.containers.list.return_value = []
-        with patch("app.admin.service.docker.DockerClient", return_value=client):
-            out = service.get_system_stats()
-        assert out["total_containers"] == 0
-        assert out["containers"] == []
-        client.close.assert_called_once()

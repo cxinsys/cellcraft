@@ -76,10 +76,6 @@ function getPluginsCount() {
   return instance.get("/routes/admin/plugins_count");
 }
 
-function getSystemResources() {
-  return instance.get("/routes/admin/system/stats");
-}
-
 function getTaskResources() {
   return instance.get("/routes/task/resources");
 }
@@ -606,7 +602,6 @@ export {
   deleteWorkflowNodeFile,
   readWorkflowNodeFile,
   getFileData,
-  getSystemResources,
   getTaskResources,
   getPluginFile,
   getPluginPackageList,
