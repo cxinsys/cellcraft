@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.core.enums import PluginType
+from app.core.exceptions import ValidationFailedError, ExternalServiceError
 from app.shared.docker import container_manager
 from app.task import crud as crud_task
 from app.task.schemas import TaskMonitoringItem, PluginInfo
@@ -53,14 +54,14 @@ def get_resources() -> dict:
 
     status = get_resource_status()
     if status is None:
-        raise HTTPException(status_code=503, detail="Resource monitoring unavailable")
+        raise ExternalServiceError("Resource monitoring unavailable", status_code=503)
     return status
 
 
 def get_task_status_simple(*, task_id: str) -> dict:
     """SSE 재연결 판단용 경량 상태 확인 (Celery AsyncResult 상태만 반환)."""
     if not task_id or not task_id.strip():
-        raise HTTPException(status_code=400, detail="Invalid task_id")
+        raise ValidationFailedError("Invalid task_id")
 
     task = get_task_info(task_id)
     return {

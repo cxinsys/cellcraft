@@ -240,6 +240,58 @@ class TaskSubmissionError(CellCraftHTTPException):
         )
 
 
+# ---------------------------------------------------------------------------
+# Domain exception hierarchy (PR-8, Phase 3d)
+#
+# These are plain ``Exception`` subclasses — NOT ``HTTPException`` — so the
+# service layer can raise domain-meaningful errors with no HTTP coupling. The
+# global handler registered in ``app.main.create_app`` maps them back onto the
+# exact same wire response FastAPI produces for ``HTTPException``:
+#
+#     JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+#
+# so converting an ``HTTPException(status_code=S, detail=D)`` raise to the
+# matching domain exception is response-preserving (byte-identical body + code).
+# Each class carries a default ``status_code``; pass ``status_code=`` to cover
+# the less common codes (413/502/503) while keeping the same semantic class.
+# ---------------------------------------------------------------------------
+
+class CellcraftError(Exception):
+    """Base class for domain (non-HTTP) errors raised by the service layer."""
+
+    status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
+
+    def __init__(self, detail: Any = None, *, status_code: Optional[int] = None):
+        if status_code is not None:
+            self.status_code = status_code
+        self.detail = detail
+        super().__init__(str(detail) if detail is not None else self.__class__.__name__)
+
+
+class NotFoundError(CellcraftError):
+    """Requested resource does not exist (maps to HTTP 404)."""
+
+    status_code = status.HTTP_404_NOT_FOUND
+
+
+class PermissionDeniedError(CellcraftError):
+    """Caller is not allowed to perform the action (maps to HTTP 403)."""
+
+    status_code = status.HTTP_403_FORBIDDEN
+
+
+class ValidationFailedError(CellcraftError):
+    """Input failed a business-rule validation (maps to HTTP 400)."""
+
+    status_code = status.HTTP_400_BAD_REQUEST
+
+
+class ExternalServiceError(CellcraftError):
+    """A downstream service failed — Docker / GitHub / Redis (maps to HTTP 502)."""
+
+    status_code = status.HTTP_502_BAD_GATEWAY
+
+
 def log_error(error: Exception, context: Dict[str, Any] = None):
     """Log error with context information."""
     context_str = f" Context: {context}" if context else ""

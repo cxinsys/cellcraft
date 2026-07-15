@@ -18,6 +18,7 @@ from unittest.mock import patch, MagicMock
 
 from fastapi import HTTPException
 
+from app.core.exceptions import ValidationFailedError, ExternalServiceError
 from app.task import service
 from app.task import sse
 from app.task.schemas import TaskSubmission
@@ -188,7 +189,7 @@ class TestGetTaskStatusSimple:
         assert result == {"task_id": "abc", "status": "UNKNOWN"}
 
     def test_blank_task_id_raises_400(self):
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(ValidationFailedError) as exc:
             service.get_task_status_simple(task_id="   ")
         assert exc.value.status_code == 400
         assert exc.value.detail == "Invalid task_id"
@@ -205,7 +206,7 @@ class TestGetResources:
 
     def test_none_status_raises_503(self):
         with patch("app.shared.resources.get_resource_status", return_value=None):
-            with pytest.raises(HTTPException) as exc:
+            with pytest.raises(ExternalServiceError) as exc:
                 service.get_resources()
         assert exc.value.status_code == 503
         assert exc.value.detail == "Resource monitoring unavailable"

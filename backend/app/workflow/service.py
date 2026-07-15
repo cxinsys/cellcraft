@@ -37,7 +37,8 @@ from app.workflow.compiler.snakefile import change_snakefile_parameter
 from app.core.exceptions import (
     PluginNotFoundError, ScriptNotFoundError, FileNotFoundError as CellCraftFileNotFoundError,
     ValidationError, WorkflowError, SnakefileGenerationError, TaskSubmissionError,
-    log_error, create_error_response
+    log_error, create_error_response,
+    NotFoundError, PermissionDeniedError, ValidationFailedError,
 )
 from app.shared.cache import (
     generate_cache_key, check_cache_with_expiry, create_symbolic_link,
@@ -749,10 +750,7 @@ def get_visualization_result(*, workflow_result: WorkflowResult) -> JSONResponse
         return JSONResponse(content=plotly_data)
 
     except Exception as e:
-        raise HTTPException(
-                status_code=400,
-                detail=str(e),
-                )
+        raise ValidationFailedError(str(e))
 
 
 def save_workflow(*, db: Session, user: models.User, workflow: WorkflowCreate) -> Any:
@@ -780,10 +778,7 @@ def delete_workflow(*, db: Session, user: models.User, workflow_id: int) -> Any:
 
         # 워크플로우 경로가 사용자 폴더 내에 있는지 확인
         if not real_workflow_path.startswith(real_user_path):
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: Invalid workflow path"
-            )
+            raise PermissionDeniedError("Access denied: Invalid workflow path")
 
         # 폴더 존재 여부 확인 및 삭제
         if os.path.exists(workflow_path) and os.path.isdir(workflow_path):
@@ -799,10 +794,7 @@ def delete_workflow(*, db: Session, user: models.User, workflow_id: int) -> Any:
         delete_workflow = crud_workflow.delete_user_workflow(db, user.id, workflow_id)
         return delete_workflow
     else:
-        raise HTTPException(
-                status_code=400,
-                detail="this workflow not exists in your workflows",
-                )
+        raise ValidationFailedError("this workflow not exists in your workflows")
 
 
 def list_workflows(*, db: Session, user: models.User) -> Any:
@@ -822,10 +814,7 @@ def list_workflows(*, db: Session, user: models.User) -> Any:
         # print(res)
         return res
     else:
-        raise HTTPException(
-                status_code=400,
-                detail="this workflow not exists in your workflows",
-                )
+        raise ValidationFailedError("this workflow not exists in your workflows")
 
 
 def find_workflow(*, db: Session, user: models.User, workflow_id: int) -> Any:
@@ -838,10 +827,7 @@ def find_workflow(*, db: Session, user: models.User, workflow_id: int) -> Any:
             'workflow_info': user_workflow.workflow_info,
         }
     else:
-        raise HTTPException(
-                status_code=400,
-                detail="this workflow not exists in your workflows",
-                )
+        raise ValidationFailedError("this workflow not exists in your workflows")
 
 
 def get_results(*, user: models.User, workflow_result: WorkflowResult) -> list:
@@ -861,7 +847,7 @@ def get_results(*, user: models.User, workflow_result: WorkflowResult) -> list:
                 }
                 file_info_list.append(file_info)
     else:
-        raise HTTPException(status_code=404, detail="Results directory not found.")
+        raise NotFoundError("Results directory not found.")
 
     return file_info_list
 
@@ -936,17 +922,11 @@ def check_visualization_result(*, user: models.User, workflow_result: WorkflowRe
                 time.sleep(retry_delay)
             else:
                 logger.error(f"Failed to read visualization file after {max_retries} attempts: {FILE_PATH}")
-                raise HTTPException(
-                    status_code=400,
-                    detail=str(e),
-                )
+                raise ValidationFailedError(str(e))
         except Exception as e:
             # Unexpected error, don't retry
             logger.error(f"Unexpected error reading visualization file: {str(e)}")
-            raise HTTPException(
-                status_code=400,
-                detail=str(e),
-            )
+            raise ValidationFailedError(str(e))
 
 
 def save_node_data(*, db: Session, user: models.User,
@@ -978,10 +958,7 @@ def save_node_data(*, db: Session, user: models.User,
             'file_path': result_file_path
         }
     else:
-        raise HTTPException(
-                status_code=400,
-                detail="this workflow not exists in your workflows",
-                )
+        raise ValidationFailedError("this workflow not exists in your workflows")
 
 
 def read_node_data(*, db: Session, user: models.User,
@@ -994,10 +971,7 @@ def read_node_data(*, db: Session, user: models.User,
         workflow_path = f"{user_path}workflow_{node_file_info.id}"
         print(workflow_path)
         if not os.path.exists(workflow_path):
-            raise HTTPException(
-                status_code=400,
-                detail="this workflow not exists in your workflows",
-                )
+            raise ValidationFailedError("this workflow not exists in your workflows")
         # workflowNodeFileInfo.node_name이랑 workflowNodeFileInfo.node_id로 파일 읽어오기
         file_name = f"{node_file_info.node_name}_{node_file_info.node_id}.{node_file_info.file_extension}"
         with open(f"{workflow_path}/{file_name}", "r") as f:
@@ -1014,10 +988,7 @@ def read_node_data(*, db: Session, user: models.User,
             'file_extension': node_file_info.file_extension
         }
     else:
-        raise HTTPException(
-                status_code=400,
-                detail="this workflow not exists in your workflows",
-                )
+        raise ValidationFailedError("this workflow not exists in your workflows")
 
 
 def delete_node_data(*, db: Session, user: models.User,
@@ -1029,10 +1000,7 @@ def delete_node_data(*, db: Session, user: models.User,
         user_path = f"./user/{user.username}/"
         workflow_path = f"{user_path}workflow_{node_file_info.id}"
         if not os.path.exists(workflow_path):
-            raise HTTPException(
-                status_code=400,
-                detail="this workflow not exists in your workflows",
-                )
+            raise ValidationFailedError("this workflow not exists in your workflows")
         # workflowNodeFileInfo.node_name이랑 workflowNodeFileInfo.node_id로 파일 삭제
         file_name = f"{node_file_info.node_name}_{node_file_info.node_id}.{node_file_info.file_extension}"
         os.remove(f"{workflow_path}/{file_name}")
@@ -1043,7 +1011,4 @@ def delete_node_data(*, db: Session, user: models.User,
             'file_extension': node_file_info.file_extension
         }
     else:
-        raise HTTPException(
-                status_code=400,
-                detail="this workflow not exists in your workflows",
-                )
+        raise ValidationFailedError("this workflow not exists in your workflows")

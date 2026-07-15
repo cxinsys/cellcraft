@@ -1,14 +1,28 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api import api_router
 from app.core.config import settings
 from app.core import startup
+from app.core.exceptions import CellcraftError
 from app.worker.app import celery
 
 
 def get_celery_app():
     return celery
+
+
+async def cellcraft_error_handler(request: Request, exc: CellcraftError) -> JSONResponse:
+    """Map a domain ``CellcraftError`` onto FastAPI's HTTPException wire format.
+
+    Emits ``{"detail": <detail>}`` with the exception's status code — byte-for-byte
+    identical to FastAPI's default ``HTTPException`` response — so converting a
+    service ``raise HTTPException(...)`` to the matching domain exception does not
+    change any response. FastAPI's built-in 422 ``RequestValidationError`` handling
+    is untouched (this handler only fires for ``CellcraftError`` subclasses).
+    """
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
 def create_app() -> FastAPI:
@@ -40,6 +54,7 @@ def create_app() -> FastAPI:
     )
 
     app.celery_app = celery
+    app.add_exception_handler(CellcraftError, cellcraft_error_handler)
     app.include_router(api_router, prefix=settings.ROUTES_STR)
     app.add_event_handler("startup", startup.on_startup)
     startup.setup_signal_handlers()
