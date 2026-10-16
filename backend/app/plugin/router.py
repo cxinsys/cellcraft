@@ -11,23 +11,6 @@ from app.plugin import service
 # 로거 설정
 logger = logging.getLogger(__name__)
 
-# --- Test-patch compatibility re-exports ---------------------------------
-# The business logic now lives in ``app.plugin.service``; the router only wires
-# HTTP concerns to it. Existing tests (test_plugin_api.py) patch these symbols
-# on the router namespace (e.g. ``app.plugin.router.AsyncResult``). Keeping them
-# importable here preserves those patch targets without changing behavior.
-# noqa: F401 imports below are intentional re-exports for test compatibility.
-import os  # noqa: F401
-import docker  # noqa: F401
-from fastapi.responses import FileResponse  # noqa: F401
-from celery.result import AsyncResult  # noqa: F401
-from celery import current_app as celery_app  # noqa: F401
-from app.plugin import utils as plugin_utils  # noqa: F401
-from app.plugin import crud as crud_plugin  # noqa: F401
-from app.plugin.utils import get_plugin_path, is_plugin_editable, ensure_local_plugins_dir  # noqa: F401
-from app.plugin.cache import invalidate_all_plugin_cache  # noqa: F401
-from app.worker.tasks import build_plugin_task  # noqa: F401
-
 router = APIRouter()
 
 

@@ -78,34 +78,22 @@ JSON 키, 상태코드, 에러 메시지 문자열까지 유지 (OpenAPI diff 0 
 | 현재 | 이동 후 |
 |---|---|
 | `get_task_status()` SSE 루프 80줄+ (수동 타임아웃·리소스 정리) | `task/sse.py` — 제너레이터/스트리밍 유틸로 분리, router는 `EventSourceResponse(sse.stream_task_status(...))` 형태 |
-| 태스크 생성·Celery 디스패치 (15+ kwargs 인라인) | `service.submit_task()` + **kwargs를 pydantic 스키마로 타입화**: `task/schemas.py`에 `TaskSubmission(BaseModel)` 정의, `.dict()`로 디스패치 |
+| 태스크 생성·Celery 디스패치 (15+ kwargs 인라인) | **미적용** — 디스패치 지점(`workflow/service.py`, `plugin/builder.py`)은 기존 kwargs dict 리터럴을 그대로 유지. 타입화는 Phase 5 백로그로 이관 (아래 참고) |
 | 태스크 취소/재시도/결과 조회 | `service.cancel_task()`, `get_task_result()` 등 |
 
-### Celery 디스패치 타입화 (이 PR의 핵심 개선)
-```python
-# task/schemas.py (pydantic v1 문법)
-class TaskSubmission(BaseModel):
-    user_id: int
-    workflow_id: int
-    algorithm_id: Optional[int]
-    plugin_name: str
-    cache_key: Optional[str]
-    # ... 현재 celery_tasks.py 태스크 시그니처의 kwargs 전부 명시
+### Celery 디스패치 타입화 — 미적용 (Phase 5 백로그로 이관)
+당초 `task/schemas.py`에 `TaskSubmission(BaseModel)`을 정의하고 `.dict(exclude_none=True)`로 디스패치하는 계획이었으나,
+PR-7에서는 스키마와 왕복 테스트만 추가되고 실제 디스패치 지점에는 적용되지 않았다.
+병합 직전 디스패치 경로를 수정하는 위험을 피하기 위해 PR-12에서 미사용 `TaskSubmission`과 해당 테스트를 삭제하고,
+타입화는 [phase-5-backlog.md](./phase-5-backlog.md) §6으로 이관했다.
 
-# task/service.py
-def submit_task(*, db: Session, user: User, payload: ...) -> Task:
-    submission = TaskSubmission(...)
-    celery_task = run_pipeline.apply_async(kwargs=submission.dict(), ...)
-```
-- [~] `worker/tasks.py` 쪽에서도 수신 시 같은 스키마로 파싱 → 런타임 검증
-      (SKIPPED: `process_data_task` 시그니처는 `**kwargs`가 아닌 명시 인자라 워커 변경 없음. `TaskSubmission`은 task/schemas.py에 정의 — 디스패치측 타입화 전용)
-- [x] **와이어 포맷(kwargs 키 이름) 불변** — 구버전 워커/신버전 웹 혼재 배포 호환
-      (`TaskSubmission.dict(exclude_none=True)` == 기존 compile/visualization kwargs, 왕복 테스트로 검증)
+- 현재 디스패치: `workflow/service.py`(compile·visualization), `plugin/builder.py`(plugin build)의 `apply_async(args=..., kwargs={...})` dict 리터럴 — 리팩토링 전과 키·값 동일
+- [x] **와이어 포맷(kwargs 키 이름) 불변** — 디스패치 코드 자체를 변경하지 않음 (릴리스 동등성 검토에서 리팩토링 전 호출부와 키 단위 비교로 확인)
 
 ### 체크리스트
 - [x] SSE 이벤트 포맷·종료 조건 characterization 테스트 통과 (patch 경로만 `app.task.sse`/`app.task.service`로 갱신)
 - [x] 타임아웃/정리(finally) 로직이 sse.py로 이동 후에도 동일 동작 (`stream_task_status` 단위 테스트: 종료조건/타임아웃/예외/cleanup)
-- [x] service + sse 단위 테스트 (tests/unit/test_task_service.py, 28건)
+- [x] service + sse 단위 테스트 (tests/unit/test_task_service.py, 24건 — `TaskSubmission` 왕복 테스트 4건은 PR-12에서 스키마와 함께 삭제)
 
 ---
 
@@ -141,7 +129,7 @@ class ExternalServiceError(CellcraftError):   # 502 (Docker/GitHub/Redis), 500/5
 ### 체크리스트
 - [x] 신규 5개 도메인(file/admin/auth/user/datatable) router의 `try/except + HTTPException` 반복 패턴 제거 (도메인 예외 + 전역 핸들러로 대체). PR-5~7 서비스는 위 §1 "유지" 항목대로 일부 잔존
 - [x] 에러 응답 본문·상태코드 불변 (characterization file/auth·task 통과 + contract OpenAPI diff 0)
-- [~] import-linter 계약 `router는 crud를 직접 import하지 않는다`: 신규 5개 router는 이미 crud 미import(service 경유). 단, plugin/workflow router는 아직 `crud`를 `# noqa: F401` 재-export(기존 테스트 patch 경로 호환용)로 보유 — 계약 활성화는 전 도메인 동시 충족이 필요하므로 후속 PR로 이관 (현 계약 2종 KEPT 유지, 신규 계약 미추가)
+- [~] import-linter 계약 `router는 crud를 직접 import하지 않는다`: 신규 5개 router는 이미 crud 미import(service 경유). plugin/workflow router에 남아 있던 `crud` 등 `# noqa: F401` 재-export(테스트 patch 경로 호환용)는 PR-12(#124)에서 제거되어 현재 전 router가 조건을 충족 — 계약 추가 자체는 Phase 5 백로그 §7로 이관 (현 계약 2종 KEPT 유지)
 
 ---
 

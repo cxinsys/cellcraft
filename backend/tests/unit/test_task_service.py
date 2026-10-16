@@ -1,17 +1,11 @@
 """
-Unit tests for the task service + SSE layer (app/task/service.py, app/task/sse.py)
-and the ``TaskSubmission`` dispatch schema, extracted in PR-7.
+Unit tests for the task service + SSE layer (app/task/service.py, app/task/sse.py),
+extracted in PR-7.
 
 Scope: pin the extracted business logic directly with the Celery / Docker /
 filesystem boundaries mocked. The characterization/integration tests already
-pin the HTTP contract; these tests give the new service functions, the SSE
-streaming generator, and the ``TaskSubmission`` wire-format schema direct
-coverage.
-
-The most load-bearing test here is ``test_task_submission_dict_matches_*``:
-it proves ``TaskSubmission(...).dict(exclude_none=True)`` reproduces the exact
-legacy ``process_data_task`` dispatch kwargs (compile + visualization forms),
-so typing the payload does not change the on-the-wire contract.
+pin the HTTP contract; these tests give the new service functions and the SSE
+streaming generator direct coverage.
 """
 import pytest
 from unittest.mock import patch, MagicMock
@@ -21,7 +15,6 @@ from fastapi import HTTPException
 from app.core.exceptions import ValidationFailedError, ExternalServiceError
 from app.task import service
 from app.task import sse
-from app.task.schemas import TaskSubmission
 
 
 def _user(username="tasksvc", user_id=11):
@@ -29,108 +22,6 @@ def _user(username="tasksvc", user_id=11):
     u.id = user_id
     u.username = username
     return u
-
-
-# ---------------------------------------------------------------------------
-# TaskSubmission: wire-format round-trip (the PR-7 core improvement)
-# ---------------------------------------------------------------------------
-
-class TestTaskSubmissionWireFormat:
-    """``TaskSubmission.dict(exclude_none=True)`` must equal the legacy kwargs."""
-
-    def test_task_submission_dict_matches_compile_kwargs(self):
-        """Compile dispatch: schema reproduces the 7-key wire kwargs exactly.
-
-        Mirrors ``app/workflow/service.py::_dispatch_compile_task`` kwargs.
-        """
-        legacy_compile_kwargs = {
-            'user_id': 11,
-            'workflow_id': 5,
-            'algorithm_id': 9,
-            'plugin_name': 'P',
-            'task_type': 'compile',
-            'resource_type': 'cpu',
-            'resource_slots': 1,
-        }
-
-        submission = TaskSubmission(
-            user_id=11,
-            workflow_id=5,
-            algorithm_id=9,
-            plugin_name='P',
-            task_type='compile',
-            resource_type='cpu',
-            resource_slots=1,
-        )
-
-        assert submission.dict(exclude_none=True) == legacy_compile_kwargs
-
-    def test_task_submission_dict_matches_visualization_kwargs(self):
-        """Visualization dispatch: schema reproduces the 9-key wire kwargs exactly.
-
-        Mirrors ``app/workflow/service.py::visualize_data`` apply_async kwargs
-        (adds ``cache_key`` + ``cache_info``; resource_type='cpu', slots=1).
-        """
-        cache_info = {
-            'user_path': './user/tasksvc/',
-            'result_file_path': './user/tasksvc/workflow_5/visualization_3/results/out.json',
-            'plugin_name': 'P',
-            'script_name': 'viz',
-            'linked_location': 'workflow_5/visualization_3/results/out.json',
-        }
-        legacy_viz_kwargs = {
-            'user_id': 11,
-            'workflow_id': 5,
-            'algorithm_id': 3,
-            'plugin_name': 'P',
-            'task_type': 'visualization',
-            'resource_type': 'cpu',
-            'resource_slots': 1,
-            'cache_key': 'abc123',
-            'cache_info': cache_info,
-        }
-
-        submission = TaskSubmission(
-            user_id=11,
-            workflow_id=5,
-            algorithm_id=3,
-            plugin_name='P',
-            task_type='visualization',
-            resource_type='cpu',
-            resource_slots=1,
-            cache_key='abc123',
-            cache_info=cache_info,
-        )
-
-        assert submission.dict(exclude_none=True) == legacy_viz_kwargs
-
-    def test_defaults_match_worker_signature(self):
-        """resource_type / resource_slots defaults match the worker signature."""
-        submission = TaskSubmission(
-            user_id=1, workflow_id=2, algorithm_id=3,
-            plugin_name='P', task_type='compile',
-        )
-        assert submission.resource_type == 'cpu'
-        assert submission.resource_slots == 4
-        # exclude_none keeps the (defaulted, non-None) resource fields but drops
-        # the visualization-only extras.
-        assert submission.dict(exclude_none=True) == {
-            'user_id': 1,
-            'workflow_id': 2,
-            'algorithm_id': 3,
-            'plugin_name': 'P',
-            'task_type': 'compile',
-            'resource_type': 'cpu',
-            'resource_slots': 4,
-        }
-
-    def test_algorithm_id_value_shape_preserved(self):
-        """algorithm_id is passed through untouched (no int coercion of node ids)."""
-        submission = TaskSubmission(
-            user_id=1, workflow_id=2, algorithm_id="node-7",
-            plugin_name='P', task_type='visualization',
-        )
-        assert submission.dict(exclude_none=True)['algorithm_id'] == "node-7"
 
 
 # ---------------------------------------------------------------------------

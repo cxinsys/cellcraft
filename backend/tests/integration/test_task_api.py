@@ -746,7 +746,7 @@ class TestDAGStructure:
         assert dag["parsing_method"] == "native_native"
 
     # Test 2: GET /dag-structure - fallback to legacy parser
-    @patch('app.workflow.compiler.dag_parser.SnakemakeDAGParser')
+    @patch('app.task.service.SnakemakeDAGParser')
     @patch('app.task.service.parse_snakefile_native')
     def test_dag_structure_fallback_to_legacy(self, mock_parse_native, mock_parser_class, client, db_session, auth_headers, sample_task):
         """Test DAG structure endpoint falls back to legacy parser when native parser fails."""
@@ -814,7 +814,7 @@ class TestDAGStructure:
         assert "access denied" in response.json()["detail"].lower()
 
     # Test 6: GET /dag-structure - both parsers fail
-    @patch('app.workflow.compiler.dag_parser.SnakemakeDAGParser')
+    @patch('app.task.service.SnakemakeDAGParser')
     @patch('app.task.service.parse_snakefile_native')
     def test_dag_structure_both_parsers_fail(self, mock_parse_native, mock_parser_class, client, db_session, auth_headers, sample_task):
         """Test DAG structure endpoint returns 500 when both parsers fail."""

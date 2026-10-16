@@ -12,21 +12,6 @@ from app.auth import deps as dep
 from app import models
 from app.workflow import service
 
-# --- Test-patch compatibility re-exports ---------------------------------
-# The business logic now lives in ``app.workflow.service``; the router only
-# wires HTTP concerns to it. Existing tests (test_workflow_api.py,
-# test_characterization_workflow_compile.py) patch these symbols on the router
-# namespace (e.g. ``app.workflow.router.get_plugin_path``). Keeping them
-# importable here preserves those patch targets without changing behavior.
-# noqa: F401 imports below are intentional re-exports for test compatibility.
-from app.plugin.utils import get_plugin_path  # noqa: F401
-from app.worker.utils import get_task_info  # noqa: F401
-from app.workflow.compiler.snakefile import change_snakefile_parameter  # noqa: F401
-from app.workflow.utils import extract_rule_block  # noqa: F401
-from app.workflow import crud as crud_workflow  # noqa: F401
-from app.plugin import crud as crud_plugin  # noqa: F401
-from app.worker.tasks import process_data_task  # noqa: F401
-
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
