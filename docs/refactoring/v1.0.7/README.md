@@ -139,3 +139,15 @@ release/v1.0.7
 | 3 | PR-5~8 | 3~5일 |
 | 4 | PR-9, PR-10 | 2~3일 |
 | **합계** | 10 PR | **8~12 작업일** |
+
+## 7. 의도된 동작 변경 (리팩토링 전 `519649f` 대비)
+API 계약·DB 스키마·Celery 태스크 이름/페이로드는 동일하다. 아래 항목만 의도적으로 달라졌다.
+
+| 구분 | 변경 | 관련 |
+|---|---|---|
+| 버그 수정 | `task` 엔드포인트의 `logger` 미정의(NameError) 해소<br>- `DELETE /routes/task/cache/clear`: 항상 500 → 200<br>- `GET /routes/task/cache/stats` 에러 경로: 500 → 200 `{"error": ...}`<br>- `GET /routes/task/{task_id}/rule-logs/{rule_name}`: native parser 실패 시 500 → legacy parser fallback | PR-7, 회귀 테스트 PR-11 |
+| 보안 | `DELETE /routes/task/revoke/{task_id}`에 소유자 검증 추가 (없는 task 404, 타인 task 403) | #121 |
+| 보안 | 인증 없는 `GET /routes/admin/system/stats` 제거 | #122 |
+| 설치 | 신규 설치 시 마이그레이션 0001의 `plugintype` enum 중복 생성 오류 수정 | PR-1 |
+| 운영 | Celery 워커 진입점 `app.main.celery` → `app.worker.app`, 워커는 마이그레이션을 실행하지 않음 (웹이 담당) | PR-2 |
+| 로깅 | logger 이름이 모듈 경로를 따라 변경 (예: `app.routes.endpoints.task` → `app.task.service`) — 이름을 참조하는 로깅 설정 없음 | PR-3~10 |
