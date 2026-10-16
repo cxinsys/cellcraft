@@ -44,10 +44,16 @@ def read_me(*, current_user: models.User) -> Any:
         "email": current_user.email,
         "username": current_user.username,
         "is_superuser": current_user.is_superuser,
+        "must_change_password": bool(current_user.must_change_password),
     }
 
 
 def update_plugins(*, db: Session, current_user: models.User,
                    user_in: user_schemas.UserUpdate) -> Any:
-    """Update the current user's record (plugin associations / password)."""
+    """Update the current user's record (plugin associations).
+
+    비밀번호 변경은 현재 비밀번호를 확인하는 ``POST /auth/password``로만 가능하다 (#138).
+    """
+    if user_in.password:
+        raise ValidationFailedError("Password cannot be changed here; use POST /routes/auth/password")
     return crud_user.update_user(db, user_id=current_user.id, user=user_in)

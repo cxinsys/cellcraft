@@ -53,9 +53,11 @@ class TestCharacterizationAuthLogin:
         assert data["token_type"] == "bearer"
         assert isinstance(data["access_token"], str) and data["access_token"]
 
-        # user_info is a nested dict with these three keys, in this shape.
+        # user_info is a nested dict with these keys, in this shape.
+        # (#138: must_change_password added — forced password change flag)
         user_info = data["user_info"]
-        assert set(user_info.keys()) == {"is_superuser", "email", "is_active"}
+        assert set(user_info.keys()) == {"is_superuser", "email", "is_active", "must_change_password"}
+        assert user_info["must_change_password"] is False
         assert user_info["email"] == sample_user.email
         assert user_info["is_active"] is True
         assert user_info["is_superuser"] is False
