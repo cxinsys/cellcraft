@@ -556,17 +556,24 @@ class TestResultAccess:
         assert out[0]["name"] == "a.csv"
         assert set(out[0].keys()) == {"name", "size", "modified_time"}
 
-    def test_get_visualization_result_bad_file_raises_400(self):
-        wr = WorkflowResult(id=1, algorithm_id=1, filename="/does/not/exist.json")
+    def test_get_visualization_result_bad_file_raises_400(self, tmp_path, monkeypatch):
+        # #137: 경로는 요청 사용자 디렉터리 내부로 제한 (외부 경로는 403, test_workflow_input_validation)
+        user = _user(username="cru")
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "user" / "cru").mkdir(parents=True)
+        wr = WorkflowResult(id=1, algorithm_id=1, filename="./user/cru/does_not_exist.json")
         with pytest.raises(ValidationFailedError) as exc:
-            service.get_visualization_result(workflow_result=wr)
+            service.get_visualization_result(user=user, workflow_result=wr)
         assert exc.value.status_code == 400
 
-    def test_get_visualization_result_reads_json(self, tmp_path):
-        f = tmp_path / "viz.json"
+    def test_get_visualization_result_reads_json(self, tmp_path, monkeypatch):
+        user = _user(username="cru")
+        monkeypatch.chdir(tmp_path)
+        f = tmp_path / "user" / "cru" / "viz.json"
+        f.parent.mkdir(parents=True)
         f.write_text(json.dumps({"data": [], "layout": {"title": "T"}}))
-        wr = WorkflowResult(id=1, algorithm_id=1, filename=str(f))
-        resp = service.get_visualization_result(workflow_result=wr)
+        wr = WorkflowResult(id=1, algorithm_id=1, filename="./user/cru/viz.json")
+        resp = service.get_visualization_result(user=user, workflow_result=wr)
         assert isinstance(resp, JSONResponse)
 
     def test_check_result_returns_file_response(self, tmp_path, monkeypatch):

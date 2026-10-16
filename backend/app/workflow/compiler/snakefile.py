@@ -1,4 +1,7 @@
+import json
 import os
+import re
+import shlex
 import docker
 import yaml
 from pathlib import Path
@@ -280,13 +283,14 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         print("Container is ready for execution")
         
         # Snakemake 실행 명령어 (이전 실행에서 남은 lock 파일 먼저 해제)
+        quoted_snakefile = shlex.quote(container_snakefile_path)
         bash_cmd = (
             f"cd /workspace && "
-            f"snakemake --unlock --snakefile {container_snakefile_path} 2>/dev/null || true && "
-            f"snakemake {' '.join(targets)} "
-            f"--snakefile {container_snakefile_path} "
+            f"snakemake --unlock --snakefile {quoted_snakefile} 2>/dev/null || true && "
+            f"snakemake {' '.join(shlex.quote(str(target)) for target in targets)} "
+            f"--snakefile {quoted_snakefile} "
             "-j 1 --printshellcmds "
-            f"2>&1 | tee {log_file}"
+            f"2>&1 | tee {shlex.quote(str(log_file))}"
         )
         
         print("Executing command in container...")
@@ -477,33 +481,52 @@ def filter_and_add_suffix(input_string):
     # 밑줄이 없는 경우, 원래 문자열을 반환
     return input_string
 
+_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _quote_string(value: str) -> str:
+    """문자열을 Snakefile(Python) 문자열 리터럴로 변환한다. 일반 문자열은 기존 ``"value"``와 동일하다."""
+    return json.dumps(value, ensure_ascii=False)
+
+
+def format_plugin_param(value: Any) -> str:
+    """플러그인 파라미터 값을 Snakefile placeholder에 들어갈 Python 리터럴로 변환한다.
+
+    정상 값의 출력 형식은 기존과 동일하게 유지하고, 따옴표·역슬래시 등은 escape 한다.
+    """
+    # 리스트인 경우, []로 감싸고 쉼표로 구분된 문자열로 변환
+    if isinstance(value, list):
+        return "[" + ", ".join(_quote_string(v) if isinstance(v, str) else repr(v) for v in value) + "]"
+    # 딕셔너리인 경우, {}로 감싸고 키:값 쌍을 쉼표로 구분된 문자열로 변환 (키는 식별자만 허용)
+    if isinstance(value, dict):
+        for k in value:
+            if not isinstance(k, str) or not _IDENTIFIER_PATTERN.match(k):
+                raise ValueError(f"Invalid parameter key: {k!r}")
+        return '{' + ', '.join(
+            f"{k}: {_quote_string(v)}" if isinstance(v, str) else f"{k}: {v!r}" for k, v in value.items()
+        ) + '}'
+    # 숫자형(int, float, bool)은 그대로 사용
+    if isinstance(value, (int, float)):
+        return str(value)
+    # 문자열인 경우, " "로 감싸줌
+    if isinstance(value, str):
+        return _quote_string(value)
+    raise ValueError(f"Unsupported parameter value type: {type(value).__name__}")
+
+
 def change_snakefile_parameter(snakefile_path, output_path, user_input, plugin_params):
     # 기존 Snakefile 읽기
     with open(snakefile_path, 'r') as file:
         content = file.read()
 
-    # user_input의 값을 문자열로 변환해서 처리
+    # user_input(입력 파일 경로·실행 컨텍스트)은 템플릿의 따옴표 안에 그대로 치환 (호출 측에서 검증)
     for key, value in user_input.items():
         if isinstance(value, str):
             content = content.replace(f"{{{key}}}", value)
 
-    # user_input의 값을 문자열로 변환해서 처리
+    # 플러그인 파라미터는 Python 리터럴로 변환해서 치환
     for key, value in plugin_params.items():
-        # 리스트인 경우, []로 감싸고 쉼표로 구분된 문자열로 변환
-        if isinstance(value, list):
-            value = "[" + ", ".join(f"\"{v}\"" if isinstance(v, str) else str(v) for v in value) + "]"
-        # 딕셔너리인 경우, {}로 감싸고 키:값 쌍을 쉼표로 구분된 문자열로 변환
-        elif isinstance(value, dict):
-            value = '{' + ', '.join(f"{k}: \"{v}\"" if isinstance(v, str) else f"{k}: {v}" for k, v in value.items()) + '}'
-        # 숫자형(int, float)은 그대로 사용
-        elif isinstance(value, (int, float)):
-            value = str(value)
-        # 문자열인 경우, " "로 감싸줌
-        elif isinstance(value, str):
-            value = f"\"{value}\""
-
-        # 변환된 값을 content에 반영
-        content = content.replace(f"{{{key}}}", value)
+        content = content.replace(f"{{{key}}}", format_plugin_param(value))
 
     # 새로운 Snakefile 생성
     with open(output_path, 'w') as file:
