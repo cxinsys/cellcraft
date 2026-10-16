@@ -1,4 +1,5 @@
 import os
+import posixpath
 import docker
 import yaml
 from pathlib import Path
@@ -6,8 +7,65 @@ from typing import Dict, Any
 import time
 from datetime import datetime
 
+from app.core.config import settings
 from app.shared.docker import container_manager
 from app import models
+
+# 플러그인 컨테이너 내부 작업 디렉터리. Snakefile의 상대 경로(user/..., tutorials/...)는 이 경로 기준으로 해석된다.
+PLUGIN_WORKDIR = "/workspace"
+# 모든 사용자가 공유하는 읽기 전용 입력 디렉터리 (backend 루트 기준)
+SHARED_INPUT_DIRS = ("tutorials",)
+
+
+def resolve_user_dir(snakefile_path: str) -> str:
+    """Snakefile 경로(``./user/<username>/...``)에서 사용자 디렉터리(``user/<username>``)를 반환한다.
+
+    Snakefile이 사용자 디렉터리 밖에 있으면 ValueError를 발생시킨다.
+    """
+    normalized = posixpath.normpath(str(snakefile_path).replace("\\", "/"))
+    parts = normalized.split("/")
+    if normalized.startswith("/") or len(parts) < 3 or parts[0] != "user" or parts[1] in ("", ".", ".."):
+        raise ValueError(f"Snakefile is not inside a user directory: {snakefile_path}")
+    return posixpath.join(parts[0], parts[1])
+
+
+def build_plugin_volumes(host_backend_path, workspace_path, snakefile_path: str) -> Dict[str, Dict[str, str]]:
+    """플러그인 컨테이너에 마운트할 볼륨을 구성한다.
+
+    실행 사용자 디렉터리만 rw, 공유 입력 디렉터리는 ro로 마운트하고,
+    컨테이너 내부 경로는 기존 backend 전체 마운트와 동일한 구조(/workspace/<상대 경로>)를 유지한다.
+
+    Parameters:
+        host_backend_path: 호스트 기준 backend 디렉터리 경로 (Docker bind source)
+        workspace_path: 현재 프로세스 기준 backend 디렉터리 경로 (존재 여부 확인용)
+        snakefile_path: backend 기준 상대 Snakefile 경로
+    """
+    host_backend_path = str(host_backend_path)
+    user_dir = resolve_user_dir(snakefile_path)
+    volumes = {
+        posixpath.join(host_backend_path, user_dir): {
+            "bind": posixpath.join(PLUGIN_WORKDIR, user_dir),
+            "mode": "rw",
+        }
+    }
+    for shared_dir in SHARED_INPUT_DIRS:
+        if os.path.isdir(os.path.join(str(workspace_path), shared_dir)):
+            volumes[posixpath.join(host_backend_path, shared_dir)] = {
+                "bind": posixpath.join(PLUGIN_WORKDIR, shared_dir),
+                "mode": "ro",
+            }
+    return volumes
+
+
+def plugin_container_security_options() -> Dict[str, Any]:
+    """플러그인 컨테이너 권한 제한 옵션 (PLUGIN_CONTAINER_HARDENING=false 로 비활성화 가능)."""
+    if not settings.PLUGIN_CONTAINER_HARDENING:
+        return {}
+    return {
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges"],
+    }
+
 
 def get_log_path(snakefile_path: str) -> Path:
     """일관된 로그 파일 경로 반환"""
@@ -211,19 +269,23 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
             host_backend_path = workspace_path  # 기본값으로 workspace_path 사용
         
         print(f"Using host backend path: {host_backend_path}")
-        
+
+        # 실행 사용자 디렉터리(rw)와 공유 입력(ro)만 마운트 (backend 전체·celery 볼륨 상속 금지)
+        try:
+            volumes = build_plugin_volumes(host_backend_path, workspace_path, snakefile_path)
+        except ValueError as path_error:
+            return {
+                "returncode": 1,
+                "stdout": "",
+                "stderr": str(path_error)
+            }
+
         # 컨테이너 실행 설정
         container_config = {
             'image': image_name,
             'name': container_name,  # 컨테이너 이름 지정
-            'volumes': {
-                host_backend_path: {
-                    "bind": "/workspace",
-                    "mode": "rw"
-                }
-            },
-            'volumes_from': [celery_container_id],  # 기존 volumes_from 유지
-            'working_dir': '/workspace',
+            'volumes': volumes,
+            'working_dir': PLUGIN_WORKDIR,
             'environment': {
                 'MAMBA_ROOT_PREFIX': '/opt/micromamba',
                 'PATH': '/opt/micromamba/envs/plugin_env/bin:/opt/micromamba/bin:/usr/local/bin:/usr/bin:/bin',
@@ -232,14 +294,16 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
             },
             'user': f"{os.getuid()}:{os.getgid()}",  # 권한 문제 해결
             'detach': True,
-            'network': 'cellcraft_app-network',
+            # 앱 내부 네트워크(db/redis/rabbitmq)와 분리
+            'network': settings.PLUGIN_CONTAINER_NETWORK,
             'tty': True,
             'stdin_open': True,
             'labels': {
                 'celery.task_id': task_id or 'unknown',
                 'plugin.name': plugin_name,
                 'container.type': 'plugin-execution'
-            }  # 라벨로 메타데이터 추가
+            },  # 라벨로 메타데이터 추가
+            **plugin_container_security_options(),
         }
 
         # GPU 설정 추가 (플러그인이 GPU를 필요로 하는 경우)
@@ -259,7 +323,7 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         # Task마다 새로운 컨테이너 생성
         print(f"Starting new container with image: {image_name}")
         print(f"Container name: {container_name}")
-        print(f"Using volumes from celery container: {celery_container_id}")
+        print(f"Mounted volumes: {volumes}")
         
         container = client.containers.run(**container_config)
         print(f"Container started with ID: {container.id}")

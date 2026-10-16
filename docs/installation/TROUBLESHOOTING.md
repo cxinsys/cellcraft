@@ -85,6 +85,21 @@ This process ensures that:
    docker compose -f [compose-file] restart backend
    ```
 
+### Custom Plugin Fails After Upgrading to v1.0.8
+
+**Symptom**: A custom (local) plugin that worked before v1.0.8 now fails with permission or network errors.
+
+Since v1.0.8, plugin containers run isolated: only the running user's directory (read-write) and `tutorials/` (read-only) are mounted under `/workspace`, the container is detached from the internal app network, and Linux capabilities are dropped.
+
+**Solution**:
+1. Make sure the plugin Snakefile only reads and writes paths under `user/{user_name}/...` or `tutorials/...`.
+2. If the plugin needs extra capabilities, set the following on the `celery` service and restart it:
+   ```yaml
+   environment:
+     - PLUGIN_CONTAINER_HARDENING=false
+   ```
+3. If the plugin needs a specific Docker network, set `PLUGIN_CONTAINER_NETWORK=<network name>` on the `celery` service (default: `bridge`).
+
 ## Docker Issues
 
 ### Permission Denied Errors
