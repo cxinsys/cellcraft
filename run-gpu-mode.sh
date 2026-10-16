@@ -603,6 +603,32 @@ verify_installation() {
     fi
 }
 
+# Show initial admin account (created on first startup, #138)
+show_admin_account_info() {
+    local compose=(docker compose -f "${USED_COMPOSE_FILE}")
+    local waited=0
+    # 백엔드 기동 시 관리자 계정 초기화 단계가 끝날 때까지 대기 (최대 60초)
+    while (( waited < 60 )); do
+        if "${compose[@]}" logs backend 2>/dev/null | grep -q "Admin Account Initialization"; then
+            sleep 2
+            break
+        fi
+        sleep 2
+        waited=$((waited + 2))
+    done
+
+    echo -e "${BLUE}🔑 Admin Account:${NC}"
+    local info
+    if info=$("${compose[@]}" exec -T backend cat .initial_admin_password 2>/dev/null) && [[ -n "${info}" ]]; then
+        echo "${info}" | sed 's/^/  • /'
+        echo -e "  • ${YELLOW}Change this password at first login (it is also saved in backend/.initial_admin_password)${NC}"
+    else
+        echo -e "  • Existing admin account is kept"
+        echo -e "  • Forgot the password? ${CYAN}docker compose -f ${USED_COMPOSE_FILE} exec backend /opt/micromamba/envs/snakemake/bin/python -m app.cli reset-password --email <admin email>${NC}"
+    fi
+    echo ""
+}
+
 # Show final status and access information
 show_final_status() {
     log_header "Launch Complete"
@@ -615,6 +641,7 @@ show_final_status() {
     echo -e "  • ${CYAN}API Documentation:${NC} http://localhost:8000/docs"
     echo -e "  • ${CYAN}RabbitMQ Management:${NC} http://localhost:15672 (guest/guest)"
     echo ""
+    show_admin_account_info
     echo -e "${BLUE}🔧 Management Commands:${NC}"
     echo -e "  • View logs: ${CYAN}docker compose -f ${USED_COMPOSE_FILE} logs${NC}"
     echo -e "  • Stop services: ${CYAN}docker compose -f ${USED_COMPOSE_FILE} down${NC}"

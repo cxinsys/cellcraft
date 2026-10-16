@@ -20,7 +20,7 @@ BASE = "http://localhost:8000/routes"
 def login():
     resp = httpx.post(
         f"{BASE}/auth/login/access-token",
-        data={"username": "cellcraft@cellcraft.com", "password": "cellcraft2024!"},
+        data={"username": os.environ["CELLCRAFT_BENCH_EMAIL"], "password": os.environ["CELLCRAFT_BENCH_PASSWORD"]},
     )
     assert resp.status_code == 200, f"Login failed: {resp.status_code}"
     return resp.json()["access_token"]
