@@ -127,6 +127,17 @@ export function setInterceptors(instance) {
         // router.push('/login');
       }
 
+      // 초기·임시 비밀번호 상태: 비밀번호 변경 화면으로 이동
+      const detail = error.response.data && error.response.data.detail;
+      if (error.response.status === 403 && detail && detail.code === 'password_change_required') {
+        store.commit('setPasswordChangeRequired');
+        import('@/router').then(({ default: router, CHANGE_PASSWORD_PATH }) => {
+          if (router.currentRoute.path !== CHANGE_PASSWORD_PATH) {
+            router.push(CHANGE_PASSWORD_PATH).catch(() => {});
+          }
+        });
+      }
+
       // Create structured API error
       const apiError = new APIError(error.response, error);
       return Promise.reject(apiError);
