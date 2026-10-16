@@ -43,7 +43,7 @@ RUN PLATFORM=${TARGETPLATFORM:-$(uname -m | sed 's/x86_64/linux\/amd64/' | sed '
     esac && \
     echo "Installing micromamba for $MICROMAMBA_ARCH" && \
     echo "Setting CONDA_SUBDIR to $CONDA_SUBDIR" && \
-    curl -L "https://micromamba.snakepit.net/api/micromamba/$MICROMAMBA_ARCH/latest" | \
+    curl -fsSL "https://micro.mamba.pm/api/micromamba/$MICROMAMBA_ARCH/latest" | \
     tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba && \
     export CONDA_SUBDIR=$CONDA_SUBDIR
 

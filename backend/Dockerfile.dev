@@ -24,7 +24,7 @@ ENV MAMBA_ROOT_PREFIX=/opt/micromamba
 ENV PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH
 
 # ✅ 신뢰성 높은 설치 방식
-RUN curl -L https://micromamba.snakepit.net/api/micromamba/linux-64/latest | tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba
+RUN curl -fsSL https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba
 
 # Conda 환경 구성
 COPY environment.legacy.yml ./

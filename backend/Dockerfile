@@ -24,7 +24,7 @@ RUN PLATFORM=${TARGETPLATFORM:-linux/amd64} && \
         *) MICROMAMBA_ARCH=linux-64 ;; \
     esac && \
     echo "Installing micromamba for $MICROMAMBA_ARCH" && \
-    curl -L "https://micromamba.snakepit.net/api/micromamba/$MICROMAMBA_ARCH/latest" | \
+    curl -fsSL "https://micro.mamba.pm/api/micromamba/$MICROMAMBA_ARCH/latest" | \
     tar -xvj -C /usr/local/bin/ --strip-components=1 bin/micromamba
 
 # Conda 환경 구성 (jpype1 제거된 환경 파일 사용)
