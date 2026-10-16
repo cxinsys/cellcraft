@@ -20,6 +20,9 @@ services:
   backend:
     environment:
       - TZ=Asia/Seoul
+      # Initial admin account on first startup (optional, see README)
+      - CELLCRAFT_ADMIN_EMAIL=${CELLCRAFT_ADMIN_EMAIL:-}
+      - CELLCRAFT_ADMIN_PASSWORD=${CELLCRAFT_ADMIN_PASSWORD:-}
     build:
       context: ./backend
       dockerfile: Dockerfile.dev

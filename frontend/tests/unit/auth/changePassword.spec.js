@@ -7,6 +7,7 @@ vi.mock('@/api/index', () => ({
 }));
 
 import { changePassword } from '@/api/index';
+import { APIError } from '@/api/common/interceptors';
 import ChangePasswordForm, { MIN_PASSWORD_LENGTH } from '@/components/ChangePasswordForm.vue';
 
 function mountForm(getters = {}) {
@@ -54,7 +55,8 @@ describe('ChangePasswordForm', () => {
   });
 
   it('shows the server error message', async () => {
-    changePassword.mockRejectedValue({ response: { data: { detail: 'Incorrect current password' } } });
+    const response = { status: 400, data: { detail: 'Incorrect current password' } };
+    changePassword.mockRejectedValue(new APIError(response, new Error('Request failed with status code 400')));
     const { wrapper, $store } = mountForm();
     await wrapper.setData({ currentPassword: 'wrong', newPassword: 'new-password-1', confirmPassword: 'new-password-1' });
     await wrapper.vm.submitForm();
@@ -64,3 +66,14 @@ describe('ChangePasswordForm', () => {
   });
 });
 
+
+describe('APIError message', () => {
+  it('uses a string detail', () => {
+    expect(new APIError({ status: 400, data: { detail: 'Bad input' } }, new Error('x')).message).toBe('Bad input');
+  });
+
+  it('uses the message of an object detail', () => {
+    const response = { status: 403, data: { detail: { code: 'password_change_required', message: 'Password change required' } } };
+    expect(new APIError(response, new Error('x')).message).toBe('Password change required');
+  });
+});

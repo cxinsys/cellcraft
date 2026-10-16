@@ -35,7 +35,10 @@ def temp_database_url(monkeypatch):
         with admin_engine.connect() as conn:
             conn.execute(text(f'CREATE DATABASE "{name}"'))
     except Exception as e:  # pragma: no cover - depends on DB privileges
-        pytest.skip(f"cannot create temporary database: {e}")
+        # CI에서는 REQUIRE_MIGRATION_TESTS=1로 실행해 권한 문제를 skip이 아닌 실패로 드러낸다
+        if os.environ.get("REQUIRE_MIGRATION_TESTS") == "1":
+            raise
+        pytest.skip(f"cannot create temporary database (needs CREATEDB privilege): {e}")
     url = str(base_url.set(database=name))
     yield url
     create_engine(url).dispose()
@@ -62,6 +65,15 @@ def _state(url):
             users = conn.execute(text("SELECT email, must_change_password FROM users")).fetchall() \
                 if "must_change_password" in columns else []
         return columns, version, users
+    finally:
+        engine.dispose()
+
+
+def _version(url):
+    engine = create_engine(url)
+    try:
+        with engine.connect() as conn:
+            return conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
     finally:
         engine.dispose()
 
@@ -125,6 +137,18 @@ def test_d_version_table_without_app_tables(temp_database_url):
     columns, version, _ = _state(temp_database_url)
     assert "must_change_password" in columns
     assert version == HEAD_REVISION
+
+
+def test_users_missing_with_other_app_tables_aborts(temp_database_url):
+    alembic_command.upgrade(_alembic(temp_database_url), BASELINE_REVISION)
+    engine = create_engine(temp_database_url)
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE users CASCADE"))
+    engine.dispose()
+
+    with pytest.raises(RuntimeError, match="users"):
+        run_migrations(temp_database_url)
+    assert _version(temp_database_url) == BASELINE_REVISION
 
 
 def test_already_at_head_is_noop(temp_database_url):

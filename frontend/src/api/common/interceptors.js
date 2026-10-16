@@ -6,7 +6,10 @@ import store from "@/store/index";
 class APIError extends Error {
   constructor(response, originalError) {
     const errorData = response?.data?.error || {};
-    const message = errorData.message || response?.data?.detail || originalError.message || 'An error occurred';
+    // detail은 문자열이거나 {code, message} 형태(예: password_change_required)
+    const detail = response?.data?.detail;
+    const detailMessage = typeof detail === 'string' ? detail : detail?.message;
+    const message = errorData.message || detailMessage || originalError.message || 'An error occurred';
     
     super(message);
     this.name = 'APIError';

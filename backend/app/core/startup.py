@@ -53,27 +53,40 @@ def run_migrations(database_url: str = None):
     - Alembic DB (상태 C): 이미 관리 중 → upgrade head → 미적용 revision만 적용
 
     Args:
-        database_url: 대상 DB (기본값: settings.SQLALCHEMY_DATABASE_URI, 테스트에서 별도 DB 지정용)
+        database_url: 대상 DB (기본값: 앱이 사용하는 engine의 DB, 테스트에서 별도 DB 지정용)
     """
-    database_url = database_url or settings.SQLALCHEMY_DATABASE_URI
-    alembic_cfg = AlembicConfig("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", database_url)
+    from app.db.base_registry import Base
 
-    if database_url == settings.SQLALCHEMY_DATABASE_URI:
-        inspector = sa_inspect(engine)
-    else:
+    # 상태 판별(inspector)과 마이그레이션(alembic)은 항상 같은 DB를 대상으로 한다
+    target_engine = engine
+    if database_url and database_url != engine.url.render_as_string(hide_password=False):
         from sqlalchemy import create_engine
-        inspector = sa_inspect(create_engine(database_url))
-    existing_tables = inspector.get_table_names()
+        target_engine = create_engine(database_url)
+    database_url = target_engine.url.render_as_string(hide_password=False)
+    alembic_cfg = AlembicConfig("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+
+    try:
+        existing_tables = set(sa_inspect(target_engine).get_table_names())
+    finally:
+        if target_engine is not engine:
+            target_engine.dispose()
 
     has_alembic_version = "alembic_version" in existing_tables
     has_app_tables = "users" in existing_tables
+    present_app_tables = existing_tables & set(Base.metadata.tables)
 
-    if has_alembic_version and not has_app_tables:
-        # 버전 기록만 남고 앱 테이블이 없는 DB (테이블 수동 삭제·테스트 정리 등) → 빈 DB로 처리
+    if has_alembic_version and not present_app_tables:
+        # 버전 기록만 남고 앱 테이블이 하나도 없는 DB (테스트 정리·수동 삭제) → 빈 DB로 처리
         print("DB: 앱 테이블 없는 Alembic DB 감지 → 버전 초기화 후 upgrade head", flush=True)
         alembic_command.stamp(alembic_cfg, "base")
         alembic_command.upgrade(alembic_cfg, "head")
+    elif not has_app_tables and present_app_tables:
+        # 일부 앱 테이블만 남은 비정상 DB → 자동 처리하지 않고 중단 (버전 기록 보존)
+        raise RuntimeError(
+            "Database schema is incomplete: 'users' table is missing while other application tables "
+            f"exist ({', '.join(sorted(present_app_tables))}). Restore the database or recreate it."
+        )
     elif has_alembic_version:
         # 상태 C: 이미 Alembic으로 관리 중인 DB → 미적용 revision만 적용
         print("DB: Alembic 관리 DB 감지 → upgrade head", flush=True)

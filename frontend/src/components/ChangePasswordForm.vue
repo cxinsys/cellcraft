@@ -88,8 +88,8 @@ export default {
         this.confirmPassword = "";
         this.$router.push(this.$store.getters.isSuperUser ? "/admin" : "/projects");
       } catch (error) {
-        const detail = error.response && error.response.data && error.response.data.detail;
-        this.errorMessage = typeof detail === "string" ? detail : "Failed to change password. Please try again.";
+        // API 인터셉터가 서버 detail 메시지를 담은 APIError로 reject 한다
+        this.errorMessage = (error && error.message) || "Failed to change password. Please try again.";
       } finally {
         this.isLoading = false;
       }
