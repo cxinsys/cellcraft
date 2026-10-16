@@ -24,6 +24,9 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      # Initial admin account on first startup (optional, see README)
+      - CELLCRAFT_ADMIN_EMAIL=${CELLCRAFT_ADMIN_EMAIL:-}
+      - CELLCRAFT_ADMIN_PASSWORD=${CELLCRAFT_ADMIN_PASSWORD:-}
     build:
       context: ./backend
       dockerfile: Dockerfile.prod

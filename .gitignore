@@ -29,3 +29,6 @@ backend/logs/
 
 # oh-my-claudecode local state
 .omc/
+
+# Initial admin password (generated on first startup, #138)
+backend/.initial_admin_password

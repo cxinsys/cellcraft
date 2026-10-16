@@ -381,6 +381,24 @@
         "title": "Parameter",
         "type": "object"
       },
+      "PasswordChange": {
+        "properties": {
+          "current_password": {
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChange",
+        "type": "object"
+      },
       "PluginAssociate": {
         "properties": {
           "plugin_id": {
@@ -735,6 +753,11 @@
           "is_superuser": {
             "title": "Is Superuser",
             "type": "boolean"
+          },
+          "must_change_password": {
+            "default": false,
+            "title": "Must Change Password",
+            "type": "boolean"
           }
         },
         "required": [
@@ -763,6 +786,11 @@
           },
           "is_superuser": {
             "title": "Is Superuser",
+            "type": "boolean"
+          },
+          "must_change_password": {
+            "default": false,
+            "title": "Must Change Password",
             "type": "boolean"
           },
           "username": {
@@ -2333,6 +2361,52 @@
           }
         ],
         "summary": "Read User Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/routes/auth/password": {
+      "post": {
+        "operationId": "change_password_routes_auth_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Change Password",
         "tags": [
           "auth"
         ]

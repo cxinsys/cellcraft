@@ -5,6 +5,12 @@ class UserInfo(BaseModel):
     is_superuser: bool
     email: str
     is_active: bool
+    must_change_password: bool = False
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
 
 class Token(BaseModel):
     access_token: str

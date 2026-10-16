@@ -41,6 +41,7 @@ class TestLogin:
         user.id = 7
         user.email = "a@b.com"
         user.is_active = True
+        user.must_change_password = False
         with patch("app.auth.service.crud_user.authenticate", return_value=user), \
                 patch("app.auth.service.crud_user.is_active", return_value=True), \
                 patch("app.auth.service.crud_user.is_superuser", return_value=False), \
@@ -49,4 +50,5 @@ class TestLogin:
         assert set(out.keys()) == {"access_token", "token_type", "user_info"}
         assert out["access_token"] == "tok"
         assert out["token_type"] == "bearer"
-        assert out["user_info"] == {"is_superuser": False, "email": "a@b.com", "is_active": True}
+        assert out["user_info"] == {"is_superuser": False, "email": "a@b.com", "is_active": True,
+                                    "must_change_password": False}

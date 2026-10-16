@@ -27,6 +27,9 @@ export default new Vuex.Store({
     isSuperUser(state) {
       return state.userInfo && state.userInfo.is_superuser === true;
     },
+    mustChangePassword(state) {
+      return Boolean(state.userInfo && state.userInfo.must_change_password);
+    },
   },
   mutations: {
     setToken(state, token) {
@@ -41,6 +44,14 @@ export default new Vuex.Store({
     },
     clearUserInfo(state) {
       state.userInfo = { is_superuser: false };
+    },
+    setPasswordChangeRequired(state) {
+      state.userInfo = { ...state.userInfo, must_change_password: true };
+      saveUserInfoToCookie(state.userInfo);
+    },
+    setPasswordChanged(state) {
+      state.userInfo = { ...state.userInfo, must_change_password: false };
+      saveUserInfoToCookie(state.userInfo);
     },
   },
   actions: {

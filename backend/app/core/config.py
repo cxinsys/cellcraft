@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     ROUTES_STR: str = "/routes"
     SECRET_KEY: str = secrets.token_urlsafe(32)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
+
+    # Initial admin account (#138) — 신규 설치 시 superuser가 없을 때만 사용
+    CELLCRAFT_ADMIN_EMAIL: str = "cellcraft@cellcraft.com"
+    CELLCRAFT_ADMIN_PASSWORD: Optional[str] = None  # 미지정 시 랜덤 생성 후 INITIAL_ADMIN_PASSWORD_FILE에 안내
+    INITIAL_ADMIN_PASSWORD_FILE: str = ".initial_admin_password"  # backend 루트 기준 (권한 0600, git 제외)
     SERVER_NAME: str = None
     SERVER_HOST: AnyHttpUrl = None
 

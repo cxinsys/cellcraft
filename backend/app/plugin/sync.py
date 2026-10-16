@@ -16,7 +16,6 @@ from datetime import datetime
 from app import models
 from app.db.session import SessionLocal, get_db_session
 from app.plugin import crud as crud_plugin
-from app.core.security import get_password_hash
 
 logger = logging.getLogger(__name__)
 
@@ -265,19 +264,7 @@ def initialize_plugins_from_csv(csv_file_path: str = None):
     # 세션 시작 - get_db_session() context manager 사용
     try:
         with get_db_session() as session:
-            # 관리자 사용자 추가
-            existing_user = session.query(models.User).filter_by(username="admin").first()
-            if not existing_user:
-                hashed_password = get_password_hash("cellcraft2024!")
-                user = models.User(
-                    username="admin",
-                    email="cellcraft@cellcraft.com",
-                    hashed_password=hashed_password,
-                    is_active=True,
-                    is_superuser=True
-                )
-                session.add(user)
-                print("Created admin user")
+            # 초기 관리자 계정은 기동 시 app.core.bootstrap.bootstrap_admin에서 생성 (#138)
 
             # 데이터 추가
             plugins_added = 0

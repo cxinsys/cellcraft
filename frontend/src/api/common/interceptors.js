@@ -6,7 +6,10 @@ import store from "@/store/index";
 class APIError extends Error {
   constructor(response, originalError) {
     const errorData = response?.data?.error || {};
-    const message = errorData.message || response?.data?.detail || originalError.message || 'An error occurred';
+    // detail은 문자열이거나 {code, message} 형태(예: password_change_required)
+    const detail = response?.data?.detail;
+    const detailMessage = typeof detail === 'string' ? detail : detail?.message;
+    const message = errorData.message || detailMessage || originalError.message || 'An error occurred';
     
     super(message);
     this.name = 'APIError';
@@ -125,6 +128,17 @@ export function setInterceptors(instance) {
         store.commit('clearToken');
         // You might want to redirect to login page here
         // router.push('/login');
+      }
+
+      // 초기·임시 비밀번호 상태: 비밀번호 변경 화면으로 이동
+      const detail = error.response.data && error.response.data.detail;
+      if (error.response.status === 403 && detail && detail.code === 'password_change_required') {
+        store.commit('setPasswordChangeRequired');
+        import('@/router').then(({ default: router, CHANGE_PASSWORD_PATH }) => {
+          if (router.currentRoute.path !== CHANGE_PASSWORD_PATH) {
+            router.push(CHANGE_PASSWORD_PATH).catch(() => {});
+          }
+        });
       }
 
       // Create structured API error

@@ -112,8 +112,8 @@ def get_auth_token(client):
     response = client.post(
         "/routes/auth/login/access-token",
         data={
-            "username": "cellcraft@cellcraft.com",
-            "password": "cellcraft2024!",
+            "username": os.environ["CELLCRAFT_BENCH_EMAIL"],
+            "password": os.environ["CELLCRAFT_BENCH_PASSWORD"],
         },
     )
     if response.status_code != 200:

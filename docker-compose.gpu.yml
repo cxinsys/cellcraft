@@ -23,6 +23,9 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      # Initial admin account on first startup (optional, see README)
+      - CELLCRAFT_ADMIN_EMAIL=${CELLCRAFT_ADMIN_EMAIL:-}
+      - CELLCRAFT_ADMIN_PASSWORD=${CELLCRAFT_ADMIN_PASSWORD:-}
     ports:
       - "8000:8000"
     volumes:

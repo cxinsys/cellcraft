@@ -14,10 +14,12 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.bootstrap import remove_initial_password_file, validate_new_password
 from app.core.exceptions import ValidationFailedError
-from app.core.security import create_access_token
+from app.core.security import create_access_token, get_password_hash, verify_password
 from app.core.config import settings
 from app.user import crud as crud_user
+from app.user import service as user_service
 
 
 def login(*, db: Session, form_data) -> Any:
@@ -38,6 +40,22 @@ def login(*, db: Session, form_data) -> Any:
         "user_info": {
             "is_superuser": crud_user.is_superuser(user),
             "email": user.email,
-            "is_active": user.is_active
+            "is_active": user.is_active,
+            "must_change_password": bool(user.must_change_password),
         }
     }
+
+
+def change_password(*, db: Session, current_user, current_password: str, new_password: str) -> Any:
+    """현재 비밀번호를 확인한 뒤 비밀번호를 변경하고 변경 필요 상태를 해제한다."""
+    if not verify_password(current_password, current_user.hashed_password):
+        raise ValidationFailedError("Incorrect current password")
+    validate_new_password(new_password, current_user.hashed_password)
+
+    current_user.hashed_password = get_password_hash(new_password)
+    current_user.must_change_password = False
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    remove_initial_password_file(current_user.email)
+    return user_service.read_me(current_user=current_user)
