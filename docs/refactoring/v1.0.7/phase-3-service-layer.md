@@ -129,7 +129,7 @@ class ExternalServiceError(CellcraftError):   # 502 (Docker/GitHub/Redis), 500/5
 ### 체크리스트
 - [x] 신규 5개 도메인(file/admin/auth/user/datatable) router의 `try/except + HTTPException` 반복 패턴 제거 (도메인 예외 + 전역 핸들러로 대체). PR-5~7 서비스는 위 §1 "유지" 항목대로 일부 잔존
 - [x] 에러 응답 본문·상태코드 불변 (characterization file/auth·task 통과 + contract OpenAPI diff 0)
-- [~] import-linter 계약 `router는 crud를 직접 import하지 않는다`: 신규 5개 router는 이미 crud 미import(service 경유). 단, plugin/workflow router는 아직 `crud`를 `# noqa: F401` 재-export(기존 테스트 patch 경로 호환용)로 보유 — 계약 활성화는 전 도메인 동시 충족이 필요하므로 후속 PR로 이관 (현 계약 2종 KEPT 유지, 신규 계약 미추가)
+- [~] import-linter 계약 `router는 crud를 직접 import하지 않는다`: 신규 5개 router는 이미 crud 미import(service 경유). plugin/workflow router에 남아 있던 `crud` 등 `# noqa: F401` 재-export(테스트 patch 경로 호환용)는 PR-12(#124)에서 제거되어 현재 전 router가 조건을 충족 — 계약 추가 자체는 Phase 5 백로그 §7로 이관 (현 계약 2종 KEPT 유지)
 
 ---
 

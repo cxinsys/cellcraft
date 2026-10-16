@@ -46,3 +46,5 @@ Phase 0~4가 만든 구조(서비스 계층, 도메인 경계, 계약 테스트)
 - [ ] Docker/GitHub 통합 테스트용 공식 모킹 레이어 (현재 개별 테스트에서 임시 모킹)
 - [ ] E2E: 대표 워크플로우 실행 시나리오 자동화 (CI nightly)
 - [ ] 커버리지 게이트 CI 통합 (80% 기준)
+- [ ] import-linter 계약 추가: `router는 crud를 직접 import하지 않는다` (v1.0.7 PR-12 이후 전 router가 조건 충족)
+- [ ] `tests/integration/test_plugin_api.py` 사전 실패 정리: upload(422 페이로드), build(403 official 플러그인), check_image(404 플러그인 폴더 없음), download(500 `get_plugin_path`) 테스트가 patch 지점에 도달하기 전에 실패해 patch가 검증되지 않음. download 테스트는 `FileResponse`를 MagicMock으로 대체하므로 도달 시 응답 직렬화 문제 가능 — fixture로 플러그인 폴더 구성 + 실제 임시 파일 사용으로 재작성

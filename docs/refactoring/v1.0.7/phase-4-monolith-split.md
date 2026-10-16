@@ -50,8 +50,10 @@
 | 진행률/타이밍/병목 리포트 믹스인 (`_ProgressReportMixin`) | `workflow/compiler/status_progress.py` | 364 |
 | 공개 API 파사드 (기존 심볼 re-export) | `workflow/compiler/dag_parser.py` | 35 |
 
-- **파사드 유지**: 외부 호출부(`task/service.py`)와 테스트 patch 경로
-  (`app.workflow.compiler.dag_parser.SnakemakeDAGParser` 등)는 그대로 동작.
+- **파사드 유지**: 외부 호출부(`task/service.py`)는 파사드에서 import하여 그대로 동작.
+  단, `task/service.py`는 import 시점에 이름을 바인딩하므로 테스트 patch 대상은
+  파사드(`app.workflow.compiler.dag_parser.SnakemakeDAGParser`)가 아니라
+  사용처(`app.task.service.SnakemakeDAGParser`)여야 한다 (PR-12 #124에서 정정).
 - `SnakemakeRuleStatusTracker(_RuleStatusAnalysisMixin, _ProgressReportMixin)` —
   믹스인 메서드/속성은 합성된 인스턴스의 MRO로 해석되어 동작 불변.
 - 지연 `import re` 1건(`_check_workflow_completion`)은 `status.py` 상단으로 승격.
