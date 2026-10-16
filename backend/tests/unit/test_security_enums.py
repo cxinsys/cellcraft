@@ -10,14 +10,14 @@ import pytest
 from datetime import timedelta
 from jose import jwt
 
-from app.common.security import (
+from app.core.security import (
     create_access_token,
     verify_password,
     get_password_hash,
     ALGORITHM
 )
-from app.common.enums import PluginType
-from app.common.config import settings
+from app.core.enums import PluginType
+from app.core.config import settings
 
 
 @pytest.mark.unit

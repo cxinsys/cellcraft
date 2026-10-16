@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
 
-from app.common.utils.security_logging import (
+from app.core.logging import (
     log_security_event,
     get_security_events,
     analyze_security_patterns
@@ -25,7 +25,7 @@ def temp_security_log(monkeypatch):
         log_file = os.path.join(tmpdir, "test_security.log")
 
         # Monkeypatch the config to use temporary log file
-        monkeypatch.setattr("app.common.config.SECURITY_LOG_FILE", log_file)
+        monkeypatch.setattr("app.core.config.SECURITY_LOG_FILE", log_file)
 
         # Reset logger handlers to force reconfiguration
         import logging
@@ -235,7 +235,7 @@ class TestGetSecurityEvents:
 
     def test_nonexistent_log_returns_empty_list(self, temp_security_log, monkeypatch):
         """Test that nonexistent log file returns empty list."""
-        monkeypatch.setattr("app.common.config.SECURITY_LOG_FILE", "/nonexistent/path/log")
+        monkeypatch.setattr("app.core.config.SECURITY_LOG_FILE", "/nonexistent/path/log")
         events = get_security_events()
         assert events == []
 

@@ -21,7 +21,7 @@ import scanpy as sc
 # Add backend root to path so we can import app modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from app.common.utils.h5ad_utils import (
+from app.datatable.h5ad import (
     get_annotation_columns,
     get_pseudotime_columns,
     organize_column_dtypes,

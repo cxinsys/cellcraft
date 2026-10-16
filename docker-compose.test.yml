@@ -1,0 +1,74 @@
+version: "3.8"
+
+# Test-only compose override for running the backend test suite in an isolated
+# environment. It does NOT depend on or interfere with the app-network stack in
+# docker-compose.dev.yml — it defines its own network and its own database.
+#
+# Usage (see backend/tests/contract/README.md for details):
+#   1. Build the backend test image:
+#        docker build -f backend/Dockerfile.dev -t cellcraft-backend:refactor-test ./backend
+#   2. Bring up the stack:
+#        docker compose -f docker-compose.test.yml up -d
+#   3. Exec pytest inside the backend-test container:
+#        docker compose -f docker-compose.test.yml exec backend-test pytest
+#   4. Tear down:
+#        docker compose -f docker-compose.test.yml down
+#
+# TEST_DB_PORT can be overridden if host port 5433 is already taken:
+#   TEST_DB_PORT=5544 docker compose -f docker-compose.test.yml up -d
+
+services:
+  test-db:
+    image: postgres:15
+    environment:
+      - TZ=Asia/Seoul
+      - POSTGRES_DB=cellcraft_test
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_pass
+    ports:
+      # Host port defaults to 5433 but is overridable for environments where
+      # 5433 is already occupied by another project.
+      - "${TEST_DB_PORT:-5433}:5432"
+    networks:
+      - test-network
+    # Ephemeral: no volumes, no restart. Minimal healthcheck so backend-test can
+    # wait for readiness.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d cellcraft_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend-test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+    image: cellcraft-backend:test
+    environment:
+      - TZ=Asia/Seoul
+      - TESTING=1
+      # Point the test suite at the in-network test-db (container port 5432).
+      - TEST_DATABASE_URI=postgresql://test_user:test_pass@test-db:5432/cellcraft_test
+      # Settings requires POSTGRES_* (no defaults). Point them at test-db too so
+      # anything using settings.SQLALCHEMY_DATABASE_URI (e.g. alembic in
+      # main.run_migrations) targets the same ephemeral test database.
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_pass
+      - POSTGRES_HOST=test-db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=cellcraft_test
+    volumes:
+      # Mount the backend source so tests run against the working tree.
+      - ./backend:/app
+    working_dir: /app
+    depends_on:
+      test-db:
+        condition: service_healthy
+    networks:
+      - test-network
+    # Keep the container alive; the orchestrator runs pytest via `exec`.
+    command: ["sleep", "infinity"]
+
+networks:
+  test-network:
+    driver: bridge

@@ -42,7 +42,7 @@
     >
       <div class="footer__content">
         <div class="copyright__txt">© 2025 CellCraft. All rights reserved</div>
-        <div class="version__info">v1.0.5 | release/v1.0.5</div>
+        <div class="version__info">{{ versionText }}</div>
       </div>
     </footer>
   </div>
@@ -50,6 +50,7 @@
 
 <script>
 import CellcraftHeader from "@/components/CellcraftHeader.vue";
+import { getAppVersion } from "@/api/index.js";
 
 export default {
   components: {
@@ -57,6 +58,7 @@ export default {
   },
   data() {
     return {
+      appVersion: "",
       mainPage: true,
       loginPage: false,
       workflowPage: false,
@@ -66,6 +68,26 @@ export default {
       tutorialPage: false,
       pluginsPage: false,
     };
+  },
+  computed: {
+    versionText() {
+      return this.appVersion
+        ? `v${this.appVersion} | release/v${this.appVersion}`
+        : "";
+    },
+  },
+  created() {
+    this.fetchVersion();
+  },
+  methods: {
+    async fetchVersion() {
+      try {
+        const { data } = await getAppVersion();
+        this.appVersion = data.version;
+      } catch {
+        this.appVersion = "";
+      }
+    },
   },
   watch: {
     $route(to, from) {

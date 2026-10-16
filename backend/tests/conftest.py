@@ -14,15 +14,15 @@ from sqlalchemy.orm import sessionmaker, Session
 from fastapi.testclient import TestClient
 
 # IMPORTANT: Set TESTING environment variable BEFORE importing app
-# This makes app/database/conn.py use PostgreSQL test DB (localhost:5433)
+# This makes app/db/session.py use PostgreSQL test DB (localhost:5433)
 os.environ["TESTING"] = "1"
 
 from app.main import app
-from app.database.conn import Base
-from app.database import models
-from app.routes.dep import get_db
-from app.common.security import get_password_hash
-from app.common.enums import PluginType
+from app.db.session import Base
+from app import models
+from app.db.session import get_db
+from app.core.security import get_password_hash
+from app.core.enums import PluginType
 
 
 # ==============================================================================
@@ -43,7 +43,10 @@ def test_engine():
     Note: Requires test-db service running:
         docker compose -f docker-compose.dev.yml up test-db -d
     """
-    TEST_DATABASE_URI = "postgresql://test_user:test_pass@localhost:5433/cellcraft_test"
+    TEST_DATABASE_URI = os.environ.get(
+        "TEST_DATABASE_URI",
+        "postgresql://test_user:test_pass@localhost:5433/cellcraft_test"
+    )
 
     engine = create_engine(
         TEST_DATABASE_URI,
@@ -366,7 +369,7 @@ def expired_token(sample_user: models.User) -> str:
         str: Expired JWT token (expired 10 minutes ago)
     """
     from datetime import timedelta
-    from app.common.security import create_access_token
+    from app.core.security import create_access_token
 
     # Create token that expired 10 minutes ago
     token = create_access_token(
@@ -387,7 +390,7 @@ def tampered_token(sample_user: models.User) -> str:
     Returns:
         str: JWT token with tampered signature
     """
-    from app.common.security import create_access_token
+    from app.core.security import create_access_token
 
     # Create valid token and tamper with signature
     valid_token = create_access_token(subject=sample_user.id)
@@ -1477,7 +1480,7 @@ def manifest_auth_headers(sample_manifest_user: models.User) -> dict:
     Returns:
         dict: Headers with Authorization Bearer token
     """
-    from app.common.security import create_access_token
+    from app.core.security import create_access_token
     access_token = create_access_token(subject=str(sample_manifest_user.id))
     return {"Authorization": f"Bearer {access_token}"}
 
@@ -2104,7 +2107,7 @@ def reset_container_manager():
 
     # Reset ContainerManager state after test
     try:
-        from app.common.utils.docker_utils import container_manager
+        from app.shared.docker import container_manager
         # Clear all mappings
         container_manager._task_containers.clear()
         container_manager._container_tasks.clear()

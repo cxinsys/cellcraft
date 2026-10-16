@@ -91,9 +91,9 @@ def setup_client():
     print("  Auth OK")
 
     # Extract user_id from token for cache operations
-    from app.routes.dep import get_current_active_user
+    from app.auth.deps import get_current_active_user
     import jwt
-    from app.common.config import settings
+    from app.core.config import settings
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
     user_id = payload.get("sub")
     print(f"  User ID: {user_id}")
@@ -108,7 +108,7 @@ def setup_client():
 def clear_plugin_cache():
     """Clear all plugin list cache entries from Redis."""
     try:
-        from app.common.utils.redis_cache import cache_delete_pattern
+        from app.shared.redis import cache_delete_pattern
         count = cache_delete_pattern("plugin:list:*")
         return count
     except Exception as e:
@@ -119,7 +119,7 @@ def clear_plugin_cache():
 def check_cache_exists(user_id):
     """Check if cache exists for user."""
     try:
-        from app.common.utils.redis_cache import cache_get_bytes
+        from app.shared.redis import cache_get_bytes
         data = cache_get_bytes(f"plugin:list:{user_id}")
         return data is not None
     except Exception:
@@ -129,7 +129,7 @@ def check_cache_exists(user_id):
 def get_cache_size(user_id):
     """Get size of cached data in bytes."""
     try:
-        from app.common.utils.redis_cache import cache_get_bytes
+        from app.shared.redis import cache_get_bytes
         data = cache_get_bytes(f"plugin:list:{user_id}")
         return len(data) if data else 0
     except Exception:
@@ -197,8 +197,8 @@ def run_true_before_benchmark(db_session, user_id, iterations=5):
     print("# Reproduces N×get_user_task + N×docker.from_env loop pattern")
     print("#" * 60)
 
-    from app.database.crud import crud_plugin
-    from app.database.crud.crud_task import get_user_task
+    from app.plugin import crud as crud_plugin
+    from app.task.crud import get_user_task
     from celery.result import AsyncResult
     from datetime import datetime
     import docker
@@ -379,7 +379,7 @@ def run_invalidation_benchmark(client, headers, user_id, iterations=5):
     for i in range(iterations):
         # Measure invalidation
         start = time.perf_counter()
-        from app.common.utils.plugin_cache import invalidate_all_plugin_cache
+        from app.plugin.cache import invalidate_all_plugin_cache
         invalidate_all_plugin_cache()
         elapsed = time.perf_counter() - start
         timer_invalidate.record(elapsed)
@@ -477,7 +477,7 @@ def main():
 
     # Scenario 1b: True before (original code path)
     try:
-        from app.database.conn import get_db_session
+        from app.db.session import get_db_session
         with get_db_session() as db:
             results["true_before"] = run_true_before_benchmark(db, user_id, iterations=5)
     except Exception as e:

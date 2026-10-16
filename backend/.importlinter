@@ -1,0 +1,53 @@
+# import-linter contracts for the cellcraft backend.
+#
+# Run (once import-linter is installed) from the backend/ directory:
+#     lint-imports
+#
+# Purpose: define the architectural import contracts up front (during PR-1,
+# the safety-net phase) so they can be switched on as the refactoring lands.
+#
+# STATUS: ACTIVATED in PR-2 (phase-1-app-assembly). `app.worker` now exists and the
+# Celery worker boots via `celery -A app.worker.app worker` — it no longer imports
+# the web layer (`app.main`). See the contract below.
+#
+# NOTE on scope: TIGHTENED in PR-4 (phase-2-domain-skeleton). The old
+# `app.routes` web package was removed; the FastAPI app is now assembled in
+# `app.api` from per-domain routers (`app.<domain>.router`). The worker must not
+# depend on any of those web-facing modules. It may still import each domain's
+# non-router modules (crud/utils/models/schemas), which is intentional.
+
+[importlinter]
+root_package = app
+
+[importlinter:contract:no-web-in-worker]
+name = worker must not depend on the web layer
+type = forbidden
+source_modules =
+    app.worker
+forbidden_modules =
+    app.main
+    app.api
+    app.auth.router
+    app.admin.router
+    app.datatable.router
+    app.file.router
+    app.plugin.router
+    app.task.router
+    app.version.router
+    app.workflow.router
+
+[importlinter:contract:shared-is-domain-agnostic]
+name = shared infrastructure must not depend on any domain
+type = forbidden
+source_modules =
+    app.shared
+forbidden_modules =
+    app.auth
+    app.user
+    app.admin
+    app.datatable
+    app.file
+    app.plugin
+    app.task
+    app.version
+    app.workflow

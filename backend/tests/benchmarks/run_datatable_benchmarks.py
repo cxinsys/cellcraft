@@ -138,7 +138,7 @@ def print_bench(stats, mem=None):
 # ---------------------------------------------------------------------------
 
 def run_function_benchmarks():
-    from app.common.utils.workflow_utils import load_tab_file
+    from app.workflow.utils import load_tab_file
 
     all_results = {}
 

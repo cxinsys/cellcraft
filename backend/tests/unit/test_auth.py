@@ -26,9 +26,9 @@ from jose import jwt
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.database import models
-from app.common.security import create_access_token, ALGORITHM
-from app.common.config import settings
+from app import models
+from app.core.security import create_access_token, ALGORITHM
+from app.core.config import settings
 
 
 @pytest.mark.unit

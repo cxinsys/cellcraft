@@ -1,0 +1,86 @@
+# Backend pytest baseline report (PR-1, Phase 0)
+# Generated: 2026-07-12 | branch: refactor/v107-01-safety-net
+# Environment: docker-compose.test.yml (cellcraft-backend:test, linux/arm64, python 3.10)
+#   fastapi 0.92.0 / starlette 0.25.0 / pydantic 1.9.1 / SQLAlchemy 1.4.36
+#
+# PURPOSE: 이후 리팩토링 PR의 게이트 기준. 아래 68개 실패는 리팩토링 착수 전부터
+# 존재하던 실패다 (백엔드 CI 부재로 통합 테스트가 코드와 드리프트된 상태).
+# 게이트 판정: '실패 증가 0' — 아래 목록에 없는 새로운 실패가 생기면 리그레션.
+#
+# 실패 원인 분류:
+#  A. 상태코드/응답 드리프트 (~55건): 테스트 기대(403/200/detail 키 등)와 실제 동작(404/422/500) 불일치
+#  B. 테스트 자체 결함: 잘못된 patch 경로(app.routes.endpoints.plugin.docker), SameFileError 등
+#  C. asyncio 이벤트 루프 바인딩 오류 (~5건): session-scope 픽스처와 asyncio_mode=auto 충돌
+#
+## Summary
+= 68 failed, 448 passed, 3 skipped, 3 xpassed, 36 warnings in 264.03s (0:04:24) =
+
+## Failed tests (68)
+FAILED tests/integration/test_file_api.py::TestFileSecurityPathTraversal::test_download_result_path_traversal_blocked
+FAILED tests/integration/test_file_api.py::TestFileSecurityPathTraversal::test_download_data_path_traversal_blocked
+FAILED tests/integration/test_file_api.py::TestFileSecurityPathTraversal::test_download_tutorial_path_traversal_blocked
+FAILED tests/integration/test_file_api.py::TestFileSecurityPathTraversal::test_setup_file_path_traversal_blocked
+FAILED tests/integration/test_file_api.py::TestFileSecurityPathTraversal::test_case_sensitivity_bypass_attempts
+FAILED tests/integration/test_file_api.py::TestFileSecurityPathTraversal::test_path_traversal_sibling_directory_blocked
+FAILED tests/integration/test_file_api.py::TestFileUploadValidation::test_upload_exceeds_max_size
+FAILED tests/integration/test_file_api.py::TestFileUploadOperations::test_upload_single_file_success
+FAILED tests/integration/test_file_api.py::TestFileUploadOperations::test_upload_multiple_files_success
+FAILED tests/integration/test_file_api.py::TestFileDownloadOperations::test_download_data_file_success
+FAILED tests/integration/test_file_api.py::TestFileDownloadOperations::test_download_result_file_success
+FAILED tests/integration/test_file_api.py::TestFileDownloadOperations::test_download_tutorial_file_success
+FAILED tests/integration/test_file_api.py::TestFileDownloadOperations::test_download_data_file_h5ad_conversion
+FAILED tests/integration/test_file_api.py::TestFileUpdateDeleteOperations::test_delete_file_success
+FAILED tests/integration/test_file_api.py::TestH5ADConversion::test_convert_h5ad_to_csv_success
+FAILED tests/integration/test_file_api.py::TestH5ADConversion::test_convert_h5ad_already_exists
+FAILED tests/integration/test_file_api.py::TestH5ADDataExtraction::test_get_h5ad_columns_success
+FAILED tests/integration/test_file_api.py::TestH5ADDataExtraction::test_get_h5ad_clusters_success
+FAILED tests/integration/test_file_api.py::TestSetupResultOperations::test_setup_read_json_file
+FAILED tests/integration/test_file_api.py::TestSetupResultOperations::test_setup_read_binary_file
+FAILED tests/integration/test_file_api.py::TestSetupResultOperations::test_list_result_files_success
+FAILED tests/integration/test_plugin_api.py::TestPluginCRUD::test_get_plugin_list_success
+FAILED tests/integration/test_plugin_api.py::TestPluginCRUD::test_get_plugin_list_empty
+FAILED tests/integration/test_plugin_api.py::TestPluginCRUD::test_get_plugin_list_filter_by_type
+FAILED tests/integration/test_plugin_api.py::TestPluginCRUD::test_get_plugin_info_success
+FAILED tests/integration/test_plugin_api.py::TestPluginCRUD::test_get_plugin_info_not_found
+FAILED tests/integration/test_plugin_api.py::TestPluginCRUD::test_get_plugin_info_official_vs_local
+FAILED tests/integration/test_plugin_api.py::TestPluginUploadValidation::test_validate_plugin_success
+FAILED tests/integration/test_plugin_api.py::TestPluginUploadValidation::test_upload_plugin_success
+FAILED tests/integration/test_plugin_api.py::TestPluginFileManagement::test_get_reference_folders_success
+FAILED tests/integration/test_plugin_api.py::TestPluginFileManagement::test_download_plugin_package_success
+FAILED tests/integration/test_plugin_api.py::TestPluginFileManagement::test_download_plugin_file_success
+FAILED tests/integration/test_plugin_api.py::TestPluginAssociation::test_associate_plugin_success
+FAILED tests/integration/test_plugin_api.py::TestPluginAssociation::test_dissociate_plugin_success
+FAILED tests/integration/test_plugin_api.py::TestPluginAssociation::test_associate_plugin_not_found
+FAILED tests/integration/test_plugin_api.py::TestPluginAssociation::test_dissociate_plugin_not_associated
+FAILED tests/integration/test_plugin_api.py::TestPluginDockerBuild::test_build_plugin_success
+FAILED tests/integration/test_plugin_api.py::TestPluginDockerBuild::test_check_image_exists
+FAILED tests/integration/test_plugin_api.py::TestPluginDockerBuild::test_check_image_not_exists
+FAILED tests/integration/test_task_api.py::TestTaskRevocation::test_revoke_running_task_success
+FAILED tests/integration/test_task_api.py::TestTaskRevocation::test_revoke_with_container_cleanup
+FAILED tests/integration/test_task_api.py::TestTaskRevocation::test_revoke_without_container
+FAILED tests/integration/test_task_api.py::TestTaskRevocation::test_revoke_force_db_update
+FAILED tests/integration/test_task_api.py::TestTaskRevocation::test_revoke_unauthorized_user
+FAILED tests/integration/test_task_api.py::TestTaskRevocation::test_revoke_nonexistent_task
+FAILED tests/integration/test_task_api.py::TestDAGStructure::test_dag_structure_fallback_to_legacy
+FAILED tests/integration/test_task_api.py::TestDAGStructure::test_dag_structure_forbidden
+FAILED tests/integration/test_task_api.py::TestDAGStructure::test_rule_status_forbidden
+FAILED tests/integration/test_task_api.py::TestSSEStatusStream::test_sse_stream_status_updates
+FAILED tests/integration/test_task_api.py::TestSSEStatusStream::test_sse_stream_failure_status
+FAILED tests/integration/test_task_api.py::TestSSEStatusStream::test_sse_stream_revoked_status
+FAILED tests/integration/test_task_api.py::TestSSEStatusStream::test_sse_stream_running_status
+FAILED tests/integration/test_task_api.py::TestSSEStatusStream::test_sse_content_type_header
+FAILED tests/integration/test_task_api.py::TestTaskLogs::test_get_logs_file_read_error
+FAILED tests/integration/test_workflow_api.py::TestWorkflowCompilation::test_compile_workflow_single_algorithm
+FAILED tests/integration/test_workflow_api.py::TestWorkflowCompilation::test_compile_workflow_multiple_algorithms
+FAILED tests/integration/test_workflow_api.py::TestWorkflowCompilation::test_compile_workflow_no_algorithm
+FAILED tests/integration/test_workflow_api.py::TestWorkflowCompilation::test_compile_workflow_invalid_plugin
+FAILED tests/integration/test_workflow_api.py::TestWorkflowResults::test_download_workflow_result_file
+FAILED tests/integration/test_workflow_api.py::TestWorkflowResults::test_download_workflow_result_not_found
+FAILED tests/integration/test_workflow_api.py::TestWorkflowNodeData::test_save_node_data_json
+FAILED tests/integration/test_workflow_api.py::TestWorkflowNodeData::test_save_node_data_csv
+FAILED tests/integration/test_workflow_api.py::TestWorkflowNodeData::test_read_node_data_success
+FAILED tests/integration/test_workflow_api.py::TestWorkflowNodeData::test_delete_node_data_success
+FAILED tests/integration/test_workflow_api.py::TestWorkflowSecurity::test_workflow_access_other_user
+FAILED tests/unit/test_auth.py::TestUserLogin::test_login_success - Assertion...
+FAILED tests/unit/test_config.py::TestGetSettings::test_get_settings_returns_development_config
+FAILED tests/unit/test_file_security.py::TestValidateFileUploadWithMIME::test_validate_logs_file_size_exceeded

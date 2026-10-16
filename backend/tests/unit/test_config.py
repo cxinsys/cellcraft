@@ -10,7 +10,7 @@ Test coverage:
 import pytest
 import json
 
-from app.common.config import route_task, Settings, get_settings
+from app.core.config import route_task, Settings, get_settings
 
 
 @pytest.mark.unit

@@ -9,7 +9,7 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from app.common.utils.file_security import validate_file_signature
+from app.file.security import validate_file_signature
 
 
 class TestValidateFileSignature:

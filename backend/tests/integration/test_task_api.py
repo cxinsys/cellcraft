@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from pathlib import Path
 
-from app.database import models
+from app import models
 
 
 # ==============================================================================
@@ -336,7 +336,7 @@ class TestTaskRevocation:
     """
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_running_task_success(
         self,
         mock_docker,
@@ -381,7 +381,7 @@ class TestTaskRevocation:
         assert sample_task.end_time is not None
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_with_container_cleanup(
         self,
         mock_docker,
@@ -407,7 +407,7 @@ class TestTaskRevocation:
         mock_docker_client.containers.get.return_value = mock_container
 
         # Register container in ContainerManager
-        from app.common.utils.docker_utils import container_manager
+        from app.shared.docker import container_manager
         container_manager.register_container(sample_task.task_id, mock_container.id)
 
         response = client.delete(
@@ -423,7 +423,7 @@ class TestTaskRevocation:
         mock_container.remove.assert_called()
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_without_container(
         self,
         mock_docker,
@@ -460,7 +460,7 @@ class TestTaskRevocation:
         assert sample_task.status == "REVOKED"
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_container_not_found(
         self,
         mock_docker,
@@ -486,7 +486,7 @@ class TestTaskRevocation:
         mock_docker_client.containers.get.side_effect = NotFound("Container not found")
 
         # Register container in ContainerManager
-        from app.common.utils.docker_utils import container_manager
+        from app.shared.docker import container_manager
         container_manager.register_container(sample_task.task_id, "nonexistent-container")
 
         response = client.delete(
@@ -501,7 +501,7 @@ class TestTaskRevocation:
         assert sample_task.status == "REVOKED"
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_container_by_label_fallback(
         self,
         mock_docker,
@@ -532,7 +532,7 @@ class TestTaskRevocation:
         mock_docker_client.containers.list.return_value = [mock_container]
 
         # Register container
-        from app.common.utils.docker_utils import container_manager
+        from app.shared.docker import container_manager
         container_manager.register_container(sample_task.task_id, "original-container-id")
 
         response = client.delete(
@@ -543,7 +543,7 @@ class TestTaskRevocation:
         assert response.status_code == 200
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_container_by_name_fallback(
         self,
         mock_docker,
@@ -575,7 +575,7 @@ class TestTaskRevocation:
         mock_container.name = f"task-{task_id_short}"
 
         # Register container
-        from app.common.utils.docker_utils import container_manager
+        from app.shared.docker import container_manager
         container_manager.register_container(sample_task.task_id, "original-id")
 
         response = client.delete(
@@ -586,7 +586,7 @@ class TestTaskRevocation:
         assert response.status_code == 200
 
     @patch('app.main.get_celery_app')
-    @patch('app.common.utils.docker_utils.docker.from_env')
+    @patch('app.shared.docker.docker.from_env')
     def test_revoke_force_db_update(
         self,
         mock_docker,
@@ -705,7 +705,7 @@ class TestDAGStructure:
     """
 
     # Test 1: GET /dag-structure - success with valid task
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.service.parse_snakefile_native')
     def test_dag_structure_success_native_parser(self, mock_parse_native, client, db_session, auth_headers, sample_task):
         """Test DAG structure endpoint successfully parses Snakefile using native parser."""
         # Arrange: Mock native parser to return valid DAG data
@@ -746,8 +746,8 @@ class TestDAGStructure:
         assert dag["parsing_method"] == "native_native"
 
     # Test 2: GET /dag-structure - fallback to legacy parser
-    @patch('app.common.utils.snakefile_dag_parser.SnakemakeDAGParser')
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.service.SnakemakeDAGParser')
+    @patch('app.task.service.parse_snakefile_native')
     def test_dag_structure_fallback_to_legacy(self, mock_parse_native, mock_parser_class, client, db_session, auth_headers, sample_task):
         """Test DAG structure endpoint falls back to legacy parser when native parser fails."""
         # Arrange: Native parser fails, legacy succeeds
@@ -786,14 +786,14 @@ class TestDAGStructure:
         assert response.status_code == 401
 
     # Test 5: GET /dag-structure - forbidden access (different user)
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.service.parse_snakefile_native')
     def test_dag_structure_forbidden(self, mock_parse_native, client, db_session, sample_task):
         """Test DAG structure endpoint returns 403 for different user's task."""
         # Mock parser to avoid file not found errors
         mock_parse_native.return_value = {"nodes": [], "edges": [], "execution_sequence": []}
 
         # Create another user and get auth headers
-        from app.database import models
+        from app import models
         other_user = models.User(
             username="otheruser",
             email="other@example.com",
@@ -804,7 +804,7 @@ class TestDAGStructure:
         db_session.commit()
 
         # Get auth token for other user
-        from app.common.security import create_access_token
+        from app.core.security import create_access_token
         other_token = create_access_token(subject=other_user.username)
         other_headers = {"Authorization": f"Bearer {other_token}"}
 
@@ -814,8 +814,8 @@ class TestDAGStructure:
         assert "access denied" in response.json()["detail"].lower()
 
     # Test 6: GET /dag-structure - both parsers fail
-    @patch('app.common.utils.snakefile_dag_parser.SnakemakeDAGParser')
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.service.SnakemakeDAGParser')
+    @patch('app.task.service.parse_snakefile_native')
     def test_dag_structure_both_parsers_fail(self, mock_parse_native, mock_parser_class, client, db_session, auth_headers, sample_task):
         """Test DAG structure endpoint returns 500 when both parsers fail."""
         # Arrange: Both parsers fail
@@ -833,8 +833,8 @@ class TestDAGStructure:
         assert "Failed to parse workflow" in response.json()["detail"]
 
     # Test 7: GET /rule-status - success with rule tracking
-    @patch('app.routes.endpoints.task.SnakemakeRuleStatusTracker')
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.service.SnakemakeRuleStatusTracker')
+    @patch('app.task.service.parse_snakefile_native')
     def test_rule_status_success(self, mock_parse_native, mock_tracker_class, client, db_session, auth_headers, sample_task):
         """Test rule status endpoint returns rule execution statuses."""
         # Arrange: Mock DAG parsing
@@ -894,8 +894,8 @@ class TestDAGStructure:
         assert progress["percentage"] == 50.0
 
     # Test 8: GET /rule-status - with actual_status parameter
-    @patch('app.routes.endpoints.task.SnakemakeRuleStatusTracker')
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.service.SnakemakeRuleStatusTracker')
+    @patch('app.task.service.parse_snakefile_native')
     def test_rule_status_with_actual_status_param(self, mock_parse_native, mock_tracker_class, client, db_session, auth_headers, sample_task):
         """Test rule status endpoint accepts and uses actual_status query parameter."""
         # Arrange
@@ -948,13 +948,13 @@ class TestDAGStructure:
         assert response.status_code == 401
 
     # Test 11: GET /rule-status - forbidden access (different user)
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.service.parse_snakefile_native')
     def test_rule_status_forbidden(self, mock_parse_native, client, db_session, sample_task):
         """Test rule status endpoint returns 403 for different user's task."""
         # Mock parser to avoid file not found errors
         mock_parse_native.return_value = {"nodes": [], "edges": [], "execution_sequence": []}
 
-        from app.database import models
+        from app import models
         other_user = models.User(
             username="otheruserrule",
             email="otherrule@example.com",
@@ -964,7 +964,7 @@ class TestDAGStructure:
         db_session.add(other_user)
         db_session.commit()
 
-        from app.common.security import create_access_token
+        from app.core.security import create_access_token
         other_token = create_access_token(subject=other_user.username)
         other_headers = {"Authorization": f"Bearer {other_token}"}
 
@@ -974,8 +974,8 @@ class TestDAGStructure:
         assert "access denied" in response.json()["detail"].lower()
 
     # Test 12: GET /rule-status - fallback when tracker fails
-    @patch('app.routes.endpoints.task.SnakemakeRuleStatusTracker')
-    @patch('app.routes.endpoints.task.parse_snakefile_native')
+    @patch('app.task.service.SnakemakeRuleStatusTracker')
+    @patch('app.task.service.parse_snakefile_native')
     def test_rule_status_tracker_fallback(self, mock_parse_native, mock_tracker_class, client, db_session, auth_headers, sample_task):
         """Test rule status endpoint falls back to pending statuses when tracker fails."""
         # Arrange: DAG parsing succeeds, tracker fails
@@ -1005,6 +1005,71 @@ class TestDAGStructure:
         assert data["progress"]["completed_rules"] == 0
 
 
+class TestTaskLoggerPaths:
+    """
+    PR-11: endpoints whose behavior changed because ``logger`` is now defined.
+
+    Before the refactor (519649f) ``routes/endpoints/task.py`` used ``logger``
+    in these paths without defining it, so each raised ``NameError``:
+    - DELETE /cache/clear always returned 500
+    - GET /cache/stats returned 500 on its error path
+    - GET /{task_id}/rule-logs/{rule} returned 500 instead of falling back to
+      the legacy parser when the native parser failed
+    The fixed behavior is kept (documented in docs/refactoring/v1.0.7/README.md).
+    """
+
+    @patch('app.workflow.compiler.dag_parser.clear_all_caches')
+    def test_clear_dag_caches_returns_200(self, mock_clear, client, auth_headers, sample_user):
+        response = client.delete("/routes/task/cache/clear", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["cleared_by"] == sample_user.username
+        assert "error" not in data
+        mock_clear.assert_called_once()
+
+    @patch('app.workflow.compiler.dag_parser.get_cache_stats', side_effect=Exception("boom"))
+    def test_cache_stats_error_path_returns_200_with_error(self, mock_stats, client, auth_headers):
+        response = client.get("/routes/task/cache/stats", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["error"] == "Failed to get cache statistics: boom"
+        assert "timestamp" in data
+
+    @patch('app.task.service.SnakemakeDAGParser')
+    @patch('app.task.service.parse_snakefile_native', side_effect=Exception("native failed"))
+    def test_rule_logs_falls_back_to_legacy_parser(
+        self, mock_parse_native, mock_parser_class, client, auth_headers,
+        sample_user, sample_task, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        snakefile = (tmp_path / "user" / sample_user.username
+                     / f"workflow_{sample_task.workflow_id}"
+                     / f"algorithm_{sample_task.algorithm_id}" / "Snakefile")
+        snakefile.parent.mkdir(parents=True)
+        snakefile.write_text("rule rule1:\n    shell: 'echo'\n")
+
+        mock_parser_class.return_value.parse_snakefile_with_logs.return_value = {
+            "nodes": [{
+                "id": "rule1", "label": "rule1", "description": "",
+                "inputs": [], "outputs": [], "params": {}, "log_paths": {},
+            }],
+            "edges": [],
+        }
+
+        response = client.get(
+            f"/routes/task/{sample_task.task_id}/rule-logs/rule1", headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        assert response.json()["rule_info"]["rule_name"] == "rule1"
+        mock_parser_class.return_value.parse_snakefile_with_logs.assert_called_once_with(
+            f"user/{sample_user.username}/workflow_{sample_task.workflow_id}"
+            f"/algorithm_{sample_task.algorithm_id}/Snakefile"
+        )
+
+
 class TestSSEStatusStream:
     """
     Phase 2.3: SSE Status Stream Tests (6 tests planned, 1 PASSED, 5 DEFERRED)
@@ -1030,7 +1095,7 @@ class TestSSEStatusStream:
     """
 
     # Test 1: SSE stream returns status updates
-    @patch('app.common.utils.celery_utils.get_task_info')
+    @patch('app.task.sse.get_task_info')
     def test_sse_stream_status_updates(self, mock_get_task_info, client):
         """Test SSE endpoint streams task status updates."""
         # Arrange: Mock task info to return SUCCESS immediately
@@ -1048,7 +1113,7 @@ class TestSSEStatusStream:
         assert "SUCCESS" in response_text or response_text != ""
 
     # Test 2: SSE stream handles FAILURE status
-    @patch('app.common.utils.celery_utils.get_task_info')
+    @patch('app.task.sse.get_task_info')
     def test_sse_stream_failure_status(self, mock_get_task_info, client):
         """Test SSE endpoint handles FAILURE status and terminates stream."""
         # Arrange
@@ -1063,7 +1128,7 @@ class TestSSEStatusStream:
         assert "FAILURE" in response.text
 
     # Test 3: SSE stream handles REVOKED status
-    @patch('app.common.utils.celery_utils.get_task_info')
+    @patch('app.task.sse.get_task_info')
     def test_sse_stream_revoked_status(self, mock_get_task_info, client):
         """Test SSE endpoint handles REVOKED status and terminates stream."""
         # Arrange
@@ -1087,7 +1152,7 @@ class TestSSEStatusStream:
         assert response.status_code in [404, 405]  # 404 Not Found or 405 Method Not Allowed
 
     # Test 5: SSE stream with RUNNING status
-    @patch('app.common.utils.celery_utils.get_task_info')
+    @patch('app.task.sse.get_task_info')
     def test_sse_stream_running_status(self, mock_get_task_info, client):
         """Test SSE endpoint returns RUNNING status."""
         # Arrange: Mock RUNNING status (in real scenario, would continue until terminal state)
@@ -1106,7 +1171,7 @@ class TestSSEStatusStream:
     def test_sse_content_type_header(self, client):
         """Test SSE endpoint returns correct content-type header."""
         # Act
-        with patch('app.common.utils.celery_utils.get_task_info') as mock_get_task:
+        with patch('app.task.sse.get_task_info') as mock_get_task:
             mock_get_task.return_value = {"task_status": "SUCCESS"}
             response = client.get("/routes/task/info/test-task-headers")
 
@@ -1821,7 +1886,7 @@ class TestTaskDeletion:
         db_session.commit()
 
         # Get auth token for user_b (must use user ID, not username)
-        from app.common.security import create_access_token
+        from app.core.security import create_access_token
         user_b_token = create_access_token(subject=user_b.id)
         user_b_headers = {"Authorization": f"Bearer {user_b_token}"}
 
@@ -2011,7 +2076,7 @@ class TestExecutionManifest:
         other_user = user_factory(username="otheruser", email="other@example.com")
 
         # Get auth headers for the other user
-        from app.common.security import create_access_token
+        from app.core.security import create_access_token
         access_token = create_access_token(subject=str(other_user.id))
         other_headers = {"Authorization": f"Bearer {access_token}"}
 
