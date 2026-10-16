@@ -1005,6 +1005,71 @@ class TestDAGStructure:
         assert data["progress"]["completed_rules"] == 0
 
 
+class TestTaskLoggerPaths:
+    """
+    PR-11: endpoints whose behavior changed because ``logger`` is now defined.
+
+    Before the refactor (519649f) ``routes/endpoints/task.py`` used ``logger``
+    in these paths without defining it, so each raised ``NameError``:
+    - DELETE /cache/clear always returned 500
+    - GET /cache/stats returned 500 on its error path
+    - GET /{task_id}/rule-logs/{rule} returned 500 instead of falling back to
+      the legacy parser when the native parser failed
+    The fixed behavior is kept (documented in docs/refactoring/v1.0.7/README.md).
+    """
+
+    @patch('app.workflow.compiler.dag_parser.clear_all_caches')
+    def test_clear_dag_caches_returns_200(self, mock_clear, client, auth_headers, sample_user):
+        response = client.delete("/routes/task/cache/clear", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["cleared_by"] == sample_user.username
+        assert "error" not in data
+        mock_clear.assert_called_once()
+
+    @patch('app.workflow.compiler.dag_parser.get_cache_stats', side_effect=Exception("boom"))
+    def test_cache_stats_error_path_returns_200_with_error(self, mock_stats, client, auth_headers):
+        response = client.get("/routes/task/cache/stats", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["error"] == "Failed to get cache statistics: boom"
+        assert "timestamp" in data
+
+    @patch('app.task.service.SnakemakeDAGParser')
+    @patch('app.task.service.parse_snakefile_native', side_effect=Exception("native failed"))
+    def test_rule_logs_falls_back_to_legacy_parser(
+        self, mock_parse_native, mock_parser_class, client, auth_headers,
+        sample_user, sample_task, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        snakefile = (tmp_path / "user" / sample_user.username
+                     / f"workflow_{sample_task.workflow_id}"
+                     / f"algorithm_{sample_task.algorithm_id}" / "Snakefile")
+        snakefile.parent.mkdir(parents=True)
+        snakefile.write_text("rule rule1:\n    shell: 'echo'\n")
+
+        mock_parser_class.return_value.parse_snakefile_with_logs.return_value = {
+            "nodes": [{
+                "id": "rule1", "label": "rule1", "description": "",
+                "inputs": [], "outputs": [], "params": {}, "log_paths": {},
+            }],
+            "edges": [],
+        }
+
+        response = client.get(
+            f"/routes/task/{sample_task.task_id}/rule-logs/rule1", headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        assert response.json()["rule_info"]["rule_name"] == "rule1"
+        mock_parser_class.return_value.parse_snakefile_with_logs.assert_called_once_with(
+            f"user/{sample_user.username}/workflow_{sample_task.workflow_id}"
+            f"/algorithm_{sample_task.algorithm_id}/Snakefile"
+        )
+
+
 class TestSSEStatusStream:
     """
     Phase 2.3: SSE Status Stream Tests (6 tests planned, 1 PASSED, 5 DEFERRED)

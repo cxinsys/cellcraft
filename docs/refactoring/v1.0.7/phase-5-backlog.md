@@ -35,6 +35,7 @@ Phase 0~4가 만든 구조(서비스 계층, 도메인 경계, 계약 테스트)
 - [ ] `core/startup.py`의 print 로깅 → 구조화 로깅(logging + JSON formatter) 통일
 - [ ] 요청 ID 미들웨어 + Celery 태스크 상관관계 ID
 - [ ] Sentry 또는 동급 에러 트래킹 (uptime-kuma 모니터링과 연계)
+- [ ] logger 비활성화 정책 정리: `alembic/env.py`의 `fileConfig`(기본 `disable_existing_loggers=True`)가 마이그레이션 시점에 존재하는 logger(uvicorn access/error 포함)를 모두 끈다. v1.0.7은 리팩토링 전과 출력 범위를 맞추기 위해 `core/startup.py`에서 2개 logger만 복원 — 웹 앱 로깅 설정을 별도로 두고 `disable_existing_loggers=False` 전환 검토
 
 ## 6. Celery 파이프라인 개선
 - [ ] 태스크 멱등성 보장 (재시도 안전)

@@ -27,6 +27,18 @@ from app.db.session import engine, get_db_session
 # Docker pull 작업을 위한 ThreadPoolExecutor (메인 이벤트 루프 블로킹 방지)
 _docker_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="docker-pull")
 
+# alembic/env.py의 fileConfig(alembic.ini)는 기본값 disable_existing_loggers=True로
+# 그 시점에 이미 생성된 logger를 모두 비활성화한다. 리팩토링 전(519649f)에는 아래
+# logger들이 마이그레이션 이후(요청 시점·지연 import 시점)에 생성되어 출력되었으나,
+# 현재는 모듈 최상단 import로 마이그레이션 전에 생성된다. 로그 출력 범위를 리팩토링 전과
+# 동일하게 유지하기 위해 이 logger들만 다시 활성화한다.
+_LOGGERS_ENABLED_BEFORE_REFACTOR = ("app.task.service", "app.datatable.cache")
+
+
+def restore_loggers_disabled_by_alembic():
+    for name in _LOGGERS_ENABLED_BEFORE_REFACTOR:
+        logging.getLogger(name).disabled = False
+
 
 def run_migrations():
     """Alembic 마이그레이션을 실행하여 DB 스키마를 최신 상태로 유지한다.
@@ -57,6 +69,8 @@ def run_migrations():
         # 상태 A: 완전히 새로운 설치 → 전체 마이그레이션 실행
         print("DB: 빈 DB 감지 → upgrade head (전체 마이그레이션)", flush=True)
         alembic_command.upgrade(alembic_cfg, "head")
+
+    restore_loggers_disabled_by_alembic()
 
 
 def setup_signal_handlers():
