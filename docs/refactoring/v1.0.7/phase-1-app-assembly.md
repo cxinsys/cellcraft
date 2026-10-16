@@ -83,32 +83,77 @@ app = create_app()
 - [x] import-linter `no-web-in-worker` 계약 통과 (1 kept, 0 broken)
 
 ## 배포 주의사항 (이 PR만 해당)
-워커 진입점이 바뀌므로 운영 배포 시:
-1. 이전 버전 워커의 큐 드레인(진행 중 태스크 완료 대기)
-2. 웹(마이그레이션 담당) → 워커 순으로 기동
-3. 태스크 이름이 `name=`으로 고정되었으므로 드레인 실패한 잔여 메시지도 신버전 워커가 처리 가능
-
-### celery 이미지와 코드는 같은 배포 단위로 갱신
-`docker-compose.cpu.yml` / `docker-compose.gpu.yml`의 celery 서비스는 사전 빌드 이미지(`ghcr.io/cxinsys/cellcraft/celery-*:latest`)의
-CMD로 기동하면서 `./backend`를 `/app`에 마운트한다. 즉 **실행 명령은 이미지가, 코드는 checkout이 결정**한다.
+워커 진입점이 `-A app.main.celery` → `-A app.worker.app`으로 바뀌었다. 모든 compose의 celery 서비스는
+**이미지 CMD로 기동하면서 `./backend`를 `/app`에 마운트**하므로, 실행 명령은 이미지가, 코드는 checkout이 결정한다.
+따라서 celery 이미지와 코드는 같은 배포 단위로 갱신해야 한다.
 
 | 이미지 CMD | 마운트된 코드 | 결과 |
 |---|---|---|
-| `-A app.worker.app` (v1.0.7) | v1.0.7 | 정상 |
-| `-A app.worker.app` (v1.0.7) | v1.0.7 이전 | **워커 기동 실패** (`app.worker` 모듈 없음) |
-| `-A app.main.celery` (이전) | v1.0.7 | 기동은 되지만 워커가 `app.main`을 import → 마이그레이션·FastAPI 앱 생성 재발 |
+| `-A app.worker.app` (PR-2 이후) | PR-2 이후 | 정상 |
+| `-A app.worker.app` (PR-2 이후) | PR-2 이전 (`app/worker` 없음) | **워커 기동 실패** — `Unable to load celery application. The module app.worker was not found.` → `restart` 정책에 따라 재시작 반복 |
+| `-A app.main.celery` (PR-2 이전) | PR-2 이후 | 기동은 되지만 워커가 `app.main`을 import → 리팩토링 전처럼 워커 부팅마다 마이그레이션·FastAPI 앱 생성 실행 (웹과 마이그레이션 동시 실행 가능) |
 
-절차:
-1. `ghcr_upload.sh`로 v1.0.7 `celery-cpu` / `celery-gpu` 이미지 푸시 (backend 이미지와 동시)
-2. 서버에서 코드 checkout을 v1.0.7로 갱신
-3. **celery 이미지를 명시적으로 pull** — `run-cpu-mode.sh` / `run-gpu-mode.sh`는 로컬에 `:latest` 이미지가 있으면 pull하지 않으므로 이전 이미지가 그대로 쓰인다
+### 배포 경로별 celery 이미지 갱신 방법
+| 배포 경로 | compose 파일 | celery 이미지 | 갱신 |
+|---|---|---|---|
+| GHCR (`run-cpu-mode.sh` / `run-gpu-mode.sh`) | `docker-compose.cpu.yml` / `docker-compose.gpu.yml` | `ghcr.io/cxinsys/cellcraft/celery-{cpu,gpu}:latest` | **명시적 pull 필요** — 스크립트는 로컬에 `:latest`가 있으면 pull하지 않는다 |
+| 운영 (prod) | `docker-compose.prod.yml` | 로컬 빌드 (`Dockerfile.celery.prod`) | **재빌드 필요** — `--build` 없이 `up -d` 하면 이전 CMD 이미지를 재사용 |
+| 로컬 빌드 (수동 실행) | `docker-compose.{cpu.amd64,cpu.arm64,gpu.amd64,dev}.yml` | 로컬 빌드 | 재빌드 필요 (`run-*-mode.sh`의 로컬 빌드 fallback은 `--build`를 사용하므로 자동) |
+
+### 이미지 게시 (GHCR 경로만, 배포 전)
+- 방법 A — `ghcr_upload.sh`: v1.0.7 checkout에서 실행. `RELEASE_VERSION` 기본값이 `v1.0.0`이므로 명시한다.
+  ```bash
+  RELEASE_VERSION=v1.0.7 ./ghcr_upload.sh --images celery-cpu,celery-gpu
+  # 태그: <git short hash>, v1.0.7, latest (celery-gpu는 backend/Dockerfile.celery로 빌드)
+  ```
+- 방법 B — GitHub Actions `build-ghcr-images.yml` (수동 실행): v1.0.7 ref(`release/v1.0.7` 또는 머지 후 `main`)에서 `build_celery_cpu` / `build_celery_gpu`를 켜고 `image_tag=v1.0.7`로 실행 → `:v1.0.7`, `:latest` 게시.
+- backend 이미지는 재게시 불필요: CMD(`uvicorn app.main:app`)가 바뀌지 않았고 코드는 마운트된다.
+- 주의: `:latest`를 갱신하는 순간, PR-2 이전 코드를 쓰는 설치가 이미지를 새로 받으면(신규 설치, 이미지 삭제 후 재실행 등) 위 표 2행 상황이 된다. 코드 갱신과 함께 진행하도록 공지한다.
+
+### 배포 절차
+`COMPOSE`는 배포 경로의 compose 파일 (예: `docker-compose.cpu.yml`, `docker-compose.gpu.yml`, `docker-compose.prod.yml`).
+1. 이전 버전 워커의 큐 드레인(진행 중 태스크 완료 대기) 후 워커 중지
    ```bash
-   docker compose -f docker-compose.cpu.yml pull celery   # GPU: docker-compose.gpu.yml
+   docker compose -f $COMPOSE stop celery
    ```
-4. 웹 → 워커 순으로 기동 후 확인
-   - 워커 로그에 `worker@<host> ready.` 출력, 컨테이너 Cmd가 `-A app.worker.app`인지 (`docker inspect --format '{{.Config.Cmd}}' <celery 컨테이너>`)
-   - 등록 태스크 2개: `docker compose -f docker-compose.cpu.yml exec celery /opt/micromamba/envs/snakemake/bin/python -m celery -A app.worker.app inspect registered`
-     → `plugin_task:build_plugin_task`, `workflow_task:process_data_task`
+2. 코드 checkout을 v1.0.7로 갱신
+3. celery 이미지 갱신
+   ```bash
+   docker compose -f $COMPOSE pull celery    # GHCR 경로
+   docker compose -f $COMPOSE build celery   # prod / 로컬 빌드 경로
+   ```
+4. 웹 기동 (마이그레이션 담당) 후 마이그레이션 완료 로그 확인
+   ```bash
+   docker compose -f $COMPOSE up -d backend
+   ```
+5. 워커 기동 — celery 서비스에 `depends_on: backend`가 없어 일괄 `up -d`(및 `run-*-mode.sh`)는 웹 → 워커 순서를 보장하지 않으므로 분리해서 실행
+   ```bash
+   docker compose -f $COMPOSE up -d celery
+   ```
+6. 확인
+   - 컨테이너 Cmd — shell form CMD라 `[/bin/sh -c ... -m celery -A app.worker.app worker ...]` 형태로 출력된다
+     ```bash
+     docker inspect --format '{{.Config.Cmd}}' $(docker compose -f $COMPOSE ps -q celery)
+     ```
+   - 워커 로그에 `worker@<host> ready.` 출력 (`docker compose -f $COMPOSE logs celery`)
+   - 등록 태스크 2개 (`plugin_task:build_plugin_task`, `workflow_task:process_data_task`) — 모든 celery 이미지는 conda env의 `bin`이 `PATH` 앞에 있어 `python`으로 실행 가능
+     ```bash
+     docker compose -f $COMPOSE exec celery python -m celery -A app.worker.app inspect registered
+     ```
+
+태스크 이름이 `name=`으로 고정되어 있으므로, 드레인하지 못한 잔여 메시지도 신버전 워커가 처리할 수 있다.
 
 ## 롤백
-`git revert` + Dockerfile CMD 원복. DB/스키마 변경이 없으므로 데이터 롤백 불필요.
+코드만 되돌리고 celery 이미지를 그대로 두면 위 표 2행(워커 기동 실패) 상황이 되므로 **이미지도 함께 되돌린다.**
+1. 코드: `git revert <merge commit>` 후 서버 checkout 갱신
+2. celery 이미지
+   - GHCR 경로: 이전 버전 이미지를 `:latest`로 재게시 후 `pull celery`
+     ```bash
+     docker buildx imagetools create -t ghcr.io/cxinsys/cellcraft/celery-cpu:latest ghcr.io/cxinsys/cellcraft/celery-cpu:<이전 태그>
+     # celery-gpu도 동일
+     ```
+     (또는 이전 버전 checkout에서 `ghcr_upload.sh` 재실행)
+   - prod / 로컬 빌드 경로: 되돌린 checkout에서 `docker compose -f $COMPOSE build celery`
+3. 웹 → 워커 순으로 재기동
+
+DB/스키마 변경이 없으므로 데이터 롤백은 불필요하다.
