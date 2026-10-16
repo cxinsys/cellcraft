@@ -89,7 +89,7 @@ Phase 간 의존이 있으므로 **머지 순서 고정**, 병렬 진행은 Phas
 | PR-4 | `refactor/v107-04-domain-skeleton` | Phase 2b: 도메인 이동 + models 분리 + shim 제거 | 이동 위주 | 중간 | [phase-2](./phase-2-domain-skeleton.md) |
 | PR-5 | `refactor/v107-05-plugin-service` | Phase 3a: plugin 서비스 추출 | ±1,600줄 | 중간 | [phase-3](./phase-3-service-layer.md) |
 | PR-6 | `refactor/v107-06-workflow-service` | Phase 3b: workflow 서비스 추출 | ±1,000줄 | 중간 | [phase-3](./phase-3-service-layer.md) |
-| PR-7 | `refactor/v107-07-task-service` | Phase 3c: task 서비스 + SSE 분리 + Celery kwargs 타입화 | ±1,400줄 | 중간 | [phase-3](./phase-3-service-layer.md) |
+| PR-7 | `refactor/v107-07-task-service` | Phase 3c: task 서비스 + SSE 분리 (Celery kwargs 타입화는 Phase 5로 이관) | ±1,400줄 | 중간 | [phase-3](./phase-3-service-layer.md) |
 | PR-8 | `refactor/v107-08-remaining-services` | Phase 3d: files/admin/auth/datatable + 전역 예외 핸들러 | ±1,500줄 | 중간 | [phase-3](./phase-3-service-layer.md) |
 | PR-9 | `refactor/v107-09-split-plugin-utils` | Phase 4a: plugin_utils.py(2,220줄) 분할 | ±2,200줄 | 중간 | [phase-4](./phase-4-monolith-split.md) |
 | PR-10 | `refactor/v107-10-split-dag-parser` | Phase 4b: snakefile_dag_parser.py(2,227줄) 분할 + 지연 import 제거 | ±2,300줄 | 중간 | [phase-4](./phase-4-monolith-split.md) |
