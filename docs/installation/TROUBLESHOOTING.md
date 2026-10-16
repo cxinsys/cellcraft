@@ -92,13 +92,15 @@ This process ensures that:
 Since v1.0.8, plugin containers run isolated: only the running user's directory (read-write) and `tutorials/` (read-only) are mounted under `/workspace`, the container is detached from the internal app network, and Linux capabilities are dropped.
 
 **Solution**:
-1. Make sure the plugin Snakefile only reads and writes paths under `user/{user_name}/...` or `tutorials/...`.
-2. If the plugin needs extra capabilities, set the following on the `celery` service and restart it:
+1. Make sure the plugin Snakefile only reads and writes paths under `user/{user_name}/...` or `tutorials/...`. Other paths are no longer mounted, and this cannot be changed by configuration.
+2. If the plugin needs extra Linux capabilities, set the following on the `celery` service and restart it:
    ```yaml
    environment:
      - PLUGIN_CONTAINER_HARDENING=false
    ```
-3. If the plugin needs a specific Docker network, set `PLUGIN_CONTAINER_NETWORK=<network name>` on the `celery` service (default: `bridge`).
+   This only restores the default capabilities and privilege escalation. Mounts and network isolation stay in place.
+3. If the plugin needs a specific Docker network, set `PLUGIN_CONTAINER_NETWORK=<network name>` on the `celery` service (default: `bridge`). Docker Compose prefixes network names with the project name, so the internal app network is named like `cellcraft_app-network` (check with `docker network ls`). Joining that network gives the plugin access to the database, Redis, and RabbitMQ, so use it only if required.
+4. If input files were copied into `backend/user/<user>/data` directly on the host, make sure they are readable by the container user (for example `chmod a+r`), because the plugin container no longer bypasses file permissions.
 
 ## Docker Issues
 

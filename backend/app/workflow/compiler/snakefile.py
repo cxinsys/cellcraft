@@ -3,7 +3,7 @@ import posixpath
 import docker
 import yaml
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 import time
 from datetime import datetime
 
@@ -29,32 +29,41 @@ def resolve_user_dir(snakefile_path: str) -> str:
     return posixpath.join(parts[0], parts[1])
 
 
-def build_plugin_volumes(host_backend_path, workspace_path, snakefile_path: str) -> Dict[str, Dict[str, str]]:
-    """플러그인 컨테이너에 마운트할 볼륨을 구성한다.
+def to_container_path(relative_path: str) -> str:
+    """backend 기준 상대 경로를 플러그인 컨테이너 내부 경로로 변환한다 (``./user/a`` → ``/workspace/user/a``)."""
+    return posixpath.join(PLUGIN_WORKDIR, posixpath.normpath(str(relative_path).replace("\\", "/")))
+
+
+def build_plugin_mounts(host_backend_path, workspace_path, user_dir: str) -> List[docker.types.Mount]:
+    """플러그인 컨테이너에 마운트할 bind mount 목록을 구성한다.
 
     실행 사용자 디렉터리만 rw, 공유 입력 디렉터리는 ro로 마운트하고,
     컨테이너 내부 경로는 기존 backend 전체 마운트와 동일한 구조(/workspace/<상대 경로>)를 유지한다.
+    ``volumes`` 문자열(``src:dst:mode``) 대신 Mount 객체를 사용해 경로에 ``:``가 있어도 안전하다.
 
     Parameters:
         host_backend_path: 호스트 기준 backend 디렉터리 경로 (Docker bind source)
         workspace_path: 현재 프로세스 기준 backend 디렉터리 경로 (존재 여부 확인용)
-        snakefile_path: backend 기준 상대 Snakefile 경로
+        user_dir: ``resolve_user_dir``로 검증된 사용자 디렉터리 (``user/<username>``)
     """
     host_backend_path = str(host_backend_path)
-    user_dir = resolve_user_dir(snakefile_path)
-    volumes = {
-        posixpath.join(host_backend_path, user_dir): {
-            "bind": posixpath.join(PLUGIN_WORKDIR, user_dir),
-            "mode": "rw",
-        }
-    }
+    mounts = [
+        docker.types.Mount(
+            target=to_container_path(user_dir),
+            source=posixpath.join(host_backend_path, user_dir),
+            type="bind",
+            read_only=False,
+        )
+    ]
     for shared_dir in SHARED_INPUT_DIRS:
         if os.path.isdir(os.path.join(str(workspace_path), shared_dir)):
-            volumes[posixpath.join(host_backend_path, shared_dir)] = {
-                "bind": posixpath.join(PLUGIN_WORKDIR, shared_dir),
-                "mode": "ro",
-            }
-    return volumes
+            mounts.append(docker.types.Mount(
+                target=to_container_path(shared_dir),
+                source=posixpath.join(host_backend_path, shared_dir),
+                type="bind",
+                read_only=True,
+            ))
+    return mounts
 
 
 def plugin_container_security_options() -> Dict[str, Any]:
@@ -170,6 +179,16 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
     container_name = None
     client = None  # Docker 클라이언트 누수 방지를 위해 초기화
 
+    # 사용자 디렉터리 밖 Snakefile은 로그 디렉터리 생성 등 파일 시스템 변경 전에 거부
+    try:
+        user_dir = resolve_user_dir(snakefile_path)
+    except ValueError as path_error:
+        return {
+            "returncode": 1,
+            "stdout": "",
+            "stderr": str(path_error)
+        }
+
     try:
         client = docker.from_env()
         
@@ -233,7 +252,7 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         log_file = get_log_path(snakefile_path)
         
         # Snakefile 경로를 workspace 기준으로 수정
-        container_snakefile_path = f"/workspace{snakefile_path[1:]}"
+        container_snakefile_path = to_container_path(snakefile_path)
         
         # 컨테이너 이름 생성 (task_id 포함)
         if task_id:
@@ -271,20 +290,13 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         print(f"Using host backend path: {host_backend_path}")
 
         # 실행 사용자 디렉터리(rw)와 공유 입력(ro)만 마운트 (backend 전체·celery 볼륨 상속 금지)
-        try:
-            volumes = build_plugin_volumes(host_backend_path, workspace_path, snakefile_path)
-        except ValueError as path_error:
-            return {
-                "returncode": 1,
-                "stdout": "",
-                "stderr": str(path_error)
-            }
+        mounts = build_plugin_mounts(host_backend_path, workspace_path, user_dir)
 
         # 컨테이너 실행 설정
         container_config = {
             'image': image_name,
             'name': container_name,  # 컨테이너 이름 지정
-            'volumes': volumes,
+            'mounts': mounts,
             'working_dir': PLUGIN_WORKDIR,
             'environment': {
                 'MAMBA_ROOT_PREFIX': '/opt/micromamba',
@@ -323,7 +335,7 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         # Task마다 새로운 컨테이너 생성
         print(f"Starting new container with image: {image_name}")
         print(f"Container name: {container_name}")
-        print(f"Mounted volumes: {volumes}")
+        print(f"Mounts: {mounts}")
         
         container = client.containers.run(**container_config)
         print(f"Container started with ID: {container.id}")
