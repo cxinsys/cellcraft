@@ -5,7 +5,7 @@ rule Heatmap:
         trajectory="user/john/workflow_1/algorithm_2/results/trajectory.txt",
         input="user/john/workflow_1/algorithm_2/results/Numlinks.sif"
     output:
-        Heatmap="user/john/workflow_1/visualization_7/results/Heatmap_result.json"
+        Heatmap="user/john/workflow_1/visualization_7/results/Top_Genes_10_Sample_Size_100_expression.csv_trajectory.txt_Numlinks.sif_Heatmap.json"
     params:
         Top_Genes=10,
         Sample_Size=100

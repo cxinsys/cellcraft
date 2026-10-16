@@ -3,7 +3,7 @@ rule Barplot:
     input:
         input="user/john/workflow_1/algorithm_2/results/Numlinks.sif"
     output:
-        Barplot="user/john/workflow_1/visualization_7/results/Barplot_result.json"
+        Barplot="user/john/workflow_1/visualization_7/results/Top_Genes_10_Numlinks.sif_Barplot.json"
     params:
         Top_Genes=10
     log:

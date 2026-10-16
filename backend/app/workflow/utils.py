@@ -15,7 +15,7 @@ import json
 import gc
 from typing import Dict, List, Optional, Tuple, Any
 
-from app.workflow.validators import validate_bare_filename
+from app.workflow.validators import validate_bare_filename, validate_relative_output_path
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -396,7 +396,10 @@ def extract_target_data(selectedPluginInputOutput, user_workflow_task_path):
     # type이 "output"인 데이터들 중, activated가 True인 데이터들을 찾아서 리스트에 추가
     for data in selectedPluginInputOutput:
         if data.get("type") == "outputFile" and data.get("activate"):
-            output_name = validate_bare_filename(data.get("defaultValue"), "output file name")
+            output_name = data.get("defaultValue")
+            if output_name:
+                # 하위 디렉터리를 쓰는 로컬 플러그인 출력명 허용, 결과 디렉터리 밖은 거부
+                validate_relative_output_path(output_name)
             data_list.append(os.path.join(user_workflow_task_path, output_name))
 
     # 데이터 리스트 반환

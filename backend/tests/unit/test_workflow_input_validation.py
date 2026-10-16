@@ -9,6 +9,7 @@ rejected before any filesystem change.
 """
 import ast
 import json
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -85,25 +86,66 @@ class TestNodeData:
             v.validate_node_data_extension(value)
 
 
-class TestPluginParameterNames:
-    def _write_metadata(self, tmp_path):
-        metadata = {"rules": {
-            "0": {"name": "Input", "parameters": [{"name": "cell group"}, {"name": "UMAP lasso"}]},
-            "1": {"name": "Run", "parameters": [{"name": "number of devices"}, {"name": "log"}]},
-        }}
-        (tmp_path / "metadata.json").write_text(json.dumps(metadata))
+class TestRelativeOutputPath:
+    @pytest.mark.parametrize("value, expected", [
+        ("GRN.sif", "GRN.sif"), ("plots/out.png", "plots/out.png"), ("./out.csv", "out.csv"),
+        ("Top_Genes_10_expression.csv_Heatmap.json", "Top_Genes_10_expression.csv_Heatmap.json"),
+    ])
+    def test_accepted(self, value, expected):
+        assert v.validate_relative_output_path(value) == expected
+
+    @pytest.mark.parametrize("value", ["../x", "a/../../x", "/abs/x", "..", ".", "", None, 'a"b', "a\\b"])
+    def test_rejected(self, value):
+        with pytest.raises(ValidationFailedError):
+            v.validate_relative_output_path(value)
+
+    def test_sanitize_filename_part(self):
+        assert v.sanitize_filename_part('Group_a/b"c') == "Group_a_b_c"
+        assert v.sanitize_filename_part("Top_Genes_10") == "Top_Genes_10"
+
+
+class TestPluginPlaceholders:
+    def _write_metadata(self, tmp_path, rules):
+        (tmp_path / "metadata.json").write_text(json.dumps({"rules": rules}))
+
+    RULES = {
+        "0": {"name": "Input", "parameters": [
+            {"name": "input", "type": "inputFile", "defaultValue": "input.h5ad"},
+            {"name": "geneList", "type": "optionalInputFile", "defaultValue": "geneList.txt"},
+            {"name": "cell group", "type": "h5adParameter", "defaultValue": ""},
+            {"name": "expression", "type": "outputFile", "defaultValue": "expression.csv"},
+        ]},
+        "1": {"name": "Run", "parameters": [
+            {"name": "number of devices", "type": "int", "defaultValue": "1"},
+            {"name": "log", "type": "boolean", "defaultValue": "false"},
+        ]},
+    }
 
     def test_all_rules(self, tmp_path):
-        self._write_metadata(tmp_path)
-        assert v.load_plugin_parameter_names(str(tmp_path)) == {
-            "cell group", "UMAP lasso", "number of devices", "log"}
+        self._write_metadata(tmp_path, self.RULES)
+        assert v.load_plugin_placeholders(str(tmp_path)) == {
+            "params": {"cell group", "number of devices", "log"},
+            "input_files": {"input.h5ad", "geneList.txt"},
+        }
 
     def test_single_rule(self, tmp_path):
-        self._write_metadata(tmp_path)
-        assert v.load_plugin_parameter_names(str(tmp_path), "Run") == {"number of devices", "log"}
+        self._write_metadata(tmp_path, self.RULES)
+        assert v.load_plugin_placeholders(str(tmp_path), "Run") == {
+            "params": {"number of devices", "log"}, "input_files": set()}
+
+    def test_rules_as_list(self, tmp_path):
+        self._write_metadata(tmp_path, list(self.RULES.values()))
+        assert v.load_plugin_placeholders(str(tmp_path))["input_files"] == {"input.h5ad", "geneList.txt"}
+
+    @pytest.mark.parametrize("rules", ["x", 3, {"0": "not a rule"}, {"0": {"parameters": "x"}}, [None]])
+    def test_malformed_metadata_does_not_raise(self, tmp_path, rules):
+        self._write_metadata(tmp_path, rules)
+        result = v.load_plugin_placeholders(str(tmp_path))
+        assert result is None or result == {"params": set(), "input_files": set()}
 
     def test_missing_metadata(self, tmp_path):
-        assert v.load_plugin_parameter_names(str(tmp_path)) is None
+        assert v.load_plugin_placeholders(str(tmp_path)) is None
+        assert v.placeholder_names(None, "params") is None
 
     def test_filter_by_metadata(self):
         params = {"cell group": "leiden", "log": "false", "params.FDR": "x", "unknown": 1}
@@ -188,24 +230,32 @@ def _plugin_dir(tmp_path):
         '    params:\n        cell_group={cell group}\n'
         '    shell:\n        "run {input.input} {params.cell_group} > {output.out}"\n'
     )
-    (plugin / "metadata.json").write_text(json.dumps(
-        {"rules": {"0": {"name": "a", "parameters": [{"name": "cell group"}]}}}))
+    (plugin / "metadata.json").write_text(json.dumps({"rules": {"0": {"name": "a", "parameters": [
+        {"name": "input", "type": "inputFile", "defaultValue": "input.h5ad"},
+        {"name": "cell group", "type": "h5adParameter", "defaultValue": ""},
+        {"name": "out", "type": "outputFile", "defaultValue": "out.csv"},
+    ]}}}))
     return plugin
 
 
-def _workflow_info(node_id=3, file_name="pbmc_3k.h5ad", output="out.csv", params=None):
+def _algorithm_node(node_id=3, file_name="pbmc_3k.h5ad", output="out.csv", params=None,
+                    input_key="input.h5ad", outputs=None):
     rules = [{"parameters": params or [{"name": "cell group", "defaultValue": "leiden"}]}]
-    return {"drawflow": {"Home": {"data": {str(node_id): {
-        "id": node_id, "name": "algorithm", "class": "Algorithm",
+    return {
+        "id": node_id, "name": "algorithm", "class": "Algorithm", "outputs": outputs or {},
         "data": {
             "selectedPlugin": {"name": "P", "source": "local"},
             "selectedPluginInputOutput": [
-                {"type": "inputFile", "defaultValue": "input.h5ad", "file_name": file_name, "fileSource": "user"},
+                {"type": "inputFile", "defaultValue": input_key, "file_name": file_name, "fileSource": "user"},
                 {"type": "outputFile", "defaultValue": output, "activate": True},
             ],
             "selectedPluginRules": rules,
         },
-    }}}}}
+    }
+
+
+def _workflow_info(node_id=3, **kwargs):
+    return {"drawflow": {"Home": {"data": {str(node_id): _algorithm_node(node_id, **kwargs)}}}}
 
 
 def _compile(tmp_path, monkeypatch, workflow_info):
@@ -218,11 +268,14 @@ def _compile(tmp_path, monkeypatch, workflow_info):
     workflow = WorkflowCreate(id=1, title="t", thumbnail=None, workflow_info=workflow_info)
     dispatch = MagicMock(return_value=MagicMock(id="tid-1"))
     with patch("app.workflow.service.crud_workflow.get_user_workflow", return_value=user_workflow), \
-         patch("app.workflow.service.crud_workflow.update_workflow"), \
+         patch("app.workflow.service.crud_workflow.update_workflow") as update, \
          patch("app.workflow.service.get_plugin_path", return_value=(str(plugin), "local")), \
          patch("app.workflow.service.process_data_task.apply_async", dispatch), \
          patch("app.workflow.service.get_task_info", return_value={"task_status": "PENDING"}):
-        result = service.compile_workflow(db=db, user=_user(), workflow=workflow)
+        try:
+            result = service.compile_workflow(db=db, user=_user(), workflow=workflow)
+        finally:
+            _compile.update = update
     return result, dispatch
 
 
@@ -244,6 +297,37 @@ class TestCompileWorkflow:
         snakefile = (tmp_path / "user/john/workflow_1/algorithm_3/Snakefile").read_text()
         assert "{params.cell_group}" in snakefile
         assert "rm -rf" not in snakefile
+
+    def test_output_subdirectory_allowed(self, tmp_path, monkeypatch):
+        _, dispatch = _compile(tmp_path, monkeypatch, _workflow_info(output="plots/out.csv"))
+        assert dispatch.call_args.kwargs["args"][3] == ["./user/john/workflow_1/algorithm_3/results/plots/out.csv"]
+
+    def test_undeclared_input_placeholder_not_substituted(self, tmp_path, monkeypatch):
+        _compile(tmp_path, monkeypatch, _workflow_info(input_key="output.out"))
+        snakefile = (tmp_path / "user/john/workflow_1/algorithm_3/Snakefile").read_text()
+        assert "{output.out}" in snakefile
+
+    def test_invalid_second_algorithm_blocks_whole_compile(self, tmp_path, monkeypatch):
+        data = {"3": _algorithm_node(3), "4": _algorithm_node(4, file_name="../../other/x.h5ad")}
+        info = {"drawflow": {"Home": {"data": data}}}
+        dispatch = None
+        with pytest.raises(HTTPException) as exc:
+            _, dispatch = _compile(tmp_path, monkeypatch, info)
+
+        assert exc.value.status_code == 400
+        assert dispatch is None
+        _compile.update.assert_not_called()
+        assert not (tmp_path / "user").exists()
+
+    def test_connected_visualization_id_validated(self, tmp_path, monkeypatch):
+        vis_key = "9/../../../other"
+        outputs = {"output_1": {"connections": [{"node": vis_key, "output": "input_1"}]}}
+        info = _workflow_info(outputs=outputs)
+        info["drawflow"]["Home"]["data"][vis_key] = {"id": vis_key, "class": "Visualization", "data": {}}
+        with pytest.raises(HTTPException) as exc:
+            _compile(tmp_path, monkeypatch, info)
+        assert exc.value.status_code == 400
+        assert not (tmp_path / "user").exists()
 
     @pytest.mark.parametrize("info", [
         _workflow_info(node_id="../../other"),
@@ -286,8 +370,8 @@ class TestVisualizeDataValidation:
             {"type": "inputFile", "name": "input", "defaultValue": "input.txt", "selectedFile": "../../x.sif"}]},
          "selectedFile"),
         ({"selectedVisualizationParams": [
-            {"type": "int", "name": "Top Genes", "defaultValue": "../../10"}]},
-         "result_filename"),
+            {"type": "outputFile", "name": "Barplot", "defaultValue": "../../escape.json"}]},
+         "outputFile"),
     ])
     def test_rejected(self, tmp_path, monkeypatch, overrides, field):
         monkeypatch.chdir(tmp_path)
@@ -324,10 +408,14 @@ class TestResultFiles:
         response = service.check_result(user=_user(), workflow_result=WorkflowResult(id=1, algorithm_id=3, filename="GRN.sif"))
         assert response.path.endswith("results/GRN.sif")
 
-    @pytest.mark.parametrize("filename", ["../../../other/secret.txt", "missing.sif"])
-    def test_unlisted_file_not_served(self, results_dir, filename):
-        with pytest.raises((NotFoundError, ValidationFailedError)):
-            service.check_result(user=_user(), workflow_result=WorkflowResult(id=1, algorithm_id=3, filename=filename))
+    def test_traversal_filename_rejected(self, results_dir):
+        with pytest.raises(ValidationFailedError):
+            service.check_result(user=_user(), workflow_result=WorkflowResult(
+                id=1, algorithm_id=3, filename="../../../other/secret.txt"))
+
+    def test_missing_file_404(self, results_dir):
+        with pytest.raises(NotFoundError):
+            service.check_result(user=_user(), workflow_result=WorkflowResult(id=1, algorithm_id=3, filename="missing.sif"))
 
     def test_visualization_result_traversal_rejected(self, results_dir):
         with pytest.raises(ValidationFailedError):
@@ -420,3 +508,49 @@ class TestSnakemakeCommandQuoting:
         tokens = shlex.split(bash_cmd)
         assert target in tokens
         assert "touch" not in tokens
+
+
+# ---------------------------------------------------------------------------
+# visualization through the service (golden harness)
+# ---------------------------------------------------------------------------
+
+def _barplot_case(params):
+    import copy
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "fixtures", "snakefile_golden"))
+    import harness
+    case = copy.deepcopy(next(c for c in harness.load_cases() if c["id"] == "GRNViz_Barplot"))
+    case["request"]["selectedVisualizationParams"] = params
+    return harness, case
+
+
+class TestVisualizationResultName:
+    INPUT = {"type": "inputFile", "name": "input", "defaultValue": "input.txt", "selectedFile": "Numlinks.sif"}
+
+    def test_param_value_with_separator_sanitized(self, tmp_path):
+        harness, case = _barplot_case([
+            self.INPUT,
+            {"type": "int", "name": "Top Genes", "defaultValue": "10/../x"},
+            {"type": "outputFile", "name": "Barplot", "defaultValue": "Barplot.json"},
+        ])
+        snakefile = harness.render(case, str(tmp_path))
+        assert 'results/Top_Genes_10_.._x_Numlinks.sif_Barplot.json"' in snakefile
+
+    def test_empty_output_uses_default_name(self, tmp_path):
+        harness, case = _barplot_case([
+            self.INPUT,
+            {"type": "int", "name": "Top Genes", "defaultValue": "10"},
+            {"type": "outputFile", "name": "Barplot", "defaultValue": ""},
+        ])
+        snakefile = harness.render(case, str(tmp_path))
+        assert 'results/Top_Genes_10_Numlinks.sif_visualization_result.json"' in snakefile
+
+    def test_undeclared_file_mapping_ignored(self, tmp_path):
+        harness, case = _barplot_case([
+            self.INPUT,
+            {"type": "inputFile", "name": "x", "defaultValue": "log.stdout", "selectedFile": "Numlinks.sif"},
+            {"type": "int", "name": "Top Genes", "defaultValue": "10"},
+            {"type": "outputFile", "name": "Barplot", "defaultValue": "Barplot.json"},
+        ])
+        snakefile = harness.render(case, str(tmp_path))
+        assert "{log.stdout}" in snakefile

@@ -3,7 +3,7 @@ rule Network:
     input:
         input="user/john/workflow_1/algorithm_2/results/Numlinks.sif"
     output:
-        Network="user/john/workflow_1/visualization_7/results/Network_result.json"
+        Network="user/john/workflow_1/visualization_7/results/Top_Genes_50_Numlinks.sif_Network.json"
     params:
         Top_Genes=50
     log:

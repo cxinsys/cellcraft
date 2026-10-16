@@ -1,0 +1,216 @@
+{
+  "name": "Scribe",
+  "rules": {
+    "0": {
+      "name": "Scribe Input",
+      "input": [
+        "input.h5ad",
+        "geneList.txt"
+      ],
+      "output": [
+        "expression.csv",
+        "trajectory.txt",
+        "cellSelect.txt"
+      ],
+      "script": "scribe_input.py",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "inputFile",
+          "defaultValue": "input.h5ad",
+          "min": null,
+          "max": null,
+          "fileExtension": ".h5ad"
+        },
+        {
+          "name": "geneList",
+          "type": "optionalInputFile",
+          "defaultValue": "geneList.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "UMAP lasso",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "expression",
+          "type": "outputFile",
+          "defaultValue": "expression.csv",
+          "min": null,
+          "max": null,
+          "fileExtension": ".csv"
+        },
+        {
+          "name": "trajectory",
+          "type": "outputFile",
+          "defaultValue": "trajectory.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "cellSelect",
+          "type": "outputFile",
+          "defaultValue": "cellSelect.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "cell group",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "pseudotime",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "clusters",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        }
+      ],
+      "nodeId": 1,
+      "isVisualization": false
+    },
+    "1": {
+      "name": "Run",
+      "input": [
+        "expression.csv",
+        "trajectory.txt",
+        "cellSelect.txt"
+      ],
+      "output": [
+        "rankedEdges.txt",
+        "GRN.sif",
+        "GRNOutdegree.txt"
+      ],
+      "script": "scribe_for_cellcraft.R",
+      "parameters": [
+        {
+          "name": "expression",
+          "type": "inputFile",
+          "defaultValue": "expression.csv",
+          "min": null,
+          "max": null,
+          "fileExtension": ".csv"
+        },
+        {
+          "name": "trajectory",
+          "type": "inputFile",
+          "defaultValue": "trajectory.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "cellSelect",
+          "type": "inputFile",
+          "defaultValue": "cellSelect.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "Lower Limit",
+          "type": "float",
+          "defaultValue": "0",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "Expression Family",
+          "type": "string",
+          "defaultValue": "uninormal",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "defaultValue": "ucRDI",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "Delay",
+          "type": "int",
+          "defaultValue": "1",
+          "min": 1,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "log",
+          "type": "boolean",
+          "defaultValue": "false",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "number of outdegrees",
+          "type": "int",
+          "defaultValue": "1000",
+          "min": 100,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "FDR",
+          "type": "float",
+          "defaultValue": "0",
+          "min": 0,
+          "max": 1,
+          "fileExtension": ""
+        },
+        {
+          "name": "rankedEdges",
+          "type": "outputFile",
+          "defaultValue": "rankedEdges.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "GRN",
+          "type": "outputFile",
+          "defaultValue": "GRN.sif",
+          "min": null,
+          "max": null,
+          "fileExtension": ".sif"
+        },
+        {
+          "name": "GRNOutdegree",
+          "type": "outputFile",
+          "defaultValue": "GRNOutdegree.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        }
+      ],
+      "nodeId": 2,
+      "isVisualization": false
+    }
+  }
+}

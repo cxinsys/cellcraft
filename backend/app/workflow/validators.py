@@ -14,8 +14,9 @@ legitimately produces:
 """
 import json
 import os
+import posixpath
 import re
-from typing import Any, Iterable, Optional, Set
+from typing import Any, Dict, Iterable, Optional, Set
 
 from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationFailedError
 from app.file.security import validate_file_path
@@ -60,6 +61,26 @@ def validate_bare_filename(value: Any, field: str = "file name") -> str:
     return value
 
 
+def validate_relative_output_path(value: Any, field: str = "output file name") -> str:
+    """결과 디렉터리 기준 상대 경로(하위 디렉터리 허용, ``..``·절대 경로 금지)를 정규화해 반환한다.
+
+    로컬 플러그인 출력명은 작성자가 자유롭게 정할 수 있어 ``plots/out.png`` 같은 하위 경로가 가능하다.
+    """
+    if not isinstance(value, str) or not value or len(value) > MAX_FILENAME_LENGTH:
+        raise ValidationFailedError(f"Invalid {field}: {value!r}")
+    if value.startswith("/") or re.search(r'[\\"\x00-\x1f\x7f]', value):
+        raise ValidationFailedError(f"Invalid {field}: {value!r}")
+    normalized = posixpath.normpath(value)
+    if normalized in (".", "..") or normalized.startswith("../") or "/../" in f"/{normalized}/":
+        raise ValidationFailedError(f"Invalid {field}: {value!r}")
+    return normalized
+
+
+def sanitize_filename_part(value: Any) -> str:
+    """결과 파일명에 들어가는 파라미터 값에서 경로·따옴표·제어 문자를 ``_``로 바꾼다."""
+    return _FORBIDDEN_FILENAME_CHARS.sub("_", str(value))
+
+
 def ensure_within(base_dir: str, path: str) -> str:
     """``path``가 ``base_dir`` 내부인지 확인한다 (symlink 해석 포함)."""
     try:
@@ -77,21 +98,46 @@ def resolve_listed_file(directory: str, filename: Any) -> str:
     return os.path.join(directory, filename)
 
 
-def load_plugin_parameter_names(plugin_path: str, rule_name: Optional[str] = None) -> Optional[Set[str]]:
-    """플러그인 metadata.json에 선언된 파라미터 이름 목록 (읽을 수 없으면 None)."""
+FILE_PARAMETER_TYPES = ("inputFile", "optionalInputFile", "outputFile")
+INPUT_FILE_PARAMETER_TYPES = ("inputFile", "optionalInputFile")
+
+
+def load_plugin_placeholders(plugin_path: str, rule_name: Optional[str] = None) -> Optional[Dict[str, Set[str]]]:
+    """플러그인 metadata.json에 선언된 Snakefile placeholder 목록 (읽을 수 없거나 형식이 다르면 None).
+
+    Returns:
+        ``{"params": 파일이 아닌 파라미터 이름, "input_files": 입력 파일 파라미터의 defaultValue}``
+    """
     try:
         with open(os.path.join(plugin_path, "metadata.json"), "r", encoding="utf-8") as f:
             rules = json.load(f).get("rules", {})
     except (OSError, ValueError, AttributeError):
         return None
-    names = set()
-    for rule in rules.values():
-        if rule_name is not None and rule.get("name") != rule_name:
+    if isinstance(rules, dict):
+        rules = list(rules.values())
+    if not isinstance(rules, list):
+        return None
+
+    placeholders = {"params": set(), "input_files": set()}
+    for rule in rules:
+        if not isinstance(rule, dict) or (rule_name is not None and rule.get("name") != rule_name):
             continue
-        for parameter in rule.get("parameters", []):
-            if parameter.get("name") is not None:
-                names.add(parameter["name"])
-    return names
+        parameters = rule.get("parameters", [])
+        if not isinstance(parameters, list):
+            continue
+        for parameter in parameters:
+            if not isinstance(parameter, dict):
+                continue
+            if parameter.get("type") in INPUT_FILE_PARAMETER_TYPES:
+                if isinstance(parameter.get("defaultValue"), str):
+                    placeholders["input_files"].add(parameter["defaultValue"])
+            elif parameter.get("type") not in FILE_PARAMETER_TYPES and parameter.get("name") is not None:
+                placeholders["params"].add(parameter["name"])
+    return placeholders
+
+
+def placeholder_names(placeholders: Optional[Dict[str, Set[str]]], kind: str) -> Optional[Set[str]]:
+    return None if placeholders is None else placeholders[kind]
 
 
 def filter_plugin_params(params: dict, allowed_names: Optional[Iterable[str]]) -> dict:

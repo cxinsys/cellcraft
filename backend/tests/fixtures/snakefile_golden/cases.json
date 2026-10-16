@@ -1,318 +1,1742 @@
 [
   {
+    "id": "FastSCODE",
     "plugin": "FastSCODE",
     "kind": "analysis",
-    "user_input": {
-      "input.h5ad": "user/john/data/pbmc_3k.h5ad",
-      "geneList.txt": "user/john/data/genes.txt",
-      "TF.txt": "tutorials/human_TFs.txt",
-      "user_name": "john",
-      "workflow_id": "1",
-      "algorithm_id": "2",
-      "plugin_name": "FastSCODE"
-    },
-    "plugin_params": {
-      "input": "input.h5ad",
-      "geneList": "geneList.txt",
-      "UMAP lasso": "./user/john/workflow_1/ScatterPlot_4.json",
-      "expression": "expression.csv",
-      "trajectory": "trajectory.txt",
-      "cellSelect": "cellSelect.txt",
-      "cell group": "leiden",
-      "pseudotime": "dpt_pseudotime",
-      "clusters": [
-        "0",
-        "1",
-        "B cell"
-      ],
-      "sampling length": "10",
-      "max iteration": "100",
-      "backend": "gpu",
-      "number of devices": "1",
-      "sampling batch size": "1",
-      "gene batch size": "0",
-      "num repeat": "1",
-      "number of outdegrees": "1000",
-      "trim threshold": "0.01",
-      "GRN": "GRN.sif",
-      "GRNOutdegree": "GRNOutdegree.txt",
-      "GRNTrim": "GRNTrim.sif",
-      "GRNTrimOutdegree": "GRNTrimOutdegree.txt"
+    "workflow_info": {
+      "drawflow": {
+        "Home": {
+          "data": {
+            "2": {
+              "id": 2,
+              "name": "algorithm",
+              "class": "Algorithm",
+              "outputs": {},
+              "data": {
+                "selectedPlugin": {
+                  "name": "FastSCODE",
+                  "source": "official"
+                },
+                "selectedPluginInputOutput": [
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "input.h5ad",
+                    "file_name": "pbmc_3k.h5ad",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "optionalInputFile",
+                    "defaultValue": "geneList.txt",
+                    "file_name": "genes.txt",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "expression.csv",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "trajectory.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "expression.csv",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "trajectory.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRN.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRNOutdegree.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRNTrim.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRNTrimOutdegree.txt",
+                    "activate": true
+                  }
+                ],
+                "selectedPluginRules": [
+                  {
+                    "name": "FastSCODE Input",
+                    "parameters": [
+                      {
+                        "name": "input",
+                        "type": "inputFile",
+                        "defaultValue": "input.h5ad"
+                      },
+                      {
+                        "name": "geneList",
+                        "type": "optionalInputFile",
+                        "defaultValue": "geneList.txt"
+                      },
+                      {
+                        "name": "UMAP lasso",
+                        "type": "h5adParameter",
+                        "defaultValue": "./user/john/workflow_1/ScatterPlot_4.json"
+                      },
+                      {
+                        "name": "expression",
+                        "type": "outputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "outputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "outputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "cell group",
+                        "type": "h5adParameter",
+                        "defaultValue": "leiden"
+                      },
+                      {
+                        "name": "pseudotime",
+                        "type": "h5adParameter",
+                        "defaultValue": "dpt_pseudotime"
+                      },
+                      {
+                        "name": "clusters",
+                        "type": "h5adParameter",
+                        "defaultValue": [
+                          "0",
+                          "1",
+                          "B cell"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Run",
+                    "parameters": [
+                      {
+                        "name": "expression",
+                        "type": "inputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "inputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "inputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "sampling length",
+                        "type": "int",
+                        "defaultValue": "10"
+                      },
+                      {
+                        "name": "max iteration",
+                        "type": "int",
+                        "defaultValue": "100"
+                      },
+                      {
+                        "name": "backend",
+                        "type": "string",
+                        "defaultValue": "gpu"
+                      },
+                      {
+                        "name": "number of devices",
+                        "type": "int",
+                        "defaultValue": "1"
+                      },
+                      {
+                        "name": "sampling batch size",
+                        "type": "int",
+                        "defaultValue": "1"
+                      },
+                      {
+                        "name": "gene batch size",
+                        "type": "int",
+                        "defaultValue": "0"
+                      },
+                      {
+                        "name": "num repeat",
+                        "type": "int",
+                        "defaultValue": "1"
+                      },
+                      {
+                        "name": "number of outdegrees",
+                        "type": "int",
+                        "defaultValue": "1000"
+                      },
+                      {
+                        "name": "trim threshold",
+                        "type": "float",
+                        "defaultValue": "0.01"
+                      },
+                      {
+                        "name": "GRN",
+                        "type": "outputFile",
+                        "defaultValue": "GRN.sif"
+                      },
+                      {
+                        "name": "GRNOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "GRNOutdegree.txt"
+                      },
+                      {
+                        "name": "GRNTrim",
+                        "type": "outputFile",
+                        "defaultValue": "GRNTrim.sif"
+                      },
+                      {
+                        "name": "GRNTrimOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "GRNTrimOutdegree.txt"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   {
+    "id": "FastTENET",
     "plugin": "FastTENET",
     "kind": "analysis",
-    "user_input": {
-      "input.h5ad": "user/john/data/pbmc_3k.h5ad",
-      "geneList.txt": "user/john/data/genes.txt",
-      "TF.txt": "tutorials/human_TFs.txt",
-      "user_name": "john",
-      "workflow_id": "1",
-      "algorithm_id": "2",
-      "plugin_name": "FastTENET"
-    },
-    "plugin_params": {
-      "input": "input.h5ad",
-      "geneList": "geneList.txt",
-      "UMAP lasso": "./user/john/workflow_1/ScatterPlot_4.json",
-      "expression": "expression.csv",
-      "trajectory": "trajectory.txt",
-      "cellSelect": "cellSelect.txt",
-      "cell group": "leiden",
-      "pseudotime": "dpt_pseudotime",
-      "clusters": [
-        "0",
-        "1",
-        "B cell"
-      ],
-      "TF": "TF.txt",
-      "resultMatrixFDR": "resultMatrixFDR.sif",
-      "resultMatrixFdrTrim": "resultMatrixFdrTrim.sif",
-      "resultMatrixFdrOutdegree": "resultMatrixFdrOutdegree.txt",
-      "resultMatrixFdrTrimOutdegree": "resultMatrixFdrTrimOutdegree.txt",
-      "backend": "gpu",
-      "number of devices": "1",
-      "batch size": "32768",
-      "FDR": "0.01",
-      "number of outdegrees": "0",
-      "trimming threshold": "0"
+    "workflow_info": {
+      "drawflow": {
+        "Home": {
+          "data": {
+            "2": {
+              "id": 2,
+              "name": "algorithm",
+              "class": "Algorithm",
+              "outputs": {},
+              "data": {
+                "selectedPlugin": {
+                  "name": "FastTENET",
+                  "source": "official"
+                },
+                "selectedPluginInputOutput": [
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "input.h5ad",
+                    "file_name": "pbmc_3k.h5ad",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "optionalInputFile",
+                    "defaultValue": "geneList.txt",
+                    "file_name": "genes.txt",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "expression.csv",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "trajectory.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "expression.csv",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "trajectory.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "optionalInputFile",
+                    "defaultValue": "TF.txt",
+                    "file_name": "human_TFs.txt",
+                    "fileSource": "shared"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "resultMatrixFDR.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "resultMatrixFdrTrim.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "resultMatrixFdrOutdegree.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "resultMatrixFdrTrimOutdegree.txt",
+                    "activate": true
+                  }
+                ],
+                "selectedPluginRules": [
+                  {
+                    "name": "FastTENET Input",
+                    "parameters": [
+                      {
+                        "name": "input",
+                        "type": "inputFile",
+                        "defaultValue": "input.h5ad"
+                      },
+                      {
+                        "name": "geneList",
+                        "type": "optionalInputFile",
+                        "defaultValue": "geneList.txt"
+                      },
+                      {
+                        "name": "UMAP lasso",
+                        "type": "h5adParameter",
+                        "defaultValue": "./user/john/workflow_1/ScatterPlot_4.json"
+                      },
+                      {
+                        "name": "expression",
+                        "type": "outputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "outputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "outputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "cell group",
+                        "type": "h5adParameter",
+                        "defaultValue": "leiden"
+                      },
+                      {
+                        "name": "pseudotime",
+                        "type": "h5adParameter",
+                        "defaultValue": "dpt_pseudotime"
+                      },
+                      {
+                        "name": "clusters",
+                        "type": "h5adParameter",
+                        "defaultValue": [
+                          "0",
+                          "1",
+                          "B cell"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Run",
+                    "parameters": [
+                      {
+                        "name": "expression",
+                        "type": "inputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "inputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "inputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "TF",
+                        "type": "optionalInputFile",
+                        "defaultValue": "TF.txt"
+                      },
+                      {
+                        "name": "resultMatrixFDR",
+                        "type": "outputFile",
+                        "defaultValue": "resultMatrixFDR.sif"
+                      },
+                      {
+                        "name": "resultMatrixFdrTrim",
+                        "type": "outputFile",
+                        "defaultValue": "resultMatrixFdrTrim.sif"
+                      },
+                      {
+                        "name": "resultMatrixFdrOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "resultMatrixFdrOutdegree.txt"
+                      },
+                      {
+                        "name": "resultMatrixFdrTrimOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "resultMatrixFdrTrimOutdegree.txt"
+                      },
+                      {
+                        "name": "backend",
+                        "type": "string",
+                        "defaultValue": "gpu"
+                      },
+                      {
+                        "name": "number of devices",
+                        "type": "int",
+                        "defaultValue": "1"
+                      },
+                      {
+                        "name": "batch size",
+                        "type": "int",
+                        "defaultValue": "32768"
+                      },
+                      {
+                        "name": "FDR",
+                        "type": "float",
+                        "defaultValue": "0.01"
+                      },
+                      {
+                        "name": "number of outdegrees",
+                        "type": "int",
+                        "defaultValue": "0"
+                      },
+                      {
+                        "name": "trimming threshold",
+                        "type": "float",
+                        "defaultValue": "0"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   {
+    "id": "GENIE3",
     "plugin": "GENIE3",
     "kind": "analysis",
-    "user_input": {
-      "input.h5ad": "user/john/data/pbmc_3k.h5ad",
-      "geneList.txt": "user/john/data/genes.txt",
-      "TF.txt": "tutorials/human_TFs.txt",
-      "user_name": "john",
-      "workflow_id": "1",
-      "algorithm_id": "2",
-      "plugin_name": "GENIE3"
-    },
-    "plugin_params": {
-      "input": "input.h5ad",
-      "geneList": "geneList.txt",
-      "UMAP lasso": "./user/john/workflow_1/ScatterPlot_4.json",
-      "expression": "expression.csv",
-      "trajectory": "trajectory.txt",
-      "cellSelect": "cellSelect.txt",
-      "cell group": "leiden",
-      "pseudotime": "dpt_pseudotime",
-      "clusters": [
-        "0",
-        "1",
-        "B cell"
-      ],
-      "TF": "TF.txt",
-      "FDR": "0",
-      "number of outdegrees": "0",
-      "GRN": "GRN.sif",
-      "GRNOutdegree": "GRNOutdegree.txt"
+    "workflow_info": {
+      "drawflow": {
+        "Home": {
+          "data": {
+            "2": {
+              "id": 2,
+              "name": "algorithm",
+              "class": "Algorithm",
+              "outputs": {},
+              "data": {
+                "selectedPlugin": {
+                  "name": "GENIE3",
+                  "source": "official"
+                },
+                "selectedPluginInputOutput": [
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "input.h5ad",
+                    "file_name": "pbmc_3k.h5ad",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "optionalInputFile",
+                    "defaultValue": "geneList.txt",
+                    "file_name": "genes.txt",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "expression.csv",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "trajectory.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "expression.csv",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "trajectory.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "optionalInputFile",
+                    "defaultValue": "TF.txt",
+                    "file_name": "human_TFs.txt",
+                    "fileSource": "shared"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRN.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRNOutdegree.txt",
+                    "activate": true
+                  }
+                ],
+                "selectedPluginRules": [
+                  {
+                    "name": "GENIE3 Input",
+                    "parameters": [
+                      {
+                        "name": "input",
+                        "type": "inputFile",
+                        "defaultValue": "input.h5ad"
+                      },
+                      {
+                        "name": "geneList",
+                        "type": "optionalInputFile",
+                        "defaultValue": "geneList.txt"
+                      },
+                      {
+                        "name": "UMAP lasso",
+                        "type": "h5adParameter",
+                        "defaultValue": "./user/john/workflow_1/ScatterPlot_4.json"
+                      },
+                      {
+                        "name": "UMAP lasso",
+                        "type": "h5adParameter",
+                        "defaultValue": "./user/john/workflow_1/ScatterPlot_4.json"
+                      },
+                      {
+                        "name": "expression",
+                        "type": "outputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "outputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "outputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "cell group",
+                        "type": "h5adParameter",
+                        "defaultValue": "leiden"
+                      },
+                      {
+                        "name": "pseudotime",
+                        "type": "h5adParameter",
+                        "defaultValue": "dpt_pseudotime"
+                      },
+                      {
+                        "name": "clusters",
+                        "type": "h5adParameter",
+                        "defaultValue": [
+                          "0",
+                          "1",
+                          "B cell"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Run",
+                    "parameters": [
+                      {
+                        "name": "expression",
+                        "type": "inputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "inputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "inputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "TF",
+                        "type": "optionalInputFile",
+                        "defaultValue": "TF.txt"
+                      },
+                      {
+                        "name": "FDR",
+                        "type": "float",
+                        "defaultValue": "0"
+                      },
+                      {
+                        "name": "number of outdegrees",
+                        "type": "int",
+                        "defaultValue": "0"
+                      },
+                      {
+                        "name": "GRN",
+                        "type": "outputFile",
+                        "defaultValue": "GRN.sif"
+                      },
+                      {
+                        "name": "GRNOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "GRNOutdegree.txt"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   {
+    "id": "GRNBoost2",
     "plugin": "GRNBoost2",
     "kind": "analysis",
-    "user_input": {
-      "input.h5ad": "user/john/data/pbmc_3k.h5ad",
-      "geneList.txt": "user/john/data/genes.txt",
-      "TF.txt": "tutorials/human_TFs.txt",
-      "user_name": "john",
-      "workflow_id": "1",
-      "algorithm_id": "2",
-      "plugin_name": "GRNBoost2"
-    },
-    "plugin_params": {
-      "input": "input.h5ad",
-      "geneList": "geneList.txt",
-      "UMAP lasso": "./user/john/workflow_1/ScatterPlot_4.json",
-      "expression": "expression.csv",
-      "trajectory": "trajectory.txt",
-      "cellSelect": "cellSelect.txt",
-      "cell group": "leiden",
-      "pseudotime": "dpt_pseudotime",
-      "clusters": [
-        "0",
-        "1",
-        "B cell"
-      ],
-      "TF": "TF.txt",
-      "FDR": "0",
-      "number of outdegrees": "0",
-      "GRN": "GRN.sif",
-      "GRNOutdegree": "GRNOutdegree.txt"
+    "workflow_info": {
+      "drawflow": {
+        "Home": {
+          "data": {
+            "2": {
+              "id": 2,
+              "name": "algorithm",
+              "class": "Algorithm",
+              "outputs": {},
+              "data": {
+                "selectedPlugin": {
+                  "name": "GRNBoost2",
+                  "source": "official"
+                },
+                "selectedPluginInputOutput": [
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "input.h5ad",
+                    "file_name": "pbmc_3k.h5ad",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "optionalInputFile",
+                    "defaultValue": "geneList.txt",
+                    "file_name": "genes.txt",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "expression.csv",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "trajectory.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "expression.csv",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "trajectory.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "optionalInputFile",
+                    "defaultValue": "TF.txt",
+                    "file_name": "human_TFs.txt",
+                    "fileSource": "shared"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRN.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRNOutdegree.txt",
+                    "activate": true
+                  }
+                ],
+                "selectedPluginRules": [
+                  {
+                    "name": "GRNBoost2 Input",
+                    "parameters": [
+                      {
+                        "name": "input",
+                        "type": "inputFile",
+                        "defaultValue": "input.h5ad"
+                      },
+                      {
+                        "name": "geneList",
+                        "type": "optionalInputFile",
+                        "defaultValue": "geneList.txt"
+                      },
+                      {
+                        "name": "UMAP lasso",
+                        "type": "h5adParameter",
+                        "defaultValue": "./user/john/workflow_1/ScatterPlot_4.json"
+                      },
+                      {
+                        "name": "expression",
+                        "type": "outputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "outputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "outputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "cell group",
+                        "type": "h5adParameter",
+                        "defaultValue": "leiden"
+                      },
+                      {
+                        "name": "pseudotime",
+                        "type": "h5adParameter",
+                        "defaultValue": "dpt_pseudotime"
+                      },
+                      {
+                        "name": "clusters",
+                        "type": "h5adParameter",
+                        "defaultValue": [
+                          "0",
+                          "1",
+                          "B cell"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Run",
+                    "parameters": [
+                      {
+                        "name": "expression",
+                        "type": "inputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "inputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "inputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "TF",
+                        "type": "optionalInputFile",
+                        "defaultValue": "TF.txt"
+                      },
+                      {
+                        "name": "FDR",
+                        "type": "float",
+                        "defaultValue": "0"
+                      },
+                      {
+                        "name": "number of outdegrees",
+                        "type": "int",
+                        "defaultValue": "0"
+                      },
+                      {
+                        "name": "GRN",
+                        "type": "outputFile",
+                        "defaultValue": "GRN.sif"
+                      },
+                      {
+                        "name": "GRNOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "GRNOutdegree.txt"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   {
+    "id": "GRNViz_Heatmap",
     "plugin": "GRNViz",
     "kind": "visualization",
-    "rule": "Heatmap",
-    "parameters": {
-      "Top Genes": "10",
-      "Sample Size": "100",
-      "user_name": "john",
-      "workflow_id": "1",
+    "request": {
+      "id": 1,
+      "current_node_id": "7",
       "algorithm_id": "2",
-      "visualization_id": "7",
-      "plugin_name": "GRNViz",
-      "visualization_name": "Heatmap",
-      "result_filename": "Heatmap_result.json"
-    },
-    "file_mappings": {
-      "expression.csv": "expression.csv",
-      "trajectory.txt": "trajectory.txt",
-      "input.txt": "Numlinks.sif"
+      "selectedVisualizationPlugin": {
+        "name": "GRNViz",
+        "source": "official"
+      },
+      "selectedScript": {
+        "name": "Heatmap"
+      },
+      "selectedVisualizationParams": [
+        {
+          "type": "inputFile",
+          "name": "expression",
+          "defaultValue": "expression.csv",
+          "selectedFile": "expression.csv"
+        },
+        {
+          "type": "inputFile",
+          "name": "trajectory",
+          "defaultValue": "trajectory.txt",
+          "selectedFile": "trajectory.txt"
+        },
+        {
+          "type": "inputFile",
+          "name": "input",
+          "defaultValue": "input.txt",
+          "selectedFile": "Numlinks.sif"
+        },
+        {
+          "type": "outputFile",
+          "name": "Heatmap",
+          "defaultValue": "Heatmap.json"
+        },
+        {
+          "type": "int",
+          "name": "Top Genes",
+          "defaultValue": "10"
+        },
+        {
+          "type": "int",
+          "name": "Sample Size",
+          "defaultValue": "100"
+        }
+      ]
     }
   },
   {
+    "id": "GRNViz_Barplot",
     "plugin": "GRNViz",
     "kind": "visualization",
-    "rule": "Barplot",
-    "parameters": {
-      "Top Genes": "10",
-      "user_name": "john",
-      "workflow_id": "1",
+    "request": {
+      "id": 1,
+      "current_node_id": "7",
       "algorithm_id": "2",
-      "visualization_id": "7",
-      "plugin_name": "GRNViz",
-      "visualization_name": "Barplot",
-      "result_filename": "Barplot_result.json"
-    },
-    "file_mappings": {
-      "input.txt": "Numlinks.sif"
+      "selectedVisualizationPlugin": {
+        "name": "GRNViz",
+        "source": "official"
+      },
+      "selectedScript": {
+        "name": "Barplot"
+      },
+      "selectedVisualizationParams": [
+        {
+          "type": "inputFile",
+          "name": "input",
+          "defaultValue": "input.txt",
+          "selectedFile": "Numlinks.sif"
+        },
+        {
+          "type": "outputFile",
+          "name": "Barplot",
+          "defaultValue": "Barplot.json"
+        },
+        {
+          "type": "int",
+          "name": "Top Genes",
+          "defaultValue": "10"
+        }
+      ]
     }
   },
   {
+    "id": "GRNViz_Network",
     "plugin": "GRNViz",
     "kind": "visualization",
-    "rule": "Network",
-    "parameters": {
-      "Top Genes": "50",
-      "user_name": "john",
-      "workflow_id": "1",
+    "request": {
+      "id": 1,
+      "current_node_id": "7",
       "algorithm_id": "2",
-      "visualization_id": "7",
-      "plugin_name": "GRNViz",
-      "visualization_name": "Network",
-      "result_filename": "Network_result.json"
-    },
-    "file_mappings": {
-      "input.txt": "Numlinks.sif"
+      "selectedVisualizationPlugin": {
+        "name": "GRNViz",
+        "source": "official"
+      },
+      "selectedScript": {
+        "name": "Network"
+      },
+      "selectedVisualizationParams": [
+        {
+          "type": "inputFile",
+          "name": "input",
+          "defaultValue": "input.txt",
+          "selectedFile": "Numlinks.sif"
+        },
+        {
+          "type": "outputFile",
+          "name": "Network",
+          "defaultValue": "Network.json"
+        },
+        {
+          "type": "int",
+          "name": "Top Genes",
+          "defaultValue": "50"
+        }
+      ]
     }
   },
   {
+    "id": "LEAP",
     "plugin": "LEAP",
     "kind": "analysis",
-    "user_input": {
-      "input.h5ad": "user/john/data/pbmc_3k.h5ad",
-      "geneList.txt": "user/john/data/genes.txt",
-      "TF.txt": "tutorials/human_TFs.txt",
-      "user_name": "john",
-      "workflow_id": "1",
-      "algorithm_id": "2",
-      "plugin_name": "LEAP"
-    },
-    "plugin_params": {
-      "input": "input.h5ad",
-      "geneList": "geneList.txt",
-      "UMAP lasso": "./user/john/workflow_1/ScatterPlot_4.json",
-      "expression": "expression.csv",
-      "trajectory": "trajectory.txt",
-      "cellSelect": "cellSelect.txt",
-      "cell group": "leiden",
-      "pseudotime": "dpt_pseudotime",
-      "clusters": [
-        "0",
-        "1",
-        "B cell"
-      ],
-      "maxLag": "0.33",
-      "FDR": "0",
-      "number of outdegrees": "1000",
-      "GRN": "GRN.sif",
-      "GRNOutdegree": "GRNOutdegree.txt"
+    "workflow_info": {
+      "drawflow": {
+        "Home": {
+          "data": {
+            "2": {
+              "id": 2,
+              "name": "algorithm",
+              "class": "Algorithm",
+              "outputs": {},
+              "data": {
+                "selectedPlugin": {
+                  "name": "LEAP",
+                  "source": "official"
+                },
+                "selectedPluginInputOutput": [
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "input.h5ad",
+                    "file_name": "pbmc_3k.h5ad",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "optionalInputFile",
+                    "defaultValue": "geneList.txt",
+                    "file_name": "genes.txt",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "expression.csv",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "trajectory.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "expression.csv",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "trajectory.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRN.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRNOutdegree.txt",
+                    "activate": true
+                  }
+                ],
+                "selectedPluginRules": [
+                  {
+                    "name": "LEAP Input",
+                    "parameters": [
+                      {
+                        "name": "input",
+                        "type": "inputFile",
+                        "defaultValue": "input.h5ad"
+                      },
+                      {
+                        "name": "geneList",
+                        "type": "optionalInputFile",
+                        "defaultValue": "geneList.txt"
+                      },
+                      {
+                        "name": "UMAP lasso",
+                        "type": "h5adParameter",
+                        "defaultValue": "./user/john/workflow_1/ScatterPlot_4.json"
+                      },
+                      {
+                        "name": "expression",
+                        "type": "outputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "outputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "outputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "cell group",
+                        "type": "h5adParameter",
+                        "defaultValue": "leiden"
+                      },
+                      {
+                        "name": "pseudotime",
+                        "type": "h5adParameter",
+                        "defaultValue": "dpt_pseudotime"
+                      },
+                      {
+                        "name": "clusters",
+                        "type": "h5adParameter",
+                        "defaultValue": [
+                          "0",
+                          "1",
+                          "B cell"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Run",
+                    "parameters": [
+                      {
+                        "name": "expression",
+                        "type": "inputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "inputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "inputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "maxLag",
+                        "type": "float",
+                        "defaultValue": "0.33"
+                      },
+                      {
+                        "name": "FDR",
+                        "type": "float",
+                        "defaultValue": "0"
+                      },
+                      {
+                        "name": "number of outdegrees",
+                        "type": "int",
+                        "defaultValue": "1000"
+                      },
+                      {
+                        "name": "GRN",
+                        "type": "outputFile",
+                        "defaultValue": "GRN.sif"
+                      },
+                      {
+                        "name": "GRNOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "GRNOutdegree.txt"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   {
+    "id": "Scribe",
     "plugin": "Scribe",
     "kind": "analysis",
-    "user_input": {
-      "input.h5ad": "user/john/data/pbmc_3k.h5ad",
-      "geneList.txt": "user/john/data/genes.txt",
-      "TF.txt": "tutorials/human_TFs.txt",
-      "user_name": "john",
-      "workflow_id": "1",
-      "algorithm_id": "2",
-      "plugin_name": "Scribe"
-    },
-    "plugin_params": {
-      "input": "input.h5ad",
-      "geneList": "geneList.txt",
-      "UMAP lasso": "./user/john/workflow_1/ScatterPlot_4.json",
-      "expression": "expression.csv",
-      "trajectory": "trajectory.txt",
-      "cellSelect": "cellSelect.txt",
-      "cell group": "leiden",
-      "pseudotime": "dpt_pseudotime",
-      "clusters": [
-        "0",
-        "1",
-        "B cell"
-      ],
-      "Lower Limit": "0",
-      "Expression Family": "uninormal",
-      "method": "ucRDI",
-      "Delay": "1",
-      "log": "false",
-      "number of outdegrees": "1000",
-      "FDR": "0",
-      "rankedEdges": "rankedEdges.txt",
-      "GRN": "GRN.sif",
-      "GRNOutdegree": "GRNOutdegree.txt"
+    "workflow_info": {
+      "drawflow": {
+        "Home": {
+          "data": {
+            "2": {
+              "id": 2,
+              "name": "algorithm",
+              "class": "Algorithm",
+              "outputs": {},
+              "data": {
+                "selectedPlugin": {
+                  "name": "Scribe",
+                  "source": "official"
+                },
+                "selectedPluginInputOutput": [
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "input.h5ad",
+                    "file_name": "pbmc_3k.h5ad",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "optionalInputFile",
+                    "defaultValue": "geneList.txt",
+                    "file_name": "genes.txt",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "expression.csv",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "trajectory.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "expression.csv",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "trajectory.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "rankedEdges.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRN.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "GRNOutdegree.txt",
+                    "activate": true
+                  }
+                ],
+                "selectedPluginRules": [
+                  {
+                    "name": "Scribe Input",
+                    "parameters": [
+                      {
+                        "name": "input",
+                        "type": "inputFile",
+                        "defaultValue": "input.h5ad"
+                      },
+                      {
+                        "name": "geneList",
+                        "type": "optionalInputFile",
+                        "defaultValue": "geneList.txt"
+                      },
+                      {
+                        "name": "UMAP lasso",
+                        "type": "h5adParameter",
+                        "defaultValue": "./user/john/workflow_1/ScatterPlot_4.json"
+                      },
+                      {
+                        "name": "expression",
+                        "type": "outputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "outputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "outputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "cell group",
+                        "type": "h5adParameter",
+                        "defaultValue": "leiden"
+                      },
+                      {
+                        "name": "pseudotime",
+                        "type": "h5adParameter",
+                        "defaultValue": "dpt_pseudotime"
+                      },
+                      {
+                        "name": "clusters",
+                        "type": "h5adParameter",
+                        "defaultValue": [
+                          "0",
+                          "1",
+                          "B cell"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Run",
+                    "parameters": [
+                      {
+                        "name": "expression",
+                        "type": "inputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "inputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "inputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "Lower Limit",
+                        "type": "float",
+                        "defaultValue": "0"
+                      },
+                      {
+                        "name": "Expression Family",
+                        "type": "string",
+                        "defaultValue": "uninormal"
+                      },
+                      {
+                        "name": "method",
+                        "type": "string",
+                        "defaultValue": "ucRDI"
+                      },
+                      {
+                        "name": "Delay",
+                        "type": "int",
+                        "defaultValue": "1"
+                      },
+                      {
+                        "name": "log",
+                        "type": "boolean",
+                        "defaultValue": "false"
+                      },
+                      {
+                        "name": "number of outdegrees",
+                        "type": "int",
+                        "defaultValue": "1000"
+                      },
+                      {
+                        "name": "FDR",
+                        "type": "float",
+                        "defaultValue": "0"
+                      },
+                      {
+                        "name": "rankedEdges",
+                        "type": "outputFile",
+                        "defaultValue": "rankedEdges.txt"
+                      },
+                      {
+                        "name": "GRN",
+                        "type": "outputFile",
+                        "defaultValue": "GRN.sif"
+                      },
+                      {
+                        "name": "GRNOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "GRNOutdegree.txt"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   {
+    "id": "TENET",
     "plugin": "TENET",
     "kind": "analysis",
-    "user_input": {
-      "input.h5ad": "user/john/data/pbmc_3k.h5ad",
-      "geneList.txt": "user/john/data/genes.txt",
-      "TF.txt": "tutorials/human_TFs.txt",
-      "user_name": "john",
-      "workflow_id": "1",
-      "algorithm_id": "2",
-      "plugin_name": "TENET"
-    },
-    "plugin_params": {
-      "input": "input.h5ad",
-      "geneList": "geneList.txt",
-      "UMAP lasso": "./user/john/workflow_1/ScatterPlot_4.json",
-      "expression": "expression.csv",
-      "trajectory": "trajectory.txt",
-      "cellSelect": "cellSelect.txt",
-      "cell group": "leiden",
-      "pseudotime": "dpt_pseudotime",
-      "clusters": [
-        "0",
-        "1",
-        "B cell"
-      ],
-      "TF": "TF.txt",
-      "resultMatrix": "resultMatrix.txt",
-      "number of devices": "4",
-      "FDR": "0.01",
-      "Fdr": "Fdr.sif",
-      "number of outdegrees": "1000",
-      "Numlinks": "Numlinks.sif",
-      "FdrTrim": "FdrTrim.sif",
-      "NumlinksTrim": "NumlinksTrim.sif",
-      "trimming threshold": "0",
-      "FdrOutdegree": "FdrOutdegree.txt",
-      "NumlinksOutdegree": "NumlinksOutdegree.txt",
-      "FdrTrimOutdegree": "FdrTrimOutdegree.txt",
-      "NumlinksTrimOutdegree": "NumlinksTrimOutdegree.txt"
+    "workflow_info": {
+      "drawflow": {
+        "Home": {
+          "data": {
+            "2": {
+              "id": 2,
+              "name": "algorithm",
+              "class": "Algorithm",
+              "outputs": {},
+              "data": {
+                "selectedPlugin": {
+                  "name": "TENET",
+                  "source": "official"
+                },
+                "selectedPluginInputOutput": [
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "input.h5ad",
+                    "file_name": "pbmc_3k.h5ad",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "optionalInputFile",
+                    "defaultValue": "geneList.txt",
+                    "file_name": "genes.txt",
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "expression.csv",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "trajectory.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "expression.csv",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "trajectory.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "cellSelect.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "optionalInputFile",
+                    "defaultValue": "TF.txt",
+                    "file_name": "human_TFs.txt",
+                    "fileSource": "shared"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "resultMatrix.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "resultMatrix.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "Fdr.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "resultMatrix.txt",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "Numlinks.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "Fdr.sif",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "Numlinks.sif",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "FdrTrim.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "NumlinksTrim.sif",
+                    "activate": true
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "Fdr.sif",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "Numlinks.sif",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "FdrTrim.sif",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "inputFile",
+                    "defaultValue": "NumlinksTrim.sif",
+                    "file_name": null,
+                    "fileSource": "user"
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "FdrOutdegree.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "NumlinksOutdegree.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "FdrTrimOutdegree.txt",
+                    "activate": true
+                  },
+                  {
+                    "type": "outputFile",
+                    "defaultValue": "NumlinksTrimOutdegree.txt",
+                    "activate": true
+                  }
+                ],
+                "selectedPluginRules": [
+                  {
+                    "name": "TENET Input",
+                    "parameters": [
+                      {
+                        "name": "input",
+                        "type": "inputFile",
+                        "defaultValue": "input.h5ad"
+                      },
+                      {
+                        "name": "geneList",
+                        "type": "optionalInputFile",
+                        "defaultValue": "geneList.txt"
+                      },
+                      {
+                        "name": "UMAP lasso",
+                        "type": "h5adParameter",
+                        "defaultValue": "./user/john/workflow_1/ScatterPlot_4.json"
+                      },
+                      {
+                        "name": "expression",
+                        "type": "outputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "outputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "outputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "cell group",
+                        "type": "h5adParameter",
+                        "defaultValue": "leiden"
+                      },
+                      {
+                        "name": "pseudotime",
+                        "type": "h5adParameter",
+                        "defaultValue": "dpt_pseudotime"
+                      },
+                      {
+                        "name": "clusters",
+                        "type": "h5adParameter",
+                        "defaultValue": [
+                          "0",
+                          "1",
+                          "B cell"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Run",
+                    "parameters": [
+                      {
+                        "name": "expression",
+                        "type": "inputFile",
+                        "defaultValue": "expression.csv"
+                      },
+                      {
+                        "name": "trajectory",
+                        "type": "inputFile",
+                        "defaultValue": "trajectory.txt"
+                      },
+                      {
+                        "name": "cellSelect",
+                        "type": "inputFile",
+                        "defaultValue": "cellSelect.txt"
+                      },
+                      {
+                        "name": "TF",
+                        "type": "optionalInputFile",
+                        "defaultValue": "TF.txt"
+                      },
+                      {
+                        "name": "resultMatrix",
+                        "type": "outputFile",
+                        "defaultValue": "resultMatrix.txt"
+                      },
+                      {
+                        "name": "number of devices",
+                        "type": "int",
+                        "defaultValue": "4"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "GRN Reconstruction : FDR",
+                    "parameters": [
+                      {
+                        "name": "FDR",
+                        "type": "float",
+                        "defaultValue": "0.01"
+                      },
+                      {
+                        "name": "resultMatrix",
+                        "type": "inputFile",
+                        "defaultValue": "resultMatrix.txt"
+                      },
+                      {
+                        "name": "Fdr",
+                        "type": "outputFile",
+                        "defaultValue": "Fdr.sif"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "GRN Reconstruction : NumLinks",
+                    "parameters": [
+                      {
+                        "name": "number of outdegrees",
+                        "type": "int",
+                        "defaultValue": "1000"
+                      },
+                      {
+                        "name": "resultMatrix",
+                        "type": "inputFile",
+                        "defaultValue": "resultMatrix.txt"
+                      },
+                      {
+                        "name": "Numlinks",
+                        "type": "outputFile",
+                        "defaultValue": "Numlinks.sif"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Indirect Edge Trimming",
+                    "parameters": [
+                      {
+                        "name": "Fdr",
+                        "type": "inputFile",
+                        "defaultValue": "Fdr.sif"
+                      },
+                      {
+                        "name": "Numlinks",
+                        "type": "inputFile",
+                        "defaultValue": "Numlinks.sif"
+                      },
+                      {
+                        "name": "FdrTrim",
+                        "type": "outputFile",
+                        "defaultValue": "FdrTrim.sif"
+                      },
+                      {
+                        "name": "NumlinksTrim",
+                        "type": "outputFile",
+                        "defaultValue": "NumlinksTrim.sif"
+                      },
+                      {
+                        "name": "trimming threshold",
+                        "type": "float",
+                        "defaultValue": "0"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Counting Outdegree",
+                    "parameters": [
+                      {
+                        "name": "Fdr",
+                        "type": "inputFile",
+                        "defaultValue": "Fdr.sif"
+                      },
+                      {
+                        "name": "Numlinks",
+                        "type": "inputFile",
+                        "defaultValue": "Numlinks.sif"
+                      },
+                      {
+                        "name": "FdrTrim",
+                        "type": "inputFile",
+                        "defaultValue": "FdrTrim.sif"
+                      },
+                      {
+                        "name": "NumlinksTrim",
+                        "type": "inputFile",
+                        "defaultValue": "NumlinksTrim.sif"
+                      },
+                      {
+                        "name": "FdrOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "FdrOutdegree.txt"
+                      },
+                      {
+                        "name": "NumlinksOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "NumlinksOutdegree.txt"
+                      },
+                      {
+                        "name": "FdrTrimOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "FdrTrimOutdegree.txt"
+                      },
+                      {
+                        "name": "NumlinksTrimOutdegree",
+                        "type": "outputFile",
+                        "defaultValue": "NumlinksTrimOutdegree.txt"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   }
 ]

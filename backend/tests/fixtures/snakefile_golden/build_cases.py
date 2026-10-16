@@ -1,13 +1,15 @@
 """
 Build golden Snakefile cases for official plugins (#137).
 
-Copies each official plugin template (backend/plugin/official, plugin branch
-release/plugins-v1.1) into ``templates/`` and writes ``cases.json`` with the
-inputs the frontend sends (bare file names, metadata parameters). Golden outputs
-are produced by ``generate_golden`` with the pre-#137 implementation and must
-stay byte-identical afterwards.
+Copies each official plugin template and the rules of its metadata.json
+(backend/plugin/official, plugin branch release/plugins-v1.1) into
+``templates/`` and writes ``cases.json`` with requests shaped like the
+frontend sends them (Drawflow workflow_info / visualization request).
 
-Usage (from backend/): python tests/fixtures/snakefile_golden/build_cases.py
+Usage (from backend/, plugin submodule on release/plugins-v1.1):
+    python tests/fixtures/snakefile_golden/build_cases.py
+    CELLCRAFT_BACKEND=<backend of the reference revision> \\
+        python tests/fixtures/snakefile_golden/generate_golden.py
 """
 import json
 import os
@@ -25,37 +27,48 @@ H5AD_VALUES = {
     "pseudotime": "dpt_pseudotime",
     "clusters": ["0", "1", "B cell"],
 }
-INPUT_FILES = {"input.h5ad": "pbmc_3k.h5ad", "geneList.txt": "genes.txt", "TF.txt": "human_TFs.txt"}
-CONTEXT = {"user_name": "john", "workflow_id": "1", "algorithm_id": "2"}
+INPUT_FILES = {  # defaultValue -> (file_name, fileSource)
+    "input.h5ad": ("pbmc_3k.h5ad", "user"),
+    "geneList.txt": ("genes.txt", "user"),
+    "TF.txt": ("human_TFs.txt", "shared"),
+}
 
 
 def analysis_case(name, metadata):
-    params = {}
+    io, rules = [], []
     for rule in metadata["rules"].values():
+        params = []
         for p in rule.get("parameters", []):
-            params[p["name"]] = H5AD_VALUES.get(p["name"], p.get("defaultValue"))
-    user_input = {}
-    for key, file_name in INPUT_FILES.items():
-        source_dir = "tutorials" if key == "TF.txt" else "user/john/data"
-        user_input[key] = f"{source_dir}/{file_name}"
-    user_input.update(CONTEXT, plugin_name=name)
-    return {"plugin": name, "kind": "analysis", "user_input": user_input, "plugin_params": params}
+            if p["type"] in ("inputFile", "optionalInputFile"):
+                file_name, source = INPUT_FILES.get(p["defaultValue"], (None, "user"))
+                io.append({"type": p["type"], "defaultValue": p["defaultValue"],
+                           "file_name": file_name, "fileSource": source})
+            elif p["type"] == "outputFile":
+                io.append({"type": "outputFile", "defaultValue": p["defaultValue"], "activate": True})
+            params.append({"name": p["name"], "type": p["type"],
+                           "defaultValue": H5AD_VALUES.get(p["name"], p.get("defaultValue"))})
+        rules.append({"name": rule["name"], "parameters": params})
+    node = {"id": 2, "name": "algorithm", "class": "Algorithm", "outputs": {},
+            "data": {"selectedPlugin": {"name": name, "source": "official"},
+                     "selectedPluginInputOutput": io, "selectedPluginRules": rules}}
+    return {"id": name, "plugin": name, "kind": "analysis",
+            "workflow_info": {"drawflow": {"Home": {"data": {"2": node}}}}}
 
 
 def visualization_cases(name, metadata):
     cases = []
     for rule in metadata["rules"].values():
-        params, files = {}, {}
+        params = []
         for p in rule.get("parameters", []):
+            param = {"type": p["type"], "name": p["name"], "defaultValue": p.get("defaultValue")}
             if p["type"] in ("inputFile", "optionalInputFile"):
-                files[p["defaultValue"]] = "Numlinks.sif" if p["defaultValue"] == "input.txt" else p["defaultValue"]
-            elif p["type"] != "outputFile":
-                params[p["name"]] = p.get("defaultValue")
-        context = {"user_name": "john", "workflow_id": "1", "algorithm_id": "2", "visualization_id": "7",
-                   "plugin_name": name, "visualization_name": rule["name"],
-                   "result_filename": f"{rule['name']}_result.json"}
-        cases.append({"plugin": name, "kind": "visualization", "rule": rule["name"],
-                      "parameters": {**params, **context}, "file_mappings": files})
+                param["selectedFile"] = "Numlinks.sif" if p["defaultValue"] == "input.txt" else p["defaultValue"]
+            params.append(param)
+        cases.append({"id": f"{name}_{rule['name'].replace(' ', '_')}", "plugin": name, "kind": "visualization",
+                      "request": {"id": 1, "current_node_id": "7", "algorithm_id": "2",
+                                  "selectedVisualizationPlugin": {"name": name, "source": "official"},
+                                  "selectedScript": {"name": rule["name"]},
+                                  "selectedVisualizationParams": params}})
     return cases
 
 
@@ -68,8 +81,11 @@ def main():
             continue
         with open(meta_path) as f:
             metadata = json.load(f)
-        os.makedirs(os.path.join(HERE, "templates", name), exist_ok=True)
-        shutil.copy(os.path.join(plugin_dir, "Snakefile"), os.path.join(HERE, "templates", name, "Snakefile"))
+        target = os.path.join(HERE, "templates", name)
+        os.makedirs(target, exist_ok=True)
+        shutil.copy(os.path.join(plugin_dir, "Snakefile"), os.path.join(target, "Snakefile"))
+        with open(os.path.join(target, "metadata.json"), "w") as f:
+            json.dump({"name": metadata["name"], "rules": metadata["rules"]}, f, indent=2, ensure_ascii=False)
         if name == "GRNViz":
             cases.extend(visualization_cases(name, metadata))
         else:

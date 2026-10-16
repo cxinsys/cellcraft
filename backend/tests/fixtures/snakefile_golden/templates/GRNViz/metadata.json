@@ -1,0 +1,145 @@
+{
+  "name": "GRNViz",
+  "rules": {
+    "0": {
+      "name": "Heatmap",
+      "input": [
+        "expression.csv",
+        "trajectory.txt",
+        "input.txt"
+      ],
+      "output": [
+        "Heatmap.json"
+      ],
+      "script": "Pseudotime_heatmap.R",
+      "parameters": [
+        {
+          "name": "expression",
+          "type": "inputFile",
+          "defaultValue": "expression.csv",
+          "min": null,
+          "max": null,
+          "fileExtension": ".csv"
+        },
+        {
+          "name": "trajectory",
+          "type": "inputFile",
+          "defaultValue": "trajectory.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "input",
+          "type": "inputFile",
+          "defaultValue": "input.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "Heatmap",
+          "type": "outputFile",
+          "defaultValue": "Heatmap.json",
+          "min": null,
+          "max": null,
+          "fileExtension": ".json"
+        },
+        {
+          "name": "Top Genes",
+          "type": "int",
+          "defaultValue": "10",
+          "min": 5,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "Sample Size",
+          "type": "int",
+          "defaultValue": "100",
+          "min": 50,
+          "max": null,
+          "fileExtension": ""
+        }
+      ],
+      "nodeId": 1,
+      "isVisualization": false
+    },
+    "1": {
+      "name": "Barplot",
+      "input": [
+        "input.txt"
+      ],
+      "output": [
+        "Barplot.json"
+      ],
+      "script": "Barplot.py",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "inputFile",
+          "defaultValue": "input.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "Barplot",
+          "type": "outputFile",
+          "defaultValue": "Barplot.json",
+          "min": null,
+          "max": null,
+          "fileExtension": ".json"
+        },
+        {
+          "name": "Top Genes",
+          "type": "int",
+          "defaultValue": "10",
+          "min": 5,
+          "max": null,
+          "fileExtension": ""
+        }
+      ],
+      "nodeId": 2,
+      "isVisualization": false
+    },
+    "2": {
+      "name": "Network",
+      "input": [
+        "input.txt"
+      ],
+      "output": [
+        "Network.json"
+      ],
+      "script": "NetworkX.py",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "inputFile",
+          "defaultValue": "input.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "Network",
+          "type": "outputFile",
+          "defaultValue": "Network.json",
+          "min": null,
+          "max": null,
+          "fileExtension": ".json"
+        },
+        {
+          "name": "Top Genes",
+          "type": "int",
+          "defaultValue": "50",
+          "min": 10,
+          "max": null,
+          "fileExtension": ""
+        }
+      ],
+      "nodeId": 3,
+      "isVisualization": false
+    }
+  }
+}
