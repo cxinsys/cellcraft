@@ -31,5 +31,5 @@ brew services start rabbitmq
 ```
 6. celery worker run
 ```bash
-celery -A app.main.celery worker --loglevel=info -E -Q workflow_task
+celery -A app.worker.app worker --loglevel=info -E -Q workflow_task,plugin_task
 ```
