@@ -1,0 +1,43 @@
+import os
+
+rule Heatmap:
+    input:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/{expression.csv}",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/{trajectory.txt}",
+        input="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/{input.txt}"
+    output:
+        Heatmap="user/{user_name}/workflow_{workflow_id}/visualization_{visualization_id}/results/{result_filename}"
+    params:
+        Top_Genes={Top Genes},
+        Sample_Size={Sample Size}
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/visualization_{visualization_id}/logs/Heatmap.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/visualization_{visualization_id}/logs/Heatmap.stderr"
+    shell:
+        "export R_HOME=/opt/micromamba/envs/plugin_env/lib/R && export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE && /opt/micromamba/envs/plugin_env/bin/Rscript /scripts/Pseudotime_heatmap.R {input.expression} {input.trajectory} {input.input} {output.Heatmap} {params.Top_Genes} {params.Sample_Size} > {log.stdout} 2> {log.stderr}"
+
+rule Barplot:
+    input:
+        input="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/{input.txt}"
+    output:
+        Barplot="user/{user_name}/workflow_{workflow_id}/visualization_{visualization_id}/results/{result_filename}"
+    params:
+        Top_Genes={Top Genes}
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/visualization_{visualization_id}/logs/Barplot.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/visualization_{visualization_id}/logs/Barplot.stderr"
+    shell:
+        "/opt/micromamba/envs/plugin_env/bin/python /scripts/Barplot.py {input.input} {output.Barplot} {params.Top_Genes} > {log.stdout} 2> {log.stderr}"
+
+rule Network:
+    input:
+        input="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/{input.txt}"
+    output:
+        Network="user/{user_name}/workflow_{workflow_id}/visualization_{visualization_id}/results/{result_filename}"
+    params:
+        Top_Genes={Top Genes}
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/visualization_{visualization_id}/logs/Network.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/visualization_{visualization_id}/logs/Network.stderr"
+    shell:
+        "/opt/micromamba/envs/plugin_env/bin/python /scripts/NetworkX.py {input.input} {output.Network} {params.Top_Genes} > {log.stdout} 2> {log.stderr}"
