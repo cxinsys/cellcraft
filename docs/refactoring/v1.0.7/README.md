@@ -145,9 +145,10 @@ API 계약·DB 스키마·Celery 태스크 이름/페이로드는 동일하다. 
 
 | 구분 | 변경 | 관련 |
 |---|---|---|
-| 버그 수정 | `task` 엔드포인트의 `logger` 미정의(NameError) 해소<br>- `DELETE /routes/task/cache/clear`: 항상 500 → 200<br>- `GET /routes/task/cache/stats` 에러 경로: 500 → 200 `{"error": ...}`<br>- `GET /routes/task/{task_id}/rule-logs/{rule_name}`: native parser 실패 시 500 → legacy parser fallback | PR-7, 회귀 테스트 PR-11 |
+| 버그 수정 | `task` 엔드포인트의 `logger` 미정의(NameError) 해소<br>- `DELETE /routes/task/cache/clear`: 항상 500 → 200<br>- `GET /routes/task/cache/stats` 에러 경로: 500 → 200 `{"error": ...}`<br>- `GET /routes/task/{task_id}/rule-logs/{rule_name}`: native parser 실패 시 500 → legacy parser fallback | PR-7, 회귀 테스트 #123 |
 | 보안 | `DELETE /routes/task/revoke/{task_id}`에 소유자 검증 추가 (없는 task 404, 타인 task 403) | #121 |
 | 보안 | 인증 없는 `GET /routes/admin/system/stats` 제거 | #122 |
 | 설치 | 신규 설치 시 마이그레이션 0001의 `plugintype` enum 중복 생성 오류 수정 | PR-1 |
 | 운영 | Celery 워커 진입점 `app.main.celery` → `app.worker.app`, 워커는 마이그레이션을 실행하지 않음 (웹이 담당) | PR-2 |
+| 로깅 | Celery 워커 로그 출력 증가 — 이전에는 워커가 `app.main`을 import하며 alembic `fileConfig`(`disable_existing_loggers=True`)를 거쳐 `app.*` logger와 `celery.custom`이 비활성화되었으나, `app.worker.app`은 마이그레이션·`fileConfig`를 실행하지 않아 해당 logger가 활성 상태 (`--loglevel=info`에서 INFO/WARNING 출력 증가, `echo=True` SQL 로그는 celery root handler로도 전달되어 중복 출력). 웹 프로세스 로그 출력 범위는 리팩토링 전과 동일 (#123) | PR-2 |
 | 로깅 | logger 이름이 모듈 경로를 따라 변경 (예: `app.routes.endpoints.task` → `app.task.service`) — 이름을 참조하는 로깅 설정 없음 | PR-3~10 |
