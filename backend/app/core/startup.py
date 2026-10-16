@@ -40,31 +40,49 @@ def restore_loggers_disabled_by_alembic():
         logging.getLogger(name).disabled = False
 
 
-def run_migrations():
+# create_all() 시절 스키마와 동일한 최초 revision (상태 B DB의 기준점)
+BASELINE_REVISION = "0001_initial"
+
+
+def run_migrations(database_url: str = None):
     """Alembic 마이그레이션을 실행하여 DB 스키마를 최신 상태로 유지한다.
 
     기존 create_all() 대신 Alembic을 Single Source of Truth로 사용.
     - 첫 설치 (상태 A): 빈 DB → upgrade head → 모든 테이블 생성
-    - 기존 DB (상태 B): create_all()로 생성된 DB → stamp head → 버전만 기록
+    - 기존 DB (상태 B): create_all()로 생성된 DB(= 최초 revision 스키마) → stamp baseline → upgrade head
     - Alembic DB (상태 C): 이미 관리 중 → upgrade head → 미적용 revision만 적용
-    """
-    alembic_cfg = AlembicConfig("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", settings.SQLALCHEMY_DATABASE_URI)
 
-    inspector = sa_inspect(engine)
+    Args:
+        database_url: 대상 DB (기본값: settings.SQLALCHEMY_DATABASE_URI, 테스트에서 별도 DB 지정용)
+    """
+    database_url = database_url or settings.SQLALCHEMY_DATABASE_URI
+    alembic_cfg = AlembicConfig("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", database_url)
+
+    if database_url == settings.SQLALCHEMY_DATABASE_URI:
+        inspector = sa_inspect(engine)
+    else:
+        from sqlalchemy import create_engine
+        inspector = sa_inspect(create_engine(database_url))
     existing_tables = inspector.get_table_names()
 
     has_alembic_version = "alembic_version" in existing_tables
     has_app_tables = "users" in existing_tables
 
-    if has_alembic_version:
+    if has_alembic_version and not has_app_tables:
+        # 버전 기록만 남고 앱 테이블이 없는 DB (테이블 수동 삭제·테스트 정리 등) → 빈 DB로 처리
+        print("DB: 앱 테이블 없는 Alembic DB 감지 → 버전 초기화 후 upgrade head", flush=True)
+        alembic_command.stamp(alembic_cfg, "base")
+        alembic_command.upgrade(alembic_cfg, "head")
+    elif has_alembic_version:
         # 상태 C: 이미 Alembic으로 관리 중인 DB → 미적용 revision만 적용
         print("DB: Alembic 관리 DB 감지 → upgrade head", flush=True)
         alembic_command.upgrade(alembic_cfg, "head")
     elif has_app_tables:
-        # 상태 B: create_all()로 생성된 기존 DB → 현재 상태를 head로 표시
-        print("DB: 기존 create_all() DB 감지 → stamp head", flush=True)
-        alembic_command.stamp(alembic_cfg, "head")
+        # 상태 B: create_all()로 생성된 기존 DB → 최초 revision으로 표시 후 이후 revision 적용
+        print(f"DB: 기존 create_all() DB 감지 → stamp {BASELINE_REVISION} → upgrade head", flush=True)
+        alembic_command.stamp(alembic_cfg, BASELINE_REVISION)
+        alembic_command.upgrade(alembic_cfg, "head")
     else:
         # 상태 A: 완전히 새로운 설치 → 전체 마이그레이션 실행
         print("DB: 빈 DB 감지 → upgrade head (전체 마이그레이션)", flush=True)
@@ -96,6 +114,19 @@ async def on_startup():
     print("=" * 80, flush=True)
     print("CELLCRAFT SERVER STARTUP", flush=True)
     print("=" * 80, flush=True)
+
+    # 초기 관리자 계정 (superuser가 없을 때만 생성, 기본 비밀번호 사용 계정 표시)
+    print("\n0. Admin Account Initialization...", flush=True)
+    try:
+        from app.core.bootstrap import bootstrap_admin
+        if os.environ.get("TESTING") == "1":
+            print("Skipped in test environment", flush=True)
+        else:
+            with get_db_session() as db:
+                bootstrap_admin(db)
+    except Exception as e:
+        logger.error(f"Admin account initialization failed: {e}", exc_info=True)
+        print(f"Admin account initialization failed: {e}", flush=True)
 
     # Plugin synchronization and consistency check
     print("\n1. Plugin System Initialization...", flush=True)
