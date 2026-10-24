@@ -24,14 +24,9 @@ create database cellcraft;
 
 Defaults point at docker-compose service names (`rabbitmq`, `redis`), so override them for a local run.
 ```bash
-POSTGRES_USER=<user>
-POSTGRES_PASSWORD=<password>
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=cellcraft
-CELERY_BROKER_URL=amqp://guest:guest@localhost:5672//
-REDIS_URL=redis://localhost:6379/0
+cp .env.example .env   # then fill in the PostgreSQL account
 ```
+`CELERY_BROKER_URL` / `REDIS_URL` are built from `RABBITMQ_*` / `REDIS_*`; set them directly to override.
 5. uvicorn server at 127.0.0.1:8000
 ``` bash
 uvicorn app.main:app

@@ -12,7 +12,8 @@ readonly CYAN='\033[0;36m'
 readonly NC='\033[0m'
 
 # Configuration
-readonly SERVICES=("frontend" "backend" "db" "rabbitmq" "celery")
+readonly SERVICES=("frontend" "backend" "db" "redis" "rabbitmq" "celery")
+readonly INTERNAL_SERVICES=("db" "redis" "rabbitmq")
 readonly CPU_PLUGINS=("GENIE3" "GRNBoost2" "GRNViz" "LEAP" "Scribe" "TENET")
 readonly GPU_PLUGINS=("GENIE3" "GRNBoost2" "GRNViz" "LEAP" "Scribe" "TENET" "FastSCODE" "FastTENET")
 readonly TIMEOUT=10
@@ -97,6 +98,27 @@ check_connectivity() {
     fi
 }
 
+# Internal services must not publish ports on the host
+check_internal_ports() {
+    info "Checking internal service ports..."
+
+    local containers
+    containers=$(docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null | grep cellcraft)
+
+    for service in "${INTERNAL_SERVICES[@]}"; do
+        local line
+        line=$(echo "$containers" | grep -E "[-_]${service}[-_][0-9]+" | head -n 1)
+        if [[ -z "$line" ]]; then
+            continue
+        fi
+        if echo "$line" | grep -qE '(0\.0\.0\.0|\[?::\]?):[0-9]+->'; then
+            fail "${service} port is published on all host interfaces"
+        else
+            pass "${service} is reachable only inside the Docker network"
+        fi
+    done
+}
+
 # Verify plugins
 verify_plugins() {
     info "Verifying plugins for $(echo "$MODE" | tr '[:lower:]' '[:upper:]') mode..."
@@ -178,6 +200,8 @@ main() {
     check_containers
     echo ""
     check_connectivity
+    echo ""
+    check_internal_ports
     echo ""
     verify_plugins
     print_summary

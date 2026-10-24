@@ -208,7 +208,7 @@ echo ""
 echo "Service Accessibility:"
 curl -s -o /dev/null -w "Backend API (8000): %{http_code}\n" http://localhost:8000/ || echo "Backend API: FAIL"
 curl -s -o /dev/null -w "Frontend (8080): %{http_code}\n" http://localhost:8080/ || echo "Frontend: FAIL"
-curl -s -o /dev/null -w "RabbitMQ UI (15672): %{http_code}\n" http://localhost:15672/ || echo "RabbitMQ UI: FAIL"
+docker compose -f docker-compose.cpu.yml exec -T rabbitmq rabbitmq-diagnostics -q ping >/dev/null && echo "RabbitMQ (internal): OK" || echo "RabbitMQ (internal): FAIL"
 
 echo ""
 echo -e "${GREEN}macOS tests completed successfully!${NC}"

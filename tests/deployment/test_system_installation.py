@@ -9,6 +9,14 @@ import pytest
 import time
 from datetime import datetime
 
+from .helpers import (
+    APP_BROKER_CHECK,
+    APP_DB_CHECK,
+    APP_REDIS_CHECK,
+    PG_ISREADY_AS_APP_USER,
+    PSQL_AS_APP_USER,
+)
+
 
 def parse_docker_timestamp(timestamp: str) -> datetime:
     """
@@ -156,21 +164,21 @@ class TestSystemInstallation:
         # Verify database accepts connections
         import subprocess
         db_connection_test = subprocess.run(
-            ["docker", "exec", container_name, "pg_isready", "-U", "cellcraft_admin", "-d", "cellcraft"],
+            ["docker", "exec", container_name, *PG_ISREADY_AS_APP_USER],
             capture_output=True, text=True, timeout=10
         )
         assert db_connection_test.returncode == 0, f"Database should accept connections: {db_connection_test.stderr}"
 
         # Verify database is queryable
         query_test = subprocess.run(
-            ["docker", "exec", container_name, "psql", "-U", "cellcraft_admin", "-d", "cellcraft", "-c", "SELECT 1;"],
+            ["docker", "exec", container_name, *PSQL_AS_APP_USER, "-c", "SELECT 1;"],
             capture_output=True, text=True, timeout=10
         )
         assert query_test.returncode == 0, f"Database should be queryable: {query_test.stderr}"
 
         # Check connection pool capacity
         connections_query = subprocess.run(
-            ["docker", "exec", container_name, "psql", "-U", "cellcraft_admin", "-d", "cellcraft", "-t", "-c",
+            ["docker", "exec", container_name, *PSQL_AS_APP_USER, "-t", "-c",
              "SELECT max_conn - used_conn FROM (SELECT setting::int as max_conn, count(*) as used_conn FROM pg_settings, pg_stat_activity WHERE name='max_connections' GROUP BY setting) as conn_stats;"],
             capture_output=True, text=True, timeout=10
         )
@@ -199,10 +207,11 @@ class TestSystemInstallation:
         Success Criteria:
         - Container status is "running"
         - Health check returns "healthy"
-        - RabbitMQ management interface is accessible (port 15672)
+        - Configured broker account exists and the default guest account is removed
         - Default vhost is configured
         """
-        from .helpers import get_container_status, check_service_accessible
+        import subprocess
+        from .helpers import get_container_env, get_container_status
 
         container_name = container_names["rabbitmq"]
         status_info = get_container_status(container_name)
@@ -216,36 +225,30 @@ class TestSystemInstallation:
         assert status_info["health"] == "healthy", \
             f"RabbitMQ health check should be healthy, got {status_info['health']}"
 
-        # Verify management interface is accessible
-        management_url = "http://localhost:15672"
-        is_accessible = check_service_accessible(management_url, timeout=5)
-        assert is_accessible, \
-            f"RabbitMQ management interface should be accessible at {management_url}"
+        # Verify broker accounts (management UI is no longer published on the host)
+        users_result = subprocess.run(
+            ["docker", "exec", container_name, "rabbitmqctl", "-s", "list_users"],
+            capture_output=True, text=True, timeout=30
+        )
+        assert users_result.returncode == 0, f"rabbitmqctl list_users failed: {users_result.stderr}"
+        users = [line.split()[0] for line in users_result.stdout.splitlines() if line.strip()]
 
-        # Test queue creation capability
-        import requests
-        auth = ('guest', 'guest')
+        broker_user = get_container_env(container_names["backend"], "RABBITMQ_USER")
+        assert broker_user in users, f"Broker user '{broker_user}' should exist, found {users}"
+        if broker_user != "guest":
+            assert "guest" not in users, "Default guest account should be removed"
 
-        try:
-            queue_create = requests.put(
-                f"{management_url}/api/queues/%2f/test_deployment_queue",
-                auth=auth, json={"auto_delete": True, "durable": False}, timeout=5
-            )
-            queue_created = (queue_create.status_code in [200, 201, 204])
-
-            if queue_created:
-                requests.delete(f"{management_url}/api/queues/%2f/test_deployment_queue", auth=auth, timeout=5)
-
-            assert queue_created, "Should be able to create queues via management API"
-            print(f"  - Queue creation: ✅")
-        except requests.RequestException:
-            print(f"  - Queue creation: Skipped (management API auth required)")
+        vhosts = subprocess.run(
+            ["docker", "exec", container_name, "rabbitmqctl", "-s", "list_vhosts"],
+            capture_output=True, text=True, timeout=30
+        )
+        assert "/" in vhosts.stdout.split(), "Default vhost should be configured"
 
         print(f"\n=== RabbitMQ Health Check ===")
         print(f"✅ RabbitMQ is healthy")
         print(f"  - Status: {status_info['status']}")
         print(f"  - Health: {status_info['health']}")
-        print(f"  - Management UI: {management_url}")
+        print(f"  - Broker user: {broker_user}")
 
     def test_backend_health_check(
         self,
@@ -328,11 +331,11 @@ class TestSystemInstallation:
         # Verify backend database connection
         db_conn_test = subprocess.run(
             ["docker", "exec", container_name, "python", "-c",
-             "import psycopg2; conn = psycopg2.connect('postgresql://cellcraft_admin:cellcraft_admin@db:5432/cellcraft'); cur = conn.cursor(); cur.execute('SELECT 1'); result = cur.fetchone(); conn.close(); print('DB connection OK' if result else 'DB connection failed')"],
+             APP_DB_CHECK],
             capture_output=True, text=True, timeout=15
         )
 
-        assert db_conn_test.returncode == 0 and "DB connection OK" in db_conn_test.stdout, \
+        assert db_conn_test.returncode == 0 and "OK" in db_conn_test.stdout, \
             f"Backend should connect to database: {db_conn_test.stderr}"
         print(f"  - Backend → Database: ✅")
 
@@ -462,7 +465,7 @@ class TestSystemInstallation:
             result = subprocess.run(
                 [
                     "docker", "exec", db_container,
-                    "psql", "-U", "cellcraft_admin", "-d", "cellcraft",
+                    *PSQL_AS_APP_USER,
                     "-c", f"SELECT COUNT(*) FROM {table};"
                 ],
                 capture_output=True,
@@ -480,7 +483,7 @@ class TestSystemInstallation:
         schema_validations = []
         for table in tables_found:
             pk_check = subprocess.run(
-                ["docker", "exec", db_container, "psql", "-U", "cellcraft_admin", "-d", "cellcraft", "-t", "-c",
+                ["docker", "exec", db_container, *PSQL_AS_APP_USER, "-t", "-c",
                  f"SELECT COUNT(*) FROM information_schema.table_constraints WHERE table_name='{table}' AND constraint_type='PRIMARY KEY';"],
                 capture_output=True, text=True, timeout=10
             )
@@ -493,7 +496,7 @@ class TestSystemInstallation:
 
         # Validate foreign key constraints
         fk_count_check = subprocess.run(
-            ["docker", "exec", db_container, "psql", "-U", "cellcraft_admin", "-d", "cellcraft", "-t", "-c",
+            ["docker", "exec", db_container, *PSQL_AS_APP_USER, "-t", "-c",
              "SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_type='FOREIGN KEY';"],
             capture_output=True, text=True, timeout=10
         )
@@ -505,7 +508,7 @@ class TestSystemInstallation:
 
         # Validate indexes
         index_count_check = subprocess.run(
-            ["docker", "exec", db_container, "psql", "-U", "cellcraft_admin", "-d", "cellcraft", "-t", "-c",
+            ["docker", "exec", db_container, *PSQL_AS_APP_USER, "-t", "-c",
              "SELECT COUNT(*) FROM pg_indexes WHERE schemaname='public';"],
             capture_output=True, text=True, timeout=10
         )
@@ -549,7 +552,7 @@ class TestSystemInstallation:
             [
                 "docker", "exec", backend_container,
                 "python", "-c",
-                "import psycopg2; conn = psycopg2.connect('postgresql://cellcraft_admin:cellcraft_admin@db:5432/cellcraft'); conn.close(); print('OK')"
+                APP_DB_CHECK
             ],
             capture_output=True,
             text=True,
@@ -562,21 +565,18 @@ class TestSystemInstallation:
         # Test 2: Backend → RabbitMQ
         backend_to_rabbitmq = subprocess.run(
             ["docker", "exec", backend_container, "python", "-c",
-             "import pika; conn = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq', 5672, '/', pika.PlainCredentials('guest', 'guest'))); conn.close(); print('OK')"],
+             APP_BROKER_CHECK],
             capture_output=True, text=True, timeout=15
         )
 
         rabbitmq_ok = backend_to_rabbitmq.returncode == 0 and "OK" in backend_to_rabbitmq.stdout
-        if not rabbitmq_ok:
-            ping_result = subprocess.run(["docker", "exec", backend_container, "ping", "-c", "2", "rabbitmq"], capture_output=True, timeout=10)
-            rabbitmq_ok = ping_result.returncode == 0
         assert rabbitmq_ok, f"Backend should connect to RabbitMQ: {backend_to_rabbitmq.stderr}"
 
         # Test 3: Celery → Database
         celery_container = container_names["celery"]
         celery_to_db = subprocess.run(
             ["docker", "exec", celery_container, "python", "-c",
-             "import psycopg2; conn = psycopg2.connect('postgresql://cellcraft_admin:cellcraft_admin@db:5432/cellcraft'); conn.close(); print('OK')"],
+             APP_DB_CHECK],
             capture_output=True, text=True, timeout=15
         )
         assert celery_to_db.returncode == 0 and "OK" in celery_to_db.stdout, f"Celery should connect to database: {celery_to_db.stderr}"
@@ -584,14 +584,19 @@ class TestSystemInstallation:
         # Test 4: Celery → RabbitMQ
         celery_to_rabbitmq = subprocess.run(
             ["docker", "exec", celery_container, "python", "-c",
-             "import pika; conn = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq')); conn.close(); print('OK')"],
+             APP_BROKER_CHECK],
             capture_output=True, text=True, timeout=15
         )
         rabbitmq_celery_ok = celery_to_rabbitmq.returncode == 0 and "OK" in celery_to_rabbitmq.stdout
-        if not rabbitmq_celery_ok:
-            ping_result = subprocess.run(["docker", "exec", celery_container, "ping", "-c", "2", "rabbitmq"], capture_output=True, timeout=10)
-            rabbitmq_celery_ok = ping_result.returncode == 0
         assert rabbitmq_celery_ok, f"Celery should connect to RabbitMQ: {celery_to_rabbitmq.stderr}"
+
+        # Test 4b: Backend → Redis (authenticated with REDIS_PASSWORD)
+        backend_to_redis = subprocess.run(
+            ["docker", "exec", backend_container, "python", "-c", APP_REDIS_CHECK],
+            capture_output=True, text=True, timeout=15
+        )
+        assert backend_to_redis.returncode == 0 and "OK" in backend_to_redis.stdout, \
+            f"Backend should connect to Redis: {backend_to_redis.stderr}"
 
         # Test 5: Frontend → Backend (HTTP)
         import requests
@@ -643,50 +648,50 @@ class TestSystemInstallation:
 
     def test_port_accessibility(
         self,
-        cpu_mode_running
+        cpu_mode_running,
+        container_names: dict
     ):
         """
         TC-INIT-009: 포트 접근성 검증
 
-        Validates that all exposed ports are accessible from host.
+        Validates that the application ports are accessible from host and the
+        internal services are not published on the host (#146).
 
         Success Criteria:
         - Frontend (8080): Accessible
         - Backend API (8000): Accessible
-        - RabbitMQ Management (15672): Accessible
-        - Database (5432): Accessible (optional, may be internal only)
+        - Database, Redis, RabbitMQ containers: no published ports
         """
         import socket
+        import subprocess
 
-        # Test ports
-        ports_to_test = {
-            8080: "Frontend",
-            8000: "Backend API",
-            15672: "RabbitMQ Management"
-        }
-
-        accessible_ports = {}
-
-        for port, service in ports_to_test.items():
+        def is_open(port):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(2)
             try:
-                result = sock.connect_ex(("localhost", port))
-                accessible_ports[service] = (result == 0)
-                sock.close()
+                return sock.connect_ex(("localhost", port)) == 0
             except Exception:
-                accessible_ports[service] = False
+                return False
+            finally:
+                sock.close()
 
-        # Verify all ports are accessible
-        for service, is_accessible in accessible_ports.items():
-            assert is_accessible, \
-                f"{service} should be accessible but port is not responding"
+        public_ports = {8080: "Frontend", 8000: "Backend API"}
+        internal_services = ["db", "redis", "rabbitmq"]
+
+        for port, service in public_ports.items():
+            assert is_open(port), f"{service} ({port}) should be accessible but port is not responding"
+        for service in internal_services:
+            published = subprocess.run(
+                ["docker", "port", container_names[service]],
+                capture_output=True, text=True, timeout=10
+            )
+            assert published.returncode == 0, f"docker port failed for {service}: {published.stderr}"
+            assert not published.stdout.strip(), \
+                f"{service} should not publish ports on the host, found: {published.stdout.strip()}"
 
         print(f"\n=== Port Accessibility ===")
-        print(f"✅ All ports accessible")
-        for service, is_accessible in accessible_ports.items():
-            status = "✅" if is_accessible else "❌"
-            print(f"  - {service}: {status}")
+        print(f"✅ Application ports accessible: {sorted(public_ports)}")
+        print(f"✅ Internal services not published: {internal_services}")
 
     def test_service_dependencies(
         self,
