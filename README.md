@@ -342,6 +342,30 @@ Users can change their own password from **Password** in the top menu.
 
 ---
 
+## Internal Services
+
+PostgreSQL, Redis and RabbitMQ are reachable only inside the Docker network; only the frontend (8080) and the backend API (8000) are published on the host.
+
+Their credentials are generated per installation and stored in `.env` at the repository root (mode 0600, not tracked by git). The run scripts create it automatically; to create it without the scripts (e.g. before `docker compose up` or for `docker-compose.dev.yml`):
+
+```bash
+scripts/ensure-env.sh
+```
+
+Existing values in `.env` are never changed, so keep this file when you update or move the installation. Back it up together with the data volumes.
+
+**Upgrading from v1.0.7 or earlier:** run the run script as usual. The existing database account is kept, and the RabbitMQ `guest` account is replaced by the generated one.
+
+To inspect the services, use `docker compose exec`:
+
+```bash
+docker compose -f <compose-file> exec db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'
+docker compose -f <compose-file> exec rabbitmq rabbitmqctl list_queues
+docker compose -f <compose-file> exec redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli info memory'
+```
+
+---
+
 ## Stopping and Cleaning Up
 
 ### Stop Services

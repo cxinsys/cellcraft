@@ -2,6 +2,7 @@ import secrets
 import json
 from typing import Any, Dict, List, Optional, Union
 from os import environ
+from urllib.parse import quote
 from dotenv import load_dotenv
 from functools import lru_cache
 from kombu import Queue
@@ -80,7 +81,20 @@ class Settings(BaseSettings):
         )
 
     # Redis Configuration
-    REDIS_URL: str = "redis://redis:6379/0"
+    # REDIS_URL을 직접 지정하지 않으면 REDIS_PASSWORD(설치 시 .env에 생성)로 조립한다
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: Optional[str] = None
+    REDIS_URL: Optional[str] = None
+
+    @validator('REDIS_URL', pre=True, always=True)
+    def assemble_redis_url(cls, v, values):
+        if v:
+            return v
+        password = values.get('REDIS_PASSWORD')
+        auth = f":{quote(password, safe='')}@" if password else ""
+        return f"redis://{auth}{values.get('REDIS_HOST')}:{values.get('REDIS_PORT')}/0"
+
     DATATABLE_DF_CACHE_TTL: int = 3600  # 1 hour
     PLUGIN_LIST_CACHE_TTL: int = 120    # 2 minutes
 
@@ -96,8 +110,24 @@ class Settings(BaseSettings):
     PLUGIN_CONTAINER_NETWORK: str = "bridge"   # 앱 내부 네트워크(db/redis/rabbitmq)와 분리된 Docker 네트워크
     PLUGIN_CONTAINER_HARDENING: bool = True    # cap_drop=ALL, no-new-privileges 적용 (호환성 문제 시 false)
 
+    # RabbitMQ Configuration
+    # CELERY_BROKER_URL을 직접 지정하지 않으면 RABBITMQ_USER/PASSWORD(설치 시 .env에 생성)로 조립한다
+    RABBITMQ_HOST: str = "rabbitmq"
+    RABBITMQ_PORT: int = 5672
+    RABBITMQ_USER: Optional[str] = None
+    RABBITMQ_PASSWORD: Optional[str] = None
+
     # Celery configuration with proper defaults
-    CELERY_BROKER_URL: str = "amqp://guest:guest@rabbitmq:5672//"
+    CELERY_BROKER_URL: Optional[str] = None
+
+    @validator('CELERY_BROKER_URL', pre=True, always=True)
+    def assemble_celery_broker_url(cls, v, values):
+        if v:
+            return v
+        user = quote(values.get('RABBITMQ_USER') or "guest", safe='')
+        password = quote(values.get('RABBITMQ_PASSWORD') or "guest", safe='')
+        return f"amqp://{user}:{password}@{values.get('RABBITMQ_HOST')}:{values.get('RABBITMQ_PORT')}//"
+
     CELERY_RESULT_BACKEND: Optional[str] = None
 
     @validator('CELERY_RESULT_BACKEND', pre=True, always=True)

@@ -20,6 +20,14 @@ services:
   backend:
     environment:
       - TZ=Asia/Seoul
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       # Initial admin account on first startup (optional, see README)
       - CELLCRAFT_ADMIN_EMAIL=${CELLCRAFT_ADMIN_EMAIL:-}
       - CELLCRAFT_ADMIN_PASSWORD=${CELLCRAFT_ADMIN_PASSWORD:-}
@@ -46,14 +54,13 @@ services:
     image: postgres:15
     environment:
       - TZ=Asia/Seoul
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:?.env not found - run scripts/ensure-env.sh (see README)}
+      - POSTGRES_USER=${POSTGRES_USER:?.env not found - run scripts/ensure-env.sh (see README)}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?.env not found - run scripts/ensure-env.sh (see README)}
     expose:
       - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: always
     networks:
       - app-network
@@ -71,7 +78,7 @@ services:
       - POSTGRES_USER=test_user
       - POSTGRES_PASSWORD=test_pass
     ports:
-      - "5433:5432"  # Host 5433 -> Container 5432 (avoid conflict with db)
+      - "127.0.0.1:5433:5432"  # Host 5433 -> Container 5432 (avoid conflict with db), localhost only
     networks:
       - app-network
     # No volumes - ephemeral test database
@@ -81,15 +88,17 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"  # localhost only
     volumes:
       - redis_data:/data
-    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    command: ["sh", "-c", "exec redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass \"$$REDIS_PASSWORD\""]
     restart: always
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "[ -z \"$$REDIS_PASSWORD\" ] || export REDISCLI_AUTH=\"$$REDIS_PASSWORD\"; redis-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -97,10 +106,12 @@ services:
   rabbitmq:
     image: "rabbitmq:management"
     ports:
-      - "15672:15672"
-      - "5672:5672"
+      - "127.0.0.1:15672:15672"  # localhost only
+      - "127.0.0.1:5672:5672"
     environment:
       - TZ=Asia/Seoul
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
     volumes:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     restart: always
@@ -112,6 +123,14 @@ services:
         - C_FORCE_ROOT=true
         - TZ=Asia/Seoul
         - GPU_COUNT=${GPU_COUNT:-0}
+        - POSTGRES_DB=${POSTGRES_DB}
+        - POSTGRES_USER=${POSTGRES_USER}
+        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        - POSTGRES_HOST=db
+        - POSTGRES_PORT=5432
+        - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+        - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+        - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       ipc: host
       build:
         context: ./backend

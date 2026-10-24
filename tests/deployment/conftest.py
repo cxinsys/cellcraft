@@ -91,6 +91,7 @@ def container_names() -> Dict[str, str]:
         "frontend": "cellcraft-frontend-1",
         "backend": "cellcraft-backend-1",
         "db": "cellcraft-db-1",
+        "redis": "cellcraft-redis-1",
         "rabbitmq": "cellcraft-rabbitmq-1",
         "celery": "cellcraft-celery-1"
     }

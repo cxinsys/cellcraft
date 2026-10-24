@@ -7,6 +7,8 @@ Covers TC-ERR-001 through TC-ERR-006 from DEPLOYMENT_TEST_PLAN.md
 
 import pytest
 
+from .helpers import PG_ISREADY_AS_APP_USER, PSQL_AS_APP_USER
+
 
 class TestErrorHandling:
     """4.4 Error Handling Tests"""
@@ -219,7 +221,7 @@ class TestErrorHandling:
 
         # Check database accepts connections
         db_accessible = subprocess.run(
-            ["docker", "exec", db_container, "pg_isready", "-U", "cellcraft_admin"],
+            ["docker", "exec", db_container, *PG_ISREADY_AS_APP_USER],
             capture_output=True, timeout=5
         )
         assert db_accessible.returncode == 0, \
@@ -227,7 +229,7 @@ class TestErrorHandling:
 
         # Check connection pool metrics
         connection_count = subprocess.run(
-            ["docker", "exec", db_container, "psql", "-U", "cellcraft_admin", "-d", "cellcraft",
+            ["docker", "exec", db_container, *PSQL_AS_APP_USER,
              "-t", "-c", "SELECT count(*) FROM pg_stat_activity WHERE datname='cellcraft';"],
             capture_output=True, text=True, timeout=10
         )
@@ -240,7 +242,7 @@ class TestErrorHandling:
 
         # Validate no data corruption
         tables_check = subprocess.run(
-            ["docker", "exec", db_container, "psql", "-U", "cellcraft_admin", "-d", "cellcraft",
+            ["docker", "exec", db_container, *PSQL_AS_APP_USER,
              "-t", "-c", "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';"],
             capture_output=True, text=True, timeout=10
         )

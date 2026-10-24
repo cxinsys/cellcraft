@@ -22,6 +22,7 @@ readonly PLUGIN_DIR="${SCRIPT_DIR}/backend/plugin/official"
 readonly COMPOSE_FILE_GHCR="${SCRIPT_DIR}/docker-compose.gpu.yml"
 readonly COMPOSE_FILE_LOCAL="${SCRIPT_DIR}/docker-compose.gpu.amd64.yml"
 readonly CHECK_SCRIPT="${SCRIPT_DIR}/check-installation.sh"
+readonly ENV_SCRIPT="${SCRIPT_DIR}/scripts/ensure-env.sh"
 readonly GPU_BRANCH="release/plugins-v1.1"
 readonly VERSION_FILE="${PLUGIN_DIR}/version.json"
 
@@ -36,6 +37,7 @@ ORIGINAL_COMMIT=""
 
 # Runtime variables
 USED_COMPOSE_FILE=""
+USED_COMPOSE_PATH=""
 
 # Functions for colored output
 log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
@@ -446,6 +448,25 @@ restore_git_state() {
     cd "${SCRIPT_DIR}"
 }
 
+# Create/complete .env with per-installation credentials (existing values are kept)
+prepare_env_file() {
+    log_header "Service Credentials"
+    # shellcheck source=scripts/ensure-env.sh
+    source "${ENV_SCRIPT}"
+    if ! cellcraft_ensure_env; then
+        log_error "Failed to prepare ${SCRIPT_DIR}/.env"
+        exit 1
+    fi
+    log_success "Service credentials ready (${SCRIPT_DIR}/.env)"
+}
+
+# Apply the RabbitMQ account from .env to an existing broker (upgrade from guest)
+sync_service_credentials() {
+    if ! cellcraft_sync_rabbitmq_user "${USED_COMPOSE_PATH}"; then
+        log_warning "Could not synchronize the RabbitMQ account; check: docker compose -f ${USED_COMPOSE_FILE} logs rabbitmq celery"
+    fi
+}
+
 # Clean existing containers
 clean_containers() {
     if [[ "${CLEAN_CONTAINERS}" == "true" ]]; then
@@ -488,6 +509,7 @@ launch_containers() {
 
     # Store for use in show_final_status
     USED_COMPOSE_FILE="$(basename "$compose_file")"
+    USED_COMPOSE_PATH="$compose_file"
     
     log_step "Compose file: $(basename "$compose_file")"
     
@@ -654,13 +676,14 @@ show_final_status() {
     echo -e "  • ${CYAN}Frontend Application:${NC} http://localhost:8080"
     echo -e "  • ${CYAN}Backend API:${NC} http://localhost:8000"
     echo -e "  • ${CYAN}API Documentation:${NC} http://localhost:8000/docs"
-    echo -e "  • ${CYAN}RabbitMQ Management:${NC} http://localhost:15672 (guest/guest)"
+    echo -e "  • ${CYAN}Database / Redis / RabbitMQ:${NC} internal Docker network only (credentials in .env)"
     echo ""
     show_admin_account_info
     echo -e "${BLUE}🔧 Management Commands:${NC}"
     echo -e "  • View logs: ${CYAN}docker compose -f ${USED_COMPOSE_FILE} logs${NC}"
     echo -e "  • Stop services: ${CYAN}docker compose -f ${USED_COMPOSE_FILE} down${NC}"
     echo -e "  • Restart services: ${CYAN}docker compose -f ${USED_COMPOSE_FILE} restart${NC}"
+    echo -e "  • Inspect internal services: ${CYAN}docker compose -f ${USED_COMPOSE_FILE} exec db psql -U <POSTGRES_USER> <POSTGRES_DB>${NC}, ${CYAN}... exec rabbitmq rabbitmqctl list_queues${NC}"
     echo ""
     echo -e "${BLUE}📊 Current Configuration:${NC}"
     echo -e "  • Mode: GPU-Enabled (all plugins available)"
@@ -718,10 +741,12 @@ main() {
     
     # Execute main workflow
     check_prerequisites
+    prepare_env_file
     backup_git_state
     switch_to_gpu_branch
     clean_containers
     launch_containers
+    sync_service_credentials
     verify_installation
     show_final_status
     

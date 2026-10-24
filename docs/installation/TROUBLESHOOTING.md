@@ -160,6 +160,36 @@ docker volume prune
    docker compose -f [compose-file] up -d
    ```
 
+### `.env not found` When Running docker compose
+
+**Symptom**: `required variable POSTGRES_PASSWORD is missing a value: .env not found ...`
+
+**Cause**: The per-installation credentials file `.env` at the repository root does not exist yet.
+
+**Solution**: Run the install script (`./run-cpu-mode.sh` / `./run-gpu-mode.sh`) or create the file directly:
+```bash
+scripts/ensure-env.sh
+```
+
+### Database Authentication Failed After Moving or Re-cloning
+
+**Symptom**: `password authentication failed for user "cellcraft_admin"` in the backend logs.
+
+**Cause**: The database volume was initialized with the credentials of a previous `.env`, but a new `.env` was generated (for example after cloning the repository again).
+
+**Solution**: Restore the previous `.env`. If it is lost and the data is not needed, recreate the volumes with `docker compose -f [compose-file] down -v` (this deletes all data).
+
+### Celery Cannot Connect to RabbitMQ After Upgrading
+
+**Symptom**: `ACCESS_REFUSED` in the celery logs after upgrading from v1.0.7 or earlier.
+
+**Cause**: The broker volume still holds only the old `guest` account. The run scripts migrate it automatically; it can be missed when the services are started with `docker compose up` directly.
+
+**Solution**: Run the install script again, or apply the account manually:
+```bash
+source scripts/ensure-env.sh && cellcraft_sync_rabbitmq_user [compose-file]
+```
+
 ## Getting Help
 
 If you encounter issues not covered here:

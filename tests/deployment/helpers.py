@@ -316,7 +316,7 @@ def get_plugins_from_db(
         result = subprocess.run(
             [
                 "docker", "exec", container_name,
-                "psql", "-U", "cellcraft_admin", "-d", "cellcraft",
+                *PSQL_AS_APP_USER,
                 "-t", "-A", "-F", ",",  # -t: tuples only, -A: unaligned, -F: field separator
                 "-c", query
             ],
@@ -384,6 +384,27 @@ def get_current_git_branch(repo_path: str) -> str:
 # ==============================================================================
 # Environment Variables
 # ==============================================================================
+
+# psql / pg_isready inside the db container, using the account from that container's
+# environment (per-installation credentials in .env, #146)
+PSQL_AS_APP_USER = ["sh", "-c", 'exec psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" "$@"', "psql"]
+PG_ISREADY_AS_APP_USER = ["sh", "-c", 'exec pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
+
+# Python snippets run inside backend/celery containers with the application settings
+APP_DB_CHECK = (
+    "import psycopg2; from app.core.config import settings; "
+    "conn = psycopg2.connect(settings.SQLALCHEMY_DATABASE_URI); cur = conn.cursor(); cur.execute('SELECT 1'); "
+    "result = cur.fetchone(); conn.close(); print('OK' if result else 'FAIL')"
+)
+APP_BROKER_CHECK = (
+    "from kombu import Connection; from app.core.config import settings; "
+    "conn = Connection(settings.CELERY_BROKER_URL); conn.ensure_connection(max_retries=1); conn.release(); print('OK')"
+)
+APP_REDIS_CHECK = (
+    "import redis; from app.core.config import settings; "
+    "print('OK' if redis.Redis.from_url(settings.REDIS_URL).ping() else 'FAIL')"
+)
+
 
 def get_container_env(container_name: str, var_name: str) -> Optional[str]:
     """

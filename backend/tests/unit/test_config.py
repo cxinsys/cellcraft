@@ -137,6 +137,54 @@ class TestSettingsInitialization:
 
 @pytest.mark.unit
 @pytest.mark.config
+class TestServiceConnectionUrls:
+    """Redis·RabbitMQ 연결 URL 조립 (설치별 자격 증명, #146)."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_env(self, monkeypatch):
+        for name in ("REDIS_URL", "REDIS_PASSWORD", "REDIS_HOST", "REDIS_PORT", "CELERY_BROKER_URL",
+                     "RABBITMQ_USER", "RABBITMQ_PASSWORD", "RABBITMQ_HOST", "RABBITMQ_PORT"):
+            monkeypatch.delenv(name, raising=False)
+
+    def test_defaults_keep_previous_urls(self):
+        settings = Settings()
+        assert settings.REDIS_URL == "redis://redis:6379/0"
+        assert settings.CELERY_BROKER_URL == "amqp://guest:guest@rabbitmq:5672//"
+
+    def test_empty_values_from_compose_use_defaults(self, monkeypatch):
+        # compose가 미설정 변수를 빈 문자열로 전달하는 경우
+        for name in ("REDIS_PASSWORD", "RABBITMQ_USER", "RABBITMQ_PASSWORD"):
+            monkeypatch.setenv(name, "")
+        settings = Settings()
+        assert settings.REDIS_URL == "redis://redis:6379/0"
+        assert settings.CELERY_BROKER_URL == "amqp://guest:guest@rabbitmq:5672//"
+
+    def test_assembled_from_credentials(self, monkeypatch):
+        monkeypatch.setenv("REDIS_PASSWORD", "r3dis")
+        monkeypatch.setenv("RABBITMQ_USER", "cellcraft")
+        monkeypatch.setenv("RABBITMQ_PASSWORD", "rabb1t")
+        settings = Settings()
+        assert settings.REDIS_URL == "redis://:r3dis@redis:6379/0"
+        assert settings.CELERY_BROKER_URL == "amqp://cellcraft:rabb1t@rabbitmq:5672//"
+
+    def test_special_characters_escaped(self, monkeypatch):
+        monkeypatch.setenv("REDIS_PASSWORD", "a@b/c:d")
+        monkeypatch.setenv("RABBITMQ_PASSWORD", "p@ss/word")
+        settings = Settings()
+        assert settings.REDIS_URL == "redis://:a%40b%2Fc%3Ad@redis:6379/0"
+        assert settings.CELERY_BROKER_URL == "amqp://guest:p%40ss%2Fword@rabbitmq:5672//"
+
+    def test_explicit_urls_take_precedence(self, monkeypatch):
+        monkeypatch.setenv("REDIS_PASSWORD", "ignored")
+        monkeypatch.setenv("REDIS_URL", "redis://custom:6380/1")
+        monkeypatch.setenv("CELERY_BROKER_URL", "amqp://u:p@broker:5673//")
+        settings = Settings()
+        assert settings.REDIS_URL == "redis://custom:6380/1"
+        assert settings.CELERY_BROKER_URL == "amqp://u:p@broker:5673//"
+
+
+@pytest.mark.unit
+@pytest.mark.config
 class TestGetSettings:
     """Test get_settings function and caching behavior."""
 

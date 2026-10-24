@@ -37,6 +37,9 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       # Initial admin account on first startup (optional, see README)
       - CELLCRAFT_ADMIN_EMAIL=${CELLCRAFT_ADMIN_EMAIL:-}
       - CELLCRAFT_ADMIN_PASSWORD=${CELLCRAFT_ADMIN_PASSWORD:-}
@@ -62,14 +65,11 @@ services:
     image: postgres:15
     environment:
       - TZ=Asia/Seoul
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
+      - POSTGRES_DB=${POSTGRES_DB:?.env not found - run scripts/ensure-env.sh or the install script (see README)}
+      - POSTGRES_USER=${POSTGRES_USER:?.env not found - run scripts/ensure-env.sh or the install script (see README)}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?.env not found - run scripts/ensure-env.sh or the install script (see README)}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
     networks:
       - app-network
@@ -81,16 +81,16 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    command: ["sh", "-c", "exec redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass \"$$REDIS_PASSWORD\""]
     restart: unless-stopped
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "[ -z \"$$REDIS_PASSWORD\" ] || export REDISCLI_AUTH=\"$$REDIS_PASSWORD\"; redis-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -99,11 +99,8 @@ services:
     image: "rabbitmq:management"
     environment:
       - TZ=Asia/Seoul
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-    ports:
-      - "15672:15672"
-      - "5672:5672"
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
@@ -129,6 +126,9 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - GPU_COUNT=${GPU_COUNT:-0}
       # Note: No CPU_ONLY flag - GPU enabled by default
     volumes:
