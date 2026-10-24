@@ -34,6 +34,13 @@ from app import models
 from app.plugin.utils import get_plugin_path
 from app.worker.utils import get_task_info
 from app.workflow.compiler.snakefile import change_snakefile_parameter
+from app.workflow.compiler.visualization import format_visualization_param
+from app.workflow.validators import (
+    validate_node_id, validate_node_name, validate_node_data_extension,
+    validate_bare_filename, validate_relative_output_path, sanitize_filename_part,
+    ensure_within, resolve_listed_file,
+    load_plugin_placeholders, placeholder_names, filter_plugin_params,
+)
 from app.core.exceptions import (
     PluginNotFoundError, ScriptNotFoundError, FileNotFoundError as CellCraftFileNotFoundError,
     ValidationError, WorkflowError, SnakefileGenerationError, TaskSubmissionError,
@@ -117,6 +124,7 @@ def _prepare_task_workspace(*, user_workflow, user_path: str, workflow_id: int,
         workflow_data = user_workflow.workflow_info['drawflow']['Home']['data']
         connected_vis_ids = find_connected_visualization_nodes(workflow_data, algorithm['id'])
         for vis_id in connected_vis_ids:
+            validate_node_id(vis_id, "visualization node id")
             vis_path = Path(f"{user_path}workflow_{workflow_id}/visualization_{vis_id}")
             if vis_path.exists():
                 # 캐시 정리 먼저 수행 (symlink 삭제 전에 메타데이터 참조 필요)
@@ -192,6 +200,21 @@ def _dispatch_compile_task(*, user, workflow_id: int, algorithm: dict,
     return process_task.id
 
 
+def _validate_compile_inputs(workflow_data: dict, algorithms: list) -> None:
+    """모든 알고리즘의 경로 관련 입력을 디스패치 전에 한 번에 검증한다 (부분 실행 방지)."""
+    for algorithm in algorithms:
+        validate_node_id(algorithm['id'], "algorithm node id")
+        for parameter in algorithm.get('selectedPluginInputOutput') or []:
+            if not isinstance(parameter, dict):
+                continue
+            if parameter.get("type") in ("inputFile", "optionalInputFile") and parameter.get("file_name"):
+                validate_bare_filename(parameter["file_name"], "input file name")
+            elif parameter.get("type") == "outputFile" and parameter.get("activate") and parameter.get("defaultValue"):
+                validate_relative_output_path(parameter["defaultValue"])
+        for vis_id in find_connected_visualization_nodes(workflow_data, algorithm['id']):
+            validate_node_id(vis_id, "visualization node id")
+
+
 def compile_workflow(*, db: Session, user: models.User, workflow: WorkflowCreate) -> Any:
     """Compile & dispatch every algorithm node in a workflow (multi-task).
 
@@ -211,11 +234,19 @@ def compile_workflow(*, db: Session, user: models.User, workflow: WorkflowCreate
         task_ids = []  # 여러 개의 태스크 ID를 저장할 리스트
 
         if user_workflow:
+            # 저장·디스패치 전에 요청 워크플로우 전체를 검증
+            if workflow.workflow_info:
+                requested_data = workflow.workflow_info['drawflow']['Home']['data']
+                _validate_compile_inputs(requested_data, extract_all_algorithms(requested_data))
+
             crud_workflow.update_workflow(db, user.id, workflow.id, workflow.title, workflow.thumbnail, workflow.workflow_info)
-            algorithms = extract_all_algorithms(user_workflow.workflow_info['drawflow']['Home']['data'])
+            workflow_data = user_workflow.workflow_info['drawflow']['Home']['data']
+            algorithms = extract_all_algorithms(workflow_data)
 
             if not algorithms:
                 raise HTTPException(status_code=400, detail="No algorithm nodes found in workflow.")
+
+            _validate_compile_inputs(workflow_data, algorithms)
 
             for algorithm in algorithms:
                 selected_plugin_name = algorithm['selectedPlugin']['name']
@@ -225,13 +256,20 @@ def compile_workflow(*, db: Session, user: models.User, workflow: WorkflowCreate
                 plugin_path, plugin_dependency_path = _resolve_plugin_paths(algorithm=algorithm)
 
                 # 입력 데이터 및 파라미터 추출 (파일 소스에 따라 전체 경로 구성)
+                # metadata.json에 선언된 placeholder만 Snakefile에 치환 (입력 파일·파라미터)
+                placeholders = load_plugin_placeholders(plugin_path)
                 file_sources = extract_file_sources(algorithm)
                 user_input = generate_user_input(
                     algorithm['selectedPluginInputOutput'],
                     username=user.username,
                     file_sources=file_sources,
                 )
-                plugin_params = generate_plugin_params(algorithm['selectedPluginRules'])
+                if placeholders is not None:
+                    user_input = filter_plugin_params(user_input, placeholders["input_files"])
+                plugin_params = filter_plugin_params(
+                    generate_plugin_params(algorithm['selectedPluginRules']),
+                    placeholder_names(placeholders, "params"),
+                )
                 target_list = extract_target_data(algorithm['selectedPluginInputOutput'], user_workflow_task_path)
 
                 additional_data = {
@@ -298,6 +336,14 @@ def compile_workflow(*, db: Session, user: models.User, workflow: WorkflowCreate
                 status_code=400,
                 detail=str(e),
         )
+
+
+def _validate_visualization_input(validator, value, field_name: str):
+    """validators의 도메인 예외를 visualize_data의 구조화된 400 응답(ValidationError)으로 변환."""
+    try:
+        return validator(value, field_name)
+    except ValidationFailedError as e:
+        raise ValidationError(field_name=field_name, message=str(e))
 
 
 def visualize_data(*, db: Session, user: models.User,
@@ -420,6 +466,8 @@ def visualize_data(*, db: Session, user: models.User,
                 message="Cannot determine algorithm_id for file resolution",
                 required_format="Either provide algorithm_id or ensure proper workflow connections"
             )
+        _validate_visualization_input(validate_node_id, algorithm_id, "algorithm_id")
+        _validate_visualization_input(validate_node_id, workflow_request.current_node_id, "current_node_id")
 
         # Set up task paths for visualization
         user_task_path = f"{user_path}workflow_{workflow_request.id}/visualization_{workflow_request.current_node_id}"
@@ -443,15 +491,19 @@ def visualize_data(*, db: Session, user: models.User,
                 placeholder_name = param.get("defaultValue", param_name)  # This is the placeholder like "input.txt"
 
                 if selected_file:
+                    _validate_visualization_input(validate_bare_filename, selected_file, "selectedFile")
                     input_filenames.append(selected_file)
                     # Map placeholder name to actual selected file
                     file_mappings[placeholder_name] = selected_file
                 elif param_value:
                     # Fallback if selectedFile is not provided but defaultValue is
+                    _validate_visualization_input(validate_bare_filename, param_value, "defaultValue")
                     input_filenames.append(param_value)
                     file_mappings[placeholder_name] = param_value
             elif param_type == "outputFile":
                 # Output file parameter
+                if param_value:
+                    _validate_visualization_input(validate_relative_output_path, param_value, "outputFile")
                 output_filename = param_value
             else:
                 # Regular parameter
@@ -527,7 +579,8 @@ def visualize_data(*, db: Session, user: models.User,
             # Normalize parameter key by replacing spaces with underscores
             # This matches the normalize_param_name behavior in Snakefile generation
             normalized_key = key.replace(" ", "_")
-            result_name_parts.append(f"{normalized_key}_{value}")
+            # 값에 경로 구분자·따옴표가 있어도 결과 파일명이 하위 경로가 되지 않도록 정제
+            result_name_parts.append(sanitize_filename_part(f"{normalized_key}_{value}"))
         for filename in input_filenames:
             result_name_parts.append(os.path.basename(filename))
 
@@ -545,6 +598,9 @@ def visualize_data(*, db: Session, user: models.User,
                 result_filename = f"{result_name}_visualization_result.json"
             else:
                 result_filename = "visualization_result.json"
+
+        # 결과 파일명은 결과 디렉터리 기준 상대 경로여야 한다 (출력명의 하위 디렉터리는 허용)
+        _validate_visualization_input(validate_relative_output_path, result_filename, "result_filename")
 
         user_workflow_visualization_result_path = os.path.join(
             user_workflow_visualization_result_directory,
@@ -652,8 +708,17 @@ def visualize_data(*, db: Session, user: models.User,
 
         # Extract only the selected rule and apply replacements
         try:
-            # Merge system placeholders with visualization parameters
-            all_params = {**visualization_params, **additional_data}
+            # metadata에 선언된 파라미터만 Python 리터럴로 변환해 치환하고, 시스템 placeholder와 병합
+            placeholders = load_plugin_placeholders(plugin_path, selected_script_name)
+            snakefile_params = {
+                name: format_visualization_param(value)
+                for name, value in filter_plugin_params(
+                    visualization_params, placeholder_names(placeholders, "params"),
+                ).items()
+            }
+            if placeholders is not None:
+                file_mappings = filter_plugin_params(file_mappings, placeholders["input_files"])
+            all_params = {**snakefile_params, **additional_data}
 
             # Use extract_rule_block to get only the selected visualization rule
             extracted_content, final_snakefile_path = extract_rule_block(
@@ -739,10 +804,13 @@ def visualize_data(*, db: Session, user: models.User,
         )
 
 
-def get_visualization_result(*, workflow_result: WorkflowResult) -> JSONResponse:
-    """Read a saved Plotly JSON result file directly by its absolute filename."""
+def get_visualization_result(*, user: models.User, workflow_result: WorkflowResult) -> JSONResponse:
+    """Read a saved Plotly JSON result file by its path (restricted to the user's directory)."""
     PATH_VISUALIZAE_RESULT = workflow_result.filename
     print("PATH_VISUALIZAE_RESULT:", PATH_VISUALIZAE_RESULT)
+    if not isinstance(PATH_VISUALIZAE_RESULT, str) or not PATH_VISUALIZAE_RESULT:
+        raise ValidationFailedError("filename is required")
+    ensure_within(f"./user/{user.username}", PATH_VISUALIZAE_RESULT)
 
     try:
         with open(PATH_VISUALIZAE_RESULT, "r") as f:
@@ -855,17 +923,8 @@ def get_results(*, user: models.User, workflow_result: WorkflowResult) -> list:
 def check_result(*, user: models.User, workflow_result: WorkflowResult) -> FileResponse:
     """Return a FileResponse for a named file in an algorithm's results dir."""
     PATH_COMPILE_RESULT = f'./user/{user.username}/workflow_{workflow_result.id}/algorithm_{workflow_result.algorithm_id}/results'
-    file_list = os.listdir(PATH_COMPILE_RESULT)
-    # print(file_list)
-    FILE_NAME = workflow_result.filename
-
-    for item_file in file_list:
-        if FILE_NAME == item_file:
-            FILE_NAME = item_file
-            break
-    # print(FILE_NAME)
-    FILE_PATH = os.path.join(PATH_COMPILE_RESULT, FILE_NAME)
-    # print(FILE_PATH)
+    # 결과 디렉터리에 실제로 존재하는 파일만 반환 (없으면 404)
+    FILE_PATH = resolve_listed_file(PATH_COMPILE_RESULT, workflow_result.filename)
 
     return FileResponse(FILE_PATH)
 
@@ -882,7 +941,8 @@ def check_visualization_result(*, user: models.User, workflow_result: WorkflowRe
 
     file_list = os.listdir(PATH_COMPILE_RESULT)
     # print(file_list)
-    FILE_NAME = workflow_result.filename
+    # 결과 파일은 생성 지연(재시도)이 있으므로 목록 존재 여부 대신 경로 형식만 검증
+    FILE_NAME = validate_relative_output_path(workflow_result.filename, "filename")
 
     for item_file in file_list:
         if FILE_NAME == item_file:
@@ -929,6 +989,14 @@ def check_visualization_result(*, user: models.User, workflow_result: WorkflowRe
             raise ValidationFailedError(str(e))
 
 
+def _node_data_file_name(node_file_info) -> str:
+    """노드 데이터 파일명(``<node_name>_<node_id>.<ext>``)을 검증 후 생성 (예: ``ScatterPlot_4.json``)."""
+    node_name = validate_node_name(node_file_info.node_name)
+    node_id = validate_node_id(node_file_info.node_id)
+    extension = validate_node_data_extension(node_file_info.file_extension)
+    return f"{node_name}_{node_id}.{extension}"
+
+
 def save_node_data(*, db: Session, user: models.User,
                    node_file_info: WorkflowNodeFileCreate) -> Any:
     """Persist a workflow node's modal data to a file under the workflow folder."""
@@ -941,7 +1009,7 @@ def save_node_data(*, db: Session, user: models.User,
         if not os.path.exists(workflow_path):
             os.makedirs(workflow_path)
         # workflowNodeFileInfo.node_name이랑 workflowNodeFileInfo.node_id로 파일 이름 생성
-        file_name = f"{node_file_info.node_name}_{node_file_info.node_id}.{node_file_info.file_extension}"
+        file_name = _node_data_file_name(node_file_info)
         result_file_path = f"{workflow_path}/{file_name}"
         # user 폴더에 파일 생성
         with open(result_file_path, "w") as f:
@@ -973,7 +1041,7 @@ def read_node_data(*, db: Session, user: models.User,
         if not os.path.exists(workflow_path):
             raise ValidationFailedError("this workflow not exists in your workflows")
         # workflowNodeFileInfo.node_name이랑 workflowNodeFileInfo.node_id로 파일 읽어오기
-        file_name = f"{node_file_info.node_name}_{node_file_info.node_id}.{node_file_info.file_extension}"
+        file_name = _node_data_file_name(node_file_info)
         with open(f"{workflow_path}/{file_name}", "r") as f:
             if node_file_info.file_extension == "json":
                 file_content = json.load(f)
@@ -1002,7 +1070,7 @@ def delete_node_data(*, db: Session, user: models.User,
         if not os.path.exists(workflow_path):
             raise ValidationFailedError("this workflow not exists in your workflows")
         # workflowNodeFileInfo.node_name이랑 workflowNodeFileInfo.node_id로 파일 삭제
-        file_name = f"{node_file_info.node_name}_{node_file_info.node_id}.{node_file_info.file_extension}"
+        file_name = _node_data_file_name(node_file_info)
         os.remove(f"{workflow_path}/{file_name}")
         return {
             'id': node_file_info.id,

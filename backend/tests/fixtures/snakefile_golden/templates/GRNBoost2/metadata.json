@@ -1,0 +1,176 @@
+{
+  "name": "GRNBoost2",
+  "rules": {
+    "0": {
+      "name": "GRNBoost2 Input",
+      "input": [
+        "input.h5ad",
+        "geneList.txt"
+      ],
+      "output": [
+        "expression.csv",
+        "trajectory.txt",
+        "cellSelect.txt"
+      ],
+      "script": "grnboost2_input.py",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "inputFile",
+          "defaultValue": "input.h5ad",
+          "min": null,
+          "max": null,
+          "fileExtension": ".h5ad"
+        },
+        {
+          "name": "geneList",
+          "type": "optionalInputFile",
+          "defaultValue": "geneList.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "UMAP lasso",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "expression",
+          "type": "outputFile",
+          "defaultValue": "expression.csv",
+          "min": null,
+          "max": null,
+          "fileExtension": ".csv"
+        },
+        {
+          "name": "trajectory",
+          "type": "outputFile",
+          "defaultValue": "trajectory.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "cellSelect",
+          "type": "outputFile",
+          "defaultValue": "cellSelect.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "cell group",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "pseudotime",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "clusters",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        }
+      ],
+      "nodeId": 1,
+      "isVisualization": false
+    },
+    "1": {
+      "name": "Run",
+      "input": [
+        "expression.csv",
+        "trajectory.txt",
+        "cellSelect.txt",
+        "TF.txt"
+      ],
+      "output": [
+        "GRN.sif",
+        "GRNOutdegree.txt"
+      ],
+      "script": "grnboost2_for_cellcraft.py",
+      "parameters": [
+        {
+          "name": "expression",
+          "type": "inputFile",
+          "defaultValue": "expression.csv",
+          "min": null,
+          "max": null,
+          "fileExtension": ".csv"
+        },
+        {
+          "name": "trajectory",
+          "type": "inputFile",
+          "defaultValue": "trajectory.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "cellSelect",
+          "type": "inputFile",
+          "defaultValue": "cellSelect.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "TF",
+          "type": "optionalInputFile",
+          "defaultValue": "TF.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "FDR",
+          "type": "float",
+          "defaultValue": "0",
+          "min": 0,
+          "max": 1,
+          "fileExtension": ""
+        },
+        {
+          "name": "number of outdegrees",
+          "type": "int",
+          "defaultValue": "0",
+          "min": 0,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "GRN",
+          "type": "outputFile",
+          "defaultValue": "GRN.sif",
+          "min": null,
+          "max": null,
+          "fileExtension": ".sif"
+        },
+        {
+          "name": "GRNOutdegree",
+          "type": "outputFile",
+          "defaultValue": "GRNOutdegree.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        }
+      ],
+      "nodeId": 2,
+      "isVisualization": false
+    }
+  }
+}

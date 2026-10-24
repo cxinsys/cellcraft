@@ -15,6 +15,8 @@ import json
 import gc
 from typing import Dict, List, Optional, Tuple, Any
 
+from app.workflow.validators import validate_bare_filename, validate_relative_output_path
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -309,6 +311,9 @@ def generate_user_input(selectedPluginInputOutput, username=None, file_sources=N
             if not file_name:
                 continue
 
+            # FE는 디렉터리 구성요소 없는 파일명만 보낸다 (경로는 서버에서 조합)
+            validate_bare_filename(file_name, "input file name")
+
             # 하위 호환: username이 없으면 기존 동작 (파일명만 반환)
             if username is None or file_sources is None:
                 user_input[parameter_key] = file_name
@@ -391,7 +396,11 @@ def extract_target_data(selectedPluginInputOutput, user_workflow_task_path):
     # type이 "output"인 데이터들 중, activated가 True인 데이터들을 찾아서 리스트에 추가
     for data in selectedPluginInputOutput:
         if data.get("type") == "outputFile" and data.get("activate"):
-            data_list.append(os.path.join(user_workflow_task_path, data.get("defaultValue")))
+            output_name = data.get("defaultValue")
+            if output_name:
+                # 하위 디렉터리를 쓰는 로컬 플러그인 출력명 허용, 결과 디렉터리 밖은 거부
+                validate_relative_output_path(output_name)
+            data_list.append(os.path.join(user_workflow_task_path, output_name))
 
     # 데이터 리스트 반환
     return data_list
