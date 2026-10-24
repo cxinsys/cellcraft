@@ -1,0 +1,39 @@
+import os
+
+rule LEAP_Input:
+    input:
+        input="{input.h5ad}"
+    output:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/trajectory.txt",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    params:
+        geneList=lambda wildcards: "{geneList.txt}" if os.path.exists("{geneList.txt}") else "None",
+        UMAP_lasso=lambda wildcards: {UMAP lasso} if os.path.exists({UMAP lasso}) else "None",
+        cell_group={cell group},
+        pseudotime={pseudotime},
+        clusters=lambda wc: ";".join({clusters})
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/LEAP_Input.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/LEAP_Input.stderr"
+    shell:
+        "/opt/micromamba/envs/plugin_env/bin/python /scripts/leap_input.py {input.input} {params.geneList} {params.UMAP_lasso} {output.expression} {output.trajectory} {output.cellSelect} {params.cell_group} {params.pseudotime} '{params.clusters}' > {log.stdout} 2> {log.stderr}"
+
+rule Run:
+    input:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/trajectory.txt",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    output:
+        GRN="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/GRN.sif",
+        GRNOutdegree="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/GRNOutdegree.txt"
+    params:
+        maxLag={maxLag},
+        FDR={FDR},
+        number_of_outdegrees={number of outdegrees}
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stderr"
+    shell:
+        "export R_HOME=/opt/micromamba/envs/plugin_env/lib/R && export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE && /opt/micromamba/envs/plugin_env/bin/Rscript /scripts/leap_for_cellcraft.R {input.expression} {input.trajectory} {input.cellSelect} {params.maxLag} {params.FDR} {params.number_of_outdegrees} {output.GRN} {output.GRNOutdegree} > {log.stdout} 2> {log.stderr}"
+

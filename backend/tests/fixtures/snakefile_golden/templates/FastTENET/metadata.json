@@ -1,0 +1,226 @@
+{
+  "name": "FastTENET",
+  "rules": {
+    "0": {
+      "name": "FastTENET Input",
+      "input": [
+        "input.h5ad",
+        "geneList.txt"
+      ],
+      "output": [
+        "expression.csv",
+        "trajectory.txt",
+        "cellSelect.txt"
+      ],
+      "script": "fasttenet_input.py",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "inputFile",
+          "defaultValue": "input.h5ad",
+          "min": null,
+          "max": null,
+          "fileExtension": ".h5ad"
+        },
+        {
+          "name": "geneList",
+          "type": "optionalInputFile",
+          "defaultValue": "geneList.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "UMAP lasso",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "expression",
+          "type": "outputFile",
+          "defaultValue": "expression.csv",
+          "min": null,
+          "max": null,
+          "fileExtension": ".csv"
+        },
+        {
+          "name": "trajectory",
+          "type": "outputFile",
+          "defaultValue": "trajectory.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "cellSelect",
+          "type": "outputFile",
+          "defaultValue": "cellSelect.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "cell group",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "pseudotime",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "clusters",
+          "type": "h5adParameter",
+          "defaultValue": "",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        }
+      ],
+      "nodeId": 1,
+      "isVisualization": false
+    },
+    "1": {
+      "name": "Run",
+      "input": [
+        "expression.csv",
+        "trajectory.txt",
+        "cellSelect.txt",
+        "TF.txt"
+      ],
+      "output": [
+        "resultMatrixFDR.sif",
+        "resultMatrixFdrTrim.sif",
+        "resultMatrixFdrOutdegree.txt",
+        "resultMatrixFdrTrimOutdegree.txt"
+      ],
+      "script": "fasttenet_for_cellcraft.py",
+      "parameters": [
+        {
+          "name": "expression",
+          "type": "inputFile",
+          "defaultValue": "expression.csv",
+          "min": null,
+          "max": null,
+          "fileExtension": ".csv"
+        },
+        {
+          "name": "trajectory",
+          "type": "inputFile",
+          "defaultValue": "trajectory.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "cellSelect",
+          "type": "inputFile",
+          "defaultValue": "cellSelect.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "TF",
+          "type": "optionalInputFile",
+          "defaultValue": "TF.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "resultMatrixFDR",
+          "type": "outputFile",
+          "defaultValue": "resultMatrixFDR.sif",
+          "min": null,
+          "max": null,
+          "fileExtension": ".sif"
+        },
+        {
+          "name": "resultMatrixFdrTrim",
+          "type": "outputFile",
+          "defaultValue": "resultMatrixFdrTrim.sif",
+          "min": null,
+          "max": null,
+          "fileExtension": ".sif"
+        },
+        {
+          "name": "resultMatrixFdrOutdegree",
+          "type": "outputFile",
+          "defaultValue": "resultMatrixFdrOutdegree.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "resultMatrixFdrTrimOutdegree",
+          "type": "outputFile",
+          "defaultValue": "resultMatrixFdrTrimOutdegree.txt",
+          "min": null,
+          "max": null,
+          "fileExtension": ".txt"
+        },
+        {
+          "name": "backend",
+          "type": "string",
+          "defaultValue": "gpu",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "number of devices",
+          "type": "int",
+          "defaultValue": "1",
+          "min": 1,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "batch size",
+          "type": "int",
+          "defaultValue": "32768",
+          "min": 2,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "FDR",
+          "type": "float",
+          "defaultValue": "0.01",
+          "min": 0,
+          "max": 1,
+          "fileExtension": ""
+        },
+        {
+          "name": "number of outdegrees",
+          "type": "int",
+          "defaultValue": "0",
+          "min": 0,
+          "max": null,
+          "fileExtension": ""
+        },
+        {
+          "name": "trimming threshold",
+          "type": "float",
+          "defaultValue": "0",
+          "min": null,
+          "max": null,
+          "fileExtension": ""
+        }
+      ],
+      "nodeId": 2,
+      "isVisualization": false
+    }
+  }
+}
