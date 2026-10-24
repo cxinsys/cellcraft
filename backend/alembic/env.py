@@ -27,7 +27,9 @@ target_metadata = Base.metadata
 
 # DB URL을 config.py에서 읽어 Alembic에 주입 (Single Source of Truth)
 # alembic.ini의 하드코딩 URL 대신, .env 기반 config.py의 URL을 항상 사용
-config.set_main_option("sqlalchemy.url", settings.SQLALCHEMY_DATABASE_URI)
+# run_migrations(database_url=...)가 지정한 URL은 유지하고, CLI 실행(alembic.ini placeholder)만 settings로 대체
+if config.get_main_option("sqlalchemy.url", "").startswith("placeholder://"):
+    config.set_main_option("sqlalchemy.url", settings.SQLALCHEMY_DATABASE_URI)
 
 
 def run_migrations_offline() -> None:

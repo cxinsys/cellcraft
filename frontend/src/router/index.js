@@ -1,9 +1,12 @@
 import Vue from "vue";
 import Router from "vue-router";
+import store from "@/store/index";
 
 Vue.use(Router);
 
-export default new Router({
+export const CHANGE_PASSWORD_PATH = "/account/password";
+
+const router = new Router({
   mode: "history",
   base: '/',
   routes: [
@@ -18,6 +21,10 @@ export default new Router({
     {
       path: "/signup",
       component: () => import("@/views/SignupPage.vue"),
+    },
+    {
+      path: CHANGE_PASSWORD_PATH,
+      component: () => import("@/views/ChangePasswordPage.vue"),
     },
     {
       path: "/workflow",
@@ -101,3 +108,17 @@ export default new Router({
     },
   ],
 });
+
+// 초기·임시 비밀번호 상태에서는 비밀번호 변경 화면 외 이동 차단 (서버도 403으로 차단)
+export function passwordChangeGuard(to, from, next) {
+  const allowed = [CHANGE_PASSWORD_PATH, "/login"];
+  if (store.getters.isLogin && store.getters.mustChangePassword && !allowed.includes(to.path)) {
+    next(CHANGE_PASSWORD_PATH);
+    return;
+  }
+  next();
+}
+
+router.beforeEach(passwordChangeGuard);
+
+export default router;

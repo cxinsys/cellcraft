@@ -19,3 +19,6 @@ Thumbs.db
 # Node/R caches if present
 node_modules/
 npm-cache/
+
+# Initial admin password (generated on first startup)
+.initial_admin_password

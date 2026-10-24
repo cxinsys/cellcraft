@@ -36,9 +36,26 @@ def get_current_user(
     return user
 
 
+PASSWORD_CHANGE_REQUIRED = "password_change_required"
+
+
+def get_current_active_user_allow_password_change(
+    current_user: models.User = Depends(get_current_user),
+) -> models.User:
+    """활성 사용자 (비밀번호 변경이 필요한 상태도 허용) — /auth/me, /auth/password 전용."""
+    if not crud_user.is_active(current_user):
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+
 def get_current_active_user(
     current_user: models.User = Depends(get_current_user),
 ) -> models.User:
     if not crud_user.is_active(current_user):
         raise HTTPException(status_code=400, detail="Inactive user")
+    if getattr(current_user, "must_change_password", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": PASSWORD_CHANGE_REQUIRED, "message": "Password change required"},
+        )
     return current_user

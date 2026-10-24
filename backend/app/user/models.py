@@ -1,4 +1,4 @@
-from sqlalchemy import Table, Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import Table, Boolean, Column, ForeignKey, Integer, String, false
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -19,6 +19,8 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
+    # 초기·임시 비밀번호 사용 중 → 비밀번호 변경 전까지 다른 API 사용 불가 (#138)
+    must_change_password = Column(Boolean, nullable=False, default=False, server_default=false())
 
     files = relationship("File", back_populates="user")
     workflows = relationship("Workflow", back_populates="user")

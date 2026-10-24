@@ -41,13 +41,16 @@ class TestProfile:
     def test_read_me_shape(self):
         cu = MagicMock()
         cu.id, cu.email, cu.username, cu.is_superuser = 1, "a@b.com", "alice", False
+        cu.must_change_password = False
         out = service.read_me(current_user=cu)
-        assert out == {"id": 1, "email": "a@b.com", "username": "alice", "is_superuser": False}
+        assert out == {"id": 1, "email": "a@b.com", "username": "alice", "is_superuser": False,
+                       "must_change_password": False}
 
     def test_update_plugins_delegates_to_crud(self):
         cu = MagicMock()
         cu.id = 5
         user_in = MagicMock()
+        user_in.password = None
         with patch("app.user.service.crud_user.update_user", return_value="updated") as upd:
             out = service.update_plugins(db=MagicMock(), current_user=cu, user_in=user_in)
         assert out == "updated"

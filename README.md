@@ -306,6 +306,42 @@ Before installing CellCraft, please verify your system meets the following requi
 
 ---
 
+## Admin Account
+
+On the first startup, CellCraft creates an admin account with a random password:
+
+- The run script prints the email and password at the end of the launch output.
+- The same information is saved in `backend/.initial_admin_password` (readable only by root; not tracked by git). The password is not written to the container logs.
+- You are asked to change the password at first login. The file is deleted once the password is changed.
+
+To choose the initial credentials yourself, export them before the first startup (the compose files pass them to the `backend` service):
+
+```bash
+CELLCRAFT_ADMIN_EMAIL=admin@example.org CELLCRAFT_ADMIN_PASSWORD='<8+ characters>' ./run-cpu-mode.sh
+```
+
+An admin created this way is not asked to change the password. If a value is invalid, no admin is created and the reason is shown in `docker compose -f <compose-file> logs backend`.
+
+**Upgrading from v1.0.7 or earlier:** existing accounts are kept. If the admin account still uses the former default password, you are asked to change it at next login.
+
+**Forgot a password?** Issue a temporary password from the server (the user must change it at next login; add `--activate` to also re-enable a deactivated account):
+
+```bash
+docker compose -f <compose-file> exec backend \
+  /opt/micromamba/envs/snakemake/bin/python -m app.cli reset-password --email <email>
+```
+
+Create an additional admin account (prints a temporary password; use `--prompt-password` to type one instead):
+
+```bash
+docker compose -f <compose-file> exec backend \
+  /opt/micromamba/envs/snakemake/bin/python -m app.cli create-admin --email <email>
+```
+
+Users can change their own password from **Password** in the top menu.
+
+---
+
 ## Stopping and Cleaning Up
 
 ### Stop Services
