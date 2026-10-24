@@ -37,6 +37,9 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      # Initial admin account on first startup (optional, see README)
+      - CELLCRAFT_ADMIN_EMAIL=${CELLCRAFT_ADMIN_EMAIL:-}
+      - CELLCRAFT_ADMIN_PASSWORD=${CELLCRAFT_ADMIN_PASSWORD:-}
       # Note: No CPU_ONLY flag - GPU enabled by default
     ports:
       - "8000:8000"

@@ -57,7 +57,9 @@ export default {
         await this.$nextTick(); // 상태 업데이트 대기
         const isSuperUser = this.$store.getters.isSuperUser;
         
-        if (isSuperUser === true) {
+        if (this.$store.getters.mustChangePassword) {
+          this.$router.push("/account/password");
+        } else if (isSuperUser === true) {
           this.$router.push("/admin");
         } else {
           this.$router.push("/projects");

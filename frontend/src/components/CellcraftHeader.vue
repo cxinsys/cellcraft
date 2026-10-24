@@ -51,6 +51,7 @@
         @blur="applyTitle" />
     </div>
     <div class="login-component" v-if="isUserLogin">
+      <router-link class="login__link login__link--account" to="/account/password">Password</router-link>
       <p class="login__link" @click="logoutUser">Sign Out</p>
     </div>
     <div class="login-component" v-else>
@@ -270,6 +271,11 @@ a {
   font-size: 1rem;
   line-height: 1.2rem;
   color: rgb(241, 243, 248);
+}
+
+.login__link--account {
+  margin-right: 1.2rem;
+  text-decoration: none;
 }
 
 /* @media (prefers-color-scheme: dark) {

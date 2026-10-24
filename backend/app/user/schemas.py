@@ -34,6 +34,7 @@ class UserProfile(UserBase):
     email: EmailStr
     username: str
     is_superuser: bool
+    must_change_password: bool = False
 
     class Config:
         orm_mode = True

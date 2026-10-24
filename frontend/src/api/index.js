@@ -36,6 +36,13 @@ function getUser() {
   return instance.get("/routes/auth/me");
 }
 
+function changePassword(currentPassword, newPassword) {
+  return instance.post("/routes/auth/password", {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
+}
+
 function getFilteredUsers(conditions) {
   return instance.get("/routes/admin/users", { params: conditions });
 }
@@ -545,6 +552,7 @@ function deleteWorkflowAdmin(workflowId) {
 export {
   registerUser,
   loginUser,
+  changePassword,
   getUser,
   getUsersCount,
   getFilesCount,

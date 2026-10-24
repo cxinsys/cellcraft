@@ -33,13 +33,27 @@ def login_access_token(
     return auth_service.login(db=db, form_data=form_data)
 
 
-# read Current User
+# read Current User (비밀번호 변경이 필요한 상태에서도 조회 가능)
 @router.get("/me", response_model=user.UserProfile)
 def read_user_me(
     db: Session = Depends(dep.get_db),
-    current_user: models.User = Depends(dep.get_current_active_user),
+    current_user: models.User = Depends(dep.get_current_active_user_allow_password_change),
 ) -> Any:
     return user_service.read_me(current_user=current_user)
+
+
+# change own password (현재 비밀번호 확인)
+@router.post("/password", response_model=user.UserProfile)
+def change_password(
+    *,
+    db: Session = Depends(dep.get_db),
+    password_in: model.PasswordChange,
+    current_user: models.User = Depends(dep.get_current_active_user_allow_password_change),
+) -> Any:
+    return auth_service.change_password(
+        db=db, current_user=current_user,
+        current_password=password_in.current_password, new_password=password_in.new_password,
+    )
 
 
 # update user plugins
