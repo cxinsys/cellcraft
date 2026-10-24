@@ -92,6 +92,10 @@ class Settings(BaseSettings):
     RESOURCE_POLL_INTERVAL: int = 10       # Retry interval when resources unavailable (seconds)
     CELERY_WORKER_CONCURRENCY: int = 0     # 0 = auto-calculate (cpu_total // default_cpu_slots), positive = manual override
 
+    # Plugin Container Isolation
+    PLUGIN_CONTAINER_NETWORK: str = "bridge"   # 앱 내부 네트워크(db/redis/rabbitmq)와 분리된 Docker 네트워크
+    PLUGIN_CONTAINER_HARDENING: bool = True    # cap_drop=ALL, no-new-privileges 적용 (호환성 문제 시 false)
+
     # Celery configuration with proper defaults
     CELERY_BROKER_URL: str = "amqp://guest:guest@rabbitmq:5672//"
     CELERY_RESULT_BACKEND: Optional[str] = None

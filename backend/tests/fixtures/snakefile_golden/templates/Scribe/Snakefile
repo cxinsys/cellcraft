@@ -1,0 +1,44 @@
+import os
+
+rule Scribe_Input:
+    input:
+        input="{input.h5ad}"
+    output:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/trajectory.txt",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    params:
+        geneList=lambda wildcards: "{geneList.txt}" if os.path.exists("{geneList.txt}") else "None",
+        UMAP_lasso=lambda wildcards: {UMAP lasso} if os.path.exists({UMAP lasso}) else "None",
+        cell_group={cell group},
+        pseudotime={pseudotime},
+        clusters=lambda wc: ";".join({clusters})
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Scribe_Input.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Scribe_Input.stderr"
+    shell:
+        "/opt/micromamba/envs/plugin_env/bin/python /scripts/scribe_input.py {input.input} {params.geneList} {params.UMAP_lasso} {output.expression} {output.trajectory} {output.cellSelect} {params.cell_group} {params.pseudotime} '{params.clusters}' > {log.stdout} 2> {log.stderr}"
+
+rule Run:
+    input:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/trajectory.txt",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    output:
+        rankedEdges="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/rankedEdges.txt",
+        GRN="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/GRN.sif",
+        GRNOutdegree="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/GRNOutdegree.txt"
+    params:
+        Lower_Limit={Lower Limit},
+        Expression_Family={Expression Family},
+        method={method},
+        Delay={Delay},
+        log={log},
+        number_of_outdegrees={number of outdegrees},
+        FDR={FDR}
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stderr"
+    shell:
+        "export R_HOME=/opt/micromamba/envs/plugin_env/lib/R && export RENV_CONFIG_AUTOLOADER_ENABLED=FALSE && /opt/micromamba/envs/plugin_env/bin/Rscript /scripts/scribe_for_cellcraft.R {input.expression} {input.trajectory} {input.cellSelect} {params.Lower_Limit} {params.Expression_Family} {params.method} {params.Delay} {params.log} {params.number_of_outdegrees} {params.FDR} {output.rankedEdges} {output.GRN} {output.GRNOutdegree} > {log.stdout} 2> {log.stderr}"
+

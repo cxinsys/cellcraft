@@ -62,7 +62,7 @@ def getVisualizationResult(
     WorkflowResult: WorkflowResult,
     current_user: models.User = Depends(dep.get_current_active_user)
 ):
-    return service.get_visualization_result(workflow_result=WorkflowResult)
+    return service.get_visualization_result(user=current_user, workflow_result=WorkflowResult)
 
 
 # save workflow data

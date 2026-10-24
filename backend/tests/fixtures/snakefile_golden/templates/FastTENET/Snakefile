@@ -1,0 +1,45 @@
+import os
+
+rule FastTENET_Input:
+    input:
+        input="{input.h5ad}"
+    output:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/trajectory.txt",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    params:
+        geneList=lambda wildcards: "{geneList.txt}" if os.path.exists("{geneList.txt}") else "None",
+        UMAP_lasso=lambda wildcards: {UMAP lasso} if os.path.exists({UMAP lasso}) else "None",
+        cell_group={cell group},
+        pseudotime={pseudotime},
+        clusters=lambda wc: ";".join({clusters})
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/FastTENET_Input.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/FastTENET_Input.stderr"
+    shell:
+        "/opt/micromamba/envs/plugin_env/bin/python /scripts/fasttenet_input.py {input.input} {params.geneList} {params.UMAP_lasso} {output.expression} {output.trajectory} {output.cellSelect} {params.cell_group} {params.pseudotime} '{params.clusters}' > {log.stdout} 2> {log.stderr}"
+
+rule Run:
+    input:
+        expression="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/expression.csv",
+        trajectory="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/trajectory.txt",
+        cellSelect="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/cellSelect.txt"
+    output:
+        resultMatrixFDR="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/resultMatrixFDR.sif",
+        resultMatrixFdrTrim="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/resultMatrixFdrTrim.sif",
+        resultMatrixFdrOutdegree="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/resultMatrixFdrOutdegree.txt",
+        resultMatrixFdrTrimOutdegree="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/results/resultMatrixFdrTrimOutdegree.txt"
+    params:
+        TF=lambda wildcards: "{TF.txt}" if os.path.exists("{TF.txt}") else "None",
+        backend={backend},
+        number_of_devices={number of devices},
+        batch_size={batch size},
+        FDR={FDR},
+        number_of_outdegrees={number of outdegrees},
+        trimming_threshold={trimming threshold}
+    log:
+        stdout="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stdout",
+        stderr="user/{user_name}/workflow_{workflow_id}/algorithm_{algorithm_id}/logs/Run.stderr"
+    shell:
+        "/opt/micromamba/envs/plugin_env/bin/python /scripts/fasttenet_for_cellcraft.py {input.expression} {input.trajectory} {input.cellSelect} {params.TF} {output.resultMatrixFDR} {output.resultMatrixFdrTrim} {output.resultMatrixFdrOutdegree} {output.resultMatrixFdrTrimOutdegree} {params.backend} {params.number_of_devices} {params.batch_size} {params.FDR} {params.number_of_outdegrees} {params.trimming_threshold} > {log.stdout} 2> {log.stderr}"
+

@@ -5,6 +5,7 @@ compile 파이프라인의 일부인 Snakefile rule 추출·파라미터 치환�
 시그니처·동작은 원본과 동일하며, ``app.workflow.utils``가 그대로 re-export 하므로
 기존 참조 경로(``app.workflow.utils.extract_rule_block`` 등)는 유지된다.
 """
+import json
 import os
 import re
 import logging
@@ -18,6 +19,24 @@ from app.workflow.errors import (
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# 숫자 리터럴로 해석되는 문자열 (기존처럼 따옴표 없이 치환)
+_NUMERIC_LITERAL = re.compile(r"^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$")
+
+
+def format_visualization_param(value: Any) -> str:
+    """시각화 파라미터 값을 Snakefile placeholder에 들어갈 Python 리터럴로 변환한다.
+
+    기존에는 ``str(value)``를 그대로 치환했다. 숫자·bool·None·리스트 등 정상 동작하던 값은
+    동일한 결과를 유지하고, 그 외 문자열만 escape된 문자열 리터럴로 감싼다.
+    """
+    if isinstance(value, str):
+        if _NUMERIC_LITERAL.match(value.strip()):
+            return value
+        return json.dumps(value, ensure_ascii=False)
+    if value is None or isinstance(value, (bool, int, float)):
+        return str(value)
+    return repr(value)
 
 
 def extract_rule_block(snakefile_path: str, visualization_title: str, result_path: str,

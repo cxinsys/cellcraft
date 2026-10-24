@@ -1,13 +1,83 @@
+import json
 import os
+import posixpath
+import re
+import shlex
 import docker
 import yaml
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 import time
 from datetime import datetime
 
+from app.core.config import settings
 from app.shared.docker import container_manager
 from app import models
+
+# 플러그인 컨테이너 내부 작업 디렉터리. Snakefile의 상대 경로(user/..., tutorials/...)는 이 경로 기준으로 해석된다.
+PLUGIN_WORKDIR = "/workspace"
+# 모든 사용자가 공유하는 읽기 전용 입력 디렉터리 (backend 루트 기준)
+SHARED_INPUT_DIRS = ("tutorials",)
+
+
+def resolve_user_dir(snakefile_path: str) -> str:
+    """Snakefile 경로(``./user/<username>/...``)에서 사용자 디렉터리(``user/<username>``)를 반환한다.
+
+    Snakefile이 사용자 디렉터리 밖에 있으면 ValueError를 발생시킨다.
+    """
+    normalized = posixpath.normpath(str(snakefile_path).replace("\\", "/"))
+    parts = normalized.split("/")
+    if normalized.startswith("/") or len(parts) < 3 or parts[0] != "user" or parts[1] in ("", ".", ".."):
+        raise ValueError(f"Snakefile is not inside a user directory: {snakefile_path}")
+    return posixpath.join(parts[0], parts[1])
+
+
+def to_container_path(relative_path: str) -> str:
+    """backend 기준 상대 경로를 플러그인 컨테이너 내부 경로로 변환한다 (``./user/a`` → ``/workspace/user/a``)."""
+    return posixpath.join(PLUGIN_WORKDIR, posixpath.normpath(str(relative_path).replace("\\", "/")))
+
+
+def build_plugin_mounts(host_backend_path, workspace_path, user_dir: str) -> List[docker.types.Mount]:
+    """플러그인 컨테이너에 마운트할 bind mount 목록을 구성한다.
+
+    실행 사용자 디렉터리만 rw, 공유 입력 디렉터리는 ro로 마운트하고,
+    컨테이너 내부 경로는 기존 backend 전체 마운트와 동일한 구조(/workspace/<상대 경로>)를 유지한다.
+    ``volumes`` 문자열(``src:dst:mode``) 대신 Mount 객체를 사용해 경로에 ``:``가 있어도 안전하다.
+
+    Parameters:
+        host_backend_path: 호스트 기준 backend 디렉터리 경로 (Docker bind source)
+        workspace_path: 현재 프로세스 기준 backend 디렉터리 경로 (존재 여부 확인용)
+        user_dir: ``resolve_user_dir``로 검증된 사용자 디렉터리 (``user/<username>``)
+    """
+    host_backend_path = str(host_backend_path)
+    mounts = [
+        docker.types.Mount(
+            target=to_container_path(user_dir),
+            source=posixpath.join(host_backend_path, user_dir),
+            type="bind",
+            read_only=False,
+        )
+    ]
+    for shared_dir in SHARED_INPUT_DIRS:
+        if os.path.isdir(os.path.join(str(workspace_path), shared_dir)):
+            mounts.append(docker.types.Mount(
+                target=to_container_path(shared_dir),
+                source=posixpath.join(host_backend_path, shared_dir),
+                type="bind",
+                read_only=True,
+            ))
+    return mounts
+
+
+def plugin_container_security_options() -> Dict[str, Any]:
+    """플러그인 컨테이너 권한 제한 옵션 (PLUGIN_CONTAINER_HARDENING=false 로 비활성화 가능)."""
+    if not settings.PLUGIN_CONTAINER_HARDENING:
+        return {}
+    return {
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges"],
+    }
+
 
 def get_log_path(snakefile_path: str) -> Path:
     """일관된 로그 파일 경로 반환"""
@@ -112,6 +182,16 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
     container_name = None
     client = None  # Docker 클라이언트 누수 방지를 위해 초기화
 
+    # 사용자 디렉터리 밖 Snakefile은 로그 디렉터리 생성 등 파일 시스템 변경 전에 거부
+    try:
+        user_dir = resolve_user_dir(snakefile_path)
+    except ValueError as path_error:
+        return {
+            "returncode": 1,
+            "stdout": "",
+            "stderr": str(path_error)
+        }
+
     try:
         client = docker.from_env()
         
@@ -175,7 +255,7 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         log_file = get_log_path(snakefile_path)
         
         # Snakefile 경로를 workspace 기준으로 수정
-        container_snakefile_path = f"/workspace{snakefile_path[1:]}"
+        container_snakefile_path = to_container_path(snakefile_path)
         
         # 컨테이너 이름 생성 (task_id 포함)
         if task_id:
@@ -211,19 +291,16 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
             host_backend_path = workspace_path  # 기본값으로 workspace_path 사용
         
         print(f"Using host backend path: {host_backend_path}")
-        
+
+        # 실행 사용자 디렉터리(rw)와 공유 입력(ro)만 마운트 (backend 전체·celery 볼륨 상속 금지)
+        mounts = build_plugin_mounts(host_backend_path, workspace_path, user_dir)
+
         # 컨테이너 실행 설정
         container_config = {
             'image': image_name,
             'name': container_name,  # 컨테이너 이름 지정
-            'volumes': {
-                host_backend_path: {
-                    "bind": "/workspace",
-                    "mode": "rw"
-                }
-            },
-            'volumes_from': [celery_container_id],  # 기존 volumes_from 유지
-            'working_dir': '/workspace',
+            'mounts': mounts,
+            'working_dir': PLUGIN_WORKDIR,
             'environment': {
                 'MAMBA_ROOT_PREFIX': '/opt/micromamba',
                 'PATH': '/opt/micromamba/envs/plugin_env/bin:/opt/micromamba/bin:/usr/local/bin:/usr/bin:/bin',
@@ -232,14 +309,16 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
             },
             'user': f"{os.getuid()}:{os.getgid()}",  # 권한 문제 해결
             'detach': True,
-            'network': 'cellcraft_app-network',
+            # 앱 내부 네트워크(db/redis/rabbitmq)와 분리
+            'network': settings.PLUGIN_CONTAINER_NETWORK,
             'tty': True,
             'stdin_open': True,
             'labels': {
                 'celery.task_id': task_id or 'unknown',
                 'plugin.name': plugin_name,
                 'container.type': 'plugin-execution'
-            }  # 라벨로 메타데이터 추가
+            },  # 라벨로 메타데이터 추가
+            **plugin_container_security_options(),
         }
 
         # GPU 설정 추가 (플러그인이 GPU를 필요로 하는 경우)
@@ -259,7 +338,7 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         # Task마다 새로운 컨테이너 생성
         print(f"Starting new container with image: {image_name}")
         print(f"Container name: {container_name}")
-        print(f"Using volumes from celery container: {celery_container_id}")
+        print(f"Mounts: {mounts}")
         
         container = client.containers.run(**container_config)
         print(f"Container started with ID: {container.id}")
@@ -280,13 +359,14 @@ def exec_in_plugin(plugin_name: str, snakefile_path: str, targets: list, workspa
         print("Container is ready for execution")
         
         # Snakemake 실행 명령어 (이전 실행에서 남은 lock 파일 먼저 해제)
+        quoted_snakefile = shlex.quote(container_snakefile_path)
         bash_cmd = (
             f"cd /workspace && "
-            f"snakemake --unlock --snakefile {container_snakefile_path} 2>/dev/null || true && "
-            f"snakemake {' '.join(targets)} "
-            f"--snakefile {container_snakefile_path} "
+            f"snakemake --unlock --snakefile {quoted_snakefile} 2>/dev/null || true && "
+            f"snakemake {' '.join(shlex.quote(str(target)) for target in targets)} "
+            f"--snakefile {quoted_snakefile} "
             "-j 1 --printshellcmds "
-            f"2>&1 | tee {log_file}"
+            f"2>&1 | tee {shlex.quote(str(log_file))}"
         )
         
         print("Executing command in container...")
@@ -477,33 +557,52 @@ def filter_and_add_suffix(input_string):
     # 밑줄이 없는 경우, 원래 문자열을 반환
     return input_string
 
+_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _quote_string(value: str) -> str:
+    """문자열을 Snakefile(Python) 문자열 리터럴로 변환한다. 일반 문자열은 기존 ``"value"``와 동일하다."""
+    return json.dumps(value, ensure_ascii=False)
+
+
+def format_plugin_param(value: Any) -> str:
+    """플러그인 파라미터 값을 Snakefile placeholder에 들어갈 Python 리터럴로 변환한다.
+
+    정상 값의 출력 형식은 기존과 동일하게 유지하고, 따옴표·역슬래시 등은 escape 한다.
+    """
+    # 리스트인 경우, []로 감싸고 쉼표로 구분된 문자열로 변환
+    if isinstance(value, list):
+        return "[" + ", ".join(_quote_string(v) if isinstance(v, str) else repr(v) for v in value) + "]"
+    # 딕셔너리인 경우, {}로 감싸고 키:값 쌍을 쉼표로 구분된 문자열로 변환 (키는 식별자만 허용)
+    if isinstance(value, dict):
+        for k in value:
+            if not isinstance(k, str) or not _IDENTIFIER_PATTERN.match(k):
+                raise ValueError(f"Invalid parameter key: {k!r}")
+        return '{' + ', '.join(
+            f"{k}: {_quote_string(v)}" if isinstance(v, str) else f"{k}: {v!r}" for k, v in value.items()
+        ) + '}'
+    # 숫자형(int, float, bool)은 그대로 사용
+    if isinstance(value, (int, float)):
+        return str(value)
+    # 문자열인 경우, " "로 감싸줌
+    if isinstance(value, str):
+        return _quote_string(value)
+    raise ValueError(f"Unsupported parameter value type: {type(value).__name__}")
+
+
 def change_snakefile_parameter(snakefile_path, output_path, user_input, plugin_params):
     # 기존 Snakefile 읽기
     with open(snakefile_path, 'r') as file:
         content = file.read()
 
-    # user_input의 값을 문자열로 변환해서 처리
+    # user_input(입력 파일 경로·실행 컨텍스트)은 템플릿의 따옴표 안에 그대로 치환 (호출 측에서 검증)
     for key, value in user_input.items():
         if isinstance(value, str):
             content = content.replace(f"{{{key}}}", value)
 
-    # user_input의 값을 문자열로 변환해서 처리
+    # 플러그인 파라미터는 Python 리터럴로 변환해서 치환
     for key, value in plugin_params.items():
-        # 리스트인 경우, []로 감싸고 쉼표로 구분된 문자열로 변환
-        if isinstance(value, list):
-            value = "[" + ", ".join(f"\"{v}\"" if isinstance(v, str) else str(v) for v in value) + "]"
-        # 딕셔너리인 경우, {}로 감싸고 키:값 쌍을 쉼표로 구분된 문자열로 변환
-        elif isinstance(value, dict):
-            value = '{' + ', '.join(f"{k}: \"{v}\"" if isinstance(v, str) else f"{k}: {v}" for k, v in value.items()) + '}'
-        # 숫자형(int, float)은 그대로 사용
-        elif isinstance(value, (int, float)):
-            value = str(value)
-        # 문자열인 경우, " "로 감싸줌
-        elif isinstance(value, str):
-            value = f"\"{value}\""
-
-        # 변환된 값을 content에 반영
-        content = content.replace(f"{{{key}}}", value)
+        content = content.replace(f"{{{key}}}", format_plugin_param(value))
 
     # 새로운 Snakefile 생성
     with open(output_path, 'w') as file:
